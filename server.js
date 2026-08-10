@@ -1,8 +1,7 @@
 // =========================================================
-// PREVENGLOBAL — server.js (arquitectura multiempresa, PostgreSQL)
-// Incluye: auth multiempresa, control de suscripción/módulos,
-// CRUD operativo completo, trazabilidad QR, módulo de tienda
-// en línea (opcional, catálogo público), y panel de super-admin.
+// PREVENGLOBAL — server.js (fase de empresa única, PostgreSQL)
+// Auth simple (un solo usuario/empresa), CRUD operativo completo,
+// trazabilidad QR, módulo de tienda en línea (catálogo público).
 // =========================================================
 require('dotenv').config();
 const express = require('express');
@@ -14,6 +13,16 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 app.use(express.json({ limit: '15mb' }));
+
+// Permite que el frontend (aunque esté en otro dominio) pueda llamar esta API.
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Protección contra fuerza bruta / bots: límites por IP.
@@ -519,3 +528,8 @@ app.get('*', (req, res) => {
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => console.log(`Prevenglobal backend corriendo en puerto ${PORT}`));
+
+
+
+
+
