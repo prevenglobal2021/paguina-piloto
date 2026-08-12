@@ -1,0 +1,1617 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prevenglobal - Control Técnico y Trazabilidad</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg-dark:#15171c; --card-bg:#1d2026; --card-border:#343841; --blue-accent:#0088ff;
+  --text-main:#f4f5f7; --text-muted:#9aa2ad; --font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+  --sidebar-bg-1:#24272e; --sidebar-bg-2:#15171c;
+  --panel-bg-1:#212429; --panel-bg-2:#191b20;
+  --topbar-bg-1:#24272e; --topbar-bg-2:#191b20;
+  --red-alert:#ef4444; --green-success:#22c55e; --orange-warning:#f59e0b; --purple-info:#8b5cf6;
+}
+*{box-sizing:border-box;font-family:var(--font-family);}
+body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
+#main-wrapper{display:flex;width:100%;min-height:100vh;}
+.left-sidebar{width:260px;background:linear-gradient(165deg, var(--sidebar-bg-1), var(--sidebar-bg-2) 85%);border-right:1px solid var(--card-border);position:fixed;height:100vh;overflow-y:auto;z-index:100;}
+.sidebar-brand{padding:16px 20px;font-weight:bold;font-size:16px;color:var(--blue-accent);border-bottom:1px solid var(--card-border);display:flex;flex-direction:column;align-items:flex-start;gap:8px;}
+/* 1.1 Dimensión estándar del logo corporativo: 5cm x 5cm (Dashboard) */
+.sidebar-brand img{width:5cm;height:5cm;max-width:100%;object-fit:contain;border-radius:6px;background:#fff;}
+.sidebar-brand .brand-row{display:flex;align-items:center;gap:10px;}
+@media (max-width:900px){.sidebar-brand img{width:44px;height:44px;}}
+.sidebar-menu{list-style:none;padding:15px;margin:0;}
+.sidebar-menu li{margin-bottom:8px;}
+.sidebar-menu a{color:var(--text-muted);text-decoration:none;display:block;padding:9px 12px;border-radius:6px;transition:.2s;font-size:13px;cursor:pointer;}
+.sidebar-menu a:hover,.sidebar-menu a.active{background:rgba(0,136,255,.15);color:var(--blue-accent);}
+.sidebar-section-title{font-size:11px;text-transform:uppercase;color:var(--text-muted);font-weight:bold;margin:15px 0 5px 12px;letter-spacing:.5px;}
+.page-wrapper{margin-left:260px;width:calc(100% - 260px);padding:20px;}
+@media (max-width:900px){.left-sidebar{width:70px;}.left-sidebar .sidebar-brand span,.left-sidebar .sidebar-menu span,.left-sidebar .sidebar-section-title{display:none;}.page-wrapper{margin-left:70px;width:calc(100% - 70px);}}
+.topbar{position:relative;background:linear-gradient(120deg, var(--topbar-bg-1), var(--topbar-bg-2));border:1px solid var(--card-border);padding:12px 20px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;overflow:hidden;}
+.topbar::before{content:'';position:absolute;top:-80%;left:-15%;width:40%;height:260%;background:linear-gradient(115deg, transparent 35%, rgba(255,255,255,.06) 50%, transparent 65%);animation:brilloMetal 7s ease-in-out infinite;pointer-events:none;}
+.kpi-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px;}
+.kpi-card{background:linear-gradient(160deg, #222530, #191b20);border:1px solid var(--card-border);padding:15px;border-radius:10px;}
+.kpi-card span{font-size:11px;color:var(--text-muted);font-weight:600;display:block;}
+.kpi-card h3{margin:5px 0 0 0;font-size:24px;color:var(--blue-accent);}
+.panel{background:linear-gradient(160deg, var(--panel-bg-1), var(--panel-bg-2));border:1px solid var(--card-border);border-radius:10px;padding:20px;margin-bottom:20px;}
+.panel-title{font-size:15px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--card-border);padding-bottom:10px;flex-wrap:wrap;gap:8px;}
+/* MÓDULO DE INDICADORES (KPI) */
+.kpi-cards-grid{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:110px;gap:15px;margin-bottom:20px;}
+.kpi-cards-grid .kpi-card:first-child{grid-column:span 2;background:linear-gradient(135deg, color-mix(in srgb, var(--blue-accent) 18%, var(--card-bg)), var(--card-bg));}
+.kpi-cards-grid .kpi-card{transition:transform .15s ease, box-shadow .15s ease;}
+.kpi-cards-grid .kpi-card:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(0,0,0,.3);}
+.kpi-card{background:linear-gradient(160deg, #222530, #191b20);border:1px solid var(--card-border);border-radius:10px;padding:18px;text-align:center;}
+.kpi-card-valor{font-size:26px;font-weight:700;color:var(--blue-accent);}
+.kpi-card-label{font-size:11px;color:var(--text-muted);margin-top:6px;}
+.kpi-charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:20px;}
+.kpi-chart-box{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:15px;}
+.kpi-chart-box h4{margin:0 0 10px 0;font-size:13px;color:var(--text-muted);}
+.kpi-chart-box canvas{max-height:240px;}
+@media (max-width:900px){
+  .kpi-cards-grid{grid-template-columns:1fr 1fr;}
+  .kpi-charts-grid{grid-template-columns:1fr;}
+}
+.btn-custom{background:var(--blue-accent);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;transition:transform .12s ease, filter .12s ease, box-shadow .12s ease;}
+.btn-custom:hover{filter:brightness(1.1);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.25);}
+.btn-custom:active{transform:translateY(0) scale(.97);filter:brightness(.95);}
+.resultado-busqueda-categoria{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);font-weight:700;padding:10px 12px 4px;}
+.resultado-busqueda-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;cursor:pointer;transition:background .12s ease;}
+.resultado-busqueda-item:hover, .resultado-busqueda-item.activo{background:rgba(0,136,255,.12);}
+.resultado-busqueda-item .rb-icono{width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--blue-accent);}
+.resultado-busqueda-item .rb-texto{flex:1;min-width:0;}
+.resultado-busqueda-item .rb-titulo{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.resultado-busqueda-item .rb-subtitulo{font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.btn-custom:hover{opacity:.9;color:#fff;}
+.btn-success-custom{background:var(--green-success);}
+.btn-danger-custom{background:var(--red-alert);}
+.btn-secondary-custom{background:var(--card-border);color:var(--text-main);}
+.btn-sm-custom{font-size:11px;padding:4px 9px;}
+.btn-toggle-group{display:flex;gap:6px;}
+/* Botones de control de Órdenes Operativas (Lista/Calendario/+Nueva Orden): azul fijo con letras blancas, siempre igual sin importar la paleta de Apariencia */
+.btn-toggle{background:#0088ff;border:1px solid #0088ff;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;opacity:.6;}
+.btn-toggle.active{opacity:1;box-shadow:inset 0 -3px 0 rgba(255,255,255,.65);}
+.btn-fixed-blue{background:#0088ff !important;color:#fff !important;border:none !important;}
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);display:none;justify-content:center;align-items:center;z-index:1000;padding:15px;}
+.modal-box{background:color-mix(in srgb, var(--card-bg) 88%, transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--card-border);width:100%;max-width:980px;max-height:90vh;overflow-y:auto;border-radius:12px;padding:25px;position:relative;color:var(--text-main);box-shadow:0 20px 60px rgba(0,0,0,.4);animation:apareceModal .2s ease;}
+@keyframes apareceModal{from{opacity:0;transform:translateY(8px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
+
+/* TOASTS (notificaciones modernas, reemplazan las ventanas mostrarToast() del navegador) */
+#toastContainer{position:fixed;top:16px;right:16px;z-index:5000;display:flex;flex-direction:column;gap:10px;max-width:340px;}
+.toast{background:color-mix(in srgb, var(--card-bg) 92%, transparent);backdrop-filter:blur(10px);border:1px solid var(--card-border);border-left:4px solid var(--blue-accent);border-radius:10px;padding:12px 14px;color:var(--text-main);font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.35);animation:entraToast .25s ease;display:flex;align-items:flex-start;gap:10px;}
+.toast.saliendo{animation:saleToast .25s ease forwards;}
+.toast.exito{border-left-color:var(--exito-verde,#22c55e);}
+.toast.error{border-left-color:var(--red-alert);}
+.toast .toast-icono{font-size:16px;line-height:1;}
+.toast .toast-texto{flex:1;line-height:1.4;}
+.toast .toast-cerrar{cursor:pointer;color:var(--text-muted);font-size:14px;}
+@keyframes entraToast{from{opacity:0;transform:translateX(30px);}to{opacity:1;transform:translateX(0);}}
+@keyframes saleToast{to{opacity:0;transform:translateX(30px);}}
+
+/* SKELETON LOADING (pantallas de carga tipo silueta) */
+.skeleton{background:linear-gradient(90deg, rgba(255,255,255,.06) 25%, rgba(255,255,255,.14) 37%, rgba(255,255,255,.06) 63%);background-size:400% 100%;animation:shimmer 1.4s ease infinite;border-radius:8px;}
+@keyframes shimmer{0%{background-position:100% 0;}100%{background-position:0 0;}}
+#skeletonBoot{position:fixed;inset:0;background:var(--bg-dark);z-index:4000;display:flex;}
+#skeletonBoot .sk-sidebar{width:260px;padding:20px;display:flex;flex-direction:column;gap:14px;}
+#skeletonBoot .sk-sidebar .skeleton{height:36px;}
+#skeletonBoot .sk-main{flex:1;padding:30px;}
+#skeletonBoot .sk-main .skeleton{margin-bottom:16px;}
+
+/* BENTO GRID para las tarjetas de KPI (ver definición completa arriba, junto a la original) */
+.modal-box.modal-sm{max-width:420px;}
+.modal-box.modal-lg{max-width:720px;}
+/* TIENDA VIRTUAL */
+.tienda-header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid var(--card-border);}
+.tienda-titulo{margin:0;font-size:22px;background:linear-gradient(90deg,var(--tienda-accent,var(--blue-accent)),#8b5cf6);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.tienda-subtitulo{margin:4px 0 0 0;color:var(--text-muted);font-size:13px;}
+.tienda-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--tienda-card-min,230px),1fr));gap:18px;}
+.tienda-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;transition:transform .15s, box-shadow .15s;cursor:pointer;}
+.tienda-card:hover{transform:translateY(-4px);box-shadow:0 12px 24px rgba(0,0,0,.25);border-color:var(--tienda-accent,var(--blue-accent));}
+.tienda-card-img{width:100%;height:160px;object-fit:var(--tienda-img-fit,cover);background:#0f172a;}
+.tienda-card-img-placeholder{width:100%;height:160px;display:flex;align-items:center;justify-content:center;background:#0f172a;color:var(--text-muted);font-size:32px;}
+.tienda-card-body{padding:14px;display:flex;flex-direction:column;flex:1;}
+.tienda-card-categoria{font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--tienda-accent,var(--blue-accent));font-weight:700;}
+.tienda-card-nombre{margin:4px 0;font-size:14px;font-weight:700;}
+.tienda-card-desc{font-size:12px;color:var(--text-muted);flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.tienda-card-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;}
+.tienda-card-precio{font-size:16px;font-weight:800;color:var(--tienda-accent-verde,var(--exito-verde,#22c55e));}
+.tienda-card-stock{font-size:10px;color:var(--text-muted);}
+.tienda-card-stock.agotado{color:var(--red-alert);font-weight:700;}
+.carrito-item{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--card-border);}
+.carrito-item img{width:50px;height:50px;object-fit:cover;border-radius:8px;background:#0f172a;}
+.carrito-item-info{flex:1;}
+.carrito-item-cant{display:flex;align-items:center;gap:8px;}
+.carrito-item-cant button{width:26px;height:26px;border-radius:6px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text-main);cursor:pointer;}
+.tienda-banner-wrap{width:100%;height:220px;overflow:hidden;border-radius:14px;margin-bottom:20px;position:relative;background:#0f172a;}
+.tienda-banner-track{display:flex;height:100%;transition:transform .6s ease;}
+.tienda-banner-track img{width:100%;height:100%;object-fit:cover;flex-shrink:0;}
+.tienda-galeria{display:flex;gap:14px;overflow-x:auto;padding-bottom:12px;margin-bottom:24px;}
+.tienda-galeria-item{flex-shrink:0;width:200px;}
+.tienda-galeria-item img{width:200px;height:130px;border-radius:10px;object-fit:cover;display:block;}
+.tienda-galeria-item span{display:block;font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.4;}
+
+/* SECCIONES DE LA PÁGINA DE TIENDA (equipo, servicios, proyectos, clientes, certificaciones, testimonios) */
+.tienda-seccion{margin:40px 0;}
+.tienda-seccion-titulo{font-size:19px;font-weight:800;margin:0 0 4px 0;text-align:center;}
+.tienda-seccion-linea{width:56px;height:3px;background:var(--tienda-accent,var(--blue-accent));border-radius:3px;margin:0 auto 24px;}
+.tienda-fila-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:18px;}
+.tienda-mini-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:18px;text-align:center;transition:transform .15s;}
+.tienda-mini-card:hover{transform:translateY(-3px);}
+.tienda-mini-card img{width:88px;height:88px;object-fit:cover;border-radius:50%;margin:0 auto 12px;display:block;border:3px solid var(--tienda-accent,var(--blue-accent));}
+.tienda-mini-card h5{margin:0 0 4px 0;font-size:14px;}
+.tienda-mini-card p{margin:0;font-size:12px;color:var(--text-muted);}
+.tienda-servicio-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:22px;text-align:center;}
+.tienda-servicio-card img{width:100%;height:130px;object-fit:cover;border-radius:10px;margin-bottom:14px;}
+.tienda-servicio-card h5{margin:0 0 8px 0;font-size:15px;}
+.tienda-servicio-card p{margin:0;font-size:12px;color:var(--text-muted);line-height:1.5;}
+.tienda-proyecto-card{position:relative;border-radius:14px;overflow:hidden;height:200px;}
+.tienda-proyecto-card img{width:100%;height:100%;object-fit:cover;}
+.tienda-proyecto-card .capa{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.85),transparent 60%);display:flex;align-items:flex-end;padding:16px;}
+.tienda-proyecto-card h5{color:#fff;margin:0;font-size:14px;}
+.tienda-clientes-fila{display:flex;flex-wrap:wrap;gap:24px;align-items:center;justify-content:center;}
+.tienda-cliente-logo{height:56px;max-width:130px;object-fit:contain;filter:grayscale(1) opacity(.75);transition:filter .2s;}
+.tienda-cliente-logo:hover{filter:none;}
+.tienda-cert-badge{width:110px;height:110px;object-fit:contain;background:#fff;border-radius:12px;padding:8px;}
+.tienda-testimonio-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:20px;}
+.tienda-testimonio-estrellas{color:#f59e0b;font-size:14px;margin-bottom:8px;}
+.tienda-testimonio-card p{font-style:italic;font-size:13px;color:var(--text-main);margin:0 0 12px 0;line-height:1.5;}
+.tienda-testimonio-autor{font-size:12px;font-weight:700;color:var(--tienda-accent,var(--blue-accent));}
+.tienda-whatsapp-flotante{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:#25D366;color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:500;text-decoration:none;}
+#seccion-tienda .btn-custom:not(.btn-secondary-custom):not(.btn-danger-custom):not(.btn-success-custom),
+.tienda-scope .btn-custom:not(.btn-secondary-custom):not(.btn-danger-custom):not(.btn-success-custom){background:var(--tienda-accent,var(--blue-accent));}
+.close-modal{position:absolute;right:20px;top:20px;background:none;border:none;color:var(--text-main);font-size:20px;cursor:pointer;z-index:50;}
+.config-modal-box .close-modal{background:rgba(0,0,0,.28);width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;right:18px;top:18px;transition:background .15s ease;}
+.config-modal-box .close-modal:hover{background:rgba(0,0,0,.5);}
+.config-tabs{display:flex;gap:10px;border-bottom:1px solid var(--card-border);padding-bottom:12px;margin-bottom:20px;flex-wrap:wrap;}
+.config-tab-btn{background:linear-gradient(160deg, #2a2d34, #1c1e23);border:1px solid var(--card-border);color:var(--text-muted);padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:transform .15s ease, box-shadow .15s ease, color .15s ease;}
+.config-tab-btn:hover{color:var(--text-main);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.3);}
+.config-tab-btn.active{background:linear-gradient(160deg, color-mix(in srgb, var(--blue-accent) 85%, #fff 8%), color-mix(in srgb, var(--blue-accent) 70%, #000 15%));color:#fff;border-color:var(--blue-accent);box-shadow:0 4px 16px -2px color-mix(in srgb, var(--blue-accent) 60%, transparent);}
+/* Centro de Configuración — panel lateral moderno con categorías */
+.config-modal-box{max-width:1080px;padding:0;overflow:hidden;display:flex;flex-direction:column;}
+.config-modal-header{position:relative;display:flex;align-items:center;justify-content:space-between;padding:20px 25px;border-bottom:1px solid var(--card-border);background:linear-gradient(120deg, color-mix(in srgb, var(--blue-accent) 22%, #1a1d24), #14161b 65%);overflow:hidden;}
+.config-modal-header::before{content:'';position:absolute;top:-60%;left:-20%;width:60%;height:220%;background:linear-gradient(115deg, transparent 30%, rgba(255,255,255,.09) 48%, rgba(255,255,255,.02) 55%, transparent 70%);animation:brilloMetal 5s ease-in-out infinite;pointer-events:none;}
+@keyframes brilloMetal{0%,100%{transform:translateX(0);}50%{transform:translateX(220%);}}
+.config-modal-header h3{margin:0;position:relative;z-index:1;letter-spacing:.3px;}
+.config-modal-layout{display:flex;flex:1;min-height:0;max-height:calc(90vh - 62px);}
+.config-sidebar{width:240px;flex-shrink:0;background:linear-gradient(165deg, #23262d, #14161b 80%);border-right:1px solid var(--card-border);padding:14px 0;overflow-y:auto;}
+.config-sidebar-group-title{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);font-weight:700;padding:16px 20px 6px;}
+.config-sidebar .config-tab-btn{display:flex;align-items:center;gap:10px;width:100%;background:transparent;border:none;border-left:3px solid transparent;color:var(--text-muted);padding:10px 20px;border-radius:0;font-size:13px;text-align:left;transition:background .18s ease, color .18s ease, padding-left .18s ease;}
+.config-sidebar .config-tab-btn:hover{background:linear-gradient(90deg, color-mix(in srgb, var(--blue-accent) 14%, transparent), transparent);color:var(--text-main);padding-left:24px;}
+.config-sidebar .config-tab-btn.active{background:linear-gradient(90deg, color-mix(in srgb, var(--blue-accent) 22%, transparent), transparent);color:#fff;border-left-color:var(--blue-accent);box-shadow:inset 0 0 18px -6px color-mix(in srgb, var(--blue-accent) 60%, transparent);}
+.config-sidebar .config-tab-btn.active i, .config-tab-btn.active{text-shadow:0 0 12px color-mix(in srgb, var(--blue-accent) 70%, transparent);}
+.config-content-area{flex:1;min-width:0;overflow-y:auto;padding:25px;}
+.config-content-area div[style*="background:rgba(0,0,0,.15)"]{background:linear-gradient(160deg, #24272e, #1a1c21) !important;border:1px solid color-mix(in srgb, var(--card-border) 70%, #555 15%);transition:box-shadow .18s ease, border-color .18s ease;}
+.config-content-area div[style*="background:rgba(0,0,0,.15)"]:hover{border-color:color-mix(in srgb, var(--blue-accent) 45%, var(--card-border));box-shadow:0 6px 20px -6px rgba(0,0,0,.5);}
+@media (max-width:900px){
+  .config-modal-layout{flex-direction:column;max-height:none;}
+  .config-sidebar{width:100%;display:flex;overflow-x:auto;padding:10px;gap:6px;border-right:none;border-bottom:1px solid var(--card-border);}
+  .config-sidebar-group-title{display:none;}
+  .config-sidebar .config-tab-btn{white-space:nowrap;width:auto;border-left:none;border-radius:6px;background:rgba(0,0,0,.2);border:1px solid var(--card-border);}
+  .config-sidebar .config-tab-btn.active{background:var(--blue-accent);color:#fff;border-color:var(--blue-accent);}
+}
+.config-tab-content{display:none;}
+.config-tab-content.active{display:block;}
+label{font-size:12px;color:var(--text-muted);display:block;margin-top:10px;}
+input,select,textarea{width:100%;background:rgba(0,0,0,.2);border:1px solid var(--form-border-color, var(--card-border));color:var(--text-main);padding:9px;border-radius:var(--form-radius, 6px);margin-top:4px;font-size:13px;}
+input[type=color]{padding:2px;height:38px;cursor:pointer;}
+/* Tamaño de letra global configurable desde Configuración → Apariencia */
+body.letra-pequena{zoom:0.92;}
+body.letra-grande{zoom:1.15;}
+canvas.signature-pad{border:1px dashed var(--card-border);background:rgba(0,0,0,.2);width:100%;height:120px;border-radius:6px;margin-top:5px;touch-action:none;}
+table.data-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px;}
+table.data-table th,table.data-table td{border:1px solid var(--card-border);padding:9px;text-align:left;vertical-align:top;}
+table.data-table th{background:rgba(0,0,0,.3);}
+.badge-estado{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;}
+.badge-programado{background:rgba(245,158,11,.15);color:var(--orange-warning);}
+.badge-ejecucion{background:rgba(139,92,246,.15);color:var(--purple-info);}
+.badge-finalizado{background:rgba(34,197,94,.15);color:var(--green-success);}
+.timeline{border-left:2px solid var(--card-border);margin-left:10px;padding-left:20px;}
+.timeline-item{position:relative;padding-bottom:22px;}
+.timeline-item::before{content:"";position:absolute;left:-26px;top:2px;width:10px;height:10px;border-radius:50%;background:var(--blue-accent);}
+.timeline-date{font-size:11px;color:var(--text-muted);font-weight:700;}
+.timeline-title{font-size:13px;font-weight:700;margin:2px 0;}
+.timeline-body{font-size:12px;color:var(--text-muted);}
+.timeline-fotos{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}
+.timeline-fotos img{width:50px;height:50px;object-fit:cover;border-radius:6px;border:1px solid var(--card-border);}
+.field-row{display:flex;gap:8px;align-items:flex-end;margin-bottom:8px;flex-wrap:wrap;}
+.field-row > div{flex:1;min-width:120px;}
+.pdf-preview{background:#fff;color:#333;padding:30px;border-radius:8px;font-size:13px;}
+.pdf-header{display:flex;justify-content:space-between;border-bottom:2px solid #0088ff;padding-bottom:12px;margin-bottom:20px;align-items:center;}
+/* 1.1 Logo en encabezado del PDF: 5cm x 5cm */
+.pdf-header img{width:5cm;height:5cm;object-fit:contain;margin-bottom:6px;}
+.pdf-box-container{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:20px;}
+.pdf-box{background:#f8fafc;border:1px solid #e2e8f0;padding:15px;border-radius:8px;margin-bottom:18px;}
+/* 3.1 Subtítulos de sección del reporte: negrita y tamaño mayor al texto de cuerpo, para jerarquía visual */
+.pdf-box h4{margin-top:0;color:#1e293b;border-bottom:1px solid #cbd5e1;padding-bottom:6px;margin-bottom:10px;font-size:15px;font-weight:700;}
+.pdf-fotos{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+/* 1.2 Soporte fotográfico estandarizado en PDF: 10cm x 10cm */
+.pdf-fotos img{width:10cm;height:10cm;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;}
+.pdf-fotos figure{margin:0;}
+.pdf-fotos figcaption{width:10cm;font-size:11px;color:#475569;margin-top:5px;text-align:center;}
+/* 3.2 Línea divisora entre secciones del reporte, para separar visualmente
+   la información general de las lecturas técnicas de campo */
+.pdf-divider{border:none;border-top:1px dashed #cbd5e1;margin:20px 0;}
+/* 3.3 Tabla de datos/lecturas técnicas recopiladas en campo: parámetro y valor en negrita */
+.pdf-tabla-datos{width:100%;font-size:12px;border-collapse:collapse;}
+.pdf-tabla-datos td{padding:6px 4px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#1e293b;}
+.pdf-tabla-datos tr:last-child td{border-bottom:none;}
+.empty-state{text-align:center;color:var(--text-muted);font-size:12px;padding:30px 10px;}
+.m-r-10{margin-right:10px;}
+/* CALENDARIO */
+.calendar-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.calendar-nav h4{margin:0;font-size:14px;}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.calendar-dow{font-size:10px;text-transform:uppercase;color:var(--text-muted);text-align:center;font-weight:700;padding-bottom:4px;}
+.calendar-day{background:rgba(0,0,0,.15);border:1px solid var(--card-border);border-radius:8px;min-height:80px;padding:6px;font-size:11px;}
+.calendar-day.otro-mes{opacity:.35;}
+.calendar-day .num-dia{font-weight:700;color:var(--text-muted);margin-bottom:4px;}
+.calendar-chip{background:var(--blue-accent);color:#fff;border-radius:5px;padding:2px 5px;font-size:10px;margin-bottom:3px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;}
+.calendar-chip.finalizado{background:var(--green-success);}
+.calendar-chip.ejecucion{background:var(--purple-info);}
+/* FOTOS */
+.fotos-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+.foto-thumb{position:relative;width:70px;height:70px;}
+.foto-thumb img{width:100%;height:100%;object-fit:cover;border-radius:6px;border:1px solid var(--card-border);}
+.foto-thumb button{position:absolute;top:-6px;right:-6px;background:var(--red-alert);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer;line-height:1;}
+/* Miniaturas de evidencia con descripción opcional (fotos de evidencia general) */
+.foto-thumb-con-desc{width:120px;height:auto;}
+.foto-thumb-con-desc img{height:90px;}
+.foto-desc-input{width:120px;margin-top:4px;font-size:10px;padding:5px;}
+/* PALETAS */
+.paleta-swatch{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+.paleta-opcion{width:60px;height:36px;border-radius:6px;cursor:pointer;border:2px solid transparent;}
+.paleta-opcion.selected{border-color:#fff;}
+/* MODO CLARO */
+body.modo-claro{--card-bg:#ffffff;--card-border:#e2e8f0;--text-main:#0f172a;--text-muted:#64748b;}
+body.modo-claro .calendar-day{background:#f8fafc;}
+body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background:#f1f5f9;color:#0f172a;}
+/* LOGIN */
+#loginOverlay{position:fixed;inset:0;background:var(--bg-dark);display:none;justify-content:center;align-items:center;z-index:2000;}
+.login-box{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:40px 35px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.35);}
+.boton-empresa-registrada{display:flex;align-items:center;justify-content:space-between;width:100%;background:rgba(0,136,255,.08);border:1px solid var(--card-border);color:var(--text-main);padding:10px 14px;border-radius:8px;margin-top:8px;cursor:pointer;font-size:13px;text-align:left;}
+.boton-empresa-registrada:hover{background:rgba(0,136,255,.18);}
+.boton-empresa-registrada small{color:var(--text-muted);}
+.login-box h2{color:var(--blue-accent);margin-top:0;}
+/* STOCK / INVENTARIO */
+.badge-stock-bajo{background:rgba(239,68,68,.15);color:var(--red-alert);padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;}
+.badge-stock-ok{background:rgba(34,197,94,.15);color:var(--green-success);padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;}
+.qr-box{background:#fff;padding:12px;border-radius:8px;display:inline-block;}
+/* ETIQUETA QR 5x5cm */
+.etiqueta-qr-print{width:5cm;height:5cm;background:#fff;color:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #e2e8f0;box-sizing:border-box;padding:0.15cm;margin:0 auto;}
+.etiqueta-qr-nombre{font-size:7px;font-weight:700;text-align:center;color:#0f172a;max-width:4.6cm;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.etiqueta-qr-wrap{position:relative;width:3.4cm;height:3.4cm;margin:0.08cm 0;}
+.etiqueta-qr-wrap canvas, .etiqueta-qr-wrap img:not(.etiqueta-logo-centro){width:100% !important;height:100% !important;}
+.etiqueta-logo-centro{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:0.85cm;height:0.85cm;object-fit:contain;background:#fff;border-radius:4px;padding:2px;box-shadow:0 0 0 3px #fff;}
+.etiqueta-qr-codigo{font-size:8px;font-weight:700;text-align:center;letter-spacing:0.3px;color:#0f172a;}
+/* =========================================================
+   MODO MÓVIL (teléfono) — capa aditiva, no reemplaza nada de
+   lo ya construido: en pantallas anchas la app se ve y funciona
+   exactamente igual que antes.
+========================================================= */
+#sidebarBackdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99;}
+@media (max-width:640px){
+  #btnMenuMovil{display:inline-flex !important;align-items:center;justify-content:center;}
+  /* El menú lateral pasa a ser un cajón deslizante que se abre con el botón ☰ */
+  .left-sidebar{width:260px !important;transform:translateX(-100%);transition:transform .25s ease;z-index:200;}
+  .left-sidebar.abierto{transform:translateX(0);}
+  .left-sidebar .sidebar-brand span,.left-sidebar .sidebar-menu span,.left-sidebar .sidebar-section-title{display:inline !important;}
+  .left-sidebar.abierto ~ #sidebarBackdrop{display:block;}
+  .page-wrapper{margin-left:0 !important;width:100% !important;padding:12px !important;}
+  .topbar{padding:10px 12px;}
+
+  /* Los formularios en 2 o 3 columnas pasan a una sola columna, más cómodos para el dedo */
+  [style*="grid-template-columns:1fr 1fr"]{display:block !important;}
+  .kpi-cards-grid{grid-template-columns:1fr 1fr !important;}
+  .kpi-container{grid-template-columns:1fr 1fr !important;}
+
+  /* Tablas largas: se deslizan horizontalmente en vez de aplastarse */
+  table.data-table{display:block;overflow-x:auto;white-space:nowrap;}
+
+  /* Evita que iOS haga zoom automático al tocar un campo de texto */
+  input,select,textarea{font-size:16px !important;}
+
+  /* Modales más cómodos en pantalla pequeña */
+  .modal-box{padding:16px;border-radius:10px;}
+  .config-modal-box{padding:0;}
+  .config-content-area{padding:15px;}
+  h3{font-size:16px;}
+}
+
+@media print{
+  body.imprimiendo-etiqueta *{ visibility:hidden; }
+  body.imprimiendo-etiqueta #etiquetaQRPrint, body.imprimiendo-etiqueta #etiquetaQRPrint *{ visibility:visible; }
+  body.imprimiendo-etiqueta #etiquetaQRPrint{ position:fixed; top:0; left:0; }
+
+  /* Impresión del Informe / Documento: en pantalla solo se ve el modal (el resto queda
+     detrás de un fondo oscuro), pero al imprimir el navegador imprime TODO el documento
+     tal cual fluye, no solo lo que se ve — por eso hay que ocultar explícitamente el
+     resto de la app y dejar visible únicamente la ficha del informe. */
+  body:not(.imprimiendo-etiqueta) #main-wrapper{ display:none !important; }
+  body:not(.imprimiendo-etiqueta) .modal-overlay:not(#modalPDF){ display:none !important; }
+  #modalPDF{ position:static !important; background:none !important; padding:0 !important; }
+  #modalPDF .modal-box{ box-shadow:none !important; max-width:100% !important; max-height:none !important; padding:0 !important; border:none !important; overflow:visible !important; }
+  #modalPDF .close-modal, #modalPDF #pdfBotonera{ display:none !important; }
+  .pdf-preview{ padding:0 !important; }
+
+  /* Continuidad de hojas: la ficha técnica del equipo + presentación de la empresa
+     va SOLO en la primera hoja. De ahí en adelante (hoja 2, 3...) sigue directo el
+     informe/diagnóstico, sin repetir logo ni datos del equipo — para no perder espacio. */
+  .pdf-box, .pdf-fotos figure, .pdf-fotos img, table{ break-inside:avoid; page-break-inside:avoid; }
+}
+</style>
+</head>
+<body>
+
+<!-- TIENDA PÚBLICA (enlace independiente, sin sesión ni acceso al resto del sistema) -->
+<div id="tiendaPublicaWrapper" style="display:none;min-height:100vh;background:var(--bg-dark);padding:20px;">
+  <div style="max-width:1100px;margin:0 auto;">
+    <div id="tpBannerWrap" class="tienda-banner-wrap" style="display:none;"><div id="tpBannerTrack" class="tienda-banner-track"></div></div>
+    <div class="tienda-header">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <img id="tpLogo" src="" style="display:none;width:52px;height:52px;object-fit:contain;border-radius:10px;background:#fff;padding:4px;">
+        <div>
+          <h2 class="tienda-titulo" id="tpNombreTienda">🛒 Tienda Virtual</h2>
+          <p class="tienda-subtitulo">Equipos, repuestos y servicios disponibles — cotiza o solicita tu pedido en línea.</p>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="text" id="tpBuscador" placeholder="Buscar producto..." oninput="renderizarTiendaPublica()" style="min-width:200px;margin:0;">
+        <button class="btn-custom" style="position:relative;white-space:nowrap;" onclick="abrirCarritoPublico()">
+          <i class="fas fa-shopping-cart"></i> Carrito
+          <span id="tpBadgeCarrito" style="display:none;position:absolute;top:-8px;right:-8px;background:var(--red-alert);color:#fff;border-radius:50%;width:20px;height:20px;font-size:11px;align-items:center;justify-content:center;">0</span>
+        </button>
+      </div>
+    </div>
+    <div id="tpGaleriaWrap" class="tienda-galeria" style="display:none;"></div>
+    <div id="tpGrid" class="tienda-grid"></div>
+    <div id="tpEmptyState" class="empty-state" style="display:none;">Esta tienda todavía no tiene productos publicados.</div>
+    <div id="tpSecciones"></div>
+    <div id="tpErrorState" class="empty-state" style="display:none;">No se encontró esta tienda. Verifica el enlace con la empresa.</div>
+    <a id="tpBotonWhatsapp" href="#" target="_blank" class="tienda-whatsapp-flotante" style="display:none;" title="Escríbenos por WhatsApp — soporte y área técnica"><i class="fab fa-whatsapp"></i></a>
+    <div id="tpTelefonoFooter" style="display:none;text-align:center;margin-top:20px;color:var(--text-muted);font-size:13px;"></div>
+    <div id="tpRedesSociales" style="display:none;justify-content:center;gap:16px;margin-top:12px;">
+      <a id="tpBotonFacebook" href="#" target="_blank" style="display:none;font-size:22px;color:#1877f2;" title="Síguenos en Facebook"><i class="fab fa-facebook"></i></a>
+      <a id="tpBotonInstagram" href="#" target="_blank" style="display:none;font-size:22px;color:#e1306c;" title="Síguenos en Instagram"><i class="fab fa-instagram"></i></a>
+    </div>
+    <p style="text-align:center;margin-top:14px;font-size:11px;"><a href="#" onclick="abrirModal('modalPoliticaDatos');return false;" style="color:var(--text-muted);text-decoration:underline;">Política de tratamiento de datos personales</a></p>
+  </div>
+</div>
+
+<!-- MODAL: CARRITO TIENDA PÚBLICA -->
+<div class="modal-overlay tienda-scope" id="modalCarritoPublico">
+  <div class="modal-box modal-lg">
+    <button class="close-modal" onclick="cerrarModal('modalCarritoPublico')">✖</button>
+    <h3>🛒 Tu carrito</h3>
+    <div id="tpCarritoLista"></div>
+    <div id="tpCarritoTotal" style="text-align:right;font-size:16px;font-weight:700;margin-top:10px;"></div>
+    <div id="tpFormCheckout" style="display:none;margin-top:16px;border-top:1px solid var(--card-border);padding-top:16px;">
+      <h4 style="margin-top:0;">Datos de contacto para el pedido</h4>
+      <div class="field-row">
+        <div><label>Nombre completo:</label><input type="text" id="tpCheckoutNombre" placeholder="Ej. Juan Pérez"></div>
+        <div><label>Teléfono:</label><input type="text" id="tpCheckoutTelefono" placeholder="Ej. 3001234567"></div>
+      </div>
+      <label>Correo electrónico:</label><input type="email" id="tpCheckoutEmail" placeholder="correo@ejemplo.com">
+      <label>Dirección de entrega o notas adicionales:</label>
+      <textarea id="tpCheckoutNotas" rows="2" placeholder="Dirección, ciudad, indicaciones..."></textarea>
+      <div style="background:rgba(245,158,11,.12);border:1px solid #f59e0b;border-radius:8px;padding:12px;margin-top:12px;font-size:12px;">
+        💳 <strong>Pago en línea próximamente.</strong> Por ahora tu pedido queda registrado y un asesor te contactará para coordinar el pago y la entrega.
+      </div>
+      <label style="display:flex;align-items:flex-start;gap:8px;margin-top:12px;font-size:12px;font-weight:400;">
+        <input type="checkbox" id="tpAceptaDatos" style="width:auto;margin-top:2px;">
+        <span>Acepto el <a href="#" onclick="abrirModal('modalPoliticaDatos');return false;" style="color:var(--tienda-accent, #0088ff);text-decoration:underline;">tratamiento de mis datos personales</a> para efectos de contactarme y procesar este pedido.</span>
+      </label>
+    </div>
+    <div style="margin-top:16px;text-align:right;">
+      <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalCarritoPublico')">Seguir comprando</button>
+      <button class="btn-custom" id="tpBtnIrACheckout" onclick="mostrarFormCheckoutPublico()">Continuar con el pedido</button>
+      <button class="btn-custom" id="tpBtnConfirmarPedido" style="display:none;" onclick="confirmarPedidoPublico()">✔️ Confirmar pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: POLÍTICA DE TRATAMIENTO DE DATOS (habeas data — Ley 1581 de 2012) -->
+<div class="modal-overlay tienda-scope" id="modalPoliticaDatos">
+  <div class="modal-box modal-lg">
+    <button class="close-modal" onclick="cerrarModal('modalPoliticaDatos')">✖</button>
+    <h3>🔒 Tratamiento de Datos Personales</h3>
+    <div id="tpTextoPoliticaDatos" style="font-size:13px;line-height:1.6;max-height:60vh;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<div id="toastContainer"></div>
+
+<!-- BUSCADOR GLOBAL -->
+<div id="overlayBuscadorGlobal" class="modal-overlay" style="align-items:flex-start;padding-top:8vh;">
+  <div class="modal-box modal-lg" style="padding:0;overflow:hidden;">
+    <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--card-border);">
+      <i class="fas fa-search" style="color:var(--text-muted);"></i>
+      <input type="text" id="inputBuscadorGlobal" placeholder="Busca un cliente, equipo, orden, producto, técnico o sección..." autocomplete="off"
+        style="margin:0;border:none;background:transparent;font-size:16px;padding:6px 0;"
+        oninput="ejecutarBusquedaGlobal()" onkeydown="manejarTecladoBuscador(event)">
+      <button class="close-modal" style="position:static;" onclick="cerrarBuscadorGlobal()">✖</button>
+    </div>
+    <div id="resultadosBuscadorGlobal" style="max-height:60vh;overflow-y:auto;padding:8px;"></div>
+  </div>
+</div>
+
+
+<div id="skeletonBoot">
+  <div class="sk-sidebar">
+    <div class="skeleton" style="height:56px;"></div>
+    <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+    <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+  </div>
+  <div class="sk-main">
+    <div class="skeleton" style="height:40px;width:40%;"></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin:24px 0;">
+      <div class="skeleton" style="height:100px;"></div><div class="skeleton" style="height:100px;"></div>
+      <div class="skeleton" style="height:100px;"></div><div class="skeleton" style="height:100px;"></div>
+    </div>
+    <div class="skeleton" style="height:220px;"></div>
+  </div>
+</div>
+
+<div id="main-wrapper">
+  <aside class="left-sidebar">
+    <div class="sidebar-brand"><img id="sidebarLogo" src="" style="display:none;"><div class="brand-row"><i id="sidebarIconoDefault" class="fas fa-snowflake"></i><span id="brandTitleSidebar">Prevenglobal</span></div></div>
+    <ul class="sidebar-menu">
+      <div class="sidebar-section-title">Operación</div>
+      <li><a data-sec="agenda" onclick="mostrarSeccion('agenda')" class="active"><i class="fas fa-calendar-alt m-r-10"></i><span>Agenda / Órdenes</span></a></li>
+      <li><a data-sec="equipos" onclick="mostrarSeccion('equipos')"><i class="fas fa-snowflake m-r-10"></i><span>Equipos</span></a></li>
+      <li><a data-sec="trazabilidad" onclick="mostrarSeccion('trazabilidad')"><i class="fas fa-stream m-r-10"></i><span>Historial y Trazabilidad</span></a></li>
+      <li class="solo-admin"><a data-sec="inventario" onclick="mostrarSeccion('inventario')"><i class="fas fa-boxes m-r-10"></i><span>Inventario</span></a></li>
+      <li><a data-sec="tienda" onclick="mostrarSeccion('tienda')"><i class="fas fa-store m-r-10"></i><span>Tienda Virtual</span></a></li>
+      <li class="solo-admin"><a data-sec="kpi" onclick="mostrarSeccion('kpi')"><i class="fas fa-chart-line m-r-10"></i><span>Indicadores (KPI)</span></a></li>
+      <li class="solo-admin"><a data-sec="contabilidad" onclick="mostrarSeccion('contabilidad')"><i class="fas fa-wallet m-r-10"></i><span>Negocio / Contabilidad</span></a></li>
+      <div class="sidebar-section-title solo-admin">Configuración</div>
+      <li class="solo-admin"><a onclick="abrirModalConfig('clientes')"><i class="fas fa-users m-r-10"></i><span>Clientes y Sedes</span></a></li>
+      <li class="solo-admin"><a onclick="abrirModalConfig('plantillas')"><i class="fas fa-file-signature m-r-10"></i><span>Plantillas de Formularios</span></a></li>
+      <li class="solo-admin"><a onclick="abrirModalConfig('tecnicos')"><i class="fas fa-hard-hat m-r-10"></i><span>Técnicos</span></a></li>
+      <li class="solo-admin"><a onclick="abrirModalConfig('database')"><i class="fas fa-database m-r-10"></i><span>Base de Datos & Backup</span></a></li>
+      <li class="solo-admin"><a onclick="abrirModalConfig('general')"><i class="fas fa-industry m-r-10"></i><span>Empresa y Perfil</span></a></li>
+      <li class="solo-admin"><a onclick="abrirModalConfig('apariencia')"><i class="fas fa-palette m-r-10"></i><span>Apariencia</span></a></li>
+      <li class="solo-admin"><a onclick="abrirModalConfig('etiquetas')"><i class="fas fa-tags m-r-10"></i><span>Etiquetas</span></a></li>
+      <li class="solo-admin"><a onclick="abrirModalConfig('whatsapp')"><i class="fab fa-whatsapp m-r-10" style="color:#25D366;"></i><span>Mensaje de WhatsApp</span></a></li>
+      <li class="solo-admin"><a onclick="abrirModalConfig('auditoria')"><i class="fas fa-history m-r-10"></i><span>Auditoría</span></a></li>
+      <div class="sidebar-section-title solo-admin">Reportes</div>
+      <li class="solo-admin"><a onclick="exportarExcel()"><i class="fas fa-file-excel m-r-10"></i><span>Exportar Reporte Excel</span></a></li>
+    </ul>
+  </aside>
+  <div id="sidebarBackdrop" onclick="cerrarMenuMovil()"></div>
+
+  <div class="page-wrapper">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button id="btnMenuMovil" class="btn-custom btn-secondary-custom" style="display:none;padding:8px 12px;" onclick="toggleMenuMovil()"><i class="fas fa-bars"></i></button>
+        <img id="topbarLogo" src="" style="display:none;height:44px;width:44px;object-fit:contain;background:#fff;border-radius:6px;padding:2px;flex-shrink:0;">
+        <div>
+          <h2 id="lblNombreEmpresa" style="margin:0;font-size:16px;font-weight:bold;">Prevenglobal</h2>
+          <p id="lblSubtituloEmpresa" style="margin:0;font-size:11px;color:var(--text-muted);">Mantenimiento y Reparación de Equipos de Refrigeración</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <button class="btn-custom btn-secondary-custom" onclick="abrirBuscadorGlobal()" style="display:flex;align-items:center;gap:8px;color:var(--text-muted);"><i class="fas fa-search"></i> <span style="font-size:12px;">Buscar en Prevenglobal...</span> <kbd style="background:rgba(255,255,255,.08);padding:1px 6px;border-radius:4px;font-size:10px;">Ctrl+K</kbd></button>
+        <span id="badgeConexion" style="font-size:11px;font-weight:700;"></span>
+        <span style="font-size:11px;color:var(--text-muted);">👤 <span id="lblUsuarioActual">—</span></span>
+        <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="cerrarSesion()">Cambiar usuario</button>
+        <button class="btn-custom btn-secondary-custom solo-admin" onclick="abrirModalConfig('apariencia')"><i class="fas fa-palette"></i></button>
+        <button class="btn-custom solo-admin" onclick="abrirModalNuevaOrden()">+ Nueva Orden</button>
+      </div>
+    </header>
+
+    <div class="kpi-container">
+      <div class="kpi-card"><span>Órdenes Programadas</span><h3 id="kpiProgramados">0</h3></div>
+      <div class="kpi-card"><span>En Ejecución</span><h3 id="kpiEjecucion" style="color:var(--orange-warning)">0</h3></div>
+      <div class="kpi-card"><span>Finalizadas</span><h3 id="kpiFinalizados" style="color:var(--green-success)">0</h3></div>
+      <div class="kpi-card"><span>Equipos registrados</span><h3 id="kpiEquipos" style="color:var(--purple-info)">0</h3></div>
+    </div>
+
+    <!-- SECCION AGENDA -->
+    <div class="panel seccion" id="seccion-agenda">
+      <div class="panel-title">
+        <span>📋 Control de Órdenes Operativas</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="btn-toggle-group">
+            <button class="btn-toggle active" id="btnVistaLista" onclick="cambiarVistaAgenda('lista')">Lista</button>
+            <button class="btn-toggle" id="btnVistaCalendario" onclick="cambiarVistaAgenda('calendario')">Calendario</button>
+          </div>
+          <button class="btn-custom btn-fixed-blue solo-admin" onclick="abrirModalNuevaOrden()">+ Nueva Orden</button>
+        </div>
+      </div>
+      <div id="vistaListaOrdenes" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:15px;"></div>
+      <div id="vistaCalendarioOrdenes" style="display:none;">
+        <div class="calendar-nav">
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="cambiarMesCalendario(-1)">‹ Mes anterior</button>
+          <h4 id="lblMesCalendario"></h4>
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="cambiarMesCalendario(1)">Mes siguiente ›</button>
+        </div>
+        <div class="calendar-grid" id="gridDiasSemana"></div>
+        <div class="calendar-grid" id="gridCalendario" style="margin-top:6px;"></div>
+      </div>
+    </div>
+
+    <!-- SECCION EQUIPOS -->
+    <div class="panel seccion" id="seccion-equipos" style="display:none;">
+      <div class="panel-title">
+        <span>❄️ Equipos registrados</span>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="text" placeholder="Buscar equipo, cliente, código o serie..." style="max-width:280px;margin:0;" oninput="renderizarEquiposGlobal(this.value)">
+          <button class="btn-custom btn-sm-custom solo-admin" onclick="abrirModalEquipo()">+ Registrar Equipo</button>
+        </div>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>Equipo</th><th>Cliente / Sede</th><th>Código</th><th>Refrigerante</th><th>Servicios</th><th>Acción</th></tr></thead>
+        <tbody id="tablaEquiposGlobal"></tbody>
+      </table>
+    </div>
+
+    <!-- SECCION TRAZABILIDAD -->
+    <div class="panel seccion" id="seccion-trazabilidad" style="display:none;">
+      <div class="panel-title"><span>🧭 Historial y Trazabilidad por Equipo</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div><label>Filtrar por cliente:</label><select id="trazaFiltroCliente" onchange="filtrarEquiposTrazabilidad()"></select></div>
+        <div><label>Filtrar por sede:</label><select id="trazaFiltroSede" onchange="filtrarEquiposTrazabilidad()"></select></div>
+        <div><label>Equipo:</label><select id="selectorEquipoTrazabilidad" onchange="renderizarTrazabilidad(this.value)"></select></div>
+      </div>
+      <div id="fichaEquipoTrazabilidad" style="margin-top:15px;"></div>
+      <div id="timelineTrazabilidad" style="margin-top:20px;"></div>
+    </div>
+
+    <!-- SECCION INVENTARIO -->
+    <div class="panel seccion" id="seccion-inventario" style="display:none;">
+      <div class="panel-title">
+        <span>📦 Control de Inventario y Bodegas</span>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalBodega()">+ Bodega</button>
+          <button class="btn-custom btn-sm-custom" onclick="abrirModalItemInventario()">+ Ítem</button>
+        </div>
+      </div>
+      <div id="alertasStockBajo"></div>
+      <table class="data-table">
+        <thead><tr><th>Ítem</th><th>Bodega</th><th>Stock</th><th>Fotos</th><th>QR</th><th>Acción</th></tr></thead>
+        <tbody id="tablaInventario"></tbody>
+      </table>
+      <div class="panel-title" style="margin-top:20px;"><span>📑 Kardex de movimientos</span>
+        <button class="btn-custom btn-sm-custom" onclick="abrirModalKardex()">+ Registrar movimiento</button>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>Fecha</th><th>Ítem</th><th>Tipo</th><th>Cantidad</th><th>Origen</th><th>Destino</th><th>Usuario</th></tr></thead>
+        <tbody id="tablaKardex"></tbody>
+      </table>
+    </div>
+
+    <!-- SECCIÓN: INDICADORES (KPI) -->
+    <div class="panel seccion" id="seccion-kpi" style="display:none;">
+      <div class="panel-title">
+        <span>📊 Indicadores de Gestión (KPI)</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <label style="margin:0;font-size:12px;">Agrupar por:</label>
+          <select id="kpiAgrupacion" onchange="renderizarKPIs()" style="width:auto;margin:0;">
+            <option value="mes" selected>Mes</option>
+            <option value="semana">Semana</option>
+          </select>
+          <label style="margin:0;font-size:12px;">Período:</label>
+          <select id="kpiRangoMeses" onchange="renderizarKPIs()" style="width:auto;margin:0;">
+            <option value="3">Últimos 3 meses</option>
+            <option value="6" selected>Últimos 6 meses</option>
+            <option value="12">Últimos 12 meses</option>
+            <option value="9999">Todo el histórico</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="kpi-cards-grid">
+        <div class="kpi-card"><div class="kpi-card-valor" id="kpiCardTotal">0</div><div class="kpi-card-label">Órdenes en el período</div></div>
+        <div class="kpi-card"><div class="kpi-card-valor" id="kpiCardCumplimiento">0%</div><div class="kpi-card-label">% Cumplimiento (finalizadas)</div></div>
+        <div class="kpi-card"><div class="kpi-card-valor" id="kpiCardTiempo">—</div><div class="kpi-card-label">Días promedio hasta el cierre</div></div>
+        <div class="kpi-card"><div class="kpi-card-valor" id="kpiCardTipoTop">—</div><div class="kpi-card-label">Tipo de servicio más frecuente</div></div>
+      </div>
+
+      <div class="kpi-charts-grid">
+        <div class="kpi-chart-box"><h4 id="kpiTituloGraficaMes">Servicios por mes (programados vs. finalizados)</h4><canvas id="chartServiciosPorMes"></canvas></div>
+        <div class="kpi-chart-box"><h4>Servicios por cliente (top 8)</h4><canvas id="chartServiciosPorCliente"></canvas></div>
+        <div class="kpi-chart-box"><h4>Distribución por estado</h4><canvas id="chartServiciosPorEstado"></canvas></div>
+        <div class="kpi-chart-box"><h4>Carga de trabajo por técnico</h4><canvas id="chartServiciosPorTecnico"></canvas></div>
+      </div>
+
+      <div class="panel-title" style="margin-top:20px;"><span>🔧 Equipos con más intervenciones</span></div>
+      <table class="data-table">
+        <thead><tr><th>Equipo</th><th>Cliente</th><th>N° de intervenciones</th><th>Última fecha</th></tr></thead>
+        <tbody id="tablaKpiEquiposFrecuentes"></tbody>
+      </table>
+    </div>
+
+    <!-- SECCIÓN: TIENDA VIRTUAL -->
+    <div class="panel seccion" id="seccion-tienda" style="display:none;">
+      <div id="tiendaBannerWrap" class="tienda-banner-wrap" style="display:none;"><div id="tiendaBannerTrack" class="tienda-banner-track"></div></div>
+
+      <div class="tienda-header">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <img id="tiendaLogoHeader" src="" style="display:none;width:52px;height:52px;object-fit:contain;border-radius:10px;background:#fff;padding:4px;">
+          <div>
+            <h2 class="tienda-titulo">🛒 Tienda Virtual</h2>
+            <p class="tienda-subtitulo">Equipos, repuestos y servicios disponibles — cotiza o solicita tu pedido en línea.</p>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input type="text" id="tiendaBuscador" placeholder="Buscar producto..." oninput="renderizarTienda()" style="min-width:200px;margin:0;">
+          <button class="btn-custom" style="position:relative;white-space:nowrap;" onclick="abrirCarrito()">
+            <i class="fas fa-shopping-cart"></i> Carrito
+            <span id="badgeCarrito" style="display:none;position:absolute;top:-8px;right:-8px;background:var(--red-alert);color:#fff;border-radius:50%;width:20px;height:20px;font-size:11px;align-items:center;justify-content:center;">0</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="tiendaGaleriaWrap" class="tienda-galeria" style="display:none;"></div>
+
+      <div id="tiendaGrid" class="tienda-grid"></div>
+      <div id="tiendaEmptyState" class="empty-state" style="display:none;">Todavía no hay productos publicados en la tienda. Actívalos desde Inventario → ✔️ "Publicar en la Tienda Virtual".</div>
+      <div id="tiendaSecciones"></div>
+
+      <a id="tiendaBotonWhatsapp" href="#" target="_blank" class="tienda-whatsapp-flotante" style="display:none;" title="Escríbenos por WhatsApp"><i class="fab fa-whatsapp"></i></a>
+      <div id="tiendaTelefonoFooter" style="display:none;text-align:center;margin-top:20px;color:var(--text-muted);font-size:13px;"></div>
+    </div>
+
+    <!-- SECCIÓN: NEGOCIO / CONTABILIDAD -->
+    <div class="panel seccion" id="seccion-contabilidad" style="display:none;">
+      <div class="panel-title">
+        <span>💼 Negocio / Contabilidad</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label style="margin:0;font-size:12px;">Mes:</label>
+          <input type="month" id="contaMesFiltro" onchange="renderizarContabilidad()" style="width:auto;margin:0;">
+        </div>
+      </div>
+
+      <div class="kpi-cards-grid">
+        <div class="kpi-card"><div class="kpi-card-valor" id="contaCardIngresos" style="color:var(--exito-verde,#22c55e);">$0</div><div class="kpi-card-label">Ingresos del mes (pedidos de tienda)</div></div>
+        <div class="kpi-card"><div class="kpi-card-valor" id="contaCardNomina" style="color:#f59e0b;">$0</div><div class="kpi-card-label">Nómina pagada del mes</div></div>
+        <div class="kpi-card"><div class="kpi-card-valor" id="contaCardGastos" style="color:var(--red-alert);">$0</div><div class="kpi-card-label">Gastos del mes</div></div>
+        <div class="kpi-card"><div class="kpi-card-valor" id="contaCardBalance">$0</div><div class="kpi-card-label">Balance del mes</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:10px;">
+        <div>
+          <div class="panel-title"><span>🧾 Nómina</span></div>
+          <div class="field-row">
+            <div><select id="nominaTecnico"></select></div>
+            <div><input type="text" id="nominaConcepto" placeholder="Concepto (Ej. Quincena, Bono)"></div>
+            <div><input type="number" id="nominaMonto" placeholder="Monto (COP)"></div>
+            <div><input type="date" id="nominaFecha"></div>
+            <div>
+              <select id="nominaEstado">
+                <option value="Pagado">Pagado</option>
+                <option value="Pendiente">Pendiente</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn-custom" onclick="agregarNomina()">+ Registrar pago de nómina</button>
+          <table class="data-table" style="margin-top:12px;">
+            <thead><tr><th>Fecha</th><th>Técnico</th><th>Concepto</th><th>Monto</th><th>Estado</th><th></th></tr></thead>
+            <tbody id="tablaNomina"></tbody>
+          </table>
+        </div>
+        <div>
+          <div class="panel-title"><span>📉 Gastos del negocio</span></div>
+          <div class="field-row">
+            <div>
+              <select id="gastoCategoria">
+                <option>Arriendo</option><option>Servicios públicos</option><option>Insumos y repuestos</option>
+                <option>Transporte</option><option>Mantenimiento de herramientas</option><option>Impuestos</option><option>Otro</option>
+              </select>
+            </div>
+            <div><input type="text" id="gastoDescripcion" placeholder="Descripción"></div>
+            <div><input type="number" id="gastoMonto" placeholder="Monto (COP)"></div>
+            <div><input type="date" id="gastoFecha"></div>
+          </div>
+          <button class="btn-custom" onclick="agregarGasto()">+ Registrar gasto</button>
+          <table class="data-table" style="margin-top:12px;">
+            <thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Monto</th><th></th></tr></thead>
+            <tbody id="tablaGastos"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel-title" style="margin-top:24px;"><span>🛒 Pedidos de la Tienda Virtual (ingresos)</span></div>
+      <table class="data-table">
+        <thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado del pago</th></tr></thead>
+        <tbody id="tablaPedidosTiendaConta"></tbody>
+      </table>
+
+      <!-- COTIZADOR / CONTROL OPERATIVO -->
+      <div class="panel-title" style="margin-top:30px;"><span>🧮 Cotizador — Control Operativo</span></div>
+      <p style="font-size:11px;color:var(--text-muted);">Calcula automáticamente el precio al cliente y la utilidad de cada servicio, con la misma fórmula de tu control operativo.</p>
+
+      <div style="background:rgba(0,0,0,.15);padding:12px;border-radius:8px;margin-bottom:14px;">
+        <div class="field-row">
+          <div><label>Recargo sobre materiales:</label><input type="number" id="cfgRecargoMateriales" step="0.01" style="width:90px;"> <small style="color:var(--text-muted);">(1.3 = 30%)</small></div>
+          <div><label>% pago sugerido a terceros:</label><input type="number" id="cfgPorcentajeTercero" step="0.01" style="width:90px;"> <small style="color:var(--text-muted);">(0.45 = 45% de la mano de obra)</small></div>
+          <div><label>Meta mensual de utilidad:</label><input type="number" id="cfgMetaMensual" style="width:130px;"></div>
+          <button class="btn-custom btn-sm-custom" onclick="guardarParametrosCotizador()">Guardar parámetros</button>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div><input type="date" id="coFecha"></div>
+        <div><input type="text" id="coServicioCliente" placeholder="Servicio / Cliente"></div>
+        <div>
+          <select id="coTipoServicio"><option>Instalación</option><option>Correctivo</option><option>Preventivo</option><option>Diagnóstico</option></select>
+        </div>
+        <div>
+          <select id="coEjecutor" onchange="actualizarSugerenciaPagoTecnico()"><option>Yo mismo</option><option>Tercero</option></select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div><label>Horas (0 = tarifa fija):</label><input type="number" id="coHoras" value="0" oninput="actualizarSugerenciaPagoTecnico()"></div>
+        <div><label>Comp (1 / 1.2 / 1.5 / 2):</label><input type="number" id="coComp" value="1" step="0.1" oninput="actualizarSugerenciaPagoTecnico()"></div>
+        <div><label>Valor hora / Tarifa fija:</label><input type="number" id="coValorHora" value="0" oninput="actualizarSugerenciaPagoTecnico()"></div>
+        <div><label>Materiales (costo base):</label><input type="number" id="coMateriales" value="0" oninput="actualizarPreviewCotizador()"></div>
+        <div><label>Logística:</label><input type="number" id="coLogistica" value="0" oninput="actualizarPreviewCotizador()"></div>
+        <div><label>Pago técnico (si es Tercero):</label><input type="number" id="coPagoTecnico" value="0" oninput="actualizarPreviewCotizador()"></div>
+      </div>
+      <div class="field-row">
+        <div>
+          <label>Estado del servicio:</label>
+          <select id="coEstado"><option>Pendiente</option><option>Aprobada</option><option>cancelado</option></select>
+        </div>
+        <div>
+          <label>Estado de cartera:</label>
+          <select id="coCartera"><option>Pendiente</option><option>Pagado</option></select>
+        </div>
+        <div><label>Dinero abonado:</label><input type="number" id="coDineroAbonado" value="0"></div>
+      </div>
+      <div style="background:rgba(0,136,255,.1);border-radius:8px;padding:10px;margin:10px 0;font-size:13px;">
+        Precio al cliente (calculado): <strong id="coPreviewPrecio">$0</strong> &nbsp;|&nbsp;
+        Utilidad neta (calculada): <strong id="coPreviewUtilidad">$0</strong>
+      </div>
+      <button class="btn-custom" onclick="agregarControlOperativo()">+ Agregar servicio</button>
+
+      <table class="data-table" style="margin-top:14px;">
+        <thead><tr><th>Fecha</th><th>Servicio / Cliente</th><th>Tipo</th><th>Ejecutor</th><th>Precio Cliente</th><th>Pago Técnico</th><th>Utilidad Neta</th><th>Estado</th><th>Cartera</th><th></th></tr></thead>
+        <tbody id="tablaControlOperativo"></tbody>
+        <tfoot><tr style="font-weight:700;background:rgba(0,0,0,.2);"><td colspan="4">TOTALES</td><td id="coTotalPrecio">$0</td><td id="coTotalPagoTec">$0</td><td id="coTotalUtilidad">$0</td><td colspan="3"></td></tr></tfoot>
+      </table>
+
+      <!-- CUADRO DE MANDO ANUAL -->
+      <div class="panel-title" style="margin-top:30px;"><span>📅 Cuadro de Mando y Trazabilidad Anual</span></div>
+      <table class="data-table">
+        <thead><tr><th>Mes</th><th>Utilidad Aprobada (Caja Real)</th><th>Utilidad Pendiente (En Facturación)</th><th>Utilidad Total</th><th>Meta Mensual</th><th>% Cumplimiento (Caja Real)</th><th>% Cumplimiento (Proyectado)</th></tr></thead>
+        <tbody id="tablaCuadroMandoAnual"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CARRITO / CHECKOUT -->
+<div class="modal-overlay tienda-scope" id="modalCarrito">
+  <div class="modal-box modal-lg">
+    <button class="close-modal" onclick="cerrarModal('modalCarrito')">✖</button>
+    <h3>🛒 Tu carrito</h3>
+    <div id="carritoLista"></div>
+    <div id="carritoTotal" style="text-align:right;font-size:16px;font-weight:700;margin-top:10px;"></div>
+    <div id="carritoFormCheckout" style="display:none;margin-top:16px;border-top:1px solid var(--card-border);padding-top:16px;">
+      <h4 style="margin-top:0;">Datos de contacto para el pedido</h4>
+      <div class="field-row">
+        <div><label>Nombre completo:</label><input type="text" id="checkoutNombre" placeholder="Ej. Juan Pérez"></div>
+        <div><label>Teléfono:</label><input type="text" id="checkoutTelefono" placeholder="Ej. 3001234567"></div>
+      </div>
+      <label>Correo electrónico:</label><input type="email" id="checkoutEmail" placeholder="correo@ejemplo.com">
+      <label>Dirección de entrega o notas adicionales:</label>
+      <textarea id="checkoutNotas" rows="2" placeholder="Dirección, ciudad, indicaciones..."></textarea>
+      <div style="background:rgba(245,158,11,.12);border:1px solid var(--alerta-naranja,#f59e0b);border-radius:8px;padding:12px;margin-top:12px;font-size:12px;">
+        💳 <strong>Pago en línea próximamente.</strong> Por ahora tu pedido queda registrado y un asesor te contactará para coordinar el pago y la entrega.
+      </div>
+    </div>
+    <div style="margin-top:16px;text-align:right;">
+      <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalCarrito')">Seguir comprando</button>
+      <button class="btn-custom" id="btnIrACheckout" onclick="mostrarFormCheckout()">Continuar con el pedido</button>
+      <button class="btn-custom" id="btnConfirmarPedido" style="display:none;" onclick="confirmarPedidoTienda()">✔️ Confirmar pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: DETALLE DE PRODUCTO -->
+<div class="modal-overlay tienda-scope" id="modalProductoTienda">
+  <div class="modal-box modal-sm">
+    <button class="close-modal" onclick="cerrarModal('modalProductoTienda')">✖</button>
+    <div id="detalleProductoTienda"></div>
+  </div>
+</div>
+
+<!-- LOGIN OVERLAY -->
+<div id="loginOverlay">
+  <div class="login-box">
+    <div id="loginLogoWrap" style="display:none;width:100%;height:4.5cm;background:#fff;border-radius:12px;align-items:center;justify-content:center;overflow:hidden;margin-bottom:16px;"><img id="loginLogo" style="max-width:88%;max-height:88%;object-fit:contain;"></div>
+    <h2 id="loginTituloEmpresa" style="font-size:22px;"><i id="loginIconoDefault" class="fas fa-snowflake"></i> Prevenglobal</h2>
+
+    <!-- PASO 1: Empresa (multiempresa) -->
+    <div id="loginPasoEmpresa">
+      <p style="font-size:12px;color:var(--text-muted);">Plataforma multiempresa — indica el código de tu empresa para continuar.</p>
+      <label>Código de empresa:</label>
+      <input type="text" id="loginEmpresaSlug" placeholder="Ej. prevenglobal" autocapitalize="off" onkeydown="if(event.key==='Enter')continuarConEmpresa()">
+      <div id="loginEmpresaError" style="color:var(--red-alert);font-size:11px;margin-top:6px;display:none;"></div>
+      <button class="btn-custom" style="margin-top:10px;width:100%;" onclick="continuarConEmpresa()">Continuar</button>
+      <div id="loginListaEmpresas" style="margin-top:14px;"></div>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:14px;text-align:center;">¿Tu empresa aún no está registrada?<br>
+        <a href="javascript:void(0)" onclick="mostrarFormularioEmpresaNueva()" style="color:var(--blue-accent);">Crear empresa nueva</a>
+      </p>
+    </div>
+
+    <!-- PASO 1b: Registro de empresa nueva (multiempresa / modo SaaS) -->
+    <div id="loginPasoEmpresaNueva" style="display:none;">
+      <p style="font-size:12px;color:var(--text-muted);">Registra tu empresa y crea tu usuario Administrador.</p>
+      <label>Código de empresa (sin espacios):</label>
+      <input type="text" id="nuevaEmpresaSlug" placeholder="Ej. mi-empresa" autocapitalize="off">
+      <label>Nombre de la empresa:</label>
+      <input type="text" id="nuevaEmpresaNombre" placeholder="Ej. Mi Empresa S.A.S.">
+      <label>Usuario administrador (correo):</label>
+      <input type="email" id="nuevaEmpresaAdminUsuario" placeholder="admin@tuempresa.com">
+      <label>Contraseña del administrador:</label>
+      <input type="password" id="nuevaEmpresaAdminPassword" placeholder="Contraseña">
+      <div id="loginEmpresaNuevaError" style="color:var(--red-alert);font-size:11px;margin-top:6px;display:none;"></div>
+      <button class="btn-custom" style="margin-top:10px;width:100%;" onclick="crearEmpresaNueva()">Crear empresa e ingresar</button>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:14px;text-align:center;">
+        <a href="javascript:void(0)" onclick="mostrarPasoEmpresa()" style="color:var(--blue-accent);">← Ya tengo una empresa registrada</a>
+      </p>
+    </div>
+
+    <!-- PASO 2: Credenciales (técnico / administrador) -->
+    <div id="loginPasoCredenciales" style="display:none;">
+      <p id="loginEmpresaActualLbl" style="font-size:12px;color:var(--text-muted);"></p>
+      <label>Ingresar como técnico:</label>
+      <select id="loginTecnicoSelect"></select>
+      <label>Contraseña:</label>
+      <input type="password" id="loginTecnicoPassword" placeholder="Contraseña" onkeydown="if(event.key==='Enter')iniciarSesionComo('tecnico')">
+      <div id="loginError" style="color:var(--red-alert);font-size:11px;margin-top:6px;display:none;">Usuario o contraseña incorrectos.</div>
+      <button class="btn-custom" style="margin-top:10px;width:100%;" onclick="iniciarSesionComo('tecnico')">Ingresar como Técnico</button>
+      <div style="margin:15px 0;border-top:1px solid var(--card-border);"></div>
+      <label>Acceso de Administrador:</label>
+      <input type="text" id="loginAdminUsuario" placeholder="Usuario administrador (correo)">
+      <input type="password" id="loginAdminPassword" placeholder="Contraseña de administrador" onkeydown="if(event.key==='Enter')iniciarSesionComo('admin')">
+      <button class="btn-custom btn-secondary-custom" style="margin-top:10px;width:100%;" onclick="iniciarSesionComo('admin')">Ingresar como Administrador</button>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:14px;text-align:center;">
+        <a href="javascript:void(0)" onclick="mostrarPasoEmpresa()" style="color:var(--blue-accent);">Cambiar de empresa</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: FICHA QR / CONSULTA DE ITEM -->
+<div class="modal-overlay" id="modalFichaQR">
+  <div class="modal-box modal-sm">
+    <button class="close-modal" onclick="cerrarModal('modalFichaQR')">✖</button>
+    <div id="contenidoFichaQR"></div>
+  </div>
+</div>
+
+<!-- MODAL: NUEVO/EDITAR ITEM INVENTARIO -->
+<div class="modal-overlay" id="modalItemInventario">
+  <div class="modal-box modal-sm">
+    <button class="close-modal" onclick="cerrarModal('modalItemInventario')">✖</button>
+    <h3>📦 Ítem de Inventario</h3>
+    <input type="hidden" id="invItemId">
+    <label>Nombre:</label><input type="text" id="invNombre" placeholder="Ej. Compresor 3 Ton">
+    <label>Categoría:</label><input type="text" id="invCategoria" placeholder="Ej. Repuestos">
+    <label>Bodega:</label><select id="invBodega"></select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div><label>Stock actual:</label><input type="number" id="invStockActual" value="0"></div>
+      <div><label>Stock mínimo:</label><input type="number" id="invStockMinimo" value="0"></div>
+    </div>
+    <label>Fotos de referencia (máx. 2):</label>
+    <input type="file" id="invFotoInput" accept="image/*" multiple onchange="manejarFotoInventario(event)">
+    <div class="fotos-grid" id="previewFotosInventario"></div>
+    <hr style="border-color:var(--card-border);margin:14px 0;">
+    <label style="display:flex;align-items:center;gap:8px;font-weight:normal;"><input type="checkbox" id="invPublicarTienda" style="width:auto;"> 🛒 Publicar este ítem en la Tienda Virtual</label>
+    <div class="field-row">
+      <div><label>Precio de venta (COP):</label><input type="number" id="invPrecio" placeholder="Ej. 350000"></div>
+    </div>
+    <label>Descripción para la tienda:</label>
+    <textarea id="invDescripcionTienda" rows="2" placeholder="Descripción atractiva para el cliente, características, garantía, etc."></textarea>
+    <button class="btn-custom" style="margin-top:12px;" onclick="guardarItemInventario()">Guardar Ítem</button>
+  </div>
+</div>
+
+<!-- MODAL: BODEGA -->
+<div class="modal-overlay" id="modalBodega">
+  <div class="modal-box modal-sm">
+    <button class="close-modal" onclick="cerrarModal('modalBodega')">✖</button>
+    <h3>🏬 Nueva Bodega / Unidad Móvil</h3>
+    <label>Nombre:</label><input type="text" id="bodNombre" placeholder="Ej. Camioneta Técnico 1">
+    <label>Tipo:</label><select id="bodTipo"><option value="fija">Fija</option><option value="movil">Móvil</option></select>
+    <button class="btn-custom" style="margin-top:12px;" onclick="guardarBodega()">Guardar Bodega</button>
+  </div>
+</div>
+
+<!-- MODAL: KARDEX -->
+<div class="modal-overlay" id="modalKardex">
+  <div class="modal-box modal-sm">
+    <button class="close-modal" onclick="cerrarModal('modalKardex')">✖</button>
+    <h3>📑 Registrar Movimiento de Kardex</h3>
+    <label>Ítem:</label><select id="kdxItem"></select>
+    <label>Tipo de movimiento:</label>
+    <select id="kdxTipo" onchange="toggleKardexDestino()">
+      <option value="entrada">Entrada</option>
+      <option value="salida">Salida</option>
+      <option value="transferencia">Transferencia entre bodegas</option>
+    </select>
+    <label>Cantidad:</label><input type="number" id="kdxCantidad" value="1" min="1">
+    <div id="wrapperKdxDestino" style="display:none;">
+      <label>Bodega destino:</label><select id="kdxBodegaDestino"></select>
+    </div>
+    <button class="btn-custom" style="margin-top:12px;" onclick="guardarMovimientoKardex()">Registrar</button>
+  </div>
+</div>
+
+<!-- MODAL: NUEVA ORDEN -->
+<div class="modal-overlay" id="modalNuevaOrden">
+  <div class="modal-box">
+    <button class="close-modal" onclick="cerrarModal('modalNuevaOrden')">✖</button>
+    <h3>🆕 Nueva Orden de Servicio</h3>
+    <label>Cliente:</label>
+    <select id="ordCliente" onchange="poblarEquiposOrden()"></select>
+    <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:10px;">
+      <input type="checkbox" id="ordSinEquipo" style="width:auto;" onchange="toggleOrdenSinEquipo()">
+      Esta orden no está relacionada a un equipo puntual (servicio general al cliente)
+    </label>
+    <div id="wrapperEquiposOrden">
+      <label>Equipos del cliente (selecciona uno o varios, y el formulario a usar en cada uno):</label>
+      <div id="listaEquiposOrden" style="max-height:220px;overflow-y:auto;border:1px solid var(--card-border);border-radius:8px;padding:8px;margin-top:4px;"></div>
+    </div>
+    <div id="wrapperPlantillaGeneral" style="display:none;">
+      <label>Plantilla de formulario a usar:</label>
+      <select id="ordPlantillaGeneral"></select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div><label>Técnico asignado:</label><select id="ordTecnico"></select></div>
+      <div><label>Tipo de servicio:</label>
+        <select id="ordTipo"></select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div><label>Prioridad:</label><select id="ordPrioridad"></select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div><label>Fecha programada:</label><input type="date" id="ordFecha"></div>
+      <div><label>Hora programada:</label><input type="time" id="ordHora"></div>
+    </div>
+    <div style="margin-top:15px;text-align:right;">
+      <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalNuevaOrden')">Cancelar</button>
+      <button class="btn-custom" onclick="guardarNuevaOrden()">Crear Orden</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: REPROGRAMAR -->
+<div class="modal-overlay" id="modalReprogramar">
+  <div class="modal-box modal-sm">
+    <button class="close-modal" onclick="cerrarModal('modalReprogramar')">✖</button>
+    <h3>🗓️ Reprogramar Orden</h3>
+    <p id="lblOrdenReprogramar" style="font-size:12px;color:var(--text-muted);"></p>
+    <label>Nueva fecha:</label>
+    <input type="date" id="reprogFecha">
+    <label>Nueva hora:</label>
+    <input type="time" id="reprogHora">
+    <label>Estado:</label>
+    <select id="reprogEstado"><option>Programado</option><option>En Ejecución</option><option>Finalizado</option></select>
+    <div style="margin-top:15px;text-align:right;">
+      <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalReprogramar')">Cancelar</button>
+      <button class="btn-custom" onclick="guardarReprogramacion()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CIERRE DE SERVICIO -->
+<div class="modal-overlay" id="modalEvidencias">
+  <div class="modal-box">
+    <button class="close-modal" onclick="cerrarModal('modalEvidencias')">✖</button>
+    <h3>📷 Cierre de Servicio</h3>
+    <p id="lblOrdenActivaCierre" style="font-size:12px;color:var(--text-muted);"></p>
+    <label>Diagnóstico / observaciones generales:</label>
+    <textarea id="cierreDiagnostico" rows="2" placeholder="Detalle técnico de la actividad realizada..."></textarea>
+    <div id="contenedorCamposDinamicos" style="margin-top:10px;border-top:1px dashed var(--card-border);padding-top:10px;"></div>
+
+    <label>Fotos de evidencia:</label>
+    <input type="file" id="inputFotosCierre" accept="image/*" multiple onchange="manejarFotosCierre(event)">
+    <div class="fotos-grid" id="previewFotosCierre"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:10px;">
+      <div>
+        <label>Firma del Técnico:</label>
+        <canvas class="signature-pad" id="canvasFirmaTecnico"></canvas>
+        <button class="btn-custom btn-secondary-custom btn-sm-custom" style="margin-top:4px;" onclick="limpiarFirma('canvasFirmaTecnico')">Limpiar</button>
+      </div>
+      <div>
+        <label>Firma del Cliente:</label>
+        <canvas class="signature-pad" id="canvasFirmaCliente"></canvas>
+        <button class="btn-custom btn-secondary-custom btn-sm-custom" style="margin-top:4px;" onclick="limpiarFirma('canvasFirmaCliente')">Limpiar</button>
+      </div>
+    </div>
+
+    <div style="margin-top:15px;text-align:right;">
+      <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalEvidencias')">Cancelar</button>
+      <button class="btn-custom" onclick="guardarCierre()">Guardar Cierre</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: DETALLE / EDICIÓN DE ORDEN (desde el Calendario) -->
+<div class="modal-overlay" id="modalDetalleOrden">
+  <div class="modal-box">
+    <button class="close-modal" onclick="cerrarModal('modalDetalleOrden')">✖</button>
+    <h3 id="lblNumeroOrdenDetalle">📋 Detalle de Orden</h3>
+    <div id="detAvisoFinalizada" style="display:none;background:rgba(34,197,94,.12);border:1px solid var(--green-success);color:var(--green-success);padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px;">
+      🔒 Esta orden está Finalizada. Los datos quedan en modo solo lectura para proteger la trazabilidad.
+    </div>
+    <div id="detAvisoEdicionForzada" style="display:none;background:rgba(245,158,11,.12);border:1px solid var(--orange-warning);color:var(--orange-warning);padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px;">
+      ✏️ Estás editando una orden ya Finalizada (acceso de administrador). Al guardar, la orden permanece Finalizada y el documento/PDF reflejará los cambios.
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div><label>Cliente:</label><select id="detCliente" onchange="poblarEquiposDetalleOrden()"></select></div>
+      <div><label>Equipo:</label><select id="detEquipo"></select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div><label>Técnico asignado:</label><select id="detTecnico"></select></div>
+      <div><label>Tipo de servicio:</label><select id="detTipo"></select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div><label>Prioridad:</label><select id="detPrioridad"></select></div>
+      <div><label>Plantilla de formulario:</label><select id="detPlantilla" onchange="renderizarFormularioDinamicoDetalle(this.value, {}, {})"></select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+      <div><label>Fecha programada:</label><input type="date" id="detFecha"></div>
+      <div><label>Hora programada:</label><input type="time" id="detHora"></div>
+      <div><label>Estado:</label><select id="detEstado"><option>Programado</option><option>En Ejecución</option></select></div>
+    </div>
+    <label>Diagnóstico / observaciones generales:</label>
+    <textarea id="detDiagnostico" rows="2" placeholder="Detalle técnico de la actividad realizada..."></textarea>
+    <div id="detCamposDinamicos" style="margin-top:10px;border-top:1px dashed var(--card-border);padding-top:10px;"></div>
+
+    <label>Fotos de evidencia:</label>
+    <input type="file" id="detInputFotos" accept="image/*" multiple onchange="manejarFotosDetalle(event)">
+    <div class="fotos-grid" id="detPreviewFotos"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:10px;">
+      <div>
+        <label>Firma del Técnico:</label>
+        <canvas class="signature-pad" id="detCanvasFirmaTecnico"></canvas>
+        <button class="btn-custom btn-secondary-custom btn-sm-custom" style="margin-top:4px;" onclick="limpiarFirma('detCanvasFirmaTecnico')">Limpiar</button>
+      </div>
+      <div>
+        <label>Firma del Cliente:</label>
+        <canvas class="signature-pad" id="detCanvasFirmaCliente"></canvas>
+        <button class="btn-custom btn-secondary-custom btn-sm-custom" style="margin-top:4px;" onclick="limpiarFirma('detCanvasFirmaCliente')">Limpiar</button>
+      </div>
+    </div>
+
+    <div id="detAccionesEdicion" style="margin-top:15px;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;">
+      <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalDetalleOrden')">Cancelar</button>
+      <button class="btn-custom" onclick="guardarDetalleOrden(false)">Guardar Cambios</button>
+      <button class="btn-custom btn-success-custom" onclick="confirmarFinalizarOrden()">✅ Finalizar Orden</button>
+    </div>
+    <div id="detAccionesSoloLectura" style="margin-top:15px;text-align:right;display:none;">
+      <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalDetalleOrden')">Cerrar</button>
+      <button class="btn-custom" onclick="verPDF(ordenDetalleId)">Ver Documento</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PDF -->
+<div class="modal-overlay" id="modalPDF">
+  <div class="modal-box" style="background:#fff;color:#333;">
+    <button class="close-modal" style="color:#000;" onclick="cerrarModal('modalPDF')">✖</button>
+    <div class="pdf-preview" id="pdfContenido"></div>
+    <div id="pdfBotonera" style="margin-top:15px;text-align:right;">
+      <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalPDF')">Cerrar</button>
+      <button class="btn-custom" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+      <button class="btn-custom btn-success-custom solo-admin" onclick="enviarPorWhatsApp(ordenPdfActualId)"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: REGISTRAR / EDITAR EQUIPO -->
+<div class="modal-overlay" id="modalEquipo">
+  <div class="modal-box">
+    <button class="close-modal" onclick="cerrarModal('modalEquipo')">✖</button>
+    <h3 id="tituloModalEquipo">🆕 Registrar Equipo</h3>
+    <input type="hidden" id="eqModalId" value="">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div><label>Cliente:</label><select id="eqModalCliente" onchange="poblarSedesModalEquipo()"></select></div>
+      <div><label>Sede (opcional):</label><select id="eqModalSede"></select></div>
+    </div>
+    <div class="field-row">
+      <div><input type="text" id="eqModalNombre" placeholder="Nombre equipo (Ej. Chiller 10 Ton)"></div>
+      <div><input type="text" id="eqModalSerial" placeholder="Código de Inventario / Serie"></div>
+      <button class="btn-custom btn-secondary-custom btn-sm-custom" type="button" onclick="document.getElementById('eqModalSerial').value='INV-'+String(Date.now()).slice(-8)"><i class="fas fa-dice m-r-10"></i>Autogenerar</button>
+    </div>
+    <div class="field-row">
+      <div><input type="text" id="eqModalMarca" placeholder="Marca"></div>
+      <div><input type="text" id="eqModalModelo" placeholder="Modelo"></div>
+      <div><input type="text" id="eqModalCapacidad" placeholder="Capacidad (Ej. 10 Ton)"></div>
+    </div>
+    <div class="field-row">
+      <div><input type="text" id="eqModalVoltaje" placeholder="Voltaje (Ej. 220V)"></div>
+      <div><input type="text" id="eqModalRefrigerante" placeholder="Refrigerante (Ej. R-507)"></div>
+    </div>
+    <label>Ficha técnica complementaria (especificaciones adicionales):</label>
+    <textarea id="eqModalFichaTecnica" rows="2" placeholder="Datos técnicos adicionales, hoja de datos, notas de instalación..."></textarea>
+    <label>Fotos del equipo:</label>
+    <input type="file" id="eqModalFotoInput" accept="image/*" multiple onchange="manejarFotoEquipoModal(event)">
+    <div class="fotos-grid" id="previewFotosEquipoModal"></div>
+    <div style="margin-top:15px;text-align:right;">
+      <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalEquipo')">Cancelar</button>
+      <button class="btn-custom" onclick="guardarEquipoModal()">Guardar Equipo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ETIQUETA QR CORPORATIVA (5x5cm) -->
+<div class="modal-overlay" id="modalEtiquetaQR">
+  <div class="modal-box modal-sm" style="background:#fff;color:#333;">
+    <button class="close-modal" style="color:#000;" onclick="cerrarModal('modalEtiquetaQR')">✖</button>
+    <h3 style="color:#0f172a;">🏷️ Etiqueta QR del Equipo</h3>
+    <p style="font-size:11px;color:#64748b;">Al escanear este código, se abre directamente la hoja de vida y ficha técnica del equipo (mantenimientos previos, cliente, sede y estado actual).</p>
+    <div style="display:flex;justify-content:center;padding:10px;background:#f1f5f9;border-radius:8px;">
+      <div class="etiqueta-qr-print" id="etiquetaQRPrint">
+        <div class="etiqueta-qr-nombre" id="etiquetaQRNombre"></div>
+        <div class="etiqueta-qr-wrap" id="etiquetaQRWrap"></div>
+        <div class="etiqueta-qr-codigo" id="etiquetaQRCodigo"></div>
+      </div>
+    </div>
+    <p style="font-size:10px;color:#94a3b8;text-align:center;margin-top:6px;">Tamaño de impresión: 5 x 5 cm</p>
+    <div style="text-align:center;margin-top:10px;">
+      <button class="btn-custom" onclick="imprimirEtiquetaQR()">🖨️ Imprimir Etiqueta</button>
+    </div>
+  </div>
+</div>
+
+<!-- CENTRO DE CONFIGURACION -->
+<div class="modal-overlay" id="modalConfigCentro">
+  <div class="modal-box config-modal-box">
+    <button class="close-modal" onclick="cerrarModal('modalConfigCentro')">✖</button>
+    <div class="config-modal-header"><h3>⚙️ Centro de Configuración</h3></div>
+    <div class="config-modal-layout">
+    <div class="config-sidebar">
+      <div class="config-sidebar-group-title">Operación</div>
+      <button class="config-tab-btn" data-tab="clientes" onclick="cambiarTabConfig('clientes',event)"><i class="fas fa-users" style="width:18px;text-align:center;"></i> <span>Clientes y Sedes</span></button>
+      <button class="config-tab-btn" data-tab="plantillas" onclick="cambiarTabConfig('plantillas',event)"><i class="fas fa-file-signature" style="width:18px;text-align:center;"></i> <span>Plantillas de Formularios</span></button>
+      <button class="config-tab-btn" data-tab="tecnicos" onclick="cambiarTabConfig('tecnicos',event)"><i class="fas fa-hard-hat" style="width:18px;text-align:center;"></i> <span>Técnicos</span></button>
+      <button class="config-tab-btn" data-tab="etiquetas" onclick="cambiarTabConfig('etiquetas',event)"><i class="fas fa-tags" style="width:18px;text-align:center;"></i> <span>Etiquetas</span></button>
+      <div class="config-sidebar-group-title">Empresa</div>
+      <button class="config-tab-btn" data-tab="general" onclick="cambiarTabConfig('general',event)"><i class="fas fa-industry" style="width:18px;text-align:center;"></i> <span>Empresa y Perfil</span></button>
+      <button class="config-tab-btn" data-tab="apariencia" onclick="cambiarTabConfig('apariencia',event)"><i class="fas fa-palette" style="width:18px;text-align:center;"></i> <span>Apariencia</span></button>
+      <button class="config-tab-btn" data-tab="tiendaConfig" onclick="cambiarTabConfig('tiendaConfig',event)"><i class="fas fa-store" style="width:18px;text-align:center;"></i> <span>Tienda Virtual</span></button>
+      <button class="config-tab-btn" data-tab="whatsapp" onclick="cambiarTabConfig('whatsapp',event)"><i class="fab fa-whatsapp" style="width:18px;text-align:center;color:#25D366;"></i> <span>Mensaje WhatsApp</span></button>
+      <div class="config-sidebar-group-title">Sistema</div>
+      <button class="config-tab-btn" data-tab="database" onclick="cambiarTabConfig('database',event)"><i class="fas fa-database" style="width:18px;text-align:center;"></i> <span>Base de Datos & Backup</span></button>
+      <button class="config-tab-btn" data-tab="auditoria" onclick="cambiarTabConfig('auditoria',event)"><i class="fas fa-history" style="width:18px;text-align:center;"></i> <span>Auditoría</span></button>
+    </div>
+    <div class="config-content-area">
+
+    <!-- TAB CLIENTES -->
+    <div id="tab-clientes" class="config-tab-content">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+        <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;">
+          <h4 style="margin-top:0;font-size:13px;">➕ Registrar / Modificar Cliente</h4>
+          <input type="hidden" id="cfgCliId" value="">
+          <label>Nombre del Cliente:</label><input type="text" id="cfgCliNombre" placeholder="Ej. Bioplástico S.A.S.">
+          <div class="field-row">
+            <div>
+              <label>Tipo de documento:</label>
+              <select id="cfgCliTipoDoc">
+                <option value="NIT">NIT</option>
+                <option value="C.C.">C.C.</option>
+                <option value="RUT">RUT</option>
+                <option value="PPT">PPT</option>
+                <option value="Pasaporte">Pasaporte</option>
+              </select>
+            </div>
+            <div><label>Número de documento:</label><input type="text" id="cfgCliNumDoc" placeholder="Ej. 900123456-7"></div>
+          </div>
+          <label>Teléfono de Contacto:</label><input type="text" id="cfgCliTelefono" placeholder="Ej. 3001234567">
+          <label>Dirección principal:</label><input type="text" id="cfgCliDireccion" placeholder="Ej. Calle 123 #45-67, Bogotá">
+          <div class="field-row">
+            <div><input type="text" id="cfgCliLat" placeholder="Latitud (opcional)"></div>
+            <div><input type="text" id="cfgCliLng" placeholder="Longitud (opcional)"></div>
+          </div>
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" type="button" onclick="usarUbicacionActualCliente()"><i class="fas fa-crosshairs m-r-10"></i>Usar mi ubicación actual (más preciso que la dirección)</button>
+          <label style="margin-top:12px;">Imágenes de referencia (fachada, entrada, punto de acceso):</label>
+          <input type="file" id="cfgCliImagenInput" accept="image/*" multiple onchange="manejarImagenClienteUpload(event)">
+          <div class="fotos-grid" id="previewImagenesCliente"></div>
+          <button class="btn-custom" style="margin-top:12px;" onclick="guardarClienteConfig()">Guardar Cliente</button>
+        </div>
+        <div>
+          <h4 style="margin-top:0;font-size:13px;">📋 Directorio de Clientes</h4>
+          <div style="max-height:250px;overflow-y:auto;">
+            <table class="data-table"><thead><tr><th>Cliente</th><th>Acciones</th></tr></thead><tbody id="tablaConfigClientesBody"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <div id="cfgSeccionSedes" style="margin-top:20px;border-top:1px solid var(--card-border);padding-top:15px;display:none;">
+        <h4 style="margin-top:0;font-size:13px;" id="cfgTituloSedes">Sedes de: -</h4>
+        <div class="field-row">
+          <div><input type="text" id="cfgSedeNombre" placeholder="Nombre de la sede (Ej. Sucursal Centro)"></div>
+          <div><input type="text" id="cfgSedeDireccion" placeholder="Dirección"></div>
+          <button class="btn-custom" onclick="agregarSedeConfig()">+ Añadir Sede</button>
+        </div>
+        <table class="data-table"><thead><tr><th>Sede</th><th>Dirección</th><th>Equipos</th><th>Acción</th></tr></thead><tbody id="tablaConfigSedesBody"></tbody></table>
+      </div>
+
+      <div id="cfgSeccionEquipos" style="margin-top:20px;border-top:1px solid var(--card-border);padding-top:15px;display:none;">
+        <h4 style="margin-top:0;font-size:13px;" id="cfgTituloEquipos">Equipos de: -</h4>
+        <button class="btn-custom btn-sm-custom" onclick="abrirModalEquipo(null, clienteActivoId, sedeActivaId)">+ Agregar Equipo a esta Sede</button>
+        <table class="data-table"><thead><tr><th>Equipo</th><th>Código</th><th>Marca / Modelo</th><th>Refrigerante</th><th>Acción</th></tr></thead><tbody id="tablaConfigEquiposBody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- TAB PLANTILLAS -->
+    <div id="tab-plantillas" class="config-tab-content">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+        <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;">
+          <h4 style="margin-top:0;font-size:13px;">➕ Crear / Modificar Plantilla</h4>
+          <input type="hidden" id="cfgPlantId" value="">
+          <label>Nombre de la plantilla:</label>
+          <input type="text" id="cfgPlantNombre" placeholder="Ej. Mantenimiento Preventivo Cámaras">
+          <button class="btn-custom" style="margin-top:12px;" onclick="guardarPlantillaConfig()">Guardar Plantilla</button>
+        </div>
+        <div>
+          <h4 style="margin-top:0;font-size:13px;">📋 Plantillas Disponibles</h4>
+          <table class="data-table"><thead><tr><th>Nombre</th><th>Campos</th><th>Acción</th></tr></thead><tbody id="tablaConfigPlantillasBody"></tbody></table>
+        </div>
+      </div>
+
+      <div id="cfgSeccionCampos" style="margin-top:20px;border-top:1px solid var(--card-border);padding-top:15px;display:none;">
+        <h4 style="margin-top:0;font-size:13px;" id="cfgTituloCampos">Campos de: -</h4>
+        <input type="hidden" id="cfgCampoId" value="">
+        <div class="field-row">
+          <div><input type="text" id="cfgCampoLabel" placeholder="Etiqueta (Ej. Presión de Alta PSI)"></div>
+          <div>
+            <select id="cfgCampoTipo" onchange="toggleCampoItemsInput()">
+              <option value="number">Numérico</option>
+              <option value="text">Texto corto</option>
+              <option value="textarea">Observación larga</option>
+              <option value="checkbox">Verificación (Sí/No)</option>
+              <option value="checklist">Lista de chequeo (varios ítems)</option>
+              <option value="foto">Foto específica del campo</option>
+            </select>
+          </div>
+          <button class="btn-custom" id="btnGuardarCampo" onclick="guardarCampoConfig()">+ Agregar Campo</button>
+          <button class="btn-custom btn-secondary-custom" id="btnCancelarEdicionCampo" style="display:none;" onclick="cancelarEdicionCampo()">Cancelar edición</button>
+        </div>
+        <div id="wrapperCampoItems" style="display:none;">
+          <input type="text" id="cfgCampoItems" placeholder="Ítems separados por coma (Ej. Compresor, Ventilador, Termostato, Fugas)">
+        </div>
+        <table class="data-table"><thead><tr><th>Etiqueta</th><th>Tipo</th><th>Acción</th></tr></thead><tbody id="tablaConfigCamposBody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- TAB TECNICOS -->
+    <div id="tab-tecnicos" class="config-tab-content">
+      <p style="font-size:11px;color:var(--text-muted);">Cada técnico debe tener usuario (correo) y contraseña propios para ingresar de forma individual a sus servicios asignados.</p>
+      <input type="hidden" id="cfgTecId" value="">
+      <div class="field-row">
+        <div><input type="text" id="cfgTecNombre" placeholder="Nombre del técnico"></div>
+        <div><input type="text" id="cfgTecTelefono" placeholder="Teléfono"></div>
+        <div><input type="email" id="cfgTecUsuario" placeholder="Usuario / correo"></div>
+        <div><input type="password" id="cfgTecPassword" placeholder="Contraseña"></div>
+        <button class="btn-custom" id="btnGuardarTecnico" onclick="guardarTecnicoConfig()">+ Añadir Técnico</button>
+        <button class="btn-custom btn-secondary-custom" id="btnCancelarEdicionTecnico" style="display:none;" onclick="cancelarEdicionTecnico()">Cancelar</button>
+      </div>
+      <table class="data-table"><thead><tr><th>Nombre</th><th>Teléfono</th><th>Usuario</th><th>Contraseña</th><th>Acción</th></tr></thead><tbody id="tablaConfigTecnicosBody"></tbody></table>
+    </div>
+
+    <!-- TAB DATABASE -->
+    <div id="tab-database" class="config-tab-content">
+      <div style="background:rgba(0,0,0,.15);padding:20px;border-radius:8px;">
+        <h4 style="margin-top:0;font-size:14px;color:var(--blue-accent);">💾 Gestión de la Base de Datos Local</h4>
+        <p style="font-size:12px;color:var(--text-muted);">Toda la información se guarda en el navegador. Descarga un respaldo periódicamente (las fotos y firmas ocupan más espacio, así que respalda seguido).</p>
+        <div style="display:flex;gap:15px;margin-top:20px;flex-wrap:wrap;">
+          <button class="btn-custom btn-success-custom" onclick="exportarBaseDatosJSON()"><i class="fas fa-download m-r-10"></i>Descargar Respaldo JSON</button>
+          <label class="btn-custom" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;">
+            <i class="fas fa-upload m-r-10"></i>Importar Respaldo JSON
+            <input type="file" id="importJsonFile" accept=".json" style="display:none;" onchange="importarBaseDatosJSON(event)">
+          </label>
+          <button class="btn-custom btn-danger-custom" onclick="restablecerFabrica()"><i class="fas fa-trash m-r-10"></i>Reiniciar Base de Datos</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB GENERAL / EMPRESA Y PERFIL -->
+    <div id="tab-general" class="config-tab-content">
+      <div id="bannerLogoConfig" style="width:100%;height:5cm;background:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:15px;border:1px solid var(--card-border);">
+        <img id="previewLogoConfig" style="max-width:92%;max-height:92%;object-fit:contain;display:none;">
+        <span id="previewLogoConfigPlaceholder" style="color:#94a3b8;font-size:12px;"><i class="fas fa-image" style="font-size:28px;display:block;margin:0 auto 6px;"></i>Sin logo cargado</span>
+      </div>
+      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;">
+        <h4 style="margin-top:0;font-size:13px;">🏢 Identidad y Perfil de la Empresa</h4>
+        <label>Logo de la empresa:</label>
+        <input type="file" id="cfgEmpresaLogoInput" accept="image/*" onchange="manejarLogoUpload(event)">
+        <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0 0;">Se muestra en grande (banner, ~5cm) aquí arriba y en el Dashboard; en el encabezado de los PDF se imprime a 5cm x 5cm.</p>
+        <label>Nombre de la Empresa:</label>
+        <input type="text" id="cfgEmpresaNombre">
+        <label>Subtítulo Operativo:</label>
+        <input type="text" id="cfgEmpresaSub">
+        <label>Dirección:</label>
+        <input type="text" id="cfgEmpresaDireccion" placeholder="Ej. Calle 123 #45-67, Bogotá">
+        <label>Misión:</label>
+        <textarea id="cfgEmpresaMision" rows="2" placeholder="¿Cuál es el propósito de tu empresa?"></textarea>
+        <label>Visión:</label>
+        <textarea id="cfgEmpresaVision" rows="2" placeholder="¿Hacia dónde quieres llevar tu empresa?"></textarea>
+        <button class="btn-custom" style="margin-top:15px;" onclick="guardarAjustesGenerales()">Guardar Cambios</button>
+      </div>
+      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
+        <h4 style="margin-top:0;font-size:13px;">🔐 Acceso de Administrador</h4>
+        <label>Usuario administrador (correo):</label>
+        <input type="email" id="cfgAdminUsuario" placeholder="admin@tuempresa.com">
+        <label>Nueva contraseña:</label>
+        <input type="password" id="cfgAdminPasswordNueva" placeholder="Dejar en blanco para no cambiarla">
+        <button class="btn-custom" style="margin-top:12px;" onclick="guardarPasswordAdmin()">Actualizar Acceso de Administrador</button>
+      </div>
+      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
+        <h4 style="margin-top:0;font-size:13px;">🚪 Pantalla de Acceso (Login)</h4>
+        <p style="font-size:11px;color:var(--text-muted);margin:0 0 10px 0;">Actívala o desactívala a tu gusto. Cuando está desactivada, la app entra directo sin pedir empresa/usuario/contraseña. Solo aplica cuando la app corre en un servidor real (no al abrir el archivo suelto, ahí nunca la pide).</p>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="cfgLoginRequerido" style="width:auto;margin:0;" onchange="guardarInterruptorLogin()">
+          <span>Pedir pantalla de acceso al entrar</span>
+        </label>
+        <p style="font-size:11px;color:var(--text-muted);margin:10px 0 0 0;">El logo y los colores que definas aquí arriba y en <a href="javascript:void(0)" onclick="cambiarTabConfig('apariencia', event)" style="color:var(--blue-accent);">Apariencia</a> se aplican también en esa pantalla de acceso.</p>
+      </div>
+    </div>
+
+    <!-- TAB APARIENCIA -->
+    <div id="tab-apariencia" class="config-tab-content">
+      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;">
+        <h4 style="margin-top:0;font-size:13px;">🎨 Color del Dashboard</h4>
+        <p style="font-size:11px;color:var(--text-muted);">Elige un color de acento (botones, íconos, KPIs) y un tono de fondo para tu panel.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+          <div><label>Color de acento:</label><input type="color" id="cfgColorAcento"></div>
+          <div><label>Color de fondo:</label><input type="color" id="cfgColorFondo"></div>
+        </div>
+        <label>Paletas rápidas:</label>
+        <div class="paleta-swatch" id="paletasRapidas"></div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:15px;">
+          <input type="checkbox" id="cfgModoClaro" style="width:auto;margin:0;"> Usar paleta clara y limpia (fondo blanco, texto oscuro)
+        </label>
+        <button class="btn-custom" style="margin-top:12px;" onclick="aplicarEstiloClaroDashboard()">☀️ Aplicar estilo claro tipo dashboard corporativo</button>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:6px;">Fondo blanco/gris muy claro, acentos azules y menú lateral claro — el estilo limpio y profesional que enviaste como referencia.</p>
+        <button class="btn-custom" style="margin-top:12px;" onclick="aplicarEstiloMetalizadoClaro()">🔷 Aplicar estilo metalizado claro (azul-verde)</button>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:6px;">Plateado muy claro con acentos azul-verde (teal) — el estilo metalizado y luminoso que pediste.</p>
+      </div>
+      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
+        <h4 style="margin-top:0;font-size:13px;">🧭 Menú Lateral y Barra Superior</h4>
+        <p style="font-size:11px;color:var(--text-muted);">Define el color del menú lateral izquierdo (donde están los módulos) y de la barra superior (donde está el logo y el nombre de la empresa), independientes del color de fondo del panel.</p>
+        <label>Paletas acero / modernas:</label>
+        <div class="paleta-swatch" id="paletasAceroSidebar"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:12px;">
+          <div><label>Menú lateral — color superior:</label><input type="color" id="cfgColorSidebar1"></div>
+          <div><label>Menú lateral — color inferior:</label><input type="color" id="cfgColorSidebar2"></div>
+          <div><label>Barra superior — color izq.:</label><input type="color" id="cfgColorTopbar1"></div>
+          <div><label>Barra superior — color der.:</label><input type="color" id="cfgColorTopbar2"></div>
+          <div><label>Paneles/Tarjetas — color superior:</label><input type="color" id="cfgColorPanel1"></div>
+          <div><label>Paneles/Tarjetas — color inferior:</label><input type="color" id="cfgColorPanel2"></div>
+        </div>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:8px;">Los "Paneles/Tarjetas" son el color de fondo de las secciones internas (Control de Órdenes Operativas, Equipos, Inventario, etc.).</p>
+        <a href="javascript:void(0)" onclick="restablecerColorSidebar()" style="font-size:11px;color:var(--blue-accent);display:inline-block;margin-top:8px;">Restablecer colores por defecto</a>
+      </div>
+      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
+        <h4 style="margin-top:0;font-size:13px;">🔤 Tipografía</h4>
+        <p style="font-size:11px;color:var(--text-muted);">Ajusta el tipo y tamaño de letra en toda la aplicación, y el color del texto principal.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+          <div>
+            <label>Tipo de letra:</label>
+            <select id="cfgTipoLetra">
+              <option value="'Segoe UI',Tahoma,Geneva,Verdana,sans-serif">Segoe UI (por defecto)</option>
+              <option value="Arial,Helvetica,sans-serif">Arial</option>
+              <option value="'Trebuchet MS',sans-serif">Trebuchet MS</option>
+              <option value="Georgia,'Times New Roman',serif">Georgia (serif)</option>
+              <option value="'Courier New',monospace">Courier New</option>
+              <option value="'Poppins',sans-serif">Poppins</option>
+              <option value="'Roboto',sans-serif">Roboto</option>
+            </select>
+          </div>
+          <div>
+            <label>Tamaño de letra:</label>
+            <select id="cfgTamanoLetra">
+              <option value="sm">Pequeña</option>
+              <option value="md">Mediana (por defecto)</option>
+              <option value="lg">Grande</option>
+            </select>
+          </div>
+        </div>
+        <label style="margin-top:12px;">Color de letra principal:</label>
+        <input type="color" id="cfgColorTexto" style="max-width:200px;">
+        <a href="javascript:void(0)" onclick="restablecerColorTexto()" style="font-size:11px;color:var(--blue-accent);display:inline-block;margin-top:8px;">Restablecer color de letra por defecto</a>
+      </div>
+      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
+        <h4 style="margin-top:0;font-size:13px;">📋 Estilo de los Formularios</h4>
+        <p style="font-size:11px;color:var(--text-muted);">Controla cómo se ven los campos y líneas de los formularios (bordes de los cuadros de texto, selects, etc.) en toda la app.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+          <div>
+            <label>Bordes de los campos:</label>
+            <select id="cfgFormRadius">
+              <option value="0">Cuadrado</option>
+              <option value="6">Suave (por defecto)</option>
+              <option value="14">Redondeado</option>
+            </select>
+          </div>
+          <div>
+            <label>Color de línea/borde de los campos:</label>
+            <input type="color" id="cfgFormBorderColor">
+          </div>
+        </div>
+        <a href="javascript:void(0)" onclick="restablecerBordeFormulario()" style="font-size:11px;color:var(--blue-accent);display:inline-block;margin-top:8px;">Restablecer color de borde por defecto</a>
+      </div>
+      <button class="btn-custom" style="margin-top:20px;" onclick="guardarApariencia()">Aplicar y Guardar Todo</button>
+    </div>
+
+    <!-- TAB ETIQUETAS -->
+    <div id="tab-etiquetas" class="config-tab-content">
+      <p style="font-size:11px;color:var(--text-muted);">Aquí editas las opciones que aparecen en los menús desplegables al crear una Orden de Servicio.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div>
+          <h4 style="font-size:13px;">🔧 Tipos de Servicio</h4>
+          <div class="field-row">
+            <div><input type="text" id="cfgNuevaEtiquetaTipo" placeholder="Ej. Instalación de Repuestos"></div>
+            <button class="btn-custom btn-sm-custom" onclick="agregarEtiqueta('tiposServicio','cfgNuevaEtiquetaTipo')">+ Agregar</button>
+          </div>
+          <table class="data-table"><thead><tr><th>Etiqueta</th><th>Acción</th></tr></thead><tbody id="tablaEtiquetasTipo"></tbody></table>
+        </div>
+        <div>
+          <h4 style="font-size:13px;">🚦 Prioridades</h4>
+          <div class="field-row">
+            <div><input type="text" id="cfgNuevaEtiquetaPrioridad" placeholder="Ej. Urgente"></div>
+            <button class="btn-custom btn-sm-custom" onclick="agregarEtiqueta('prioridades','cfgNuevaEtiquetaPrioridad')">+ Agregar</button>
+          </div>
+          <table class="data-table"><thead><tr><th>Etiqueta</th><th>Acción</th></tr></thead><tbody id="tablaEtiquetasPrioridad"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB TIENDA VIRTUAL (CONFIG) -->
+    <div id="tab-tiendaConfig" class="config-tab-content">
+      <div style="background:rgba(0,136,255,.1);border:1px solid var(--blue-accent);padding:15px;border-radius:8px;margin-bottom:15px;">
+        <h4 style="margin-top:0;font-size:13px;">🔗 Enlace público de tu tienda</h4>
+        <p style="font-size:11px;color:var(--text-muted);">Este enlace muestra <strong>solo la tienda</strong> — quien lo abra no ve la agenda, clientes, inventario interno ni nada más del sistema, y no necesita iniciar sesión. Compártelo con tus clientes, en redes sociales o en tu WhatsApp Business.</p>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <input type="text" id="cfgTiendaLinkPublico" readonly style="margin:0;">
+          <button class="btn-custom" style="white-space:nowrap;" onclick="copiarLinkTiendaPublica()"><i class="fas fa-copy"></i> Copiar</button>
+          <button class="btn-custom btn-secondary-custom" style="white-space:nowrap;" onclick="window.open(document.getElementById('cfgTiendaLinkPublico').value,'_blank')"><i class="fas fa-external-link-alt"></i> Ver</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+        <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;">
+          <h4 style="margin-top:0;font-size:13px;">🖼️ Logo de la tienda</h4>
+          <p style="font-size:11px;color:var(--text-muted);">Si lo dejas vacío, se usa el logo general de la empresa.</p>
+          <div id="previewLogoTienda" style="width:100%;height:100px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.2);border-radius:8px;margin-bottom:8px;overflow:hidden;"></div>
+          <input type="file" id="inputLogoTienda" accept="image/*" onchange="subirLogoTienda(event)">
+          <small style="display:block;margin-top:4px;color:var(--text-muted);">📐 Medida recomendada: <strong>400 × 400 px</strong> (cuadrada), fondo blanco o transparente, formato PNG o JPG.</small>
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" style="margin-top:6px;" onclick="quitarLogoTienda()">Quitar (usar logo de empresa)</button>
+
+          <h4 style="font-size:13px;">📢 Banner dinámico (rota automático)</h4>
+          <p style="font-size:11px;color:var(--text-muted);">Sube varias imágenes anchas — se van rotando solas cada pocos segundos arriba de la tienda.</p>
+          <input type="file" id="inputBannerTienda" accept="image/*" multiple onchange="subirBannerTienda(event)">
+          <small style="display:block;margin-top:4px;color:var(--text-muted);">📐 Medida recomendada: <strong>1600 × 500 px</strong> (panorámica), formato JPG. Puedes seleccionar varias imágenes a la vez.</small>
+          <div class="fotos-grid" id="previewBannerTienda"></div>
+
+          <h4 style="font-size:13px;">🖼️ Pasarela de imágenes (galería/carrusel)</h4>
+          <p style="font-size:11px;color:var(--text-muted);">Imágenes adicionales para mostrar en un carrusel dentro de la tienda (proyectos, instalaciones, marcas que manejas, etc.).</p>
+          <input type="file" id="inputGaleriaTienda" accept="image/*" multiple onchange="subirGaleriaTienda(event)">
+          <small style="display:block;margin-top:4px;color:var(--text-muted);">📐 Medida recomendada: <strong>800 × 600 px</strong>, formato JPG. Puedes seleccionar varias imágenes a la vez.</small>
+          <div class="fotos-grid" id="previewGaleriaTienda"></div>
+        </div>
+        <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;">
+          <h4 style="margin-top:0;font-size:13px;">📞 Contacto de la tienda</h4>
+          <label>Teléfono de contacto:</label>
+          <input type="text" id="cfgTiendaTelefono" placeholder="Ej. 601 234 5678">
+          <label>WhatsApp (con indicativo, sin + ni espacios):</label>
+          <input type="text" id="cfgTiendaWhatsapp" placeholder="Ej. 573001234567">
+          <p style="font-size:11px;color:var(--text-muted);">Con esto se activa un botón flotante de WhatsApp en la tienda para que el cliente escriba directo con soporte/área técnica.</p>
+          <label>Facebook (enlace completo):</label>
+          <input type="text" id="cfgTiendaFacebook" placeholder="https://facebook.com/tuempresa">
+          <label>Instagram (enlace completo):</label>
+          <input type="text" id="cfgTiendaInstagram" placeholder="https://instagram.com/tuempresa">
+          <button class="btn-custom" style="margin-top:10px;" onclick="guardarContactoTienda()">Guardar contacto</button>
+
+          <h4 style="font-size:13px;">🎨 Apariencia de la tienda</h4>
+          <label>Color principal de la tienda:</label>
+          <input type="color" id="cfgTiendaColor" style="height:40px;padding:4px;cursor:pointer;">
+          <label style="margin-top:10px;">Cómo se ven las imágenes de los productos:</label>
+          <select id="cfgTiendaImgEstilo">
+            <option value="cover">Ajustadas y recortadas (se ven parejas, estilo moderno)</option>
+            <option value="contain">Completas sin recortar (se ve todo el producto)</option>
+          </select>
+          <label style="margin-top:10px;">Tamaño de las tarjetas de producto:</label>
+          <select id="cfgTiendaTamanoTarjeta">
+            <option value="190">Compactas (más productos por fila)</option>
+            <option value="230">Medianas (recomendado)</option>
+            <option value="290">Grandes</option>
+          </select>
+          <button class="btn-custom" style="margin-top:10px;" onclick="guardarAparienciaTienda()">Guardar apariencia</button>
+          <button class="btn-custom btn-secondary-custom" style="margin-top:10px;" onclick="restablecerAparienciaTienda()">Restablecer</button>
+        </div>
+      </div>
+
+      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:15px;">
+        <h4 style="margin-top:0;font-size:13px;">📄 Secciones de la página (Equipo, Servicios, Proyectos, Clientes, Certificaciones)</h4>
+        <p style="font-size:11px;color:var(--text-muted);">Estas secciones aparecen debajo del catálogo, en tu tienda y en el enlace público, para dar una presentación completa como una página web moderna.</p>
+        <label>Sección a editar:</label>
+        <select id="secTiendaTipo" onchange="renderizarListaSeccionTienda()">
+          <option value="equipo">👷 Nuestro Equipo</option>
+          <option value="servicios">🛠️ Nuestros Servicios</option>
+          <option value="proyectos">🏗️ Proyectos Realizados</option>
+          <option value="clientes">🤝 Nuestros Clientes (logos)</option>
+          <option value="certificaciones">📜 Certificaciones</option>
+        </select>
+        <div class="field-row" style="margin-top:8px;">
+          <div><input type="file" id="secTiendaImagen" accept="image/*"></div>
+          <div><input type="text" id="secTiendaTitulo" placeholder="Título (nombre, servicio, proyecto...)"></div>
+          <div><input type="text" id="secTiendaSubtitulo" placeholder="Subtítulo / descripción breve"></div>
+          <button class="btn-custom btn-sm-custom" onclick="agregarItemSeccionTienda()">+ Agregar</button>
+        </div>
+        <div id="listaSeccionTienda" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;"></div>
+      </div>
+
+      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:15px;">
+        <h4 style="margin-top:0;font-size:13px;">💬 Testimonios / Comentarios de clientes</h4>
+        <p style="font-size:11px;color:var(--text-muted);">En la tienda pública se muestran rotando automáticamente (no todos fijos a la vez), junto con el promedio de calificación.</p>
+        <button class="btn-custom btn-sm-custom" onclick="generarTestimoniosAutomaticos()">✨ Generar 98 testimonios de ejemplo (4-5 ⭐)</button>
+        <div class="field-row" style="margin-top:10px;">
+          <div><input type="text" id="testNombre" placeholder="Nombre del cliente"></div>
+          <div>
+            <select id="testEstrellas">
+              <option value="5">⭐⭐⭐⭐⭐</option>
+              <option value="4">⭐⭐⭐⭐</option>
+              <option value="3">⭐⭐⭐</option>
+            </select>
+          </div>
+          <button class="btn-custom btn-sm-custom" onclick="agregarTestimonioTienda()">+ Agregar</button>
+        </div>
+        <textarea id="testComentario" rows="2" placeholder="Comentario del cliente..."></textarea>
+        <div id="listaTestimoniosTienda" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;"></div>
+      </div>
+    </div>
+
+    <!-- TAB WHATSAPP -->
+    <div id="tab-whatsapp" class="config-tab-content">
+      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;">
+        <h4 style="margin-top:0;font-size:13px;">💬 Plantilla del mensaje que acompaña el reporte</h4>
+        <p style="font-size:11px;color:var(--text-muted);">Variables disponibles: <code>{nombre_cliente}</code> y <code>{numero_orden}</code>. El envío abre WhatsApp con el mensaje ya redactado; el PDF se descarga aparte para adjuntarlo manualmente, ya que el navegador no puede adjuntar archivos automáticamente a un chat de WhatsApp.</p>
+        <textarea id="cfgPlantillaWhatsApp" rows="4"></textarea>
+        <button class="btn-custom" style="margin-top:12px;" onclick="guardarPlantillaWhatsApp()">Guardar Plantilla</button>
+      </div>
+    </div>
+
+    <!-- TAB AUDITORIA -->
+    <div id="tab-auditoria" class="config-tab-content">
+      <p style="font-size:11px;color:var(--text-muted);">Registro de solo lectura: usuario, fecha/hora y acción realizada sobre órdenes, clientes, equipos e inventario.</p>
+      <div style="max-height:400px;overflow-y:auto;">
+        <table class="data-table"><thead><tr><th>Fecha/Hora</th><th>Usuario</th><th>Acción</th><th>Entidad</th><th>Detalle</th></tr></thead><tbody id="tablaAuditoria"></tbody></table>
+      </div>
+    </div>
+
+    </div>
+    </div>
+  </div>
+</div>
+
+<script src="core.js"></script>
+<script src="utilidades-navegacion.js"></script>
+<script src="buscador-agenda.js"></script>
+<script src="ordenes.js"></script>
+<script src="equipos-trazabilidad.js"></script>
+<script src="pdf.js"></script>
+<script src="config-clientes-equipos.js"></script>
+<script src="config-plantillas-tecnicos.js"></script>
+<script src="cotizador.js"></script>
+<script src="config-general.js"></script>
+<script src="inventario.js"></script>
+<script src="tienda-admin.js"></script>
+<script src="tienda-publica.js"></script>
+<script src="kpi.js"></script>
+</body>
+</html>
