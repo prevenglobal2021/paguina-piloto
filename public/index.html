@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -40,6 +41,20 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .kpi-card{background:linear-gradient(160deg, #222530, #191b20);border:1px solid var(--card-border);padding:15px;border-radius:10px;}
 .kpi-card span{font-size:11px;color:var(--text-muted);font-weight:600;display:block;}
 .kpi-card h3{margin:5px 0 0 0;font-size:24px;color:var(--blue-accent);}
+/* Colores claros solo para los 4 cuadros del panel principal (Programadas/Ejecución/Finalizadas/Equipos) */
+.kpi-container .kpi-card{border-width:1px;border-style:solid;}
+.kpi-container .kpi-card:nth-child(1){background:#eff6ff;border-color:#bfdbfe;}
+.kpi-container .kpi-card:nth-child(1) span{color:#3b82f6;}
+.kpi-container .kpi-card:nth-child(1) h3{color:#1d4ed8 !important;}
+.kpi-container .kpi-card:nth-child(2){background:#fff7ed;border-color:#fed7aa;}
+.kpi-container .kpi-card:nth-child(2) span{color:#f97316;}
+.kpi-container .kpi-card:nth-child(2) h3{color:#c2410c !important;}
+.kpi-container .kpi-card:nth-child(3){background:#f0fdf4;border-color:#bbf7d0;}
+.kpi-container .kpi-card:nth-child(3) span{color:#22c55e;}
+.kpi-container .kpi-card:nth-child(3) h3{color:#15803d !important;}
+.kpi-container .kpi-card:nth-child(4){background:#faf5ff;border-color:#e9d5ff;}
+.kpi-container .kpi-card:nth-child(4) span{color:#a855f7;}
+.kpi-container .kpi-card:nth-child(4) h3{color:#7e22ce !important;}
 .panel{background:linear-gradient(160deg, var(--panel-bg-1), var(--panel-bg-2));border:1px solid var(--card-border);border-radius:10px;padding:20px;margin-bottom:20px;}
 .panel-title{font-size:15px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--card-border);padding-bottom:10px;flex-wrap:wrap;gap:8px;}
 /* MÓDULO DE INDICADORES (KPI) */
