@@ -28,9 +28,16 @@ app.use(cors());
 app.use(express.json({ limit: '80mb' })); // las fotos van como base64 y pueden pesar
 app.use(express.static(path.join(__dirname, 'public')));
 
+// La mayoría de los hostings con Postgres administrado (Railway, un VPS con
+// Postgres propio detrás de un proxy, DigitalOcean, etc.) requieren SSL;
+// solo una base de datos local (tu propia compu, o el mismo servidor sin red)
+// normalmente no lo necesita. Se detecta solo, y si algún hosting da problemas
+// con esto, se puede forzar con la variable de entorno DB_SSL=false.
+const urlBaseDatos = process.env.DATABASE_URL || '';
+const esBaseLocal = /localhost|127\.0\.0\.1/.test(urlBaseDatos);
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false,
+  ssl: process.env.DB_SSL === 'false' ? false : (esBaseLocal ? false : { rejectUnauthorized: false }),
 });
 
 // Si no defines MASTER_PASSWORD, el acceso por contraseña maestra queda
