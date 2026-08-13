@@ -120,5 +120,3 @@ function renderizarInventario(){
   renderizarKardex();
 }
 
-
-

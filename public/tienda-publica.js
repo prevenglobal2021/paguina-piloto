@@ -235,6 +235,3 @@ function confirmarPedidoPublico(){
   });
 }
 
-
-
-

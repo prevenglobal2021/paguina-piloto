@@ -25,34 +25,42 @@ function renderizarPlantillasConfig(){
 function visualizarPlantilla(id){
   const p = buscarPlantilla(id);
   if(!p) return;
-  document.getElementById('vpNombrePlantilla').innerText = p.nombre;
-  const cont = document.getElementById('vpContenidoFormulario');
-  if(!p.campos.length){
-    cont.innerHTML = '<p class="empty-state">Esta plantilla todavía no tiene campos configurados.</p>';
-  } else {
-    cont.innerHTML = p.campos.map(campo=>{
-      const tipoEtiqueta = NOMBRES_TIPO_CAMPO[campo.tipo] || campo.tipo;
-      if(campo.tipo==='checklist'){
-        const itemsHtml = (campo.items||[]).map(item=>`
-          <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
-            <input type="checkbox" disabled style="width:auto;margin:0;">
-            <span style="font-size:12px;">${item.texto}</span>
-          </div>`).join('') || '<p style="font-size:11px;color:var(--text-muted);margin:4px 0 0;">(sin ítems todavía)</p>';
-        return `<div style="margin-top:10px;border-top:1px dashed var(--card-border);padding-top:8px;">
-          <label>${campo.label}: <span style="font-size:10px;color:var(--text-muted);">(${tipoEtiqueta})</span></label>${itemsHtml}</div>`;
-      }
-      if(campo.tipo==='foto'){
-        return `<div style="margin-top:10px;border-top:1px dashed var(--card-border);padding-top:8px;">
-          <label>${campo.label}: <span style="font-size:10px;color:var(--text-muted);">(${tipoEtiqueta})</span></label>
-          <input type="file" disabled></div>`;
-      }
-      let inputHtml;
-      if(campo.tipo==='textarea') inputHtml = `<textarea rows="2" disabled placeholder="El técnico escribe aquí..."></textarea>`;
-      else if(campo.tipo==='checkbox') inputHtml = `<select disabled><option>Sí</option><option>No</option></select>`;
-      else inputHtml = `<input type="${campo.tipo}" disabled placeholder="El técnico escribe aquí...">`;
-      return `<div style="margin-top:8px;"><label>${campo.label}: <span style="font-size:10px;color:var(--text-muted);">(${tipoEtiqueta})</span></label>${inputHtml}</div>`;
-    }).join('');
-  }
+  const camposSimples = p.campos.filter(c=>c.tipo!=='checklist' && c.tipo!=='foto');
+  const camposChecklist = p.campos.filter(c=>c.tipo==='checklist');
+  const camposFoto = p.campos.filter(c=>c.tipo==='foto');
+
+  const filasSimples = camposSimples.map(c=>{
+    const tipoEtiqueta = NOMBRES_TIPO_CAMPO[c.tipo] || c.tipo;
+    return `<tr><td style="width:45%;">${c.label} <span style="color:#94a3b8;font-size:10px;">(${tipoEtiqueta})</span></td><td style="color:#94a3b8;">_____________________</td></tr>`;
+  }).join('');
+  const boxSimples = filasSimples ? `<div class="pdf-box"><h4>Actividades realizadas y datos técnicos a completar</h4>
+    <table class="pdf-tabla-datos" cellpadding="4">${filasSimples}</table></div>` : '';
+
+  const boxesChecklist = camposChecklist.map(c=>{
+    const itemsHtml = (c.items||[]).map(it=>`<div style="font-size:12px;">☐ ${it.texto}</div>`).join('')
+      || '<p style="font-size:11px;color:#94a3b8;">(sin ítems configurados todavía)</p>';
+    return `<div class="pdf-box"><h4>${c.label}</h4>${itemsHtml}</div>`;
+  }).join('');
+
+  const boxesFoto = camposFoto.map(c=>`
+    <div class="pdf-box"><h4>${c.label}</h4>
+      <p style="font-size:11px;color:#94a3b8;margin:0;">(Aquí se mostrarán las fotos que el técnico tome para este campo)</p>
+    </div>`).join('');
+
+  document.getElementById('vpContenidoFormulario').innerHTML = `
+    <div class="pdf-header">
+      <div><h2 style="color:#0088ff;margin:0;">${db.config.nombre}</h2><small>${db.config.subtitulo||''}</small></div>
+      <div style="text-align:right;"><strong>Vista previa de formulario</strong><br><small>Plantilla: ${p.nombre}</small></div>
+    </div>
+    <div style="background:#f1f5f9;padding:15px;border-radius:6px;margin-bottom:20px;">
+      <small style="color:#64748b;font-weight:bold;">ASÍ SE VERÁ EL INFORME IMPRESO</small>
+      <p style="margin:4px 0 0 0;font-size:12px;color:#475569;">Las líneas en blanco son lo que el técnico completa al cerrar una orden real con esta plantilla.</p>
+    </div>
+    ${boxSimples}
+    ${boxesChecklist}
+    ${boxesFoto}
+    ${(!boxSimples && !boxesChecklist && !boxesFoto) ? '<p class="empty-state">Esta plantilla todavía no tiene campos configurados.</p>' : ''}
+  `;
   abrirModal('modalVistaPreviaFormulario');
 }
 function eliminarPlantillaConfig(id){

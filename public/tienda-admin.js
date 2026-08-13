@@ -522,5 +522,3 @@ function aplicarAparienciaTienda(){
   document.documentElement.style.setProperty('--tienda-card-min', (db.config.tiendaTamanoTarjeta || 230) + 'px');
 }
 
-
-
