@@ -89,6 +89,7 @@ function eliminarItemInventario(id){
   if(!confirm('¿Eliminar este ítem de inventario?')) return;
   const it = buscarItemInventario(id);
   db.inventario = db.inventario.filter(i=>i.id!==id);
+  registrarEliminacion('inventario', id);
   dbGuardar();
   if(it) registrarLog('Eliminar', 'Inventario', it.nombre);
   renderizarInventario();
@@ -118,4 +119,6 @@ function renderizarInventario(){
 
   renderizarKardex();
 }
+
+
 
