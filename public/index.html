@@ -40,20 +40,6 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .kpi-card{background:linear-gradient(160deg, #222530, #191b20);border:1px solid var(--card-border);padding:15px;border-radius:10px;}
 .kpi-card span{font-size:11px;color:var(--text-muted);font-weight:600;display:block;}
 .kpi-card h3{margin:5px 0 0 0;font-size:24px;color:var(--blue-accent);}
-/* Colores claros solo para los 4 cuadros del panel principal (Programadas/Ejecución/Finalizadas/Equipos) */
-.kpi-container .kpi-card{border-width:1px;border-style:solid;}
-.kpi-container .kpi-card:nth-child(1){background:#eff6ff;border-color:#bfdbfe;}
-.kpi-container .kpi-card:nth-child(1) span{color:#3b82f6;}
-.kpi-container .kpi-card:nth-child(1) h3{color:#1d4ed8 !important;}
-.kpi-container .kpi-card:nth-child(2){background:#fff7ed;border-color:#fed7aa;}
-.kpi-container .kpi-card:nth-child(2) span{color:#f97316;}
-.kpi-container .kpi-card:nth-child(2) h3{color:#c2410c !important;}
-.kpi-container .kpi-card:nth-child(3){background:#f0fdf4;border-color:#bbf7d0;}
-.kpi-container .kpi-card:nth-child(3) span{color:#22c55e;}
-.kpi-container .kpi-card:nth-child(3) h3{color:#15803d !important;}
-.kpi-container .kpi-card:nth-child(4){background:#faf5ff;border-color:#e9d5ff;}
-.kpi-container .kpi-card:nth-child(4) span{color:#a855f7;}
-.kpi-container .kpi-card:nth-child(4) h3{color:#7e22ce !important;}
 .panel{background:linear-gradient(160deg, var(--panel-bg-1), var(--panel-bg-2));border:1px solid var(--card-border);border-radius:10px;padding:20px;margin-bottom:20px;}
 .panel-title{font-size:15px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--card-border);padding-bottom:10px;flex-wrap:wrap;gap:8px;}
 /* MÓDULO DE INDICADORES (KPI) */
@@ -211,33 +197,6 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 }
 .config-tab-content{display:none;}
 .config-tab-content.active{display:block;}
-
-/* ===== Centro de Configuración: tema claro y empresarial ===== */
-.config-modal-box{
-  --card-bg:#ffffff; --card-border:#e2e8f0; --text-main:#1e293b; --text-muted:#64748b;
-  background:#ffffff; color:#1e293b;
-}
-.config-modal-box .close-modal{background:#f1f5f9;color:#475569;}
-.config-modal-box .close-modal:hover{background:#e2e8f0;}
-.config-modal-header{background:linear-gradient(120deg,#f8fafc,#ffffff);border-bottom:1px solid #e2e8f0;}
-.config-modal-header::before{display:none;}
-.config-modal-header h3{color:#0f172a;}
-.config-sidebar{background:#f8fafc;border-right:1px solid #e2e8f0;}
-.config-sidebar-group-title{color:#94a3b8;}
-.config-sidebar .config-tab-btn{color:#475569;}
-.config-sidebar .config-tab-btn:hover{background:#eff6ff;color:#1d4ed8;}
-.config-sidebar .config-tab-btn.active{background:var(--blue-accent);color:#fff;border-left-color:var(--blue-accent);box-shadow:none;text-shadow:none;}
-.config-content-area{background:#ffffff;}
-.config-content-area h4{color:#0f172a;}
-.config-content-area div[style*="background:rgba(0,0,0,.15)"]{background:#f8fafc !important;border:1px solid #e2e8f0;}
-.config-content-area div[style*="background:rgba(0,0,0,.15)"]:hover{border-color:#93c5fd;box-shadow:0 6px 16px -8px rgba(15,23,42,.15);}
-.config-content-area div[style*="background:rgba(0,0,0,.2)"]{background:#f1f5f9 !important;}
-.config-modal-box label{color:#475569;}
-.config-modal-box input,.config-modal-box select,.config-modal-box textarea{background:#ffffff;color:#1e293b;border:1px solid #cbd5e1;}
-.config-modal-box input::placeholder,.config-modal-box textarea::placeholder{color:#94a3b8;}
-.config-modal-box table.data-table th{background:#f1f5f9;color:#334155;}
-.config-modal-box table.data-table th,.config-modal-box table.data-table td{border-color:#e2e8f0;}
-.config-modal-box .empty-state{color:#94a3b8;}
 label{font-size:12px;color:var(--text-muted);display:block;margin-top:10px;}
 input,select,textarea{width:100%;background:rgba(0,0,0,.2);border:1px solid var(--form-border-color, var(--card-border));color:var(--text-main);padding:9px;border-radius:var(--form-radius, 6px);margin-top:4px;font-size:13px;}
 input[type=color]{padding:2px;height:38px;cursor:pointer;}
@@ -1206,6 +1165,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <p style="font-size:10px;color:#94a3b8;text-align:center;margin-top:6px;">Tamaño de impresión: 5 x 5 cm</p>
     <div style="text-align:center;margin-top:10px;">
       <button class="btn-custom" onclick="imprimirEtiquetaQR()">🖨️ Imprimir Etiqueta</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: VISTA PREVIA DE FORMULARIO (plantilla) -->
+<div class="modal-overlay" id="modalVistaPreviaFormulario">
+  <div class="modal-box" style="max-width:640px;">
+    <button class="close-modal" onclick="cerrarModal('modalVistaPreviaFormulario')">✖</button>
+    <h3><i class="fas fa-eye m-r-10"></i>Vista previa: <span id="vpNombrePlantilla"></span></h3>
+    <p style="font-size:11px;color:var(--text-muted);">Así se le va a ver al técnico este formulario al cerrar una orden — es solo una vista previa, no se guarda nada aquí.</p>
+    <div id="vpContenidoFormulario" style="margin-top:12px;"></div>
+    <div style="margin-top:15px;text-align:right;">
+      <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalVistaPreviaFormulario')">Cerrar</button>
     </div>
   </div>
 </div>
