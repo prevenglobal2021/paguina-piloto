@@ -21,6 +21,7 @@ function renderizarEquiposGlobal(filtro){
         <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="irATrazabilidadEquipo(${e.id})">Historial</button>
         <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" onclick="abrirModalEquipo(${e.id})">Editar</button>
         <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verEtiquetaQR(${e.id})"><i class="fas fa-qrcode"></i></button>
+        <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" onclick="eliminarEquipoGlobal(${e.id})">Eliminar</button>
       </td>
     </tr>`;
     }));
@@ -38,11 +39,33 @@ function renderizarEquiposGlobal(filtro){
           <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="irATrazabilidadEquipo(${e.id})">Historial</button>
           <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" onclick="abrirModalEquipo(${e.id})">Editar</button>
           <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verEtiquetaQR(${e.id})"><i class="fas fa-qrcode"></i></button>
+          <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" onclick="eliminarEquipoGlobal(${e.id})">Eliminar</button>
         </td>
       </tr>`;
     });
   });
   if(tbody.innerHTML==='') tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No se encontraron equipos.</td></tr>';
+}
+
+function eliminarEquipoGlobal(equipoId){
+  const info = ubicarEquipoPorId(equipoId);
+  if(!info) return;
+  const numServicios = db.ordenes.filter(o=>o.equipoId===equipoId).length;
+  const mensaje = numServicios > 0
+    ? `Este equipo tiene ${numServicios} orden(es) de servicio registrada(s). Si lo eliminas, esas órdenes quedarán sin la ficha del equipo (perderán el nombre, marca, modelo, etc. en su historial). ¿Eliminar de todas formas?`
+    : '¿Eliminar este equipo?';
+  if(!confirm(mensaje)) return;
+
+  if(info.sede){
+    info.sede.equipos = info.sede.equipos.filter(e=>e.id!==equipoId);
+  } else {
+    info.cliente.equiposSinSede = equiposSinSedeDe(info.cliente).filter(e=>e.id!==equipoId);
+  }
+  dbGuardar();
+  registrarLog('Eliminar', 'Equipo', info.equipo.nombre);
+  mostrarToast(`Equipo "${info.equipo.nombre}" eliminado.`);
+  renderizarEquiposGlobal('');
+  actualizarKPIs();
 }
 
 /* =========================================================
