@@ -294,8 +294,9 @@ function dropOrdenEnDia(event, fechaStr){
 }
 
 function abrirModalNuevaOrden(){
-  const selCliente = document.getElementById('ordCliente');
-  selCliente.innerHTML = '<option value="">Selecciona un cliente...</option>' + db.clientes.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+  document.getElementById('ordClienteBuscador').value = '';
+  document.getElementById('ordCliente').value = '';
+  cerrarListaClientesOrden();
   const selTec = document.getElementById('ordTecnico');
   selTec.innerHTML = db.tecnicos.filter(t=>t.activo!==false).map(t=>`<option value="${t.id}">${t.nombre}</option>`).join('') || '<option value="">Sin técnicos activos</option>';
   document.getElementById('ordTipo').innerHTML = db.config.tiposServicio.map(t=>`<option>${t}</option>`).join('');
@@ -304,6 +305,49 @@ function abrirModalNuevaOrden(){
   toggleOrdenSinEquipo();
   poblarEquiposOrden();
   abrirModal('modalNuevaOrden');
+}
+// Busca clientes por su propio nombre, o por el nombre/marca/modelo/serie de
+// cualquiera de sus equipos — así, si te acuerdas del equipo pero no del
+// cliente, igual lo encuentras. Sin escribir nada, muestra todos (como el
+// selector de antes).
+function filtrarClientesOrden(){
+  const texto = document.getElementById('ordClienteBuscador').value.trim().toLowerCase();
+  const cont = document.getElementById('ordClienteResultados');
+  const resultados = [];
+  db.clientes.forEach(c=>{
+    if(!texto || c.nombre.toLowerCase().includes(texto)){
+      resultados.push({ cliente:c, motivo:null });
+      return;
+    }
+    const todosLosEquipos = [];
+    c.sedes.forEach(s=>s.equipos.forEach(e=>todosLosEquipos.push(e)));
+    equiposSinSedeDe(c).forEach(e=>todosLosEquipos.push(e));
+    const equipoCoincide = todosLosEquipos.find(e=>
+      `${e.nombre||''} ${e.marca||''} ${e.modelo||''} ${e.serie||''}`.toLowerCase().includes(texto)
+    );
+    if(equipoCoincide) resultados.push({ cliente:c, motivo:equipoCoincide.nombre });
+  });
+  if(!resultados.length){
+    cont.innerHTML = '<div class="autocomplete-item" style="cursor:default;color:var(--text-muted);">Sin resultados</div>';
+  } else {
+    cont.innerHTML = resultados.slice(0,30).map(r=>`
+      <div class="autocomplete-item" onmousedown="seleccionarClienteOrden(${r.cliente.id})">
+        ${r.cliente.nombre}
+        ${r.motivo ? `<small>Coincide por el equipo: ${r.motivo}</small>` : ''}
+      </div>`).join('');
+  }
+  cont.style.display = 'block';
+}
+function seleccionarClienteOrden(clienteId){
+  const c = buscarCliente(clienteId);
+  if(!c) return;
+  document.getElementById('ordClienteBuscador').value = c.nombre;
+  document.getElementById('ordCliente').value = clienteId;
+  cerrarListaClientesOrden();
+  poblarEquiposOrden();
+}
+function cerrarListaClientesOrden(){
+  document.getElementById('ordClienteResultados').style.display = 'none';
 }
 function toggleOrdenSinEquipo(){
   const sinEquipo = document.getElementById('ordSinEquipo').checked;

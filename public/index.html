@@ -261,6 +261,13 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .timeline-fotos{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}
 .timeline-fotos img{width:50px;height:50px;object-fit:cover;border-radius:6px;border:1px solid var(--card-border);}
 .field-row{display:flex;gap:8px;align-items:flex-end;margin-bottom:8px;flex-wrap:wrap;}
+.autocomplete-wrapper{position:relative;}
+.autocomplete-resultados{position:absolute;top:100%;left:0;right:0;z-index:50;max-height:260px;overflow-y:auto;
+  background:var(--panel-bg-1,#212429);border:1px solid var(--card-border);border-top:none;border-radius:0 0 8px 8px;box-shadow:0 8px 20px rgba(0,0,0,.35);}
+.autocomplete-item{padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--card-border);}
+.autocomplete-item:last-child{border-bottom:none;}
+.autocomplete-item:hover, .autocomplete-item.resaltado{background:rgba(0,136,255,.15);}
+.autocomplete-item small{display:block;color:var(--text-muted);font-size:11px;margin-top:2px;}
 .field-row > div{flex:1;min-width:120px;}
 .pdf-preview{background:#fff;color:#333;padding:30px;border-radius:8px;font-size:13px;}
 .pdf-header{display:flex;justify-content:space-between;border-bottom:2px solid #0088ff;padding-bottom:12px;margin-bottom:20px;align-items:center;}
@@ -374,10 +381,10 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
      tal cual fluye, no solo lo que se ve — por eso hay que ocultar explícitamente el
      resto de la app y dejar visible únicamente la ficha del informe. */
   body:not(.imprimiendo-etiqueta) #main-wrapper{ display:none !important; }
-  body:not(.imprimiendo-etiqueta) .modal-overlay:not(#modalPDF):not(#modalVistaPreviaFormulario){ display:none !important; }
-  #modalPDF, #modalVistaPreviaFormulario{ position:static !important; background:none !important; padding:0 !important; }
-  #modalPDF .modal-box, #modalVistaPreviaFormulario .modal-box{ box-shadow:none !important; max-width:100% !important; max-height:none !important; padding:0 !important; border:none !important; overflow:visible !important; }
-  #modalPDF .close-modal, #modalPDF #pdfBotonera, #modalVistaPreviaFormulario .close-modal, #modalVistaPreviaFormulario #vpBotonera{ display:none !important; }
+  body:not(.imprimiendo-etiqueta) .modal-overlay:not(#modalPDF):not(#modalVistaPreviaFormulario):not(#modalComprobanteNomina){ display:none !important; }
+  #modalPDF, #modalVistaPreviaFormulario, #modalComprobanteNomina{ position:static !important; background:none !important; padding:0 !important; }
+  #modalPDF .modal-box, #modalVistaPreviaFormulario .modal-box, #modalComprobanteNomina .modal-box{ box-shadow:none !important; max-width:100% !important; max-height:none !important; padding:0 !important; border:none !important; overflow:visible !important; }
+  #modalPDF .close-modal, #modalPDF #pdfBotonera, #modalVistaPreviaFormulario .close-modal, #modalVistaPreviaFormulario #vpBotonera, #modalComprobanteNomina .close-modal, #modalComprobanteNomina #comprobanteNominaBotonera{ display:none !important; }
   .pdf-preview{ padding:0 !important; }
 
   /* Continuidad de hojas: la ficha técnica del equipo + presentación de la empresa
@@ -719,21 +726,9 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:10px;">
         <div>
           <div class="panel-title"><span>🧾 Nómina</span></div>
-          <div class="field-row">
-            <div><select id="nominaTecnico"></select></div>
-            <div><input type="text" id="nominaConcepto" placeholder="Concepto (Ej. Quincena, Bono)"></div>
-            <div><input type="number" id="nominaMonto" placeholder="Monto (COP)"></div>
-            <div><input type="date" id="nominaFecha"></div>
-            <div>
-              <select id="nominaEstado">
-                <option value="Pagado">Pagado</option>
-                <option value="Pendiente">Pendiente</option>
-              </select>
-            </div>
-          </div>
-          <button class="btn-custom" onclick="agregarNomina()">+ Registrar pago de nómina</button>
+          <button class="btn-custom" onclick="abrirModalLiquidacionNomina()"><i class="fas fa-file-invoice-dollar m-r-10"></i>Nueva liquidación de nómina</button>
           <table class="data-table" style="margin-top:12px;">
-            <thead><tr><th>Fecha</th><th>Técnico</th><th>Concepto</th><th>Monto</th><th>Estado</th><th></th></tr></thead>
+            <thead><tr><th>N.º</th><th>Técnico</th><th>Periodo</th><th>Total neto</th><th></th></tr></thead>
             <tbody id="tablaNomina"></tbody>
           </table>
         </div>
@@ -994,7 +989,12 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <button class="close-modal" onclick="cerrarModal('modalNuevaOrden')">✖</button>
     <h3>🆕 Nueva Orden de Servicio</h3>
     <label>Cliente:</label>
-    <select id="ordCliente" onchange="poblarEquiposOrden()"></select>
+    <div class="autocomplete-wrapper">
+      <input type="text" id="ordClienteBuscador" placeholder="Escribe el nombre del cliente, o el nombre/serie de un equipo suyo..." autocomplete="off"
+        oninput="filtrarClientesOrden()" onfocus="filtrarClientesOrden()" onblur="setTimeout(cerrarListaClientesOrden, 150)">
+      <input type="hidden" id="ordCliente">
+      <div id="ordClienteResultados" class="autocomplete-resultados" style="display:none;"></div>
+    </div>
     <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:10px;">
       <input type="checkbox" id="ordSinEquipo" style="width:auto;" onchange="toggleOrdenSinEquipo()">
       Esta orden no está relacionada a un equipo puntual (servicio general al cliente)
@@ -1218,6 +1218,41 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div id="vpBotonera" style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalVistaPreviaFormulario')">Cerrar</button>
       <button class="btn-custom" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NUEVA LIQUIDACIÓN DE NÓMINA -->
+<div class="modal-overlay" id="modalLiquidacionNomina">
+  <div class="modal-box" style="max-width:900px;">
+    <button class="close-modal" onclick="cerrarModal('modalLiquidacionNomina')">✖</button>
+    <h3><i class="fas fa-file-invoice-dollar m-r-10"></i>Nueva liquidación de nómina</h3>
+    <div class="field-row">
+      <div><label>Periodo desde</label><input type="date" id="liqPeriodoDesde"></div>
+      <div><label>Periodo hasta</label><input type="date" id="liqPeriodoHasta"></div>
+    </div>
+    <label>Selecciona las personas a liquidar:</label>
+    <div id="liqListaTecnicos" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;"></div>
+    <div id="liqDetallesPersonas"></div>
+    <div class="panel" style="background:rgba(0,136,255,.1);border-color:var(--blue-accent);margin-top:15px;">
+      <strong id="liqResumenTexto" style="font-size:13px;"></strong>
+    </div>
+    <div style="margin-top:15px;text-align:right;">
+      <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalLiquidacionNomina')">Cancelar</button>
+      <button class="btn-custom" onclick="confirmarLiquidacionNomina()">✔️ Confirmar liquidación y generar comprobantes</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: COMPROBANTE DE PAGO DE NÓMINA (papel, imprimible) -->
+<div class="modal-overlay" id="modalComprobanteNomina">
+  <div class="modal-box" style="background:#fff;color:#333;">
+    <button class="close-modal" style="color:#000;" onclick="cerrarModal('modalComprobanteNomina')">✖</button>
+    <div class="pdf-preview" id="comprobanteNominaContenido"></div>
+    <div id="comprobanteNominaBotonera" style="margin-top:15px;text-align:right;">
+      <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalComprobanteNomina')">Cerrar</button>
+      <button class="btn-custom" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+      <button class="btn-custom btn-success-custom solo-admin" onclick="enviarComprobanteNominaPorWhatsApp(comprobanteNominaActualId)"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
     </div>
   </div>
 </div>

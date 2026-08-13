@@ -9,27 +9,248 @@ function mesActualISO(){
   const hoy = new Date();
   return hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0');
 }
-function agregarNomina(){
-  const tecnicoId = parseInt(document.getElementById('nominaTecnico').value);
-  const concepto = document.getElementById('nominaConcepto').value.trim();
-  const monto = parseFloat(document.getElementById('nominaMonto').value);
-  const fecha = document.getElementById('nominaFecha').value;
-  const estado = document.getElementById('nominaEstado').value;
-  if(!tecnicoId){ mostrarToast('Selecciona el técnico.'); return; }
-  if(!monto || monto<=0){ mostrarToast('Escribe un monto válido.'); return; }
-  if(!fecha){ mostrarToast('Selecciona la fecha del pago.'); return; }
-  db.nomina = db.nomina || [];
-  db.nomina.push({ id:Date.now(), tecnicoId, concepto: concepto||'Pago de nómina', monto, fecha, estado });
-  dbGuardarInmediato();
-  registrarLog('Crear', 'Nómina', `${(buscarTecnico(tecnicoId)||{}).nombre||''} · ${formatoCOP(monto)}`);
-  document.getElementById('nominaConcepto').value=''; document.getElementById('nominaMonto').value=''; document.getElementById('nominaFecha').value='';
-  renderizarContabilidad();
+/* =========================================================
+   NÓMINA — liquidación completa con comprobante en PDF
+   Reemplaza el formulario simple anterior (un solo monto suelto)
+   por un flujo de liquidación real: selección de personas, días
+   laborados, ajustes/descuentos con nota, y comprobante numerado
+   por persona. El balance mensual de Contabilidad ahora se calcula
+   desde este nuevo registro (db.liquidacionesNomina) en vez del
+   arreglo viejo db.nomina.
+========================================================= */
+let liquidacionEstado = {}; // { [tecnicoId]: {dias, valorDia, ajustes:[], descuentos:[]} }
+
+function abrirModalLiquidacionNomina(){
+  liquidacionEstado = {};
+  const hoy = new Date().toISOString().slice(0,10);
+  document.getElementById('liqPeriodoDesde').value = hoy;
+  document.getElementById('liqPeriodoHasta').value = hoy;
+  renderizarListaTecnicosLiquidacion();
+  renderizarDetallesLiquidacion();
+  abrirModal('modalLiquidacionNomina');
 }
-function eliminarNomina(id){
-  if(!confirm('¿Eliminar este registro de nómina?')) return;
-  db.nomina = db.nomina.filter(n=>n.id!==id);
+function renderizarListaTecnicosLiquidacion(){
+  const cont = document.getElementById('liqListaTecnicos');
+  const activos = db.tecnicos.filter(t=>t.activo!==false);
+  cont.innerHTML = activos.map(t=>`
+    <label style="display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.15);padding:6px 12px;border-radius:6px;font-size:13px;font-weight:400;margin:0;">
+      <input type="checkbox" style="width:auto;margin:0;" onchange="toggleTecnicoLiquidacion(${t.id}, this.checked)">
+      ${t.nombre}
+    </label>`).join('') || '<p class="empty-state">No hay técnicos activos registrados.</p>';
+}
+function toggleTecnicoLiquidacion(tecnicoId, marcado){
+  if(marcado){
+    liquidacionEstado[tecnicoId] = liquidacionEstado[tecnicoId] || { dias:0, valorDia:0, ajustes:[], descuentos:[] };
+  } else {
+    delete liquidacionEstado[tecnicoId];
+  }
+  renderizarDetallesLiquidacion();
+}
+function calcularTotalesPersonaLiquidacion(persona){
+  const valorBase = (persona.dias||0) * (persona.valorDia||0);
+  const totalAjustes = persona.ajustes.reduce((a,x)=>a+(x.monto||0),0);
+  const totalDescuentos = persona.descuentos.reduce((a,x)=>a+(x.monto||0),0);
+  const totalNeto = valorBase + totalAjustes - totalDescuentos;
+  return { valorBase, totalAjustes, totalDescuentos, totalNeto };
+}
+function renderizarDetallesLiquidacion(){
+  const cont = document.getElementById('liqDetallesPersonas');
+  const ids = Object.keys(liquidacionEstado);
+  if(!ids.length){
+    cont.innerHTML = '<p class="empty-state">Marca arriba a las personas que vas a liquidar.</p>';
+    document.getElementById('liqResumenTexto').innerText = '';
+    return;
+  }
+  let totalGeneral = 0;
+  cont.innerHTML = ids.map(idStr=>{
+    const tecnicoId = parseInt(idStr);
+    const t = buscarTecnico(tecnicoId);
+    const persona = liquidacionEstado[tecnicoId];
+    const { valorBase, totalNeto } = calcularTotalesPersonaLiquidacion(persona);
+    totalGeneral += totalNeto;
+    const filasAjustes = persona.ajustes.map((a,idx)=>`
+      <div class="field-row" style="margin-bottom:4px;">
+        <div><input type="text" placeholder="Concepto (ej. Bono, Hora extra)" value="${a.concepto||''}" oninput="actualizarItemLiquidacion(${tecnicoId},'ajustes',${idx},'concepto',this.value)"></div>
+        <div><input type="number" placeholder="Monto" value="${a.monto||''}" oninput="actualizarItemLiquidacion(${tecnicoId},'ajustes',${idx},'monto',this.value)"></div>
+        <div><input type="text" placeholder="Nota (opcional)" value="${a.nota||''}" oninput="actualizarItemLiquidacion(${tecnicoId},'ajustes',${idx},'nota',this.value)"></div>
+        <div style="flex:0;"><button type="button" class="btn-custom btn-danger-custom btn-sm-custom" onclick="quitarItemLiquidacion(${tecnicoId},'ajustes',${idx})">X</button></div>
+      </div>`).join('');
+    const filasDescuentos = persona.descuentos.map((d,idx)=>`
+      <div class="field-row" style="margin-bottom:4px;">
+        <div><input type="text" placeholder="Concepto (ej. Préstamo, Ausencia)" value="${d.concepto||''}" oninput="actualizarItemLiquidacion(${tecnicoId},'descuentos',${idx},'concepto',this.value)"></div>
+        <div><input type="number" placeholder="Monto" value="${d.monto||''}" oninput="actualizarItemLiquidacion(${tecnicoId},'descuentos',${idx},'monto',this.value)"></div>
+        <div><input type="text" placeholder="Nota (opcional)" value="${d.nota||''}" oninput="actualizarItemLiquidacion(${tecnicoId},'descuentos',${idx},'nota',this.value)"></div>
+        <div style="flex:0;"><button type="button" class="btn-custom btn-danger-custom btn-sm-custom" onclick="quitarItemLiquidacion(${tecnicoId},'descuentos',${idx})">X</button></div>
+      </div>`).join('');
+    return `<div class="panel" style="background:rgba(0,0,0,.15);margin-bottom:12px;">
+      <strong>${t?t.nombre:'—'}</strong>
+      <div class="field-row" style="margin-top:8px;">
+        <div><label style="font-size:11px;">Días laborados</label><input type="number" min="0" value="${persona.dias}" oninput="actualizarCampoLiquidacion(${tecnicoId},'dias',this.value)"></div>
+        <div><label style="font-size:11px;">Valor por día</label><input type="number" min="0" value="${persona.valorDia}" oninput="actualizarCampoLiquidacion(${tecnicoId},'valorDia',this.value)"></div>
+        <div><label style="font-size:11px;">Valor base</label><input type="text" disabled value="${formatoCOP(valorBase)}"></div>
+      </div>
+      <label style="font-size:11px;margin-top:8px;">Ajustes / bonificaciones (+)</label>
+      ${filasAjustes}
+      <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarItemLiquidacion(${tecnicoId},'ajustes')">+ Agregar ajuste</button>
+      <label style="font-size:11px;margin-top:10px;">Descuentos (-)</label>
+      ${filasDescuentos}
+      <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarItemLiquidacion(${tecnicoId},'descuentos')">+ Agregar descuento</button>
+      <div style="text-align:right;font-weight:700;margin-top:10px;border-top:1px solid var(--card-border);padding-top:8px;">
+        Total neto a pagar: ${formatoCOP(totalNeto)}
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('liqResumenTexto').innerText = `${ids.length} persona(s) seleccionada(s) · Total a pagar: ${formatoCOP(totalGeneral)}`;
+}
+function actualizarCampoLiquidacion(tecnicoId, campo, valor){
+  liquidacionEstado[tecnicoId][campo] = parseFloat(valor) || 0;
+  renderizarDetallesLiquidacion();
+}
+function agregarItemLiquidacion(tecnicoId, tipo){
+  liquidacionEstado[tecnicoId][tipo].push({ concepto:'', monto:0, nota:'' });
+  renderizarDetallesLiquidacion();
+}
+function quitarItemLiquidacion(tecnicoId, tipo, idx){
+  liquidacionEstado[tecnicoId][tipo].splice(idx,1);
+  renderizarDetallesLiquidacion();
+}
+function actualizarItemLiquidacion(tecnicoId, tipo, idx, campo, valor){
+  liquidacionEstado[tecnicoId][tipo][idx][campo] = (campo==='monto') ? (parseFloat(valor)||0) : valor;
+  if(campo!=='monto') return; // no hace falta redibujar todo por cada letra escrita en texto/nota
+  renderizarDetallesLiquidacion();
+}
+function siguienteConsecutivoNomina(){
+  db.config.consecutivoNomina = (db.config.consecutivoNomina || 0) + 1;
+  return 'NOM-' + String(db.config.consecutivoNomina).padStart(5,'0');
+}
+function confirmarLiquidacionNomina(){
+  const ids = Object.keys(liquidacionEstado);
+  if(!ids.length){ mostrarToast('Selecciona al menos una persona para liquidar.'); return; }
+  const periodoDesde = document.getElementById('liqPeriodoDesde').value;
+  const periodoHasta = document.getElementById('liqPeriodoHasta').value;
+  if(!periodoDesde || !periodoHasta){ mostrarToast('Define el periodo a liquidar (desde/hasta).'); return; }
+  const fechaLiquidacion = new Date().toISOString().slice(0,10);
+  db.liquidacionesNomina = db.liquidacionesNomina || [];
+  let generados = 0;
+  ids.forEach(idStr=>{
+    const tecnicoId = parseInt(idStr);
+    const persona = liquidacionEstado[tecnicoId];
+    const totales = calcularTotalesPersonaLiquidacion(persona);
+    db.liquidacionesNomina.push({
+      id: Date.now() + generados,
+      numero: siguienteConsecutivoNomina(),
+      fecha: fechaLiquidacion,
+      periodoDesde, periodoHasta,
+      tecnicoId,
+      diasLaborados: persona.dias, valorDia: persona.valorDia,
+      valorBase: totales.valorBase,
+      ajustes: persona.ajustes.filter(a=>a.concepto || a.monto),
+      descuentos: persona.descuentos.filter(d=>d.concepto || d.monto),
+      totalAjustes: totales.totalAjustes, totalDescuentos: totales.totalDescuentos,
+      totalNeto: totales.totalNeto
+    });
+    generados++;
+  });
   dbGuardarInmediato();
-  renderizarContabilidad();
+  registrarLog('Liquidar', 'Nómina', `${generados} persona(s) · periodo ${periodoDesde} a ${periodoHasta}`);
+  cerrarModal('modalLiquidacionNomina');
+  mostrarToast(`Liquidación registrada: ${generados} comprobante(s) generado(s). Descárgalos desde el historial.`);
+  renderizarHistorialNomina();
+}
+function renderizarHistorialNomina(){
+  const filtroMes = document.getElementById('contaMesFiltro');
+  const mes = filtroMes.value || mesActualISO();
+  db.liquidacionesNomina = db.liquidacionesNomina || [];
+  const delMes = db.liquidacionesNomina.filter(l=>l.fecha && l.fecha.startsWith(mes));
+  document.getElementById('tablaNomina').innerHTML = delMes.slice().reverse().map(l=>{
+    const t = buscarTecnico(l.tecnicoId);
+    return `<tr>
+      <td>${l.numero}</td><td>${t?t.nombre:'—'}</td><td>${l.periodoDesde} a ${l.periodoHasta}</td>
+      <td>${formatoCOP(l.totalNeto)}</td>
+      <td><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verComprobanteNomina(${l.id})"><i class="fas fa-file-invoice"></i> Ver comprobante</button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" class="empty-state">Sin liquidaciones registradas este mes.</td></tr>';
+}
+let comprobanteNominaActualId = null;
+function verComprobanteNomina(id){
+  comprobanteNominaActualId = id;
+  const l = (db.liquidacionesNomina||[]).find(x=>x.id===id);
+  if(!l) return;
+  const t = buscarTecnico(l.tecnicoId);
+  const logoHtml = db.config.logo ? `<img src="${db.config.logo}">` : '';
+  const filasAjustes = l.ajustes.map(a=>`<tr><td>${a.concepto||'Ajuste'}${a.nota?` — <small>${a.nota}</small>`:''}</td><td style="text-align:right;color:#16a34a;">+ ${formatoCOP(a.monto)}</td></tr>`).join('');
+  const filasDescuentos = l.descuentos.map(d=>`<tr><td>${d.concepto||'Descuento'}${d.nota?` — <small>${d.nota}</small>`:''}</td><td style="text-align:right;color:#dc2626;">− ${formatoCOP(d.monto)}</td></tr>`).join('');
+  document.getElementById('comprobanteNominaContenido').innerHTML = `
+    <div class="pdf-header">
+      <div>${logoHtml}<h2 style="color:#0088ff;margin:0;">${db.config.nombre}</h2><small>${db.config.subtitulo||''}</small></div>
+      <div style="text-align:right;"><strong>Comprobante de Pago de Nómina</strong><br><small>N.º ${l.numero}</small><br><small>Fecha: ${new Date(l.fecha+'T00:00:00').toLocaleDateString('es-CO')}</small></div>
+    </div>
+    <div class="pdf-box"><h4>Datos de la liquidación</h4>
+      <table class="pdf-tabla-datos" cellpadding="4">
+        <tr><td style="width:45%;"><strong>Persona liquidada</strong></td><td>${t?t.nombre:'—'}</td></tr>
+        <tr><td><strong>Periodo liquidado</strong></td><td>${l.periodoDesde} a ${l.periodoHasta}</td></tr>
+        <tr><td><strong>Días laborados</strong></td><td>${l.diasLaborados}</td></tr>
+        <tr><td><strong>Valor por día</strong></td><td>${formatoCOP(l.valorDia)}</td></tr>
+        <tr><td><strong>Valor base</strong></td><td>${formatoCOP(l.valorBase)}</td></tr>
+      </table>
+    </div>
+    ${filasAjustes ? `<div class="pdf-box"><h4>Ajustes / Bonificaciones</h4><table class="pdf-tabla-datos" cellpadding="4">${filasAjustes}</table></div>` : ''}
+    ${filasDescuentos ? `<div class="pdf-box"><h4>Descuentos</h4><table class="pdf-tabla-datos" cellpadding="4">${filasDescuentos}</table></div>` : ''}
+    <div class="pdf-box" style="background:#eff6ff;border-color:#bfdbfe;">
+      <h4 style="margin:0 0 4px 0;">Total neto pagado</h4>
+      <p style="font-size:22px;font-weight:700;color:#1d4ed8;margin:0;">${formatoCOP(l.totalNeto)}</p>
+    </div>
+    <div class="pdf-box" style="margin-top:30px;">
+      <div style="text-align:center;width:260px;margin:20px auto 0;">
+        <div style="border-top:1px solid #000;padding-top:6px;font-size:12px;">
+          Juan<br><small style="color:#64748b;">Representante — ${db.config.nombre}</small>
+        </div>
+      </div>
+    </div>`;
+  abrirModal('modalComprobanteNomina');
+}
+function enviarComprobanteNominaPorWhatsApp(id){
+  const l = (db.liquidacionesNomina||[]).find(x=>x.id===id);
+  if(!l) return;
+  const t = buscarTecnico(l.tecnicoId);
+  if(!t || !t.telefono){ mostrarToast('Esta persona no tiene teléfono registrado en su ficha de técnico.'); return; }
+  const telefonoLimpio = t.telefono.replace(/[^0-9]/g,'');
+  const mensaje = `Hola ${t.nombre}, adjuntamos tu comprobante de pago de nómina N.º ${l.numero}, correspondiente al periodo ${l.periodoDesde} a ${l.periodoHasta}. Cualquier duda con gusto la resolvemos.`;
+  const abrirChatWhatsApp = ()=> window.open(`https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`, '_blank');
+
+  verComprobanteNomina(id); // arma el contenido del comprobante en #comprobanteNominaContenido
+  const nombreArchivo = `Comprobante_${l.numero}_${t.nombre}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
+  const elemento = document.getElementById('comprobanteNominaContenido');
+  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
+
+  if(typeof html2pdf === 'undefined'){
+    abrirChatWhatsApp();
+    registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (sin comprobante adjunto automático — sin conexión)`);
+    return;
+  }
+  html2pdf().set(opciones).from(elemento).outputPdf('blob').then(blob=>{
+    cerrarModal('modalComprobanteNomina');
+    const archivoPdf = new File([blob], nombreArchivo, { type:'application/pdf' });
+
+    if(navigator.canShare && navigator.canShare({ files:[archivoPdf] })){
+      navigator.share({ files:[archivoPdf], title:`Comprobante ${l.numero}`, text: mensaje }).then(()=>{
+        registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (comprobante compartido directo desde el celular)`);
+      }).catch(()=>{ /* el usuario cerró el panel de compartir sin elegir nada: no se registra como enviado */ });
+      return;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const enlaceDescarga = document.createElement('a');
+    enlaceDescarga.href = url; enlaceDescarga.download = nombreArchivo; enlaceDescarga.click();
+    URL.revokeObjectURL(url);
+    mostrarToast(`Se descargó el comprobante "${nombreArchivo}". Ahora se abre WhatsApp con el mensaje listo: adjunta ese archivo en el chat (📎 → Documento) antes de enviarlo — desde el computador, WhatsApp no permite adjuntar archivos automáticamente por este tipo de enlace. Desde el celular, este mismo botón comparte el PDF directo, sin este paso.`);
+    abrirChatWhatsApp();
+    registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (con comprobante PDF descargado para adjuntar)`);
+  }).catch(()=>{
+    mostrarToast('No se pudo generar el PDF automáticamente. Se abrirá WhatsApp; puedes generar el comprobante desde "Ver comprobante" y adjuntarlo manualmente.');
+    abrirChatWhatsApp();
+    registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (sin comprobante adjunto automático)`);
+  });
 }
 function agregarGasto(){
   const categoria = document.getElementById('gastoCategoria').value;
@@ -53,19 +274,16 @@ function eliminarGasto(id){
   renderizarContabilidad();
 }
 function renderizarContabilidad(){
-  db.nomina = db.nomina || []; db.gastos = db.gastos || []; db.pedidosTienda = db.pedidosTienda || [];
+  db.liquidacionesNomina = db.liquidacionesNomina || []; db.gastos = db.gastos || []; db.pedidosTienda = db.pedidosTienda || [];
   const filtroMes = document.getElementById('contaMesFiltro');
   if(!filtroMes.value) filtroMes.value = mesActualISO();
   const mes = filtroMes.value; // "YYYY-MM"
 
-  const selTec = document.getElementById('nominaTecnico');
-  selTec.innerHTML = db.tecnicos.map(t=>`<option value="${t.id}">${t.nombre}${t.activo===false?' (inactivo)':''}</option>`).join('') || '<option value="">Sin técnicos registrados</option>';
-
-  const nominaDelMes = db.nomina.filter(n=>n.fecha && n.fecha.startsWith(mes));
+  const nominaDelMes = db.liquidacionesNomina.filter(l=>l.fecha && l.fecha.startsWith(mes));
   const gastosDelMes = db.gastos.filter(g=>g.fecha && g.fecha.startsWith(mes));
   const pedidosDelMes = db.pedidosTienda.filter(p=>p.fecha && p.fecha.startsWith(mes));
 
-  const totalNomina = nominaDelMes.filter(n=>n.estado==='Pagado').reduce((a,n)=>a+n.monto,0);
+  const totalNomina = nominaDelMes.reduce((a,l)=>a+l.totalNeto,0);
   const totalGastos = gastosDelMes.reduce((a,g)=>a+g.monto,0);
   const totalIngresos = pedidosDelMes.reduce((a,p)=>a+p.total,0);
   const balance = totalIngresos - totalNomina - totalGastos;
@@ -77,12 +295,7 @@ function renderizarContabilidad(){
   cardBalance.innerText = formatoCOP(balance);
   cardBalance.style.color = balance >= 0 ? 'var(--exito-verde,#22c55e)' : 'var(--red-alert)';
 
-  document.getElementById('tablaNomina').innerHTML = nominaDelMes.map(n=>{
-    const t = buscarTecnico(n.tecnicoId);
-    return `<tr><td>${n.fecha}</td><td>${t?t.nombre:'—'}</td><td>${n.concepto}</td><td>${formatoCOP(n.monto)}</td>
-      <td><span style="color:${n.estado==='Pagado'?'var(--exito-verde,#22c55e)':'#f59e0b'};font-weight:700;font-size:11px;">${n.estado}</span></td>
-      <td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarNomina(${n.id})">X</button></td></tr>`;
-  }).join('') || '<tr><td colspan="6" class="empty-state">Sin pagos de nómina registrados este mes.</td></tr>';
+  renderizarHistorialNomina();
 
   document.getElementById('tablaGastos').innerHTML = gastosDelMes.map(g=>`
     <tr><td>${g.fecha}</td><td>${g.categoria}</td><td>${g.descripcion}</td><td>${formatoCOP(g.monto)}</td>
