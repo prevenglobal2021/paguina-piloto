@@ -243,6 +243,7 @@ function eliminarTecnicoConfig(id){
   if(!confirm('¿Eliminar este técnico?')) return;
   const t = buscarTecnico(id);
   db.tecnicos = db.tecnicos.filter(t=>t.id!==id);
+  registrarEliminacion('tecnicos', id);
   dbGuardar();
   if(t) registrarLog('Eliminar', 'Técnico', t.nombre);
   if(document.getElementById('cfgTecId').value == id) cancelarEdicionTecnico();
