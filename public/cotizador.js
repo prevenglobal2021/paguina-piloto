@@ -167,7 +167,11 @@ function renderizarHistorialNomina(){
     return `<tr>
       <td>${l.numero}</td><td>${t?t.nombre:'—'}</td><td>${l.periodoDesde} a ${l.periodoHasta}</td>
       <td>${formatoCOP(l.totalNeto)}</td>
-      <td><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verComprobanteNomina(${l.id})"><i class="fas fa-file-invoice"></i> Ver comprobante</button></td>
+      <td>
+        <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verComprobanteNomina(${l.id})"><i class="fas fa-file-invoice"></i> Ver comprobante</button>
+        <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" onclick="editarLiquidacionNomina(${l.id})"><i class="fas fa-pen"></i> Editar</button>
+        <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" onclick="eliminarLiquidacionNomina(${l.id})"><i class="fas fa-trash"></i> Eliminar</button>
+      </td>
     </tr>`;
   }).join('') || '<tr><td colspan="5" class="empty-state">Sin liquidaciones registradas este mes.</td></tr>';
 }
@@ -461,5 +465,116 @@ function eliminarTecnicoConfig(id){
   if(t) registrarLog('Eliminar', 'Técnico', t.nombre);
   if(document.getElementById('cfgTecId').value == id) cancelarEdicionTecnico();
   renderizarTecnicosConfig();
+}
+
+/* ---------------------------------------------------------
+   EDITAR / ELIMINAR liquidaciones de nómina — por ser
+   información de pagos, se pide la clave de administrador cada
+   vez, aunque ya se haya iniciado sesión como admin. Se valida
+   contra el servidor real (el mismo login de siempre), nunca en
+   el navegador.
+--------------------------------------------------------- */
+function verificarClaveAdminYEjecutar(accion){
+  const clave = prompt('Escribe la clave de administrador para continuar:');
+  if(clave===null) return; // canceló, no hace nada
+  if(!clave){ mostrarToast('Escribe la clave de administrador.'); return; }
+  fetch(API_BASE + '/api/auth/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug: empresaActual, tipo:'admin', usuario: db.config.adminUsuario, password: clave })
+  }).then(r=> r.ok ? accion() : Promise.reject())
+    .catch(()=> mostrarToast('Clave de administrador incorrecta.'));
+}
+
+let edicionLiquidacion = null; // {id, dias, valorDia, ajustes:[], descuentos:[]}
+function editarLiquidacionNomina(id){
+  verificarClaveAdminYEjecutar(()=>abrirModalEditarLiquidacion(id));
+}
+function abrirModalEditarLiquidacion(id){
+  const l = (db.liquidacionesNomina||[]).find(x=>x.id===id);
+  if(!l) return;
+  const t = buscarTecnico(l.tecnicoId);
+  edicionLiquidacion = {
+    id: l.id, dias: l.diasLaborados, valorDia: l.valorDia,
+    ajustes: JSON.parse(JSON.stringify(l.ajustes||[])),
+    descuentos: JSON.parse(JSON.stringify(l.descuentos||[]))
+  };
+  document.getElementById('editNominaNumero').innerText = l.numero;
+  document.getElementById('editNominaTecnicoNombre').innerText = t?t.nombre:'—';
+  document.getElementById('editLiqPeriodoDesde').value = l.periodoDesde;
+  document.getElementById('editLiqPeriodoHasta').value = l.periodoHasta;
+  renderizarEdicionLiquidacion();
+  abrirModal('modalEditarNomina');
+}
+function renderizarEdicionLiquidacion(){
+  const totales = calcularTotalesPersonaLiquidacion(edicionLiquidacion);
+  const filasAjustes = edicionLiquidacion.ajustes.map((a,idx)=>`
+    <div class="field-row" style="margin-bottom:4px;">
+      <div><input type="text" placeholder="Concepto" value="${a.concepto||''}" oninput="actualizarItemEdicion('ajustes',${idx},'concepto',this.value)"></div>
+      <div><input type="number" placeholder="Monto" value="${a.monto||''}" oninput="actualizarItemEdicion('ajustes',${idx},'monto',this.value)"></div>
+      <div><input type="text" placeholder="Nota (opcional)" value="${a.nota||''}" oninput="actualizarItemEdicion('ajustes',${idx},'nota',this.value)"></div>
+      <div style="flex:0;"><button type="button" class="btn-custom btn-danger-custom btn-sm-custom" onclick="quitarItemEdicion('ajustes',${idx})">X</button></div>
+    </div>`).join('');
+  const filasDescuentos = edicionLiquidacion.descuentos.map((d,idx)=>`
+    <div class="field-row" style="margin-bottom:4px;">
+      <div><input type="text" placeholder="Concepto" value="${d.concepto||''}" oninput="actualizarItemEdicion('descuentos',${idx},'concepto',this.value)"></div>
+      <div><input type="number" placeholder="Monto" value="${d.monto||''}" oninput="actualizarItemEdicion('descuentos',${idx},'monto',this.value)"></div>
+      <div><input type="text" placeholder="Nota (opcional)" value="${d.nota||''}" oninput="actualizarItemEdicion('descuentos',${idx},'nota',this.value)"></div>
+      <div style="flex:0;"><button type="button" class="btn-custom btn-danger-custom btn-sm-custom" onclick="quitarItemEdicion('descuentos',${idx})">X</button></div>
+    </div>`).join('');
+  document.getElementById('editLiqDetalle').innerHTML = `
+    <div class="field-row" style="margin-top:8px;">
+      <div><label style="font-size:11px;">Días laborados</label><input type="number" min="0" value="${edicionLiquidacion.dias}" oninput="actualizarCampoEdicion('dias',this.value)"></div>
+      <div><label style="font-size:11px;">Valor por día</label><input type="number" min="0" value="${edicionLiquidacion.valorDia}" oninput="actualizarCampoEdicion('valorDia',this.value)"></div>
+      <div><label style="font-size:11px;">Valor base</label><input type="text" disabled value="${formatoCOP(totales.valorBase)}"></div>
+    </div>
+    <label style="font-size:11px;margin-top:8px;">Ajustes / bonificaciones (+)</label>
+    ${filasAjustes}
+    <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarItemEdicion('ajustes')">+ Agregar ajuste</button>
+    <label style="font-size:11px;margin-top:10px;">Descuentos (-)</label>
+    ${filasDescuentos}
+    <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarItemEdicion('descuentos')">+ Agregar descuento</button>
+    <div style="text-align:right;font-weight:700;margin-top:10px;border-top:1px solid var(--card-border);padding-top:8px;">
+      Total neto a pagar: ${formatoCOP(totales.totalNeto)}
+    </div>`;
+}
+function actualizarCampoEdicion(campo, valor){ edicionLiquidacion[campo] = parseFloat(valor)||0; renderizarEdicionLiquidacion(); }
+function agregarItemEdicion(tipo){ edicionLiquidacion[tipo].push({concepto:'',monto:0,nota:''}); renderizarEdicionLiquidacion(); }
+function quitarItemEdicion(tipo, idx){ edicionLiquidacion[tipo].splice(idx,1); renderizarEdicionLiquidacion(); }
+function actualizarItemEdicion(tipo, idx, campo, valor){
+  edicionLiquidacion[tipo][idx][campo] = (campo==='monto') ? (parseFloat(valor)||0) : valor;
+  if(campo!=='monto') return; // no hace falta redibujar todo por cada letra escrita en texto/nota
+  renderizarEdicionLiquidacion();
+}
+function guardarEdicionLiquidacionNomina(){
+  const l = (db.liquidacionesNomina||[]).find(x=>x.id===edicionLiquidacion.id);
+  if(!l) return;
+  const periodoDesde = document.getElementById('editLiqPeriodoDesde').value;
+  const periodoHasta = document.getElementById('editLiqPeriodoHasta').value;
+  if(!periodoDesde || !periodoHasta){ mostrarToast('Define el periodo (desde/hasta).'); return; }
+  const totales = calcularTotalesPersonaLiquidacion(edicionLiquidacion);
+  l.periodoDesde = periodoDesde; l.periodoHasta = periodoHasta;
+  l.diasLaborados = edicionLiquidacion.dias; l.valorDia = edicionLiquidacion.valorDia;
+  l.ajustes = edicionLiquidacion.ajustes.filter(a=>a.concepto || a.monto);
+  l.descuentos = edicionLiquidacion.descuentos.filter(d=>d.concepto || d.monto);
+  l.valorBase = totales.valorBase; l.totalAjustes = totales.totalAjustes;
+  l.totalDescuentos = totales.totalDescuentos; l.totalNeto = totales.totalNeto;
+  dbGuardarInmediato();
+  registrarLog('Editar', 'Nómina', `${l.numero} — nuevo total: ${formatoCOP(l.totalNeto)}`);
+  cerrarModal('modalEditarNomina');
+  mostrarToast('Liquidación actualizada.');
+  renderizarHistorialNomina();
+}
+function eliminarLiquidacionNomina(id){
+  verificarClaveAdminYEjecutar(()=>{
+    const l = (db.liquidacionesNomina||[]).find(x=>x.id===id);
+    if(!l) return;
+    if(!confirm(`¿Eliminar el comprobante ${l.numero}? Esta acción no se puede deshacer.`)) return;
+    db.liquidacionesNomina = db.liquidacionesNomina.filter(x=>x.id!==id);
+    registrarEliminacion('liquidacionesNomina', id);
+    dbGuardarInmediato();
+    registrarLog('Eliminar', 'Nómina', l.numero);
+    mostrarToast('Comprobante eliminado.');
+    renderizarHistorialNomina();
+  });
 }
 

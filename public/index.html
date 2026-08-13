@@ -1257,6 +1257,24 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
+<!-- MODAL: EDITAR LIQUIDACIÓN DE NÓMINA (requiere clave de administrador para abrirse) -->
+<div class="modal-overlay" id="modalEditarNomina">
+  <div class="modal-box">
+    <button class="close-modal" onclick="cerrarModal('modalEditarNomina')">✖</button>
+    <h3><i class="fas fa-pen m-r-10"></i>Editar liquidación <span id="editNominaNumero"></span></h3>
+    <p style="font-size:11px;color:var(--text-muted);">Persona liquidada: <strong id="editNominaTecnicoNombre"></strong> — no se puede cambiar de aquí; si liquidaste a la persona equivocada, elimina este comprobante y crea uno nuevo.</p>
+    <div class="field-row">
+      <div><label>Periodo desde</label><input type="date" id="editLiqPeriodoDesde"></div>
+      <div><label>Periodo hasta</label><input type="date" id="editLiqPeriodoHasta"></div>
+    </div>
+    <div id="editLiqDetalle"></div>
+    <div style="margin-top:15px;text-align:right;">
+      <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalEditarNomina')">Cancelar</button>
+      <button class="btn-custom" onclick="guardarEdicionLiquidacionNomina()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <!-- CENTRO DE CONFIGURACION -->
 <div class="modal-overlay" id="modalConfigCentro">
   <div class="modal-box config-modal-box">
