@@ -17,13 +17,48 @@ function renderizarPlantillasConfig(){
   tbody.innerHTML = '';
   db.plantillas.forEach(p=>{
     tbody.innerHTML += `<tr><td>${p.nombre}</td><td>${p.campos.length}</td>
-      <td><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="editarPlantillaConfig(${p.id})">✏️ Editar</button>
+      <td><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="visualizarPlantilla(${p.id})"><i class="fas fa-eye"></i> Visualizar formulario</button>
+      <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="editarPlantillaConfig(${p.id})">✏️ Editar</button>
       <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarPlantillaConfig(${p.id})">X</button></td></tr>`;
   });
+}
+function visualizarPlantilla(id){
+  const p = buscarPlantilla(id);
+  if(!p) return;
+  document.getElementById('vpNombrePlantilla').innerText = p.nombre;
+  const cont = document.getElementById('vpContenidoFormulario');
+  if(!p.campos.length){
+    cont.innerHTML = '<p class="empty-state">Esta plantilla todavía no tiene campos configurados.</p>';
+  } else {
+    cont.innerHTML = p.campos.map(campo=>{
+      const tipoEtiqueta = NOMBRES_TIPO_CAMPO[campo.tipo] || campo.tipo;
+      if(campo.tipo==='checklist'){
+        const itemsHtml = (campo.items||[]).map(item=>`
+          <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+            <input type="checkbox" disabled style="width:auto;margin:0;">
+            <span style="font-size:12px;">${item.texto}</span>
+          </div>`).join('') || '<p style="font-size:11px;color:var(--text-muted);margin:4px 0 0;">(sin ítems todavía)</p>';
+        return `<div style="margin-top:10px;border-top:1px dashed var(--card-border);padding-top:8px;">
+          <label>${campo.label}: <span style="font-size:10px;color:var(--text-muted);">(${tipoEtiqueta})</span></label>${itemsHtml}</div>`;
+      }
+      if(campo.tipo==='foto'){
+        return `<div style="margin-top:10px;border-top:1px dashed var(--card-border);padding-top:8px;">
+          <label>${campo.label}: <span style="font-size:10px;color:var(--text-muted);">(${tipoEtiqueta})</span></label>
+          <input type="file" disabled></div>`;
+      }
+      let inputHtml;
+      if(campo.tipo==='textarea') inputHtml = `<textarea rows="2" disabled placeholder="El técnico escribe aquí..."></textarea>`;
+      else if(campo.tipo==='checkbox') inputHtml = `<select disabled><option>Sí</option><option>No</option></select>`;
+      else inputHtml = `<input type="${campo.tipo}" disabled placeholder="El técnico escribe aquí...">`;
+      return `<div style="margin-top:8px;"><label>${campo.label}: <span style="font-size:10px;color:var(--text-muted);">(${tipoEtiqueta})</span></label>${inputHtml}</div>`;
+    }).join('');
+  }
+  abrirModal('modalVistaPreviaFormulario');
 }
 function eliminarPlantillaConfig(id){
   if(!confirm('¿Eliminar esta plantilla?')) return;
   db.plantillas = db.plantillas.filter(p=>p.id!==id);
+  registrarEliminacion('plantillas', id);
   dbGuardar(); renderizarPlantillasConfig();
   document.getElementById('cfgSeccionCampos').style.display='none';
 }
