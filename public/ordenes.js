@@ -395,3 +395,5 @@ function confirmarFinalizarOrden(){
   guardarDetalleOrden(true);
 }
 
+
+
