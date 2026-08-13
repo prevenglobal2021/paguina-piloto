@@ -513,22 +513,22 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <li><a data-sec="agenda" onclick="mostrarSeccion('agenda')" class="active"><i class="fas fa-calendar-alt m-r-10"></i><span>Agenda / Órdenes</span></a></li>
       <li><a data-sec="equipos" onclick="mostrarSeccion('equipos')"><i class="fas fa-snowflake m-r-10"></i><span>Equipos</span></a></li>
       <li><a data-sec="trazabilidad" onclick="mostrarSeccion('trazabilidad')"><i class="fas fa-stream m-r-10"></i><span>Historial y Trazabilidad</span></a></li>
-      <li class="solo-admin"><a data-sec="inventario" onclick="mostrarSeccion('inventario')"><i class="fas fa-boxes m-r-10"></i><span>Inventario</span></a></li>
+      <li class="solo-admin" data-permiso="inventario_ver"><a data-sec="inventario" onclick="mostrarSeccion('inventario')"><i class="fas fa-boxes m-r-10"></i><span>Inventario</span></a></li>
       <li><a data-sec="tienda" onclick="mostrarSeccion('tienda')"><i class="fas fa-store m-r-10"></i><span>Tienda Virtual</span></a></li>
-      <li class="solo-admin"><a data-sec="kpi" onclick="mostrarSeccion('kpi')"><i class="fas fa-chart-line m-r-10"></i><span>Indicadores (KPI)</span></a></li>
-      <li class="solo-admin"><a data-sec="contabilidad" onclick="mostrarSeccion('contabilidad')"><i class="fas fa-wallet m-r-10"></i><span>Negocio / Contabilidad</span></a></li>
-      <div class="sidebar-section-title solo-admin">Configuración</div>
-      <li class="solo-admin"><a onclick="abrirModalConfig('clientes')"><i class="fas fa-users m-r-10"></i><span>Clientes y Sedes</span></a></li>
-      <li class="solo-admin"><a onclick="abrirModalConfig('plantillas')"><i class="fas fa-file-signature m-r-10"></i><span>Plantillas de Formularios</span></a></li>
-      <li class="solo-admin"><a onclick="abrirModalConfig('tecnicos')"><i class="fas fa-hard-hat m-r-10"></i><span>Técnicos</span></a></li>
-      <li class="solo-admin"><a onclick="abrirModalConfig('database')"><i class="fas fa-database m-r-10"></i><span>Base de Datos & Backup</span></a></li>
-      <li class="solo-admin"><a onclick="abrirModalConfig('general')"><i class="fas fa-industry m-r-10"></i><span>Empresa y Perfil</span></a></li>
-      <li class="solo-admin"><a onclick="abrirModalConfig('apariencia')"><i class="fas fa-palette m-r-10"></i><span>Apariencia</span></a></li>
-      <li class="solo-admin"><a onclick="abrirModalConfig('etiquetas')"><i class="fas fa-tags m-r-10"></i><span>Etiquetas</span></a></li>
-      <li class="solo-admin"><a onclick="abrirModalConfig('whatsapp')"><i class="fab fa-whatsapp m-r-10" style="color:#25D366;"></i><span>Mensaje de WhatsApp</span></a></li>
-      <li class="solo-admin"><a onclick="abrirModalConfig('auditoria')"><i class="fas fa-history m-r-10"></i><span>Auditoría</span></a></li>
-      <div class="sidebar-section-title solo-admin">Reportes</div>
-      <li class="solo-admin"><a onclick="exportarExcel()"><i class="fas fa-file-excel m-r-10"></i><span>Exportar Reporte Excel</span></a></li>
+      <li class="solo-admin" data-permiso="kpi_ver"><a data-sec="kpi" onclick="mostrarSeccion('kpi')"><i class="fas fa-chart-line m-r-10"></i><span>Indicadores (KPI)</span></a></li>
+      <li class="solo-admin" data-permiso="contabilidad_ver"><a data-sec="contabilidad" onclick="mostrarSeccion('contabilidad')"><i class="fas fa-wallet m-r-10"></i><span>Negocio / Contabilidad</span></a></li>
+      <div class="sidebar-section-title">Configuración</div>
+      <li class="solo-admin" data-permiso="config_clientes"><a onclick="abrirModalConfig('clientes')"><i class="fas fa-users m-r-10"></i><span>Clientes y Sedes</span></a></li>
+      <li class="solo-admin" data-permiso="config_plantillas"><a onclick="abrirModalConfig('plantillas')"><i class="fas fa-file-signature m-r-10"></i><span>Plantillas de Formularios</span></a></li>
+      <li class="solo-admin" data-permiso="config_personal"><a onclick="abrirModalConfig('tecnicos')"><i class="fas fa-hard-hat m-r-10"></i><span>Personal</span></a></li>
+      <li class="solo-admin" data-permiso="config_backup"><a onclick="abrirModalConfig('database')"><i class="fas fa-database m-r-10"></i><span>Base de Datos & Backup</span></a></li>
+      <li class="solo-admin" data-permiso="config_general"><a onclick="abrirModalConfig('general')"><i class="fas fa-industry m-r-10"></i><span>Empresa y Perfil</span></a></li>
+      <li class="solo-admin" data-permiso="config_apariencia"><a onclick="abrirModalConfig('apariencia')"><i class="fas fa-palette m-r-10"></i><span>Apariencia</span></a></li>
+      <li class="solo-admin" data-permiso="config_etiquetas"><a onclick="abrirModalConfig('etiquetas')"><i class="fas fa-tags m-r-10"></i><span>Etiquetas</span></a></li>
+      <li class="solo-admin" data-permiso="config_whatsapp"><a onclick="abrirModalConfig('whatsapp')"><i class="fab fa-whatsapp m-r-10" style="color:#25D366;"></i><span>Mensaje de WhatsApp</span></a></li>
+      <li class="solo-admin" data-permiso="config_auditoria"><a onclick="abrirModalConfig('auditoria')"><i class="fas fa-history m-r-10"></i><span>Auditoría</span></a></li>
+      <div class="sidebar-section-title">Reportes</div>
+      <li class="solo-admin" data-permiso="reportes_exportar"><a onclick="exportarExcel()"><i class="fas fa-file-excel m-r-10"></i><span>Exportar Reporte Excel</span></a></li>
     </ul>
   </aside>
   <div id="sidebarBackdrop" onclick="cerrarMenuMovil()"></div>
@@ -548,8 +548,8 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <span id="badgeConexion" style="font-size:11px;font-weight:700;"></span>
         <span style="font-size:11px;color:var(--text-muted);">👤 <span id="lblUsuarioActual">—</span></span>
         <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="cerrarSesion()">Cambiar usuario</button>
-        <button class="btn-custom btn-secondary-custom solo-admin" onclick="abrirModalConfig('apariencia')"><i class="fas fa-palette"></i></button>
-        <button class="btn-custom solo-admin" onclick="abrirModalNuevaOrden()">+ Nueva Orden</button>
+        <button class="btn-custom btn-secondary-custom solo-admin" data-permiso="config_apariencia" onclick="abrirModalConfig('apariencia')"><i class="fas fa-palette"></i></button>
+        <button class="btn-custom solo-admin" data-permiso="ordenes_crear" onclick="abrirModalNuevaOrden()">+ Nueva Orden</button>
       </div>
     </header>
 
@@ -569,7 +569,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
             <button class="btn-toggle active" id="btnVistaLista" onclick="cambiarVistaAgenda('lista')">Lista</button>
             <button class="btn-toggle" id="btnVistaCalendario" onclick="cambiarVistaAgenda('calendario')">Calendario</button>
           </div>
-          <button class="btn-custom btn-fixed-blue solo-admin" onclick="abrirModalNuevaOrden()">+ Nueva Orden</button>
+          <button class="btn-custom btn-fixed-blue solo-admin" data-permiso="ordenes_crear" onclick="abrirModalNuevaOrden()">+ Nueva Orden</button>
         </div>
       </div>
       <div id="vistaListaOrdenes" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:15px;"></div>
@@ -590,7 +590,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <span>❄️ Equipos registrados</span>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <input type="text" placeholder="Buscar equipo, cliente, código o serie..." style="max-width:280px;margin:0;" oninput="renderizarEquiposGlobal(this.value)">
-          <button class="btn-custom btn-sm-custom solo-admin" onclick="abrirModalEquipo()">+ Registrar Equipo</button>
+          <button class="btn-custom btn-sm-custom solo-admin" data-permiso="equipos_gestionar" onclick="abrirModalEquipo()">+ Registrar Equipo</button>
         </div>
       </div>
       <table class="data-table">
@@ -1149,7 +1149,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div id="pdfBotonera" style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalPDF')">Cerrar</button>
       <button class="btn-custom" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
-      <button class="btn-custom btn-success-custom solo-admin" onclick="enviarPorWhatsApp(ordenPdfActualId)"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
+      <button class="btn-custom btn-success-custom solo-admin" data-permiso="enviar_whatsapp" onclick="enviarPorWhatsApp(ordenPdfActualId)"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
     </div>
   </div>
 </div>
@@ -1252,7 +1252,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div id="comprobanteNominaBotonera" style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalComprobanteNomina')">Cerrar</button>
       <button class="btn-custom" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
-      <button class="btn-custom btn-success-custom solo-admin" onclick="enviarComprobanteNominaPorWhatsApp(comprobanteNominaActualId)"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
+      <button class="btn-custom btn-success-custom solo-admin" data-permiso="enviar_whatsapp" onclick="enviarComprobanteNominaPorWhatsApp(comprobanteNominaActualId)"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
     </div>
   </div>
 </div>
@@ -1285,7 +1285,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <div class="config-sidebar-group-title">Operación</div>
       <button class="config-tab-btn" data-tab="clientes" onclick="cambiarTabConfig('clientes',event)"><i class="fas fa-users" style="width:18px;text-align:center;"></i> <span>Clientes y Sedes</span></button>
       <button class="config-tab-btn" data-tab="plantillas" onclick="cambiarTabConfig('plantillas',event)"><i class="fas fa-file-signature" style="width:18px;text-align:center;"></i> <span>Plantillas de Formularios</span></button>
-      <button class="config-tab-btn" data-tab="tecnicos" onclick="cambiarTabConfig('tecnicos',event)"><i class="fas fa-hard-hat" style="width:18px;text-align:center;"></i> <span>Técnicos</span></button>
+      <button class="config-tab-btn" data-tab="tecnicos" onclick="cambiarTabConfig('tecnicos',event)"><i class="fas fa-hard-hat" style="width:18px;text-align:center;"></i> <span>Personal</span></button>
       <button class="config-tab-btn" data-tab="etiquetas" onclick="cambiarTabConfig('etiquetas',event)"><i class="fas fa-tags" style="width:18px;text-align:center;"></i> <span>Etiquetas</span></button>
       <div class="config-sidebar-group-title">Empresa</div>
       <button class="config-tab-btn" data-tab="general" onclick="cambiarTabConfig('general',event)"><i class="fas fa-industry" style="width:18px;text-align:center;"></i> <span>Empresa y Perfil</span></button>
@@ -1396,19 +1396,39 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       </div>
     </div>
 
-    <!-- TAB TECNICOS -->
+    <!-- TAB PERSONAL -->
     <div id="tab-tecnicos" class="config-tab-content">
-      <p style="font-size:11px;color:var(--text-muted);">Cada técnico debe tener usuario (correo) y contraseña propios para ingresar de forma individual a sus servicios asignados.</p>
+      <p style="font-size:11px;color:var(--text-muted);">Cada persona debe tener usuario (correo) y contraseña propios para ingresar de forma individual, con los permisos que le marques abajo.</p>
       <input type="hidden" id="cfgTecId" value="">
       <div class="field-row">
-        <div><input type="text" id="cfgTecNombre" placeholder="Nombre del técnico"></div>
+        <div><input type="text" id="cfgTecNombre" placeholder="Nombre de la persona"></div>
         <div><input type="text" id="cfgTecTelefono" placeholder="Teléfono"></div>
         <div><input type="email" id="cfgTecUsuario" placeholder="Usuario / correo"></div>
         <div><input type="password" id="cfgTecPassword" placeholder="Contraseña"></div>
-        <button class="btn-custom" id="btnGuardarTecnico" onclick="guardarTecnicoConfig()">+ Añadir Técnico</button>
+      </div>
+      <div class="field-row">
+        <div><label>Rol:</label>
+          <select id="cfgTecRol" onchange="onCambiarRolPersonal()">
+            <option value="tecnico">Técnico</option>
+            <option value="administrativo">Administrativo</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;">
+          <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin:0 0 8px 0;">
+            <input type="checkbox" id="cfgTecAccesoTotal" style="width:auto;" onchange="renderizarChecklistPermisosPersonal()">
+            Acceso total (todos los permisos, sin restricciones)
+          </label>
+        </div>
+      </div>
+      <div id="wrapperPermisosPersonal">
+        <label>Permisos específicos (marca solo lo que esta persona puede hacer):</label>
+        <div id="checklistPermisosPersonal" style="max-height:240px;overflow-y:auto;border:1px solid var(--card-border);border-radius:8px;padding:10px;margin-top:4px;"></div>
+      </div>
+      <div class="field-row" style="margin-top:12px;">
+        <button class="btn-custom" id="btnGuardarTecnico" onclick="guardarTecnicoConfig()">+ Añadir Personal</button>
         <button class="btn-custom btn-secondary-custom" id="btnCancelarEdicionTecnico" style="display:none;" onclick="cancelarEdicionTecnico()">Cancelar</button>
       </div>
-      <table class="data-table"><thead><tr><th>Nombre</th><th>Teléfono</th><th>Usuario</th><th>Contraseña</th><th>Acción</th></tr></thead><tbody id="tablaConfigTecnicosBody"></tbody></table>
+      <table class="data-table"><thead><tr><th>Nombre</th><th>Rol</th><th>Teléfono</th><th>Usuario</th><th>Contraseña</th><th>Acción</th></tr></thead><tbody id="tablaConfigTecnicosBody"></tbody></table>
     </div>
 
     <!-- TAB DATABASE -->

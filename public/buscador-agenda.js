@@ -174,6 +174,8 @@ function cambiarVistaAgenda(vista){
 
 function ordenesVisiblesParaSesion(){
   if(esAdmin() || !sesionActual) return db.ordenes;
+  const t = sesionActual.tecnicoId ? buscarTecnico(sesionActual.tecnicoId) : null;
+  if(t && t.accesoTotal) return db.ordenes; // personal con Acceso total ve la agenda completa, para poder coordinar
   return db.ordenes.filter(o=>o.tecnicoId===sesionActual.tecnicoId);
 }
 function renderizarAgenda(){
@@ -193,11 +195,11 @@ function renderizarAgenda(){
         <p style="margin:0;font-size:12px;color:var(--text-muted);">Sede: ${sede?sede.nombre:'—'}<br>Equipo: ${equipo?equipo.nombre:'—'}<br>Tipo: ${o.tipo} · Prioridad: ${o.prioridad}<br>Fecha: ${o.fechaProgramada||'Sin definir'}${o.horaProgramada?` · Hora: ${o.horaProgramada}`:''}</p>
         <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
           ${o.estado!=='Finalizado' ? `<button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="iniciarCierre(${o.id})">Registrar Cierre</button>` : ''}
-          ${o.estado!=='Finalizado' ? `<button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" onclick="verDetalleOrden(${o.id})"><i class="fas fa-pen"></i> Editar</button>` : ''}
-          <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" onclick="abrirReprogramar(${o.id})">Reprogramar</button>
+          ${o.estado!=='Finalizado' ? `<button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="ordenes_editar" onclick="verDetalleOrden(${o.id})"><i class="fas fa-pen"></i> Editar</button>` : ''}
+          <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="ordenes_reprogramar" onclick="abrirReprogramar(${o.id})">Reprogramar</button>
           ${o.cierre ? `<button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verPDF(${o.id})">Ver Documento</button>` : ''}
-          ${o.estado==='Finalizado' ? `<button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" onclick="editarOrdenFinalizada(${o.id})"><i class="fas fa-unlock"></i> Editar</button>` : ''}
-          <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" onclick="eliminarOrden(${o.id})">Eliminar</button>
+          ${o.estado==='Finalizado' ? `<button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="ordenes_editar_finalizadas" onclick="editarOrdenFinalizada(${o.id})"><i class="fas fa-unlock"></i> Editar</button>` : ''}
+          <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" data-permiso="ordenes_eliminar" onclick="eliminarOrden(${o.id})">Eliminar</button>
         </div>
       </div>`;
   });

@@ -11,7 +11,7 @@ function cambiarTabConfig(tab, evt){
   if(btn) btn.classList.add('active');
   if(tab==='clientes') renderizarClientesConfig();
   if(tab==='plantillas') renderizarPlantillasConfig();
-  if(tab==='tecnicos') renderizarTecnicosConfig();
+  if(tab==='tecnicos'){ renderizarTecnicosConfig(); renderizarChecklistPermisosPersonal(); }
   if(tab==='tiendaConfig') cargarTabTiendaConfig();
   if(tab==='general'){
     document.getElementById('cfgEmpresaNombre').value = db.config.nombre;

@@ -425,9 +425,48 @@ function completarLogin(resultado){
   cargarEstadoDesdeBackend();
   registrarLog('Inicio de sesión', 'Sesión', nombreUsuarioActual());
 }
+// Catálogo de permisos disponibles para asignar a cada persona del Personal
+// (administrativo o técnico). "accesoTotal" en una persona ignora esta lista
+// y le da todo; si no tiene accesoTotal, solo ve/hace lo que aquí se le marque.
+const CATALOGO_PERMISOS = [
+  { grupo:'Operativo', clave:'ordenes_crear', etiqueta:'Crear órdenes de servicio' },
+  { grupo:'Operativo', clave:'ordenes_editar', etiqueta:'Editar orden completa (técnico, tipo, plantilla)' },
+  { grupo:'Operativo', clave:'ordenes_reprogramar', etiqueta:'Reprogramar fecha/hora de una orden' },
+  { grupo:'Operativo', clave:'ordenes_editar_finalizadas', etiqueta:'Editar órdenes ya finalizadas' },
+  { grupo:'Operativo', clave:'ordenes_eliminar', etiqueta:'Eliminar órdenes' },
+  { grupo:'Operativo', clave:'equipos_gestionar', etiqueta:'Crear y editar equipos' },
+  { grupo:'Operativo', clave:'equipos_eliminar', etiqueta:'Eliminar equipos' },
+  { grupo:'Operativo', clave:'inventario_ver', etiqueta:'Acceder a Inventario (verificación de stock)' },
+  { grupo:'Operativo', clave:'enviar_whatsapp', etiqueta:'Enviar informes/comprobantes por WhatsApp' },
+  { grupo:'Configuración', clave:'config_clientes', etiqueta:'Gestionar Clientes y Sedes' },
+  { grupo:'Configuración', clave:'config_plantillas', etiqueta:'Diseñar Plantillas de Formularios' },
+  { grupo:'Configuración', clave:'config_personal', etiqueta:'Gestionar Personal y sus permisos ⚠️' },
+  { grupo:'Configuración', clave:'config_general', etiqueta:'Empresa y Perfil' },
+  { grupo:'Configuración', clave:'config_apariencia', etiqueta:'Apariencia' },
+  { grupo:'Configuración', clave:'config_etiquetas', etiqueta:'Etiquetas (tipos de servicio/prioridad)' },
+  { grupo:'Configuración', clave:'config_whatsapp', etiqueta:'Plantilla de mensaje de WhatsApp' },
+  { grupo:'Configuración', clave:'config_backup', etiqueta:'Base de Datos y Respaldo' },
+  { grupo:'Configuración', clave:'config_auditoria', etiqueta:'Ver Auditoría' },
+  { grupo:'Negocio', clave:'kpi_ver', etiqueta:'Ver Indicadores (KPI)' },
+  { grupo:'Negocio', clave:'contabilidad_ver', etiqueta:'Acceder a Negocio / Contabilidad' },
+  { grupo:'Negocio', clave:'nomina_editar', etiqueta:'Editar liquidaciones de nómina' },
+  { grupo:'Negocio', clave:'nomina_eliminar', etiqueta:'Eliminar liquidaciones de nómina' },
+  { grupo:'Negocio', clave:'reportes_exportar', etiqueta:'Exportar Reporte Excel' },
+];
+function tienePermiso(clave){
+  if(esAdmin()) return true; // la cuenta maestra de administrador siempre tiene todo
+  if(!sesionActual || !sesionActual.tecnicoId) return false;
+  const t = buscarTecnico(sesionActual.tecnicoId);
+  if(!t) return false;
+  if(t.accesoTotal) return true;
+  return !!(t.permisos && t.permisos[clave]);
+}
 function aplicarRBACaUI(){
-  document.getElementById('lblUsuarioActual').innerText = `${nombreUsuarioActual()} (${esAdmin()?'Administrador':'Técnico'})`;
-  document.querySelectorAll('.solo-admin').forEach(el=> el.style.display = esAdmin() ? '' : 'none');
+  document.getElementById('lblUsuarioActual').innerText = `${nombreUsuarioActual()} (${esAdmin()?'Administrador':'Personal'})`;
+  document.querySelectorAll('.solo-admin').forEach(el=>{
+    const permiso = el.getAttribute('data-permiso');
+    el.style.display = (esAdmin() || (permiso && tienePermiso(permiso))) ? '' : 'none';
+  });
 }
 
 let ordenActivaId = null, ordenReprogramarId = null;

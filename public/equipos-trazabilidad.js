@@ -19,9 +19,9 @@ function renderizarEquiposGlobal(filtro){
       <td>${numServicios}</td>
       <td>
         <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="irATrazabilidadEquipo(${e.id})">Historial</button>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" onclick="abrirModalEquipo(${e.id})">Editar</button>
+        <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="equipos_gestionar" onclick="abrirModalEquipo(${e.id})">Editar</button>
         <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verEtiquetaQR(${e.id})"><i class="fas fa-qrcode"></i></button>
-        <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" onclick="eliminarEquipoGlobal(${e.id})">Eliminar</button>
+        <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" data-permiso="equipos_eliminar" onclick="eliminarEquipoGlobal(${e.id})">Eliminar</button>
       </td>
     </tr>`;
     }));
@@ -37,9 +37,9 @@ function renderizarEquiposGlobal(filtro){
         <td>${numServicios}</td>
         <td>
           <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="irATrazabilidadEquipo(${e.id})">Historial</button>
-          <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" onclick="abrirModalEquipo(${e.id})">Editar</button>
+          <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="equipos_gestionar" onclick="abrirModalEquipo(${e.id})">Editar</button>
           <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verEtiquetaQR(${e.id})"><i class="fas fa-qrcode"></i></button>
-          <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" onclick="eliminarEquipoGlobal(${e.id})">Eliminar</button>
+          <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" data-permiso="equipos_eliminar" onclick="eliminarEquipoGlobal(${e.id})">Eliminar</button>
         </td>
       </tr>`;
     });

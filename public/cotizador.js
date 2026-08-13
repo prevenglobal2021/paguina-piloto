@@ -169,8 +169,8 @@ function renderizarHistorialNomina(){
       <td>${formatoCOP(l.totalNeto)}</td>
       <td>
         <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verComprobanteNomina(${l.id})"><i class="fas fa-file-invoice"></i> Ver comprobante</button>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" onclick="editarLiquidacionNomina(${l.id})"><i class="fas fa-pen"></i> Editar</button>
-        <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" onclick="eliminarLiquidacionNomina(${l.id})"><i class="fas fa-trash"></i> Eliminar</button>
+        <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="nomina_editar" onclick="editarLiquidacionNomina(${l.id})"><i class="fas fa-pen"></i> Editar</button>
+        <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" data-permiso="nomina_eliminar" onclick="eliminarLiquidacionNomina(${l.id})"><i class="fas fa-trash"></i> Eliminar</button>
       </td>
     </tr>`;
   }).join('') || '<tr><td colspan="5" class="empty-state">Sin liquidaciones registradas este mes.</td></tr>';

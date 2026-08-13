@@ -157,27 +157,61 @@ function eliminarCampoConfig(id){
 }
 
 /* =========================================================
-   CONFIGURACIÓN: TÉCNICOS
+   CONFIGURACIÓN: PERSONAL (rol + permisos)
 ========================================================= */
+function onCambiarRolPersonal(){
+  // Solo una ayuda de conveniencia: al elegir "Administrativo" sugiere Acceso
+  // total marcado (se puede desmarcar igual para dejarlo parcial); elegir
+  // "Técnico" lo deja sin marcar por defecto. Nunca es obligatorio.
+  const rol = document.getElementById('cfgTecRol').value;
+  document.getElementById('cfgTecAccesoTotal').checked = (rol === 'administrativo');
+  renderizarChecklistPermisosPersonal();
+}
+function renderizarChecklistPermisosPersonal(permisosActuales){
+  const accesoTotal = document.getElementById('cfgTecAccesoTotal').checked;
+  document.getElementById('wrapperPermisosPersonal').style.display = accesoTotal ? 'none' : 'block';
+  if(accesoTotal) return;
+  const marcados = permisosActuales || {};
+  const grupos = {};
+  CATALOGO_PERMISOS.forEach(p=>{ (grupos[p.grupo] = grupos[p.grupo] || []).push(p); });
+  let html = '';
+  Object.keys(grupos).forEach(nombreGrupo=>{
+    html += `<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin:8px 0 4px;text-transform:uppercase;">${nombreGrupo}</div>`;
+    html += grupos[nombreGrupo].map(p=>`
+      <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin:0 0 6px 0;font-size:13px;">
+        <input type="checkbox" class="chk-permiso-personal" value="${p.clave}" style="width:auto;" ${marcados[p.clave]?'checked':''}>
+        ${p.etiqueta}
+      </label>`).join('');
+  });
+  document.getElementById('checklistPermisosPersonal').innerHTML = html;
+}
+function leerPermisosMarcadosPersonal(){
+  const permisos = {};
+  document.querySelectorAll('.chk-permiso-personal').forEach(chk=>{ permisos[chk.value] = chk.checked; });
+  return permisos;
+}
 function guardarTecnicoConfig(){
   const id = document.getElementById('cfgTecId').value;
   const nombre = document.getElementById('cfgTecNombre').value.trim();
   const telefono = document.getElementById('cfgTecTelefono').value.trim();
   const usuario = document.getElementById('cfgTecUsuario').value.trim();
   const password = document.getElementById('cfgTecPassword').value;
-  if(!nombre){ mostrarToast('Escribe el nombre del técnico'); return; }
-  if(!usuario){ mostrarToast('Define un usuario (correo) para el técnico.'); return; }
-  if(!id && !password){ mostrarToast('Define una contraseña para el técnico nuevo.'); return; }
+  const rol = document.getElementById('cfgTecRol').value;
+  const accesoTotal = document.getElementById('cfgTecAccesoTotal').checked;
+  const permisos = accesoTotal ? {} : leerPermisosMarcadosPersonal();
+  if(!nombre){ mostrarToast('Escribe el nombre de la persona'); return; }
+  if(!usuario){ mostrarToast('Define un usuario (correo) para esta persona.'); return; }
+  if(!id && !password){ mostrarToast('Define una contraseña para la persona nueva.'); return; }
   const duplicado = db.tecnicos.find(t=>t.usuario && t.usuario.toLowerCase()===usuario.toLowerCase() && String(t.id)!==id);
-  if(duplicado){ mostrarToast('Ya existe otro técnico con ese usuario.'); return; }
+  if(duplicado){ mostrarToast('Ya existe otra persona con ese usuario.'); return; }
   if(id){
     const t = buscarTecnico(parseInt(id));
-    t.nombre = nombre; t.telefono = telefono; t.usuario = usuario;
+    t.nombre = nombre; t.telefono = telefono; t.usuario = usuario; t.rol = rol; t.accesoTotal = accesoTotal; t.permisos = permisos;
     if(password) t.password = password;
-    registrarLog('Editar', 'Técnico', nombre);
+    registrarLog('Editar', 'Personal', nombre);
   } else {
-    db.tecnicos.push({ id:Date.now(), nombre, telefono, usuario, password, activo:true });
-    registrarLog('Crear', 'Técnico', nombre);
+    db.tecnicos.push({ id:Date.now(), nombre, telefono, usuario, password, activo:true, rol, accesoTotal, permisos });
+    registrarLog('Crear', 'Personal', nombre);
   }
   dbGuardar();
   cancelarEdicionTecnico();
@@ -192,6 +226,9 @@ function editarTecnicoConfig(id){
   document.getElementById('cfgTecUsuario').value = t.usuario||'';
   document.getElementById('cfgTecPassword').value = '';
   document.getElementById('cfgTecPassword').placeholder = 'Dejar en blanco para no cambiarla';
+  document.getElementById('cfgTecRol').value = t.rol || 'tecnico';
+  document.getElementById('cfgTecAccesoTotal').checked = !!t.accesoTotal;
+  renderizarChecklistPermisosPersonal(t.permisos);
   document.getElementById('btnGuardarTecnico').innerText = 'Guardar Cambios';
   document.getElementById('btnCancelarEdicionTecnico').style.display = 'inline-block';
 }
@@ -200,7 +237,10 @@ function cancelarEdicionTecnico(){
   document.getElementById('cfgTecNombre').value=''; document.getElementById('cfgTecTelefono').value='';
   document.getElementById('cfgTecUsuario').value=''; document.getElementById('cfgTecPassword').value='';
   document.getElementById('cfgTecPassword').placeholder = 'Contraseña';
-  document.getElementById('btnGuardarTecnico').innerText = '+ Añadir Técnico';
+  document.getElementById('cfgTecRol').value = 'tecnico';
+  document.getElementById('cfgTecAccesoTotal').checked = false;
+  renderizarChecklistPermisosPersonal();
+  document.getElementById('btnGuardarTecnico').innerText = '+ Añadir Personal';
   document.getElementById('btnCancelarEdicionTecnico').style.display = 'none';
 }
 function renderizarTecnicosConfig(){
@@ -208,7 +248,11 @@ function renderizarTecnicosConfig(){
   tbody.innerHTML = '';
   db.tecnicos.forEach(t=>{
     const activo = t.activo !== false;
-    tbody.innerHTML += `<tr style="${activo?'':'opacity:.55;'}"><td>${t.nombre} ${activo?'<span style="color:var(--exito-verde,#22c55e);font-size:10px;font-weight:700;">● ACTIVO</span>':'<span style="color:var(--text-muted);font-size:10px;font-weight:700;">● INACTIVO</span>'}</td><td>${t.telefono||''}</td><td>${t.usuario||'—'}</td>
+    const etiquetaRol = t.rol==='administrativo' ? 'Administrativo' : 'Técnico';
+    const resumenAcceso = t.accesoTotal ? '<span style="color:#22c55e;">Acceso total</span>' : `${Object.values(t.permisos||{}).filter(Boolean).length} permiso(s)`;
+    tbody.innerHTML += `<tr style="${activo?'':'opacity:.55;'}"><td>${t.nombre} ${activo?'<span style="color:var(--exito-verde,#22c55e);font-size:10px;font-weight:700;">● ACTIVO</span>':'<span style="color:var(--text-muted);font-size:10px;font-weight:700;">● INACTIVO</span>'}</td>
+      <td>${etiquetaRol}<br><small style="color:var(--text-muted);">${resumenAcceso}</small></td>
+      <td>${t.telefono||''}</td><td>${t.usuario||'—'}</td>
       <td><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="cambiarPasswordTecnico(${t.id})">Cambiar</button></td>
       <td><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="editarTecnicoConfig(${t.id})">Editar</button>
       <button class="btn-custom ${activo?'btn-secondary-custom':''} btn-sm-custom" onclick="toggleActivoTecnico(${t.id})">${activo?'⏸️ Desactivar':'▶️ Activar'}</button>
