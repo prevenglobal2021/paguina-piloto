@@ -208,6 +208,7 @@ function eliminarOrden(id){
   if(!confirm('¿Eliminar esta orden de servicio?')) return;
   const o = db.ordenes.find(x=>x.id===id);
   db.ordenes = db.ordenes.filter(o=>o.id!==id);
+  registrarEliminacion('ordenes', id);
   dbGuardar();
   if(o) registrarLog('Eliminar', 'OrdenServicio', o.numero);
   renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
