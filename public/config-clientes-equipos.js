@@ -212,6 +212,7 @@ function eliminarClienteConfig(id){
   if(!confirm('¿Eliminar este cliente y todas sus sedes/equipos?')) return;
   const c = buscarCliente(id);
   db.clientes = db.clientes.filter(c=>c.id!==id);
+  registrarEliminacion('clientes', id);
   dbGuardar();
   if(c) registrarLog('Eliminar', 'Cliente', c.nombre);
   renderizarClientesConfig();
