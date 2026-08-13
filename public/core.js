@@ -134,19 +134,37 @@ let syncReintentoTimer = null;
 // ni elimina nada que ya esté localmente.
 // -----------------------------------------------------------------
 const CLAVES_FUSIONABLES = ['clientes','tecnicos','plantillas','ordenes','bodegas','inventario','kardex','pedidosTienda'];
-function fusionarPorId(localArr, remotoArr){
+
+// Antes de este arreglo, la fusión aditiva no distinguía "esto falta porque
+// mi copia está desactualizada" de "esto falta porque lo acabo de borrar a
+// propósito" — y volvía a agregar cualquier elemento borrado, tanto al
+// guardar como en el refresco silencioso cada 20s. Ahora, cada vez que se
+// borra algo, su id queda marcado aquí, y la fusión ya no lo vuelve a traer.
+function asegurarEliminados(){
+  if(!db.eliminados || typeof db.eliminados !== 'object') db.eliminados = {};
+  CLAVES_FUSIONABLES.forEach(clave=>{
+    if(!Array.isArray(db.eliminados[clave])) db.eliminados[clave] = [];
+  });
+}
+function registrarEliminacion(clave, id){
+  asegurarEliminados();
+  if(!db.eliminados[clave].includes(id)) db.eliminados[clave].push(id);
+}
+function fusionarPorId(localArr, remotoArr, idsEliminadosArr){
   if(!Array.isArray(localArr) || !Array.isArray(remotoArr)) return localArr || remotoArr || [];
   const idsLocal = new Set(localArr.map(x=>x && x.id));
-  const faltantes = remotoArr.filter(x=>x && !idsLocal.has(x.id));
+  const idsEliminados = new Set(idsEliminadosArr || []);
+  const faltantes = remotoArr.filter(x=>x && !idsLocal.has(x.id) && !idsEliminados.has(x.id));
   return faltantes.length ? localArr.concat(faltantes) : localArr;
 }
 function fusionarAdicionesDesdeServidor(remoto){
   if(!remoto) return false;
+  asegurarEliminados();
   let huboCambios = false;
   CLAVES_FUSIONABLES.forEach(clave=>{
     if(Array.isArray(remoto[clave])){
       const antes = (db[clave]||[]).length;
-      db[clave] = fusionarPorId(db[clave]||[], remoto[clave]);
+      db[clave] = fusionarPorId(db[clave]||[], remoto[clave], db.eliminados[clave]);
       if(db[clave].length !== antes) huboCambios = true;
     }
   });
@@ -211,6 +229,7 @@ function cargarEstadoDesdeBackend(){
   }).then(estadoServidor=>{
     if(!estadoServidor || !estadoServidor.config) return;
     db = estadoServidor;
+    asegurarEliminados();
     localStorage.setItem(DB_KEY, JSON.stringify(db));
     aplicarConfiguracionVisual();
     renderizarAgenda(); renderizarCalendario(); renderizarEquiposGlobal(''); actualizarKPIs();
@@ -244,6 +263,7 @@ function forzarNuevoLogin(){
 }
 
 let db = dbCargar();
+asegurarEliminados();
 if(!db.config.colorAcento) db.config.colorAcento = "#0088ff";
 if(!db.config.colorFondo) db.config.colorFondo = "#0b111e";
 if(db.config.modoClaro===undefined) db.config.modoClaro = false;
