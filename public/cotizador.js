@@ -157,12 +157,46 @@ function confirmarLiquidacionNomina(){
   mostrarToast(`Liquidación registrada: ${generados} comprobante(s) generado(s). Descárgalos desde el historial.`);
   renderizarHistorialNomina();
 }
+function limpiarFiltrosNomina(){
+  document.getElementById('nomBuscarTexto').value = '';
+  document.getElementById('nomFiltroTecnico').value = '';
+  document.getElementById('nomFiltroDesde').value = '';
+  document.getElementById('nomFiltroHasta').value = '';
+  renderizarHistorialNomina();
+}
+function poblarFiltroTecnicoNomina(){
+  const sel = document.getElementById('nomFiltroTecnico');
+  const valorActual = sel.value;
+  sel.innerHTML = '<option value="">Todos</option>' + db.tecnicos.map(t=>`<option value="${t.id}">${t.nombre}</option>`).join('');
+  sel.value = valorActual; // conserva la selección hecha, si esa persona sigue existiendo
+}
 function renderizarHistorialNomina(){
-  const filtroMes = document.getElementById('contaMesFiltro');
-  const mes = filtroMes.value || mesActualISO();
   db.liquidacionesNomina = db.liquidacionesNomina || [];
-  const delMes = db.liquidacionesNomina.filter(l=>l.fecha && l.fecha.startsWith(mes));
-  document.getElementById('tablaNomina').innerHTML = delMes.slice().reverse().map(l=>{
+  poblarFiltroTecnicoNomina();
+
+  const texto = (document.getElementById('nomBuscarTexto').value || '').trim().toLowerCase();
+  const tecnicoFiltro = document.getElementById('nomFiltroTecnico').value;
+  const desde = document.getElementById('nomFiltroDesde').value;
+  const hasta = document.getElementById('nomFiltroHasta').value;
+
+  let lista = db.liquidacionesNomina.filter(l=>{
+    if(tecnicoFiltro && String(l.tecnicoId)!==tecnicoFiltro) return false;
+    if(desde && l.fecha < desde) return false;
+    if(hasta && l.fecha > hasta) return false;
+    if(texto){
+      const t = buscarTecnico(l.tecnicoId);
+      const nombreTecnico = t ? t.nombre.toLowerCase() : '';
+      if(!nombreTecnico.includes(texto) && !l.numero.toLowerCase().includes(texto)) return false;
+    }
+    return true;
+  });
+
+  // Orden explícito y siempre confiable: más reciente primero por fecha de
+  // liquidación, y si dos quedaron el mismo día, por el momento exacto en que
+  // se crearon — ya no depende del orden en que casualmente quedaron guardadas.
+  lista = lista.sort((a,b)=> b.fecha.localeCompare(a.fecha) || b.id - a.id);
+
+  document.getElementById('tablaNomina').innerHTML = lista.map(l=>{
     const t = buscarTecnico(l.tecnicoId);
     return `<tr>
       <td>${l.numero}</td><td>${t?t.nombre:'—'}</td><td>${l.periodoDesde} a ${l.periodoHasta}</td>
@@ -173,18 +207,17 @@ function renderizarHistorialNomina(){
         <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" data-permiso="nomina_eliminar" onclick="eliminarLiquidacionNomina(${l.id})"><i class="fas fa-trash"></i> Eliminar</button>
       </td>
     </tr>`;
-  }).join('') || '<tr><td colspan="5" class="empty-state">Sin liquidaciones registradas este mes.</td></tr>';
+  }).join('') || '<tr><td colspan="5" class="empty-state">Sin liquidaciones que coincidan con la búsqueda.</td></tr>';
 
-  // Total general de la nómina que se está mostrando en pantalla (respeta el filtro
-  // de mes activo) — suma cada totalNeto ya calculado, es decir, valor base +
-  // ajustes/bonificaciones - descuentos de cada persona liquidada.
-  const totalGeneralMes = delMes.reduce((suma,l)=>suma + l.totalNeto, 0);
+  // Total general de justo lo que está filtrado/visible en la tabla en este momento.
+  const totalGeneral = lista.reduce((suma,l)=>suma + l.totalNeto, 0);
   const pieTabla = document.getElementById('pieTotalNomina');
   if(pieTabla){
-    pieTabla.innerHTML = delMes.length
-      ? `<tr style="font-weight:700;border-top:2px solid var(--card-border);"><td colspan="3" style="text-align:right;">Total general de nómina (${delMes.length} comprobante${delMes.length===1?'':'s'}, mes filtrado):</td><td colspan="2">${formatoCOP(totalGeneralMes)}</td></tr>`
+    pieTabla.innerHTML = lista.length
+      ? `<tr style="font-weight:700;background:#eff6ff;color:#1e3a5f;border-top:2px solid #bfdbfe;"><td colspan="3" style="text-align:right;">Total (${lista.length} comprobante${lista.length===1?'':'s'}):</td><td colspan="2">${formatoCOP(totalGeneral)}</td></tr>`
       : '';
   }
+  aplicarRBACaUI();
 }
 let comprobanteNominaActualId = null;
 function verComprobanteNomina(id){
@@ -309,7 +342,7 @@ function renderizarContabilidad(){
   document.getElementById('contaCardGastos').innerText = formatoCOP(totalGastos);
   const cardBalance = document.getElementById('contaCardBalance');
   cardBalance.innerText = formatoCOP(balance);
-  cardBalance.style.color = balance >= 0 ? 'var(--exito-verde,#22c55e)' : 'var(--red-alert)';
+  cardBalance.style.color = balance >= 0 ? '#15803d' : '#b91c1c';
 
   renderizarHistorialNomina();
 
@@ -323,6 +356,7 @@ function renderizarContabilidad(){
   document.getElementById('cfgRecargoMateriales').value = db.config.recargoMateriales ?? 1.3;
   document.getElementById('cfgPorcentajeTercero').value = db.config.porcentajePagoTercero ?? 0.45;
   document.getElementById('cfgMetaMensual').value = db.config.metaMensualUtilidad ?? 5000000;
+  if(!document.getElementById('coFecha').value) document.getElementById('coFecha').value = new Date().toISOString().slice(0,10);
   actualizarSugerenciaPagoTecnico();
   renderizarControlOperativo();
   renderizarCuadroMandoAnual();
@@ -398,8 +432,13 @@ function agregarControlOperativo(){
   document.getElementById('coMateriales').value=0; document.getElementById('coLogistica').value=0; document.getElementById('coPagoTecnico').value=0;
   document.getElementById('coDineroAbonado').value=0;
   actualizarPreviewCotizador();
-  renderizarControlOperativo();
-  renderizarCuadroMandoAnual();
+  // Antes, si la fecha del servicio no caía en el mes que se estaba viendo en el
+  // filtro de arriba, el registro se guardaba bien pero desaparecía de la tabla —
+  // parecía que "no había hecho nada". Ahora el filtro se ajusta solo al mes del
+  // servicio que se acaba de crear, para que siempre se vea de inmediato.
+  document.getElementById('contaMesFiltro').value = fecha.slice(0,7);
+  renderizarContabilidad();
+  mostrarToast(`✅ Servicio agregado: ${servicioCliente} — ${formatoCOP(precioCliente)}`, 'exito');
 }
 function eliminarControlOperativo(id){
   if(!confirm('¿Eliminar este registro del control operativo?')) return;
