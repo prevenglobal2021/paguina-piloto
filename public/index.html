@@ -99,6 +99,12 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .btn-toggle{background:#0088ff;border:1px solid #0088ff;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;opacity:.6;}
 .btn-toggle.active{opacity:1;box-shadow:inset 0 -3px 0 rgba(255,255,255,.65);}
 .btn-fixed-blue{background:#0088ff !important;color:#fff !important;border:none !important;}
+/* Botón "Terminar sesión": circular con ícono de apagado, más moderno que un botón cuadrado con texto */
+.btn-terminar-sesion{display:flex;align-items:center;gap:7px;background:rgba(239,68,68,.12);color:var(--red-alert);border:1px solid rgba(239,68,68,.35);border-radius:20px;padding:6px 14px 6px 6px;cursor:pointer;font-size:12px;font-weight:600;transition:.18s ease;}
+.btn-terminar-sesion i{width:24px;height:24px;border-radius:50%;background:var(--red-alert);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;transition:transform .18s ease;}
+.btn-terminar-sesion:hover{background:rgba(239,68,68,.22);}
+.btn-terminar-sesion:hover i{transform:rotate(90deg);}
+@media (max-width:640px){ .btn-terminar-sesion-texto{display:none;} .btn-terminar-sesion{padding:6px;border-radius:50%;} }
 .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);display:none;justify-content:center;align-items:center;z-index:1000;padding:15px;}
 .modal-box{background:color-mix(in srgb, var(--card-bg) 88%, transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--card-border);width:100%;max-width:980px;max-height:90vh;overflow-y:auto;border-radius:12px;padding:25px;position:relative;color:var(--text-main);box-shadow:0 20px 60px rgba(0,0,0,.4);animation:apareceModal .2s ease;}
 @keyframes apareceModal{from{opacity:0;transform:translateY(8px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
@@ -577,7 +583,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <span id="badgeConexion" style="font-size:11px;font-weight:700;"></span>
         <span style="font-size:11px;color:var(--text-muted);">👤 <span id="lblUsuarioActual">—</span></span>
         <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="cerrarSesion()">Cambiar usuario</button>
-        <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="cerrarSesion()"><i class="fas fa-right-from-bracket"></i> Terminar sesión</button>
+        <button class="btn-terminar-sesion" onclick="cerrarSesion()" title="Terminar sesión"><i class="fas fa-power-off"></i><span class="btn-terminar-sesion-texto">Terminar sesión</span></button>
         <button class="btn-custom btn-secondary-custom solo-admin" data-permiso="config_apariencia" onclick="abrirModalConfig('apariencia')"><i class="fas fa-palette"></i></button>
         <button class="btn-custom solo-admin" data-permiso="ordenes_crear" onclick="abrirModalNuevaOrden()">+ Nueva Orden</button>
       </div>
@@ -1597,9 +1603,9 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <div><label>Color secundario:</label><input type="color" id="cfgLoginColor2"></div>
         </div>
         <label>Imagen de fondo (columna izquierda):</label>
-        <p style="font-size:11px;color:var(--text-muted);margin:2px 0 4px;">Recomendado: imagen vertical 1080 x 1920 px (formato 9:16), JPG o PNG, máx. 5MB. Si subes una con otras medidas, el sistema la recorta y ajusta solo, sin deformarla.</p>
+        <p style="font-size:11px;color:var(--text-muted);margin:2px 0 4px;">Recomendado: imagen vertical 1080 x 1920 px (formato 9:16), máx. 10MB. Si subes una con otras medidas, el sistema la recorta y ajusta solo, sin deformarla.</p>
         <div id="previewLoginImagenFondo" style="width:100%;height:120px;background-size:cover;background-position:center;border-radius:8px;margin:6px 0;border:1px solid var(--card-border);"></div>
-        <input type="file" id="cfgLoginImagenInput" accept="image/jpeg,image/png" onchange="manejarLoginImagenUpload(event)">
+        <input type="file" id="cfgLoginImagenInput" accept="image/*" onchange="manejarLoginImagenUpload(event)">
         <p id="loginImagenEstado" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></p>
         <label style="margin-top:10px;">Título (columna izquierda):</label>
         <input type="text" id="cfgLoginTituloIzquierda" placeholder="Ej. Domina el sistema">

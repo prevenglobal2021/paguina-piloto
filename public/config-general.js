@@ -7,8 +7,8 @@ function manejarLoginImagenUpload(event){
   const file = event.target.files[0];
   if(!file) return;
   const estadoEl = document.getElementById('loginImagenEstado');
-  if(file.size > 5*1024*1024){
-    estadoEl.innerText = '⚠️ Esa imagen pesa más de 5MB. Elige una más liviana.';
+  if(file.size > 10*1024*1024){
+    estadoEl.innerText = '⚠️ Esa imagen pesa más de 10MB. Elige una más liviana.';
     estadoEl.style.color = 'var(--red-alert)';
     event.target.value = '';
     return;
@@ -31,9 +31,13 @@ function manejarLoginImagenUpload(event){
       estadoEl.innerText = '✅ Imagen lista (recortada a 1080x1920). Falta guardar los cambios.';
       estadoEl.style.color = 'var(--exito-verde,#22c55e)';
     }).catch(err=>{
-      estadoEl.innerText = '⚠️ ' + err.message;
+      estadoEl.innerText = '⚠️ ' + err.message + ' Si tu foto es HEIC (típico de iPhone) o un formato poco común, prueba convirtiéndola a JPG primero.';
       estadoEl.style.color = 'var(--red-alert)';
     });
+  };
+  reader.onerror = ()=>{
+    estadoEl.innerText = '⚠️ No se pudo leer el archivo. Intenta de nuevo.';
+    estadoEl.style.color = 'var(--red-alert)';
   };
   reader.readAsDataURL(file);
 }

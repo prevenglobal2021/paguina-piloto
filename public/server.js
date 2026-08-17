@@ -253,20 +253,25 @@ app.post('/api/imagenes/login-fondo', requireAuth, async (req, res) => {
   try {
     const { imagenBase64 } = req.body || {};
     if (!imagenBase64) return res.status(400).json({ error: 'Falta la imagen.' });
-    const coincide = /^data:(image\/\w+);base64,(.+)$/.exec(imagenBase64);
-    if (!coincide) return res.status(400).json({ error: 'Formato de imagen inválido (debe ser JPG o PNG).' });
+    const coincide = /^data:(image\/[\w.+-]+);base64,(.+)$/.exec(imagenBase64);
+    if (!coincide) return res.status(400).json({ error: 'No se reconoce el formato de ese archivo como imagen.' });
     const buffer = Buffer.from(coincide[2], 'base64');
-    if (buffer.length > 5 * 1024 * 1024) {
-      return res.status(400).json({ error: 'La imagen pesa más de 5MB. Usa una más liviana.' });
+    if (buffer.length > 10 * 1024 * 1024) {
+      return res.status(400).json({ error: 'La imagen pesa más de 10MB. Usa una más liviana.' });
     }
-    const procesada = await sharp(buffer)
+    const procesada = await sharp(buffer, {
+      failOnError: false,       // tolera imágenes con pequeñas imperfecciones en vez de rechazarlas de una
+      limitInputPixels: 400000000, // permite fotos de muy alta resolución (celulares modernos, hasta ~400MP)
+      animated: false,          // si es un formato con varios cuadros, usa solo el primero
+    })
+      .rotate() // corrige sola la orientación según los metadatos EXIF (fotos de celular a veces vienen "giradas")
       .resize(1080, 1920, { fit: 'cover', position: 'centre' }) // recorte centrado, sin deformar
       .jpeg({ quality: 88 })
       .toBuffer();
     res.json({ ok: true, imagen: `data:image/jpeg;base64,${procesada.toString('base64')}` });
   } catch (err) {
     console.error('[login-fondo] Error procesando imagen:', err.message);
-    res.status(500).json({ error: 'No se pudo procesar la imagen. Verifica que sea un archivo de imagen válido (JPG o PNG).' });
+    res.status(500).json({ error: 'No se pudo procesar esa imagen — parece estar dañada o ser un formato realmente poco común. Prueba con otra foto, o convirtiéndola a JPG con cualquier app de tu celular.' });
   }
 });
 
