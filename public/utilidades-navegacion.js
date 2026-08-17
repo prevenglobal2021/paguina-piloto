@@ -34,6 +34,9 @@ function badgeEstado(estado){
    si no, se muestra el login (empezando por el paso de empresa).
 ========================================================= */
 window.onload = function(){
+  // Enlace de recuperación de contraseña (?resetToken=...): pantalla aparte,
+  // sin sesión, no toca el login ni el resto de la app.
+  if(detectarTokenReset()) return;
   // Enlace público de tienda (?tienda=codigo-empresa): no toca el login ni el resto
   // de la app — es una vista completamente aparte, de solo catálogo, sin sesión.
   const slugTiendaPublica = new URLSearchParams(location.search).get('tienda');

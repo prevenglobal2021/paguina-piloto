@@ -577,6 +577,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <span id="badgeConexion" style="font-size:11px;font-weight:700;"></span>
         <span style="font-size:11px;color:var(--text-muted);">👤 <span id="lblUsuarioActual">—</span></span>
         <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="cerrarSesion()">Cambiar usuario</button>
+        <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="cerrarSesion()"><i class="fas fa-right-from-bracket"></i> Terminar sesión</button>
         <button class="btn-custom btn-secondary-custom solo-admin" data-permiso="config_apariencia" onclick="abrirModalConfig('apariencia')"><i class="fas fa-palette"></i></button>
         <button class="btn-custom solo-admin" data-permiso="ordenes_crear" onclick="abrirModalNuevaOrden()">+ Nueva Orden</button>
       </div>
@@ -893,6 +894,33 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   <div class="modal-box modal-sm">
     <button class="close-modal" onclick="cerrarModal('modalProductoTienda')">✖</button>
     <div id="detalleProductoTienda"></div>
+  </div>
+</div>
+
+<!-- MODAL: SOLICITAR RECUPERACIÓN DE CONTRASEÑA -->
+<div class="modal-overlay" id="modalSolicitarReset" style="z-index:2100;">
+  <div class="modal-box" style="max-width:380px;background:#fff;color:#1e293b;">
+    <button class="close-modal" style="color:#000;" onclick="cerrarModal('modalSolicitarReset')">✖</button>
+    <h3 style="color:#1e293b;"><i class="fas fa-lock m-r-10"></i>Recuperar contraseña</h3>
+    <p style="font-size:12px;color:#64748b;">Escribe el correo con el que inicias sesión. Si está registrado, te enviaremos un enlace para crear una nueva contraseña.</p>
+    <label>Correo:</label>
+    <input type="email" id="resetSolicitudEmail" placeholder="tucorreo@ejemplo.com" onkeydown="if(event.key==='Enter')enviarSolicitudReset()">
+    <div id="resetSolicitudMensaje" style="font-size:12px;margin-top:8px;display:none;"></div>
+    <button class="btn-custom" style="margin-top:10px;width:100%;" onclick="enviarSolicitudReset()">Enviar enlace de recuperación</button>
+  </div>
+</div>
+
+<!-- PANTALLA: CREAR NUEVA CONTRASEÑA (llegando desde el enlace del correo) -->
+<div id="resetPasswordOverlay" style="display:none;position:fixed;inset:0;background:#fff;z-index:3000;align-items:center;justify-content:center;">
+  <div class="login-box" style="max-width:380px;">
+    <h2 style="font-size:20px;color:#1e293b;"><i class="fas fa-key" style="color:#7c3aed;"></i> Crear nueva contraseña</h2>
+    <p style="font-size:12px;color:#64748b;">Escribe tu nueva contraseña. Este enlace deja de funcionar después de usarlo, o si pasó más de 1 hora desde que lo pediste.</p>
+    <label>Nueva contraseña:</label>
+    <input type="password" id="resetNuevaPassword" placeholder="Mínimo 4 caracteres">
+    <label>Confirmar contraseña:</label>
+    <input type="password" id="resetConfirmarPassword" placeholder="Repite la contraseña" onkeydown="if(event.key==='Enter')confirmarNuevaPassword()">
+    <div id="resetConfirmarMensaje" style="font-size:12px;margin-top:8px;display:none;"></div>
+    <button class="btn-custom" style="margin-top:10px;width:100%;" onclick="confirmarNuevaPassword()">Guardar nueva contraseña</button>
   </div>
 </div>
 
@@ -1569,8 +1597,10 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <div><label>Color secundario:</label><input type="color" id="cfgLoginColor2"></div>
         </div>
         <label>Imagen de fondo (columna izquierda):</label>
+        <p style="font-size:11px;color:var(--text-muted);margin:2px 0 4px;">Recomendado: imagen vertical 1080 x 1920 px (formato 9:16), JPG o PNG, máx. 5MB. Si subes una con otras medidas, el sistema la recorta y ajusta solo, sin deformarla.</p>
         <div id="previewLoginImagenFondo" style="width:100%;height:120px;background-size:cover;background-position:center;border-radius:8px;margin:6px 0;border:1px solid var(--card-border);"></div>
-        <input type="file" id="cfgLoginImagenInput" accept="image/*" onchange="manejarLoginImagenUpload(event)">
+        <input type="file" id="cfgLoginImagenInput" accept="image/jpeg,image/png" onchange="manejarLoginImagenUpload(event)">
+        <p id="loginImagenEstado" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></p>
         <label style="margin-top:10px;">Título (columna izquierda):</label>
         <input type="text" id="cfgLoginTituloIzquierda" placeholder="Ej. Domina el sistema">
         <label>Descripción corta (columna izquierda):</label>

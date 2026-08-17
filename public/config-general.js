@@ -6,14 +6,38 @@ let loginImagenTempBase64 = null;
 function manejarLoginImagenUpload(event){
   const file = event.target.files[0];
   if(!file) return;
+  const estadoEl = document.getElementById('loginImagenEstado');
+  if(file.size > 5*1024*1024){
+    estadoEl.innerText = '⚠️ Esa imagen pesa más de 5MB. Elige una más liviana.';
+    estadoEl.style.color = 'var(--red-alert)';
+    event.target.value = '';
+    return;
+  }
+  estadoEl.innerText = 'Procesando imagen (recortando a 1080x1920)...';
+  estadoEl.style.color = 'var(--text-muted)';
   const reader = new FileReader();
   reader.onload = e=>{
-    loginImagenTempBase64 = e.target.result;
-    document.getElementById('previewLoginImagenFondo').style.backgroundImage = `url('${loginImagenTempBase64}')`;
+    fetch(API_BASE + '/api/imagenes/login-fondo', {
+      method: 'POST',
+      headers: headersAutenticados({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ imagenBase64: e.target.result })
+    }).then(async r=>{
+      const data = await r.json().catch(()=>({}));
+      if(!r.ok) throw new Error(data.error || 'No se pudo procesar la imagen.');
+      return data;
+    }).then(data=>{
+      loginImagenTempBase64 = data.imagen;
+      document.getElementById('previewLoginImagenFondo').style.backgroundImage = `url('${loginImagenTempBase64}')`;
+      estadoEl.innerText = '✅ Imagen lista (recortada a 1080x1920). Falta guardar los cambios.';
+      estadoEl.style.color = 'var(--exito-verde,#22c55e)';
+    }).catch(err=>{
+      estadoEl.innerText = '⚠️ ' + err.message;
+      estadoEl.style.color = 'var(--red-alert)';
+    });
   };
   reader.readAsDataURL(file);
 }
-function guardarAparienciaLogin(){
+async function guardarAparienciaLogin(){
   db.config.loginColor1 = document.getElementById('cfgLoginColor1').value;
   db.config.loginColor2 = document.getElementById('cfgLoginColor2').value;
   db.config.loginImagenFondo = loginImagenTempBase64;
@@ -21,9 +45,13 @@ function guardarAparienciaLogin(){
   db.config.loginSubtituloIzquierda = document.getElementById('cfgLoginSubtituloIzquierda').value.trim();
   db.config.loginBienvenidaTitulo = document.getElementById('cfgLoginBienvenidaTitulo').value.trim();
   db.config.loginBienvenidaSubtitulo = document.getElementById('cfgLoginBienvenidaSubtitulo').value.trim();
-  dbGuardarInmediato();
-  registrarLog('Actualizar', 'Apariencia del Login', '—');
-  mostrarToast('✅ Pantalla de login guardada. Se verá así la próxima vez que alguien inicie sesión.', 'exito');
+  try{
+    await dbGuardarInmediato();
+    registrarLog('Actualizar', 'Apariencia del Login', '—');
+    mostrarToast('✅ Pantalla de login guardada. Se verá así la próxima vez que alguien inicie sesión.', 'exito');
+  }catch(err){
+    mostrarToast('⚠️ No se guardó: ' + err.message, 'error');
+  }
 }
 function manejarLogoUpload(event){
   const file = event.target.files[0];
@@ -49,7 +77,7 @@ function manejarFirmaUpload(event){
   };
   reader.readAsDataURL(file);
 }
-function guardarAjustesGenerales(){
+async function guardarAjustesGenerales(){
   db.config.nombre = document.getElementById('cfgEmpresaNombre').value;
   db.config.subtitulo = document.getElementById('cfgEmpresaSub').value;
   db.config.direccion = document.getElementById('cfgEmpresaDireccion').value;
@@ -58,8 +86,13 @@ function guardarAjustesGenerales(){
   db.config.logo = logoTempBase64;
   db.config.nombreRepresentante = document.getElementById('cfgNombreRepresentante').value.trim();
   db.config.firmaRepresentante = firmaTempBase64;
-  dbGuardarInmediato(); aplicarConfiguracionVisual();
-  mostrarToast('✅ Perfil de empresa, representante y firma guardados.', 'exito');
+  try{
+    await dbGuardarInmediato();
+    aplicarConfiguracionVisual();
+    mostrarToast('✅ Perfil de empresa, representante y firma guardados.', 'exito');
+  }catch(err){
+    mostrarToast('⚠️ No se guardó: ' + err.message, 'error');
+  }
 }
 function guardarPasswordAdmin(){
   const usuario = document.getElementById('cfgAdminUsuario').value.trim();
@@ -113,7 +146,7 @@ function seleccionarTemaClaro(idx){
   temaClaroSeleccionadoIdx = idx;
   document.querySelectorAll('.tema-claro-opcion').forEach(el=>el.classList.toggle('seleccionado', parseInt(el.dataset.idx)===idx));
 }
-function guardarApariencia(){
+async function guardarApariencia(){
   const tema = TEMAS_CLAROS[temaClaroSeleccionadoIdx] || TEMAS_CLAROS[0];
   db.config.colorAcento = tema.acento;
   db.config.colorFondo = tema.fondo;
@@ -129,9 +162,14 @@ function guardarApariencia(){
   db.config.formRadius = document.getElementById('cfgFormRadius').value;
   db.config.formBorderColor = document.getElementById('cfgFormBorderColor').value;
   db.config.fontFamily = document.getElementById('cfgTipoLetra').value;
-  dbGuardar(); aplicarConfiguracionVisual();
-  mostrarToast('✅ Apariencia guardada correctamente.', 'exito');
-  cerrarModal('modalConfigCentro');
+  try{
+    await dbGuardarInmediato();
+    aplicarConfiguracionVisual();
+    mostrarToast('✅ Apariencia guardada correctamente.', 'exito');
+    cerrarModal('modalConfigCentro');
+  }catch(err){
+    mostrarToast('⚠️ No se guardó: ' + err.message, 'error');
+  }
 }
 function restablecerColorTexto(){
   const tema = TEMAS_CLAROS[temaClaroSeleccionadoIdx] || TEMAS_CLAROS[0];

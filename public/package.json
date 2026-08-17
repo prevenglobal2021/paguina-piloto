@@ -1,0 +1,18 @@
+{
+  "name": "prevenglobal-backend",
+  "version": "4.0.0",
+  "description": "Backend de Prevenglobal compatible con el frontend real (estado completo por empresa), respaldado por PostgreSQL",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "pg": "^8.12.0",
+    "dotenv": "^16.4.5",
+    "express-rate-limit": "^7.4.0",
+    "sharp": "^0.33.5",
+    "nodemailer": "^6.9.15"
+  }
+}

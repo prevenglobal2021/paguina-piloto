@@ -95,12 +95,14 @@ function dbGuardar(){
 function dbGuardarInmediato(){
   // Para acciones explícitas de "Guardar" (el usuario espera que quede guardado YA,
   // sin esperar la demora de 400ms que usa el guardado automático de fondo).
+  // Devuelve la promesa real del guardado, para que quien llame pueda esperar
+  // la confirmación del servidor antes de avisar que "ya quedó guardado".
   localStorage.setItem(DB_KEY, JSON.stringify(db));
-  if(!empresaActual || !sesionServidor) return;
+  if(!empresaActual || !sesionServidor) return Promise.resolve();
   clearTimeout(sincronizacionPendiente);
   syncEstado = 'pendiente';
   actualizarBadgeConexion();
-  enviarEstadoAlServidor().catch(marcarErrorSync);
+  return enviarEstadoAlServidor().catch(err=>{ marcarErrorSync(err); throw err; });
 }
 
 /* ---------------------------------------------------------
@@ -292,11 +294,23 @@ function registrarLog(accion, entidad, detalle){
   dbGuardar();
 }
 function cerrarSesion(){
-  localStorage.removeItem(SESION_KEY);
-  localStorage.removeItem(TOKEN_KEY);
-  sesionActual = null;
-  sesionServidor = null;
-  location.reload();
+  const token = sesionServidor && sesionServidor.token;
+  const finalizarLocal = ()=>{
+    localStorage.removeItem(SESION_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    sesionActual = null;
+    sesionServidor = null;
+    location.reload();
+  };
+  if(token){
+    // Best-effort: si no hay conexión, igual se cierra localmente — no se
+    // deja al usuario atrapado en la plataforma por falta de internet.
+    fetch(API_BASE + '/api/auth/logout', { method:'POST', headers: headersAutenticados() })
+      .catch(()=>{})
+      .finally(finalizarLocal);
+  } else {
+    finalizarLocal();
+  }
 }
 
 /* --- Pantalla de login: paso 1 (empresa) / paso 1b (crear empresa) / paso 2 (credenciales) --- */
@@ -334,7 +348,55 @@ function aplicarAparienciaLogin(info){
   document.getElementById('loginBienvenidaSubtitulo').innerText = info.loginBienvenidaSubtitulo || 'Por favor inicia sesión';
 }
 function mostrarAyudaContrasena(){
-  mostrarToast('Por seguridad, la contraseña solo la puede restablecer un Administrador desde Configuración → Personal. Contáctalo directamente.');
+  document.getElementById('resetSolicitudEmail').value = '';
+  document.getElementById('resetSolicitudMensaje').style.display = 'none';
+  abrirModal('modalSolicitarReset');
+}
+function enviarSolicitudReset(){
+  const email = document.getElementById('resetSolicitudEmail').value.trim();
+  const msgEl = document.getElementById('resetSolicitudMensaje');
+  if(!email){ msgEl.style.display='block'; msgEl.style.color='var(--red-alert)'; msgEl.innerText='Escribe tu correo.'; return; }
+  fetch(API_BASE + '/api/auth/solicitar-reset', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  }).then(r=>r.json()).then(data=>{
+    msgEl.style.display = 'block'; msgEl.style.color = '#15803d';
+    msgEl.innerText = data.mensaje || 'Si ese correo está registrado, revisa tu bandeja de entrada.';
+  }).catch(()=>{
+    msgEl.style.display = 'block'; msgEl.style.color = 'var(--red-alert)';
+    msgEl.innerText = 'No se pudo conectar con el servidor. Intenta de nuevo en un momento.';
+  });
+}
+function detectarTokenReset(){
+  const params = new URLSearchParams(location.search);
+  const token = params.get('resetToken');
+  if(!token) return false;
+  tokenResetActual = token;
+  ocultarSkeletonBoot();
+  document.getElementById('resetPasswordOverlay').style.display = 'flex';
+  return true;
+}
+let tokenResetActual = null;
+function confirmarNuevaPassword(){
+  const nueva = document.getElementById('resetNuevaPassword').value;
+  const confirmar = document.getElementById('resetConfirmarPassword').value;
+  const msgEl = document.getElementById('resetConfirmarMensaje');
+  msgEl.style.display = 'block';
+  if(!nueva || nueva.length < 4){ msgEl.style.color='var(--red-alert)'; msgEl.innerText='La contraseña debe tener al menos 4 caracteres.'; return; }
+  if(nueva !== confirmar){ msgEl.style.color='var(--red-alert)'; msgEl.innerText='Las dos contraseñas no coinciden.'; return; }
+  fetch(API_BASE + '/api/auth/confirmar-reset', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: tokenResetActual, nuevaPassword: nueva })
+  }).then(async r=>{
+    const data = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(data.error || 'No se pudo cambiar la contraseña.');
+    msgEl.style.color = '#15803d';
+    msgEl.innerText = '✅ Contraseña actualizada. Ya puedes iniciar sesión con ella.';
+    setTimeout(()=>{ location.href = location.pathname; }, 2200); // limpia el ?resetToken= de la URL y vuelve al login
+  }).catch(err=>{
+    msgEl.style.color = 'var(--red-alert)';
+    msgEl.innerText = err.message;
+  });
 }
 function mostrarPasoEmpresa(){
   document.getElementById('loginPasoEmpresa').style.display = 'block';
