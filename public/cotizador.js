@@ -174,6 +174,17 @@ function renderizarHistorialNomina(){
       </td>
     </tr>`;
   }).join('') || '<tr><td colspan="5" class="empty-state">Sin liquidaciones registradas este mes.</td></tr>';
+
+  // Total general de la nómina que se está mostrando en pantalla (respeta el filtro
+  // de mes activo) — suma cada totalNeto ya calculado, es decir, valor base +
+  // ajustes/bonificaciones - descuentos de cada persona liquidada.
+  const totalGeneralMes = delMes.reduce((suma,l)=>suma + l.totalNeto, 0);
+  const pieTabla = document.getElementById('pieTotalNomina');
+  if(pieTabla){
+    pieTabla.innerHTML = delMes.length
+      ? `<tr style="font-weight:700;border-top:2px solid var(--card-border);"><td colspan="3" style="text-align:right;">Total general de nómina (${delMes.length} comprobante${delMes.length===1?'':'s'}, mes filtrado):</td><td colspan="2">${formatoCOP(totalGeneralMes)}</td></tr>`
+      : '';
+  }
 }
 let comprobanteNominaActualId = null;
 function verComprobanteNomina(id){
@@ -206,8 +217,9 @@ function verComprobanteNomina(id){
     </div>
     <div class="pdf-box" style="margin-top:30px;">
       <div style="text-align:center;width:260px;margin:20px auto 0;">
+        ${db.config.firmaRepresentante ? `<img src="${db.config.firmaRepresentante}" style="max-height:60px;max-width:220px;">` : ''}
         <div style="border-top:1px solid #000;padding-top:6px;font-size:12px;">
-          Juan<br><small style="color:#64748b;">Representante — ${db.config.nombre}</small>
+          ${db.config.nombreRepresentante || 'Representante Legal'}<br><small style="color:#64748b;">${db.config.nombre}</small>
         </div>
       </div>
     </div>`;

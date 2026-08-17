@@ -14,6 +14,18 @@ function manejarLogoUpload(event){
   };
   reader.readAsDataURL(file);
 }
+function manejarFirmaUpload(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    firmaTempBase64 = e.target.result;
+    const prev = document.getElementById('imgFirmaConfig');
+    prev.src = firmaTempBase64; prev.style.display='inline-block';
+    document.getElementById('previewFirmaConfigPlaceholder').style.display='none';
+  };
+  reader.readAsDataURL(file);
+}
 function guardarAjustesGenerales(){
   db.config.nombre = document.getElementById('cfgEmpresaNombre').value;
   db.config.subtitulo = document.getElementById('cfgEmpresaSub').value;
@@ -21,8 +33,10 @@ function guardarAjustesGenerales(){
   db.config.mision = document.getElementById('cfgEmpresaMision').value;
   db.config.vision = document.getElementById('cfgEmpresaVision').value;
   db.config.logo = logoTempBase64;
-  dbGuardar(); aplicarConfiguracionVisual();
-  mostrarToast('Perfil de empresa guardado.');
+  db.config.nombreRepresentante = document.getElementById('cfgNombreRepresentante').value.trim();
+  db.config.firmaRepresentante = firmaTempBase64;
+  dbGuardarInmediato(); aplicarConfiguracionVisual();
+  mostrarToast('✅ Perfil de empresa, representante y firma guardados.', 'exito');
 }
 function guardarPasswordAdmin(){
   const usuario = document.getElementById('cfgAdminUsuario').value.trim();
@@ -42,115 +56,69 @@ function guardarInterruptorLogin(){
 }
 
 /* =========================================================
-   CONFIGURACIÓN: APARIENCIA (color del dashboard)
+   CONFIGURACIÓN: APARIENCIA (temas del dashboard)
+   Antes se podía elegir CUALQUIER color con un selector libre,
+   incluidos tonos oscuros. Ahora solo se puede elegir entre estos
+   6 temas ya armados, todos claros o metalizados claros —
+   así es imposible dejar la plataforma con un tema oscuro.
 ========================================================= */
-const PALETAS = [
-  {acento:'#0088ff', fondo:'#0b111e'},
-  {acento:'#22c55e', fondo:'#0b1a12'},
-  {acento:'#8b5cf6', fondo:'#120b1e'},
-  {acento:'#f59e0b', fondo:'#1e1608'},
-  {acento:'#ef4444', fondo:'#1e0b0b'},
-  {acento:'#0ea5e9', fondo:'#0a1520'}
+const TEMAS_CLAROS = [
+  { nombre:'Claro Corporativo', acento:'#2563eb', fondo:'#f4f6f9', texto:'#1e293b', sidebar1:'#ffffff', sidebar2:'#f1f5f9', topbar1:'#ffffff', topbar2:'#f8fafc', panel1:'#ffffff', panel2:'#f8fafc' },
+  { nombre:'Metalizado Claro', acento:'#0d9488', fondo:'#eef3f4', texto:'#1e2b2e', sidebar1:'#e7edf0', sidebar2:'#cfdbe0', topbar1:'#f0f5f4', topbar2:'#d9e6e4', panel1:'#ffffff', panel2:'#eef3f4' },
+  { nombre:'Verde Esmeralda Claro', acento:'#16a34a', fondo:'#f0fdf4', texto:'#14532d', sidebar1:'#ffffff', sidebar2:'#dcfce7', topbar1:'#ffffff', topbar2:'#ecfdf5', panel1:'#ffffff', panel2:'#f0fdf4' },
+  { nombre:'Azul Marino Claro', acento:'#1d4ed8', fondo:'#eff6ff', texto:'#1e3a5f', sidebar1:'#ffffff', sidebar2:'#dbeafe', topbar1:'#ffffff', topbar2:'#eff6ff', panel1:'#ffffff', panel2:'#eff6ff' },
+  { nombre:'Plata Azulada Metalizada', acento:'#0369a1', fondo:'#eef2f5', texto:'#1e293b', sidebar1:'#e2e8f0', sidebar2:'#cbd5e1', topbar1:'#eef2f5', topbar2:'#dde4ea', panel1:'#ffffff', panel2:'#eef2f5' },
+  { nombre:'Menta Fresca', acento:'#0d9488', fondo:'#f0fdfa', texto:'#134e4a', sidebar1:'#ffffff', sidebar2:'#ccfbf1', topbar1:'#ffffff', topbar2:'#f0fdfa', panel1:'#ffffff', panel2:'#ecfeff' },
 ];
-function renderizarPaletasRapidas(){
-  const cont = document.getElementById('paletasRapidas');
-  cont.innerHTML = PALETAS.map(p=>`<div class="paleta-opcion" style="background:${p.acento};" onclick="aplicarPaletaRapida('${p.acento}','${p.fondo}')" title="${p.acento}"></div>`).join('');
+let temaClaroSeleccionadoIdx = 0;
+function renderizarTemasClaros(){
+  const cont = document.getElementById('temasClarosGrid');
+  if(!cont) return;
+  // Si el tema ya guardado coincide con alguno del catálogo, lo marca como seleccionado al abrir.
+  const idxActual = TEMAS_CLAROS.findIndex(t=>t.acento===db.config.colorAcento && t.fondo===db.config.colorFondo);
+  temaClaroSeleccionadoIdx = idxActual >= 0 ? idxActual : 0;
+  cont.innerHTML = TEMAS_CLAROS.map((t,idx)=>`
+    <div class="tema-claro-opcion ${idx===temaClaroSeleccionadoIdx?'seleccionado':''}" data-idx="${idx}" onclick="seleccionarTemaClaro(${idx})">
+      <div class="tema-claro-preview" style="background:${t.fondo};">
+        <div style="background:${t.sidebar1};width:35%;height:100%;border-right:1px solid rgba(0,0,0,.08);"></div>
+        <div style="width:14px;height:14px;border-radius:50%;background:${t.acento};margin-left:10px;"></div>
+      </div>
+      <span>${t.nombre}</span>
+    </div>`).join('');
 }
-function aplicarPaletaRapida(acento, fondo){
-  document.getElementById('cfgColorAcento').value = acento;
-  document.getElementById('cfgColorFondo').value = fondo;
+function seleccionarTemaClaro(idx){
+  temaClaroSeleccionadoIdx = idx;
+  document.querySelectorAll('.tema-claro-opcion').forEach(el=>el.classList.toggle('seleccionado', parseInt(el.dataset.idx)===idx));
 }
 function guardarApariencia(){
-  db.config.colorAcento = document.getElementById('cfgColorAcento').value;
-  db.config.colorFondo = document.getElementById('cfgColorFondo').value;
-  db.config.modoClaro = document.getElementById('cfgModoClaro').checked;
+  const tema = TEMAS_CLAROS[temaClaroSeleccionadoIdx] || TEMAS_CLAROS[0];
+  db.config.colorAcento = tema.acento;
+  db.config.colorFondo = tema.fondo;
+  db.config.modoClaro = true; // siempre claro, ya no existe la opción oscura
+  db.config.colorTexto = tema.texto;
+  db.config.colorSidebar1 = tema.sidebar1;
+  db.config.colorSidebar2 = tema.sidebar2;
+  db.config.colorTopbar1 = tema.topbar1;
+  db.config.colorTopbar2 = tema.topbar2;
+  db.config.colorPanel1 = tema.panel1;
+  db.config.colorPanel2 = tema.panel2;
   db.config.tamanoLetra = document.getElementById('cfgTamanoLetra').value;
-  db.config.colorTexto = document.getElementById('cfgColorTexto').value;
   db.config.formRadius = document.getElementById('cfgFormRadius').value;
   db.config.formBorderColor = document.getElementById('cfgFormBorderColor').value;
-  db.config.colorSidebar1 = document.getElementById('cfgColorSidebar1').value;
-  db.config.colorSidebar2 = document.getElementById('cfgColorSidebar2').value;
-  db.config.colorTopbar1 = document.getElementById('cfgColorTopbar1').value;
-  db.config.colorTopbar2 = document.getElementById('cfgColorTopbar2').value;
-  db.config.colorPanel1 = document.getElementById('cfgColorPanel1').value;
-  db.config.colorPanel2 = document.getElementById('cfgColorPanel2').value;
   db.config.fontFamily = document.getElementById('cfgTipoLetra').value;
   dbGuardar(); aplicarConfiguracionVisual();
-  mostrarToast('Apariencia actualizada.');
-}
-function aplicarEstiloClaroDashboard(){
-  // Estilo tomado de referencia: dashboards claros, fondo blanco/gris muy suave,
-  // acentos azules, menú lateral y barra superior en blanco — look limpio y corporativo.
-  document.getElementById('cfgModoClaro').checked = true;
-  document.getElementById('cfgColorFondo').value = '#f4f6f9';
-  document.getElementById('cfgColorAcento').value = '#2563eb';
-  document.getElementById('cfgColorTexto').value = '#1e293b';
-  document.getElementById('cfgColorSidebar1').value = '#ffffff';
-  document.getElementById('cfgColorSidebar2').value = '#f1f5f9';
-  document.getElementById('cfgColorTopbar1').value = '#ffffff';
-  document.getElementById('cfgColorTopbar2').value = '#f8fafc';
-  document.getElementById('cfgColorPanel1').value = '#ffffff';
-  document.getElementById('cfgColorPanel2').value = '#f8fafc';
-  guardarApariencia();
-}
-function aplicarEstiloMetalizadoClaro(){
-  // Paleta clara "metalizada": plateado/gris-azulado muy claro de fondo con
-  // acento azul-verde (teal), menú lateral y barra superior con degradé metálico suave.
-  document.getElementById('cfgModoClaro').checked = true;
-  document.getElementById('cfgColorFondo').value = '#eef3f4';
-  document.getElementById('cfgColorAcento').value = '#0d9488';
-  document.getElementById('cfgColorTexto').value = '#1e2b2e';
-  document.getElementById('cfgColorSidebar1').value = '#e7edf0';
-  document.getElementById('cfgColorSidebar2').value = '#cfdbe0';
-  document.getElementById('cfgColorTopbar1').value = '#f0f5f4';
-  document.getElementById('cfgColorTopbar2').value = '#d9e6e4';
-  document.getElementById('cfgColorPanel1').value = '#ffffff';
-  document.getElementById('cfgColorPanel2').value = '#eef3f4';
-  guardarApariencia();
-}
-const PALETAS_ACERO = [
-  {sidebar1:'#3b4450', sidebar2:'#1c2126', topbar1:'#3b4450', topbar2:'#20262c', panel1:'#2c333c', panel2:'#1c2126', nombre:'Acero Grafito'},
-  {sidebar1:'#445468', sidebar2:'#1a2128', topbar1:'#445468', topbar2:'#1e262d', panel1:'#2e3a48', panel2:'#1a2128', nombre:'Acero Azulado'},
-  {sidebar1:'#4b5563', sidebar2:'#1f242b', topbar1:'#4b5563', topbar2:'#20242b', panel1:'#333a43', panel2:'#1f242b', nombre:'Acero Plata'},
-  {sidebar1:'#334155', sidebar2:'#0f172a', topbar1:'#334155', topbar2:'#111827', panel1:'#25324a', panel2:'#0f172a', nombre:'Acero Marino'},
-  {sidebar1:'#52606d', sidebar2:'#232a30', topbar1:'#52606d', topbar2:'#262d33', panel1:'#38424b', panel2:'#232a30', nombre:'Acero Titanio'},
-  {sidebar1:'#0f172a', sidebar2:'#0088ff', topbar1:'#0f172a', topbar2:'#1e293b', panel1:'#182338', panel2:'#0f172a', nombre:'Acero Corporativo'}
-];
-function renderizarPaletasAceroSidebar(){
-  const cont = document.getElementById('paletasAceroSidebar');
-  if(!cont) return;
-  cont.innerHTML = PALETAS_ACERO.map(p=>`<div class="paleta-opcion" style="background:linear-gradient(135deg, ${p.sidebar1}, ${p.sidebar2});" onclick="aplicarPaletaAcero('${p.sidebar1}','${p.sidebar2}','${p.topbar1}','${p.topbar2}','${p.panel1}','${p.panel2}')" title="${p.nombre}"></div>`).join('');
-}
-function aplicarPaletaAcero(s1, s2, t1, t2, p1, p2){
-  document.getElementById('cfgColorSidebar1').value = s1;
-  document.getElementById('cfgColorSidebar2').value = s2;
-  document.getElementById('cfgColorTopbar1').value = t1;
-  document.getElementById('cfgColorTopbar2').value = t2;
-  if(p1){ document.getElementById('cfgColorPanel1').value = p1; document.getElementById('cfgColorPanel2').value = p2; }
-}
-function restablecerColorSidebar(){
-  db.config.colorSidebar1 = '#24272e';
-  db.config.colorSidebar2 = '#15171c';
-  db.config.colorTopbar1 = '#24272e';
-  db.config.colorTopbar2 = '#191b20';
-  db.config.colorPanel1 = '#212429';
-  db.config.colorPanel2 = '#191b20';
-  document.getElementById('cfgColorSidebar1').value = '#24272e';
-  document.getElementById('cfgColorSidebar2').value = '#15171c';
-  document.getElementById('cfgColorTopbar1').value = '#24272e';
-  document.getElementById('cfgColorTopbar2').value = '#191b20';
-  document.getElementById('cfgColorPanel1').value = '#212429';
-  document.getElementById('cfgColorPanel2').value = '#191b20';
-  dbGuardar(); aplicarConfiguracionVisual();
+  mostrarToast('✅ Apariencia guardada correctamente.', 'exito');
+  cerrarModal('modalConfigCentro');
 }
 function restablecerColorTexto(){
+  const tema = TEMAS_CLAROS[temaClaroSeleccionadoIdx] || TEMAS_CLAROS[0];
   db.config.colorTexto = null;
-  document.getElementById('cfgColorTexto').value = db.config.modoClaro ? '#0f172a' : '#f8fafc';
+  document.getElementById('cfgColorTexto').value = tema.texto;
   dbGuardar(); aplicarConfiguracionVisual();
 }
 function restablecerBordeFormulario(){
   db.config.formBorderColor = null;
-  document.getElementById('cfgFormBorderColor').value = '#1e2a3b';
+  document.getElementById('cfgFormBorderColor').value = '#cbd5e1';
   dbGuardar(); aplicarConfiguracionVisual();
 }
 

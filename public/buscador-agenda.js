@@ -363,11 +363,13 @@ function toggleOrdenSinEquipo(){
 function poblarEquiposOrden(){
   // Filtro dinámico: los Equipos dependen exclusivamente del Cliente seleccionado.
   // Incluye los equipos de todas las sedes del cliente y los que no tienen sede asignada.
-  // Cada equipo se puede marcar de forma independiente y llevar su propia plantilla.
+  // Cada equipo se puede marcar de forma independiente y llevar su propia plantilla
+  // y su propio tipo de mantenimiento (Preventivo/Correctivo/etc.).
   const clienteId = parseInt(document.getElementById('ordCliente').value);
   const c = clienteId ? buscarCliente(clienteId) : null;
   const cont = document.getElementById('listaEquiposOrden');
   const opcionesPlantilla = db.plantillas.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('') || '<option value="">Sin plantillas</option>';
+  const opcionesTipo = db.config.tiposServicio.map(t=>`<option value="${t}">${t}</option>`).join('');
   if(!c){
     cont.innerHTML = '<p class="empty-state" style="margin:0;">Selecciona primero un Cliente</p>';
     return;
@@ -380,10 +382,11 @@ function poblarEquiposOrden(){
     return;
   }
   cont.innerHTML = opciones.map(o=>`
-    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--card-border);">
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--card-border);flex-wrap:wrap;">
       <input type="checkbox" class="chk-equipo-orden" data-equipo="${o.id}" data-sede="${o.sedeId!==null?o.sedeId:''}" style="width:auto;margin:0;">
-      <span style="flex:1;font-size:13px;">${o.texto}</span>
-      <select class="sel-plantilla-equipo" data-equipo="${o.id}" style="max-width:220px;margin:0;">${opcionesPlantilla}</select>
+      <span style="flex:1;min-width:140px;font-size:13px;">${o.texto}</span>
+      <select class="sel-tipo-equipo" data-equipo="${o.id}" style="max-width:170px;margin:0;" title="Tipo de mantenimiento para este equipo">${opcionesTipo}</select>
+      <select class="sel-plantilla-equipo" data-equipo="${o.id}" style="max-width:190px;margin:0;" title="Plantilla de formulario para este equipo">${opcionesPlantilla}</select>
     </div>`).join('');
 }
 function guardarNuevaOrden(){
@@ -426,11 +429,13 @@ function guardarNuevaOrden(){
     const sedeId = chk.dataset.sede ? parseInt(chk.dataset.sede) : null;
     const selPlant = document.querySelector(`#listaEquiposOrden .sel-plantilla-equipo[data-equipo="${equipoId}"]`);
     const plantillaId = selPlant && selPlant.value ? parseInt(selPlant.value) : null;
+    const selTipo = document.querySelector(`#listaEquiposOrden .sel-tipo-equipo[data-equipo="${equipoId}"]`);
+    const tipoEquipo = selTipo && selTipo.value ? selTipo.value : tipo;
     consecutivo++;
     const nueva = {
       id: Date.now() + consecutivo, numero: `OS-2026-${String(consecutivo).padStart(4,'0')}`,
       clienteId, sedeId, equipoId, tecnicoId: tecnicoId||null,
-      tipo, prioridad, plantillaId,
+      tipo: tipoEquipo, prioridad, plantillaId,
       estado: 'Programado', fechaProgramada, horaProgramada, cierre: null
     };
     db.ordenes.push(nueva);

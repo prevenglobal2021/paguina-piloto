@@ -120,7 +120,7 @@ function aplicarConfiguracionVisual(){
   document.getElementById('lblSubtituloEmpresa').innerText = db.config.subtitulo;
   aplicarAparienciaTienda();
   document.documentElement.style.setProperty('--blue-accent', db.config.colorAcento);
-  document.documentElement.style.setProperty('--bg-dark', db.config.modoClaro ? '#f4f6f9' : db.config.colorFondo);
+  document.documentElement.style.setProperty('--bg-dark', db.config.colorFondo);
   document.documentElement.style.setProperty('--sidebar-bg-1', db.config.colorSidebar1 || '#24272e');
   document.documentElement.style.setProperty('--sidebar-bg-2', db.config.colorSidebar2 || '#15171c');
   document.documentElement.style.setProperty('--topbar-bg-1', db.config.colorTopbar1 || '#24272e');
