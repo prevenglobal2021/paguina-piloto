@@ -303,8 +303,38 @@ function cerrarSesion(){
 function mostrarLogin(){
   ocultarSkeletonBoot();
   document.getElementById('loginOverlay').style.display = 'flex';
-  document.getElementById('loginEmpresaSlug').value = empresaActual;
-  mostrarPasoEmpresa();
+  const slug = empresaActual || 'prevenglobal';
+  document.getElementById('loginEmpresaSlug').value = slug;
+  // Empresa única: se salta el paso de "código de empresa" y va directo a
+  // credenciales, cargando de una vez el logo/colores/textos configurados.
+  fetch(API_BASE + '/api/empresas/' + encodeURIComponent(slug)).then(r=>{
+    if(!r.ok) throw new Error('sin respuesta');
+    return r.json();
+  }).then(info=>{
+    empresaActual = slug;
+    localStorage.setItem(EMPRESA_KEY, slug);
+    mostrarPasoCredenciales(info);
+  }).catch(()=>{
+    // Si no hay conexión con el servidor, sí se muestra el paso de empresa
+    // como respaldo, para no dejar al usuario sin ninguna pantalla útil.
+    mostrarPasoEmpresa();
+  });
+}
+function aplicarAparienciaLogin(info){
+  document.documentElement.style.setProperty('--login-color-1', info.loginColor1 || '#7c3aed');
+  document.documentElement.style.setProperty('--login-color-2', info.loginColor2 || '#4c1d95');
+  const izq = document.getElementById('loginColumnaIzquierda');
+  if(izq){
+    if(info.loginImagenFondo){ izq.style.backgroundImage = `url('${info.loginImagenFondo}')`; izq.classList.add('tiene-imagen'); }
+    else { izq.style.backgroundImage = 'none'; izq.classList.remove('tiene-imagen'); }
+  }
+  document.getElementById('loginTituloIzquierdaTxt').innerText = info.loginTituloIzquierda || 'Domina el sistema';
+  document.getElementById('loginSubtituloIzquierdaTxt').innerText = info.loginSubtituloIzquierda || 'Controla clientes, equipos, órdenes de servicio e inventario desde un solo lugar.';
+  document.getElementById('loginBienvenidaTitulo').innerText = info.loginBienvenidaTitulo || '¡Bienvenido!';
+  document.getElementById('loginBienvenidaSubtitulo').innerText = info.loginBienvenidaSubtitulo || 'Por favor inicia sesión';
+}
+function mostrarAyudaContrasena(){
+  mostrarToast('Por seguridad, la contraseña solo la puede restablecer un Administrador desde Configuración → Personal. Contáctalo directamente.');
 }
 function mostrarPasoEmpresa(){
   document.getElementById('loginPasoEmpresa').style.display = 'block';
@@ -354,6 +384,7 @@ function mostrarPasoCredenciales(info){
   document.getElementById('loginPasoCredenciales').style.display = 'block';
   document.getElementById('loginEmpresaActualLbl').innerText = `Empresa: ${info.nombre || empresaActual}`;
   document.getElementById('loginTituloEmpresa').lastChild.textContent = ' ' + (info.nombre || 'Prevenglobal');
+  aplicarAparienciaLogin(info);
   const logoWrap = document.getElementById('loginLogoWrap');
   const logoImg = document.getElementById('loginLogo');
   const iconoDefault = document.getElementById('loginIconoDefault');

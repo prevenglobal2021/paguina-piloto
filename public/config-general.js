@@ -2,6 +2,29 @@
 /* =========================================================
    CONFIGURACIÓN: EMPRESA Y PERFIL (logo, dirección, misión, visión)
 ========================================================= */
+let loginImagenTempBase64 = null;
+function manejarLoginImagenUpload(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    loginImagenTempBase64 = e.target.result;
+    document.getElementById('previewLoginImagenFondo').style.backgroundImage = `url('${loginImagenTempBase64}')`;
+  };
+  reader.readAsDataURL(file);
+}
+function guardarAparienciaLogin(){
+  db.config.loginColor1 = document.getElementById('cfgLoginColor1').value;
+  db.config.loginColor2 = document.getElementById('cfgLoginColor2').value;
+  db.config.loginImagenFondo = loginImagenTempBase64;
+  db.config.loginTituloIzquierda = document.getElementById('cfgLoginTituloIzquierda').value.trim();
+  db.config.loginSubtituloIzquierda = document.getElementById('cfgLoginSubtituloIzquierda').value.trim();
+  db.config.loginBienvenidaTitulo = document.getElementById('cfgLoginBienvenidaTitulo').value.trim();
+  db.config.loginBienvenidaSubtitulo = document.getElementById('cfgLoginBienvenidaSubtitulo').value.trim();
+  dbGuardarInmediato();
+  registrarLog('Actualizar', 'Apariencia del Login', '—');
+  mostrarToast('✅ Pantalla de login guardada. Se verá así la próxima vez que alguien inicie sesión.', 'exito');
+}
 function manejarLogoUpload(event){
   const file = event.target.files[0];
   if(!file) return;

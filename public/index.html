@@ -332,7 +332,24 @@ body.modo-claro{--card-bg:#ffffff;--card-border:#e2e8f0;--text-main:#0f172a;--te
 body.modo-claro .calendar-day{background:#f8fafc;}
 body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background:#f1f5f9;color:#0f172a;}
 /* LOGIN */
-#loginOverlay{position:fixed;inset:0;background:var(--bg-dark);display:none;justify-content:center;align-items:center;z-index:2000;}
+#loginOverlay{position:fixed;inset:0;background:#fff;display:none;z-index:2000;overflow-y:auto;}
+.login-split{display:flex;min-height:100vh;width:100%;}
+.login-split-izq{flex:0 0 40%;position:relative;min-height:100vh;background:linear-gradient(160deg, var(--login-color-1,#7c3aed), var(--login-color-2,#4c1d95));background-size:cover;background-position:center;display:flex;flex-direction:column;justify-content:flex-end;padding:40px;color:#fff;}
+.login-split-izq.tiene-imagen::before{content:'';position:absolute;inset:0;background:linear-gradient(160deg, var(--login-color-1,#7c3aed) 0%, var(--login-color-2,#4c1d95) 100%);opacity:.78;}
+.login-split-izq-texto{position:relative;z-index:1;}
+.login-split-izq-texto h2{font-size:26px;margin:0 0 8px 0;font-weight:800;}
+.login-split-izq-texto p{font-size:13px;opacity:.92;margin:0;max-width:320px;line-height:1.5;}
+.login-split-der{flex:1;display:flex;align-items:center;justify-content:center;padding:30px;background:#fff;}
+.login-box{background:#fff;border:none;border-radius:16px;padding:20px 10px;width:100%;max-width:400px;max-height:none;overflow:visible;text-align:center;box-shadow:none;color:#1e293b;}
+.login-box label{color:#334155;}
+.login-box input,.login-box select{background:#fff;color:#1e293b;border:1px solid #cbd5e1;}
+.login-box .btn-custom{background:linear-gradient(120deg, var(--login-color-1,#7c3aed), var(--login-color-2,#4c1d95));border:none;}
+.login-box .btn-custom.btn-secondary-custom{background:#f1f5f9;color:#334155;}
+@media (max-width: 760px){
+  .login-split-izq{position:fixed;inset:0;flex:none;z-index:0;}
+  .login-split-der{position:relative;z-index:1;min-height:100vh;background:rgba(255,255,255,.97);}
+  .login-split-izq-texto{display:none;}
+}
 .login-box{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:40px 35px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.35);}
 .boton-empresa-registrada{display:flex;align-items:center;justify-content:space-between;width:100%;background:rgba(0,136,255,.08);border:1px solid var(--card-border);color:var(--text-main);padding:10px 14px;border-radius:8px;margin-top:8px;cursor:pointer;font-size:13px;text-align:left;}
 .boton-empresa-registrada:hover{background:rgba(0,136,255,.18);}
@@ -881,12 +898,20 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 
 <!-- LOGIN OVERLAY -->
 <div id="loginOverlay">
+<div class="login-split">
+  <div class="login-split-izq" id="loginColumnaIzquierda">
+    <div class="login-split-izq-texto">
+      <h2 id="loginTituloIzquierdaTxt">Domina el sistema</h2>
+      <p id="loginSubtituloIzquierdaTxt">Controla clientes, equipos, órdenes de servicio e inventario desde un solo lugar.</p>
+    </div>
+  </div>
+  <div class="login-split-der">
   <div class="login-box">
-    <div id="loginLogoWrap" style="display:none;width:100%;height:4.5cm;background:#fff;border-radius:12px;align-items:center;justify-content:center;overflow:hidden;margin-bottom:16px;"><img id="loginLogo" style="max-width:88%;max-height:88%;object-fit:contain;"></div>
-    <h2 id="loginTituloEmpresa" style="font-size:22px;"><i id="loginIconoDefault" class="fas fa-snowflake"></i> Prevenglobal</h2>
+    <div id="loginLogoWrap" style="display:none;width:84px;height:84px;background:#fff;border-radius:50%;align-items:center;justify-content:center;overflow:hidden;margin:0 auto 16px;box-shadow:0 6px 20px rgba(0,0,0,.12);"><img id="loginLogo" style="max-width:78%;max-height:78%;object-fit:contain;"></div>
+    <h2 id="loginTituloEmpresa" style="font-size:20px;color:#1e293b;margin-bottom:2px;"><i id="loginIconoDefault" class="fas fa-snowflake" style="color:var(--login-color-1,#7c3aed);"></i> Prevenglobal</h2>
 
-    <!-- PASO 1: Empresa (multiempresa) -->
-    <div id="loginPasoEmpresa">
+    <!-- PASO 1: Empresa (multiempresa) — oculto por defecto, esta plataforma es de empresa única -->
+    <div id="loginPasoEmpresa" style="display:none;">
       <p style="font-size:12px;color:var(--text-muted);">Plataforma multiempresa — indica el código de tu empresa para continuar.</p>
       <label>Código de empresa:</label>
       <input type="text" id="loginEmpresaSlug" placeholder="Ej. prevenglobal" autocapitalize="off" onkeydown="if(event.key==='Enter')continuarConEmpresa()">
@@ -898,7 +923,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       </p>
     </div>
 
-    <!-- PASO 1b: Registro de empresa nueva (multiempresa / modo SaaS) -->
+    <!-- PASO 1b: Registro de empresa nueva (multiempresa / modo SaaS) — sin usar en esta fase -->
     <div id="loginPasoEmpresaNueva" style="display:none;">
       <p style="font-size:12px;color:var(--text-muted);">Registra tu empresa y crea tu usuario Administrador.</p>
       <label>Código de empresa (sin espacios):</label>
@@ -916,25 +941,32 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       </p>
     </div>
 
-    <!-- PASO 2: Credenciales (técnico / administrador) -->
-    <div id="loginPasoCredenciales" style="display:none;">
-      <p id="loginEmpresaActualLbl" style="font-size:12px;color:var(--text-muted);"></p>
-      <label>Ingresar como técnico:</label>
+    <!-- PASO 2: Credenciales (técnico / administrador) — pantalla principal de acceso -->
+    <div id="loginPasoCredenciales" style="display:block;">
+      <p id="loginBienvenidaTitulo" style="font-size:22px;font-weight:700;color:#1e293b;margin:8px 0 2px;">¡Bienvenido!</p>
+      <p id="loginBienvenidaSubtitulo" style="font-size:13px;color:#64748b;margin:0 0 18px;">Por favor inicia sesión</p>
+      <p id="loginEmpresaActualLbl" style="font-size:11px;color:var(--text-muted);display:none;"></p>
+      <label style="text-align:left;display:block;">Ingresar como técnico:</label>
       <select id="loginTecnicoSelect"></select>
-      <label>Contraseña:</label>
+      <label style="text-align:left;display:block;">Contraseña:</label>
       <input type="password" id="loginTecnicoPassword" placeholder="Contraseña" onkeydown="if(event.key==='Enter')iniciarSesionComo('tecnico')">
       <div id="loginError" style="color:var(--red-alert);font-size:11px;margin-top:6px;display:none;">Usuario o contraseña incorrectos.</div>
-      <button class="btn-custom" style="margin-top:10px;width:100%;" onclick="iniciarSesionComo('tecnico')">Ingresar como Técnico</button>
-      <div style="margin:15px 0;border-top:1px solid var(--card-border);"></div>
-      <label>Acceso de Administrador:</label>
+      <button class="btn-custom" style="margin-top:10px;width:100%;" onclick="iniciarSesionComo('tecnico')">ENTRAR COMO TÉCNICO</button>
+      <div style="margin:18px 0;border-top:1px solid #e2e8f0;"></div>
+      <label style="text-align:left;display:block;">Acceso de Administrador:</label>
       <input type="text" id="loginAdminUsuario" placeholder="Usuario administrador (correo)">
       <input type="password" id="loginAdminPassword" placeholder="Contraseña de administrador" onkeydown="if(event.key==='Enter')iniciarSesionComo('admin')">
-      <button class="btn-custom btn-secondary-custom" style="margin-top:10px;width:100%;" onclick="iniciarSesionComo('admin')">Ingresar como Administrador</button>
-      <p style="font-size:11px;color:var(--text-muted);margin-top:14px;text-align:center;">
-        <a href="javascript:void(0)" onclick="mostrarPasoEmpresa()" style="color:var(--blue-accent);">Cambiar de empresa</a>
+      <button class="btn-custom btn-secondary-custom" style="margin-top:10px;width:100%;" onclick="iniciarSesionComo('admin')">ENTRAR COMO ADMINISTRADOR</button>
+      <p style="font-size:11px;color:#94a3b8;margin-top:16px;text-align:center;">
+        <a href="javascript:void(0)" onclick="mostrarAyudaContrasena()" style="color:#64748b;text-decoration:none;"><i class="fas fa-lock" style="font-size:10px;"></i> ¿Olvidó su contraseña?</a>
+      </p>
+      <p id="loginCambiarEmpresaWrap" style="font-size:10px;color:#cbd5e1;margin-top:6px;text-align:center;display:none;">
+        <a href="javascript:void(0)" onclick="mostrarPasoEmpresa()" style="color:#94a3b8;">Cambiar de empresa</a>
       </p>
     </div>
   </div>
+  </div>
+</div>
 </div>
 
 <!-- MODAL: FICHA QR / CONSULTA DE ITEM -->
@@ -1528,6 +1560,26 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <h4 style="margin-top:0;font-size:13px;">🎨 Tema del Dashboard</h4>
         <p style="font-size:11px;color:var(--text-muted);">Elige uno de estos temas ya armados para todo el panel (acento, fondo, menú lateral, barra superior y tarjetas). Todos son claros o metalizados claros — no hay opción de tema oscuro, para mantener siempre un look empresarial y luminoso.</p>
         <div id="temasClarosGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:10px;"></div>
+      </div>
+      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
+        <h4 style="margin-top:0;font-size:13px;">🔐 Pantalla de inicio de sesión</h4>
+        <p style="font-size:11px;color:var(--text-muted);">Así se ve la pantalla antes de entrar a la plataforma. Los cambios se ven la próxima vez que alguien inicie sesión.</p>
+        <div class="field-row">
+          <div><label>Color principal:</label><input type="color" id="cfgLoginColor1"></div>
+          <div><label>Color secundario:</label><input type="color" id="cfgLoginColor2"></div>
+        </div>
+        <label>Imagen de fondo (columna izquierda):</label>
+        <div id="previewLoginImagenFondo" style="width:100%;height:120px;background-size:cover;background-position:center;border-radius:8px;margin:6px 0;border:1px solid var(--card-border);"></div>
+        <input type="file" id="cfgLoginImagenInput" accept="image/*" onchange="manejarLoginImagenUpload(event)">
+        <label style="margin-top:10px;">Título (columna izquierda):</label>
+        <input type="text" id="cfgLoginTituloIzquierda" placeholder="Ej. Domina el sistema">
+        <label>Descripción corta (columna izquierda):</label>
+        <textarea id="cfgLoginSubtituloIzquierda" rows="2" placeholder="Ej. Controla clientes, equipos, órdenes de servicio e inventario desde un solo lugar."></textarea>
+        <label style="margin-top:10px;">Título de bienvenida (formulario):</label>
+        <input type="text" id="cfgLoginBienvenidaTitulo" placeholder="Ej. ¡Bienvenido!">
+        <label>Subtítulo de bienvenida (formulario):</label>
+        <input type="text" id="cfgLoginBienvenidaSubtitulo" placeholder="Ej. Por favor inicia sesión">
+        <button class="btn-custom" style="margin-top:12px;" onclick="guardarAparienciaLogin()">Guardar pantalla de login</button>
       </div>
       <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
         <h4 style="margin-top:0;font-size:13px;">🧭 Menú Lateral, Barra Superior y Tarjetas</h4>
