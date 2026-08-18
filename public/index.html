@@ -329,6 +329,33 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .galeria-foto-quitar{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;border:none;font-size:10px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
 .galeria-foto-quitar:hover{background:var(--red-alert);}
 .galeria-foto-desc{width:100%;margin-top:5px;font-size:11px;padding:5px 6px;box-sizing:border-box;}
+/* ===== FIRMA TÁCTIL — pantalla completa, con rotación a horizontal en celular ===== */
+.firma-tactil-overlay{display:none;position:fixed;inset:0;background:#0f172a;z-index:6000;}
+.firma-tactil-overlay.activa{display:block;}
+.firma-tactil-caja{position:absolute;top:50%;left:50%;background:#fff;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.5);border-radius:12px;overflow:hidden;
+  width:min(94vw,900px);height:min(80vh,480px);transform:translate(-50%,-50%);}
+.firma-tactil-header{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#1e293b;color:#fff;flex-shrink:0;}
+.firma-tactil-header span{font-weight:700;font-size:14px;}
+.firma-tactil-cerrar{background:none;border:none;color:#fff;font-size:18px;cursor:pointer;padding:2px 8px;line-height:1;}
+.firma-tactil-area{position:relative;flex:1;background:#f8fafc;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:0;}
+.firma-tactil-area canvas{width:100%;height:100%;background:#fff;touch-action:none;display:block;}
+.firma-tactil-linea{position:absolute;left:8%;right:8%;bottom:24%;border-bottom:2px dashed #cbd5e1;pointer-events:none;}
+.firma-tactil-indicacion{position:absolute;bottom:9%;color:#94a3b8;font-size:12px;pointer-events:none;letter-spacing:.4px;}
+.firma-tactil-botonera{display:flex;gap:10px;padding:12px 16px;background:#1e293b;flex-shrink:0;}
+.firma-tactil-btn{flex:1;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;}
+.firma-tactil-btn-borrar{background:#334155;color:#fff;}
+.firma-tactil-btn-confirmar{background:#16a34a;color:#fff;}
+/* En celular, en vertical: la caja se GIRA 90° para dar todo el ancho de la
+   pantalla como espacio de firma (más natural para firmar con el dedo).
+   El lienzo mide su tamaño real ya rotado, y el cálculo de dónde toca el
+   dedo se ajusta para esa rotación (ver activarDibujoFirmaTactil en JS). */
+@media (max-width:900px) and (orientation:portrait){
+  .firma-tactil-caja{ width:100vh; height:100vw; transform:translate(-50%,-50%) rotate(90deg); }
+}
+/* Vista previa de una firma ya capturada, antes de guardar la orden/empresa */
+.firma-preview-caja{width:100%;max-width:260px;height:90px;background:#fff;border-radius:8px;border:1px solid var(--card-border);display:flex;align-items:center;justify-content:center;overflow:hidden;margin:6px 0;}
+.firma-preview-caja img{max-width:92%;max-height:92%;object-fit:contain;}
+.firma-preview-vacio{color:#94a3b8;font-size:11px;}
 .tema-claro-opcion{border:2px solid var(--card-border);border-radius:10px;padding:8px;cursor:pointer;text-align:center;transition:border-color .15s ease, transform .1s ease;background:rgba(0,0,0,.15);}
 .tema-claro-opcion:hover{transform:translateY(-2px);}
 .tema-claro-opcion.seleccionado{border-color:var(--blue-accent);box-shadow:0 0 0 2px color-mix(in srgb, var(--blue-accent) 30%, transparent);}
@@ -985,6 +1012,25 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 </div>
 
 <!-- PANTALLA: CREAR NUEVA CONTRASEÑA (llegando desde el enlace del correo) -->
+<!-- FIRMA TÁCTIL — componente único, compartido: firma de técnico/cliente en órdenes y firma del representante en Configuración -->
+<div class="firma-tactil-overlay" id="firmaTactilOverlay">
+  <div class="firma-tactil-caja" id="firmaTactilCaja">
+    <div class="firma-tactil-header">
+      <span id="firmaTactilTitulo">Firma</span>
+      <button type="button" class="firma-tactil-cerrar" onclick="cerrarFirmaTactil()">✖</button>
+    </div>
+    <div class="firma-tactil-area">
+      <canvas id="firmaTactilCanvas"></canvas>
+      <div class="firma-tactil-linea"></div>
+      <span class="firma-tactil-indicacion">Firme aquí con el dedo</span>
+    </div>
+    <div class="firma-tactil-botonera">
+      <button type="button" class="firma-tactil-btn firma-tactil-btn-borrar" onclick="limpiarFirmaTactil()"><i class="fas fa-eraser"></i> Borrar</button>
+      <button type="button" class="firma-tactil-btn firma-tactil-btn-confirmar" onclick="confirmarFirmaTactil()"><i class="fas fa-check"></i> Confirmar Firma</button>
+    </div>
+  </div>
+</div>
+
 <div id="resetPasswordOverlay" style="display:none;position:fixed;inset:0;background:#fff;z-index:3000;align-items:center;justify-content:center;">
   <div class="login-box" style="max-width:380px;">
     <h2 style="font-size:20px;color:#1e293b;"><i class="fas fa-key" style="color:#7c3aed;"></i> Crear nueva contraseña</h2>
@@ -1263,13 +1309,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:10px;">
       <div>
         <label>Firma del Técnico:</label>
-        <canvas class="signature-pad" id="detCanvasFirmaTecnico"></canvas>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom" style="margin-top:4px;" onclick="limpiarFirma('detCanvasFirmaTecnico')">Limpiar</button>
+        <div class="firma-preview-caja" id="detFirmaTecnicoCaja">
+          <img id="detPreviewFirmaTecnico" style="display:none;">
+          <span id="detPreviewFirmaTecnicoPlaceholder" class="firma-preview-vacio">Sin firma todavía</span>
+        </div>
+        <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" id="detBtnFirmarTecnico" style="margin-top:4px;" onclick="abrirFirmaTactil('tecnico', firmaTecnicoTemp)"><i class="fas fa-signature"></i> Firmar</button>
       </div>
       <div>
         <label>Firma del Cliente:</label>
-        <canvas class="signature-pad" id="detCanvasFirmaCliente"></canvas>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom" style="margin-top:4px;" onclick="limpiarFirma('detCanvasFirmaCliente')">Limpiar</button>
+        <div class="firma-preview-caja" id="detFirmaClienteCaja">
+          <img id="detPreviewFirmaCliente" style="display:none;">
+          <span id="detPreviewFirmaClientePlaceholder" class="firma-preview-vacio">Sin firma todavía</span>
+        </div>
+        <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" id="detBtnFirmarCliente" style="margin-top:4px;" onclick="abrirFirmaTactil('cliente', firmaClienteTemp)"><i class="fas fa-signature"></i> Firmar</button>
       </div>
     </div>
 
@@ -1619,13 +1671,13 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <p style="font-size:11px;color:var(--text-muted);margin:0 0 10px 0;">Se usan juntos (nombre + firma) en los documentos que se generan, como el comprobante de pago de nómina, para que no haya que firmar cada uno a mano.</p>
         <label>Nombre del representante:</label>
         <input type="text" id="cfgNombreRepresentante" placeholder="Ej. Juan Pérez — Representante Legal">
-        <label style="margin-top:10px;">Firma electrónica (imagen):</label>
-        <div id="previewFirmaConfig" style="width:220px;height:90px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin:6px 0;border:1px solid var(--card-border);">
-          <img id="imgFirmaConfig" style="max-width:92%;max-height:92%;object-fit:contain;display:none;">
-          <span id="previewFirmaConfigPlaceholder" style="color:#94a3b8;font-size:11px;">Sin firma cargada</span>
+        <label style="margin-top:10px;">Firma electrónica:</label>
+        <div class="firma-preview-caja" id="previewFirmaConfig">
+          <img id="imgFirmaConfig" style="display:none;">
+          <span id="previewFirmaConfigPlaceholder" class="firma-preview-vacio">Sin firma todavía</span>
         </div>
-        <input type="file" id="cfgFirmaInput" accept="image/*" onchange="manejarFirmaUpload(event)">
-        <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0 0;">Recomendado: imagen con fondo transparente (PNG) de la firma escaneada o hecha en el celular.</p>
+        <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirFirmaTactil('representante', firmaTempBase64)"><i class="fas fa-signature"></i> Firmar en pantalla</button>
+        <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0 0;">Firme directo con el dedo — se guarda junto con el botón "Guardar Cambios" de arriba.</p>
       </div>
       <button class="btn-custom" style="margin-top:20px;" onclick="guardarAjustesGenerales()">💾 Guardar Cambios (Perfil, Representante y Firma)</button>
       <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">

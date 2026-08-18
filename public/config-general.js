@@ -97,17 +97,10 @@ function manejarLogoUpload(event){
   };
   reader.readAsDataURL(file);
 }
-function manejarFirmaUpload(event){
-  const file = event.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e=>{
-    firmaTempBase64 = e.target.result;
-    const prev = document.getElementById('imgFirmaConfig');
-    prev.src = firmaTempBase64; prev.style.display='inline-block';
-    document.getElementById('previewFirmaConfigPlaceholder').style.display='none';
-  };
-  reader.readAsDataURL(file);
+function actualizarPreviewFirmaRepresentante(){
+  const prev = document.getElementById('imgFirmaConfig');
+  const placeholder = document.getElementById('previewFirmaConfigPlaceholder');
+  if(firmaTempBase64){ prev.src = firmaTempBase64; prev.style.display='block'; placeholder.style.display='none'; }
 }
 async function guardarAjustesGenerales(){
   db.config.nombre = document.getElementById('cfgEmpresaNombre').value;

@@ -52,23 +52,8 @@ function normalizarFotosEvidencia(fotos){
   // Compatibilidad: órdenes guardadas antes de esta función tenían las fotos como texto plano (solo la imagen, sin descripción).
   return (fotos||[]).map(f => (typeof f === 'string') ? { src:f, desc:'' } : { src:f.src, desc:f.desc||'' });
 }
-/* --- Firmas (técnico + cliente) --- */
-let canvasCtxs = {}; let dibujandoCanvas = null;
-function activarDibujoCanvas(canvas, ctx, id){
-  const pos = e=>{
-    const r = canvas.getBoundingClientRect();
-    const t = e.touches && e.touches[0];
-    const x = t ? t.clientX : e.clientX, y = t ? t.clientY : e.clientY;
-    return { x: x - r.left, y: y - r.top };
-  };
-  const iniciar = e=>{ e.preventDefault(); dibujandoCanvas=id; ctx.beginPath(); const p=pos(e); ctx.moveTo(p.x,p.y); };
-  const mover = e=>{ if(dibujandoCanvas!==id) return; e.preventDefault(); const p=pos(e); ctx.lineWidth=2; ctx.strokeStyle="#0088ff"; ctx.lineCap='round'; ctx.lineTo(p.x,p.y); ctx.stroke(); };
-  const soltar = ()=>{ dibujandoCanvas=null; };
-  canvas.onmousedown = iniciar; canvas.onmousemove = mover; canvas.onmouseup = soltar; canvas.onmouseleave = soltar;
-  // Táctil (celular/tablet): antes solo funcionaba con mouse, no respondía al dedo.
-  canvas.ontouchstart = iniciar; canvas.ontouchmove = mover; canvas.ontouchend = soltar; canvas.ontouchcancel = soltar;
-}
-function limpiarFirma(id){ const ctx=canvasCtxs[id]; const canvas=document.getElementById(id); if(ctx&&canvas) ctx.clearRect(0,0,canvas.width,canvas.height); }
+/* Las firmas (técnico + cliente) ahora usan el componente único de "Firma
+   táctil" en pantalla completa — ver utilidades-navegacion.js. */
 
 
 
@@ -147,11 +132,19 @@ function verDetalleOrden(ordenId){
   document.getElementById('detAvisoFinalizada').style.display = finalizada ? 'block' : 'none';
   document.getElementById('detAvisoEdicionForzada').style.display = (ordenDetalleEsEdicionForzada && o.estado==='Finalizado') ? 'block' : 'none';
 
+  // Carga la firma ya guardada (si existe) en la vista previa, y prepara el
+  // botón "Firmar" para reabrir el lienzo táctil en pantalla completa. En
+  // modo solo lectura (orden finalizada), el botón de firmar se oculta.
+  firmaTecnicoTemp = (o.cierre && o.cierre.firmaTecnico) || null;
+  firmaClienteTemp = (o.cierre && o.cierre.firmaCliente) || null;
+  actualizarPreviewFirmaOrden('tecnico');
+  actualizarPreviewFirmaOrden('cliente');
+  document.getElementById('detBtnFirmarTecnico').style.display = finalizada ? 'none' : 'inline-flex';
+  document.getElementById('detBtnFirmarCliente').style.display = finalizada ? 'none' : 'inline-flex';
+  if(!firmaTecnicoTemp){ document.getElementById('detPreviewFirmaTecnico').style.display='none'; document.getElementById('detPreviewFirmaTecnicoPlaceholder').style.display='block'; }
+  if(!firmaClienteTemp){ document.getElementById('detPreviewFirmaCliente').style.display='none'; document.getElementById('detPreviewFirmaClientePlaceholder').style.display='block'; }
+
   abrirModal('modalDetalleOrden');
-  setTimeout(()=>{
-    inicializarCanvasFirmaConPrefill('detCanvasFirmaTecnico', o.cierre && o.cierre.firmaTecnico, finalizada);
-    inicializarCanvasFirmaConPrefill('detCanvasFirmaCliente', o.cierre && o.cierre.firmaCliente, finalizada);
-  }, 50);
 }
 function poblarEquiposDetalleOrden(equipoIdPreseleccionado){
   const clienteId = parseInt(document.getElementById('detCliente').value);
@@ -214,21 +207,6 @@ function manejarFotosDetalle(event){
 function renderizarFotosDetallePreview(){
   renderizarGaleriaFotos('detPreviewFotos', fotosDetalleTemp, 'ordenGeneral');
 }
-function inicializarCanvasFirmaConPrefill(id, firmaExistenteDataUrl, soloLectura){
-  const canvas = document.getElementById(id);
-  if(!canvas) return;
-  canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
-  const ctx = canvas.getContext('2d');
-  canvasCtxs[id] = ctx;
-  if(firmaExistenteDataUrl){
-    const img = new Image();
-    img.onload = ()=>ctx.drawImage(img,0,0,canvas.width,canvas.height);
-    img.src = firmaExistenteDataUrl;
-  }
-  if(soloLectura){ canvas.onmousedown=null; canvas.onmousemove=null; canvas.onmouseup=null; canvas.ontouchstart=null; canvas.ontouchmove=null; canvas.ontouchend=null; canvas.style.pointerEvents='none'; return; }
-  canvas.style.pointerEvents = 'auto';
-  activarDibujoCanvas(canvas, ctx, id);
-}
 async function guardarDetalleOrden(finalizar){
   const o = db.ordenes.find(x=>x.id===ordenDetalleId);
   if(!o) return;
@@ -259,9 +237,6 @@ async function guardarDetalleOrden(finalizar){
       respuestas[el.dataset.campo] = el.value;
     }
   });
-  const canvasTec = document.getElementById('detCanvasFirmaTecnico');
-  const canvasCli = document.getElementById('detCanvasFirmaCliente');
-
   // Respaldo del estado anterior de la orden, por si el guardado en el servidor
   // falla — así se puede restaurar sin perder lo que ya tenía guardado antes,
   // en vez de dejar la orden a medias con datos que nunca llegaron a guardarse.
@@ -280,8 +255,8 @@ async function guardarDetalleOrden(finalizar){
     respuestas,
     fotos: fotosDetalleTemp.slice(),
     fotosPorCampo: JSON.parse(JSON.stringify(fotosCamposDetalleTemp)),
-    firmaTecnico: canvasTec ? canvasTec.toDataURL() : (o.cierre?o.cierre.firmaTecnico:null),
-    firmaCliente: canvasCli ? canvasCli.toDataURL() : (o.cierre?o.cierre.firmaCliente:null)
+    firmaTecnico: firmaTecnicoTemp || null,
+    firmaCliente: firmaClienteTemp || null
   };
   o.estado = (finalizar || esEdicionForzada) ? 'Finalizado' : document.getElementById('detEstado').value;
 
