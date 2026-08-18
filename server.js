@@ -22,8 +22,21 @@ const path = require('path');
 const crypto = require('crypto');
 const { Pool } = require('pg');
 const rateLimit = require('express-rate-limit');
+const sharp = require('sharp');
+const heicConvert = require('heic-convert');
+const nodemailer = require('nodemailer');
 
 const app = express();
+// Railway (como casi toda la nube) pone el servidor detrás de un proxy, que agrega
+// el encabezado X-Forwarded-For a cada petición. Sin esta línea, Express no confía
+// en ese encabezado, y "express-rate-limit" (usado en login y recuperación de clave)
+// lo rechaza con un error que en Node 22 tumba TODO el proceso del servidor — no solo
+// esa petición. Mientras se reinicia, cualquier otra cosa falla también (por ejemplo,
+// subir la imagen del login), aunque el problema real nunca fue la imagen.
+app.set('trust proxy', 1);
+process.on('unhandledRejection', (err) => {
+  console.error('[ERROR NO CONTROLADO — el servidor puede reiniciarse por esto]:', err);
+});
 app.use(cors());
 app.use(express.json({ limit: '80mb' })); // las fotos van como base64 y pueden pesar
 app.use(express.static(path.join(__dirname, 'public')));
@@ -163,7 +176,13 @@ app.get('/api/empresas/:slug', async (req, res) => {
   if (!data) return res.status(404).json({ error: 'Empresa no encontrada.' });
   res.json({
     nombre: data.config.nombre, logo: data.config.logo,
-    tecnicos: (data.tecnicos || []).map(t => ({ id: t.id, nombre: t.nombre }))
+    tecnicos: (data.tecnicos || []).map(t => ({ id: t.id, nombre: t.nombre })),
+    loginColor1: data.config.loginColor1, loginColor2: data.config.loginColor2,
+    loginImagenFondo: data.config.loginImagenFondo,
+    loginTituloIzquierda: data.config.loginTituloIzquierda,
+    loginSubtituloIzquierda: data.config.loginSubtituloIzquierda,
+    loginBienvenidaTitulo: data.config.loginBienvenidaTitulo,
+    loginBienvenidaSubtitulo: data.config.loginBienvenidaSubtitulo,
   });
 });
 app.post('/api/empresas', limiteLogin, async (req, res) => {
@@ -236,8 +255,82 @@ app.post('/api/tienda/:slug/pedido', limitePublico, async (req, res) => {
 });
 
 /* ---------------------------------------------------------
+   Procesamiento de imágenes (fondo del login) — se recibe la
+   imagen tal cual la subió el usuario y se devuelve ya recortada
+   y redimensionada a 1080x1920 (vertical, 9:16), sin dejarlo en
+   manos del navegador ni del usuario.
+--------------------------------------------------------- */
+// Recorta/redimensiona a 1080x1920 (vertical), corrigiendo orientación EXIF sola.
+async function recortarParaLogin(buffer){
+  return sharp(buffer, {
+    failOnError: false,          // tolera imágenes con pequeñas imperfecciones en vez de rechazarlas de una
+    limitInputPixels: 400000000, // permite fotos de muy alta resolución (celulares modernos, hasta ~400MP)
+    animated: false,             // si es un formato con varios cuadros, usa solo el primero
+  })
+    .rotate() // corrige sola la orientación según los metadatos EXIF (fotos de celular a veces vienen "giradas")
+    .resize(1080, 1920, { fit: 'cover', position: 'centre' }) // recorte centrado, sin deformar
+    .jpeg({ quality: 88 })
+    .toBuffer();
+}
+
+app.post('/api/imagenes/login-fondo', requireAuth, async (req, res) => {
+  const { imagenBase64 } = req.body || {};
+  if (!imagenBase64) return res.status(400).json({ error: 'No llegó ninguna imagen. Intenta seleccionarla de nuevo.' });
+  const coincide = /^data:(image\/[\w.+-]+);base64,(.+)$/.exec(imagenBase64);
+  if (!coincide) return res.status(400).json({ error: 'Ese archivo no se reconoce como una imagen válida.' });
+
+  let buffer;
+  try {
+    buffer = Buffer.from(coincide[2], 'base64');
+  } catch {
+    return res.status(400).json({ error: 'El archivo llegó dañado durante la subida. Intenta de nuevo.' });
+  }
+  if (!buffer.length) return res.status(400).json({ error: 'El archivo llegó vacío. Intenta seleccionarlo de nuevo.' });
+  if (buffer.length > 10 * 1024 * 1024) {
+    return res.status(400).json({ error: 'La imagen pesa más de 10MB. Usa una más liviana.' });
+  }
+
+  // Paso 1: se intenta directo con sharp (cubre JPG, PNG, WEBP, y algunos HEIC si el
+  // servidor lo soporta de forma nativa).
+  try {
+    const procesada = await recortarParaLogin(buffer);
+    return res.json({ ok: true, imagen: `data:image/jpeg;base64,${procesada.toString('base64')}` });
+  } catch (errSharp) {
+    // Paso 2: si falló, puede ser un HEIC/HEIF que el servidor no decodifica de forma
+    // nativa — se convierte explícitamente a JPG con heic-convert antes de recortar,
+    // en vez de pedirle al usuario que lo convierta él mismo.
+    try {
+      const jpegIntermedio = await heicConvert({ buffer, format: 'JPEG', quality: 0.92 });
+      const procesada = await recortarParaLogin(Buffer.from(jpegIntermedio));
+      return res.json({ ok: true, imagen: `data:image/jpeg;base64,${procesada.toString('base64')}` });
+    } catch (errHeic) {
+      console.error('[login-fondo] sharp:', errSharp.message, '| heic-convert:', errHeic.message);
+      // Mensaje específico según lo que realmente pasó, no uno genérico.
+      let mensaje;
+      if (/premature|truncat|unexpected end/i.test(errSharp.message) || /premature|truncat/i.test(errHeic.message)) {
+        mensaje = 'El archivo parece estar incompleto o dañado (se cortó al subirlo). Intenta seleccionarlo de nuevo.';
+      } else if (/unsupported|no decode|codec|input format/i.test(errSharp.message)) {
+        mensaje = 'Ese formato de imagen no es compatible, ni siquiera con la conversión automática. Prueba con una foto en JPG o PNG.';
+      } else {
+        mensaje = 'No se pudo procesar esa imagen. Prueba con otra foto, o convirtiéndola a JPG con cualquier app de tu celular.';
+      }
+      return res.status(422).json({ error: mensaje });
+    }
+  }
+});
+
+/* ---------------------------------------------------------
    API — Autenticación (con soporte de contraseña maestra opcional)
 --------------------------------------------------------- */
+app.post('/api/auth/logout', requireAuth, (req, res) => {
+  // requireAuth ya validó que el token existía; aquí lo borramos de verdad
+  // del servidor, para que ese token deje de servir de inmediato (antes solo
+  // se "olvidaba" en el navegador, pero seguía siendo válido hasta 12h).
+  const auth = req.headers['authorization'] || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (token) sesiones.delete(token);
+  res.json({ ok: true });
+});
 app.post('/api/auth/login', limiteLogin, async (req, res) => {
   const { slug: slugRaw, tipo, tecnicoId, usuario, password } = req.body || {};
   const slug = (slugRaw || '').trim().toLowerCase();
@@ -262,6 +355,100 @@ app.post('/api/auth/login', limiteLogin, async (req, res) => {
   const usuarioOk = usuario && data.config.adminUsuario && usuario.trim().toLowerCase() === data.config.adminUsuario.trim().toLowerCase();
   if (!usuarioOk || !verificarPassword(password, data.config.adminPasswordHash)) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
   res.json({ token: crearSesion(slug, 'admin', null), rol: 'admin', tecnicoId: null, nombreEmpresa: data.config.nombre });
+});
+
+/* ---------------------------------------------------------
+   Recuperación de contraseña por correo (Gmail vía Nodemailer)
+--------------------------------------------------------- */
+const tokensReset = new Map(); // token -> {slug, tipo:'admin'|'tecnico', tecnicoId, exp, usado}
+
+let transportadorCorreo; // se arma una sola vez y se reutiliza
+function obtenerTransportadorCorreo() {
+  if (transportadorCorreo) return transportadorCorreo;
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) return null;
+  transportadorCorreo = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
+  });
+  return transportadorCorreo;
+}
+
+async function enviarCorreoReset(slug, tipo, tecnicoId, email, nombreEmpresa) {
+  const token = crypto.randomBytes(32).toString('hex');
+  tokensReset.set(token, { slug, tipo, tecnicoId, exp: Date.now() + 60 * 60 * 1000, usado: false });
+  const transportador = obtenerTransportadorCorreo();
+  const enlace = `${process.env.APP_URL || ''}/?resetToken=${token}`;
+  if (!transportador) {
+    // Sin GMAIL_USER/GMAIL_APP_PASSWORD configurados: no se puede enviar el
+    // correo real, pero se deja registro para que igual puedas probar el
+    // flujo completo copiando el enlace manualmente mientras configuras Gmail.
+    console.log(`[reset] Gmail no configurado todavía. Enlace de prueba para ${email}: ${enlace}`);
+    return;
+  }
+  try {
+    await transportador.sendMail({
+      from: `"${nombreEmpresa || 'Prevenglobal'}" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: `Restablecer tu contraseña — ${nombreEmpresa || 'Prevenglobal'}`,
+      html: `<p>Recibimos una solicitud para restablecer tu contraseña en ${nombreEmpresa || 'Prevenglobal'}.</p>
+             <p><a href="${enlace}">Haz clic aquí para crear una nueva contraseña</a></p>
+             <p>Este enlace vence en 1 hora. Si tú no solicitaste esto, ignora este correo — tu contraseña actual sigue funcionando igual.</p>`,
+    });
+  } catch (err) {
+    console.error('[reset] No se pudo enviar el correo:', err.message);
+  }
+}
+
+app.post('/api/auth/solicitar-reset', limiteLogin, async (req, res) => {
+  const correo = ((req.body || {}).email || '').trim().toLowerCase();
+  // La respuesta es siempre la misma exista o no ese correo — así nadie puede
+  // usar este formulario para averiguar qué correos están registrados.
+  const respuesta = { ok: true, mensaje: 'Si ese correo está registrado, te enviamos un enlace para restablecer tu contraseña.' };
+  if (!correo) return res.json(respuesta);
+  try {
+    const empresas = await leerEmpresas();
+    for (const emp of empresas) {
+      const data = await leerEstadoEmpresa(emp.slug);
+      if (!data) continue;
+      if (data.config.adminUsuario && data.config.adminUsuario.trim().toLowerCase() === correo) {
+        await enviarCorreoReset(emp.slug, 'admin', null, correo, data.config.nombre);
+        return res.json(respuesta);
+      }
+      const tecnico = (data.tecnicos || []).find(t => t.usuario && t.usuario.trim().toLowerCase() === correo);
+      if (tecnico) {
+        await enviarCorreoReset(emp.slug, 'tecnico', tecnico.id, correo, data.config.nombre);
+        return res.json(respuesta);
+      }
+    }
+  } catch (err) {
+    console.error('[reset] Error buscando el correo:', err.message);
+  }
+  res.json(respuesta);
+});
+
+app.post('/api/auth/confirmar-reset', limiteLogin, async (req, res) => {
+  const { token, nuevaPassword } = req.body || {};
+  if (!token || !nuevaPassword) return res.status(400).json({ error: 'Faltan datos.' });
+  if (nuevaPassword.length < 4) return res.status(400).json({ error: 'La contraseña es muy corta (mínimo 4 caracteres).' });
+  const info = tokensReset.get(token);
+  if (!info) return res.status(400).json({ error: 'El enlace no es válido.' });
+  if (info.usado) return res.status(400).json({ error: 'Este enlace ya fue usado. Solicita uno nuevo si necesitas cambiar la contraseña otra vez.' });
+  if (info.exp < Date.now()) { tokensReset.delete(token); return res.status(400).json({ error: 'El enlace venció (duran 1 hora). Solicita uno nuevo.' }); }
+
+  const data = await leerEstadoEmpresa(info.slug);
+  if (!data) return res.status(404).json({ error: 'Empresa no encontrada.' });
+  const nuevoHash = hashPassword(nuevaPassword);
+  if (info.tipo === 'admin') {
+    data.config.adminPasswordHash = nuevoHash;
+  } else {
+    const t = (data.tecnicos || []).find(x => x.id === info.tecnicoId);
+    if (!t) return res.status(404).json({ error: 'Usuario no encontrado.' });
+    t.passwordHash = nuevoHash;
+  }
+  await guardarEstadoEmpresa(info.slug, data);
+  info.usado = true;
+  tokensReset.delete(token);
+  res.json({ ok: true });
 });
 
 /* ---------------------------------------------------------
