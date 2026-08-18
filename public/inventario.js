@@ -51,15 +51,13 @@ function manejarFotoInventario(event){
   if(fotosInventarioTemp.length >= 2){ mostrarToast('Máximo 2 fotos de referencia por ítem.'); event.target.value=''; return; }
   const disponibles = 2 - fotosInventarioTemp.length;
   files.slice(0, disponibles).forEach(file=>{
-    comprimirImagen(file).then(dataUrl=>{ fotosInventarioTemp.push(dataUrl); renderizarFotosInventarioPreview(); });
+    comprimirImagen(file).then(dataUrl=>{ fotosInventarioTemp.push({ src:dataUrl, desc:'' }); renderizarFotosInventarioPreview(); });
   });
   if(files.length > disponibles) mostrarToast('Solo se agregaron las primeras fotos permitidas (límite: 2 por ítem).');
   event.target.value='';
 }
 function renderizarFotosInventarioPreview(){
-  document.getElementById('previewFotosInventario').innerHTML = fotosInventarioTemp.map((f,idx)=>`
-    <div class="foto-thumb"><img src="${f}"><button onclick="fotosInventarioTemp.splice(${idx},1);renderizarFotosInventarioPreview();">✖</button></div>
-  `).join('');
+  renderizarGaleriaFotos('previewFotosInventario', fotosInventarioTemp, 'inventario');
 }
 function guardarItemInventario(){
   const id = document.getElementById('invItemId').value;
@@ -99,7 +97,7 @@ function renderizarInventario(){
   tbody.innerHTML = db.inventario.map(it=>{
     const bodega = buscarBodega(it.bodegaId);
     const bajoStock = it.stockActual <= it.stockMinimo;
-    const fotosHtml = (it.fotos||[]).map(f=>`<img src="${f}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;margin-right:3px;">`).join('');
+    const fotosHtml = (it.fotos||[]).map(f=>`<img src="${srcDeFoto(f)}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;margin-right:3px;">`).join('');
     return `<tr>
       <td><strong>${it.nombre}</strong><br><small style="color:var(--text-muted);">${it.categoria||''}</small></td>
       <td>${bodega?bodega.nombre:'—'}</td>

@@ -82,7 +82,7 @@ function renderizarTienda(){
   const productos = productosPublicadosTienda();
   document.getElementById('tiendaEmptyState').style.display = productos.length ? 'none' : 'block';
   grid.innerHTML = productos.map(it=>{
-    const foto = (it.fotos && it.fotos[0]) ? `<img src="${it.fotos[0]}" class="tienda-card-img">` : `<div class="tienda-card-img-placeholder"><i class="fas fa-box-open"></i></div>`;
+    const foto = (it.fotos && it.fotos[0]) ? `<img src="${srcDeFoto(it.fotos[0])}" class="tienda-card-img">` : `<div class="tienda-card-img-placeholder"><i class="fas fa-box-open"></i></div>`;
     const agotado = it.stockActual <= 0;
     return `<div class="tienda-card" onclick="verDetalleProductoTienda(${it.id})">
       ${foto}
@@ -162,7 +162,7 @@ function iniciarRotacionTestimonios(testimonios){
 function verDetalleProductoTienda(itemId){
   const it = buscarItemInventario(itemId);
   if(!it) return;
-  const fotos = (it.fotos||[]).map(f=>`<img src="${f}" style="width:100%;border-radius:10px;margin-bottom:8px;">`).join('') || `<div class="tienda-card-img-placeholder" style="border-radius:10px;"><i class="fas fa-box-open"></i></div>`;
+  const fotos = (it.fotos||[]).map(f=>`<img src="${srcDeFoto(f)}" style="width:100%;border-radius:10px;margin-bottom:8px;">`).join('') || `<div class="tienda-card-img-placeholder" style="border-radius:10px;"><i class="fas fa-box-open"></i></div>`;
   const agotado = it.stockActual <= 0;
   document.getElementById('detalleProductoTienda').innerHTML = `
     ${fotos}
@@ -224,7 +224,7 @@ function renderizarCarrito(){
     if(!it) return '';
     const subtotal = (it.precio||0) * c.cantidad;
     total += subtotal;
-    const foto = (it.fotos && it.fotos[0]) ? it.fotos[0] : '';
+    const foto = (it.fotos && it.fotos[0]) ? srcDeFoto(it.fotos[0]) : '';
     return `<div class="carrito-item">
       ${foto ? `<img src="${foto}">` : '<div style="width:50px;height:50px;background:#0f172a;border-radius:8px;"></div>'}
       <div class="carrito-item-info">
@@ -298,9 +298,11 @@ function cargarTabTiendaConfig(){
 }
 function renderizarPreviewMultiple(contenedorId, lista, fnQuitar){
   document.getElementById(contenedorId).innerHTML = lista.map((img,i)=>`
-    <div style="position:relative;display:inline-block;">
-      <img src="${img}" style="width:70px;height:70px;object-fit:cover;border-radius:6px;">
-      <button onclick="${fnQuitar.name}(${i})" style="position:absolute;top:-6px;right:-6px;background:var(--red-alert);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer;">✖</button>
+    <div class="galeria-foto-item">
+      <div class="galeria-foto-marco">
+        <img src="${img}">
+        <button type="button" class="galeria-foto-quitar" onclick="${fnQuitar.name}(${i})">✖</button>
+      </div>
     </div>`).join('');
 }
 function normalizarGaleriaTienda(){
@@ -313,12 +315,12 @@ function normalizarGaleriaTienda(){
 function renderizarPreviewGaleria(){
   normalizarGaleriaTienda();
   document.getElementById('previewGaleriaTienda').innerHTML = db.config.tiendaGaleria.map((item,i)=>`
-    <div style="position:relative;display:inline-block;width:100px;vertical-align:top;margin:4px;">
-      <div style="position:relative;">
-        <img src="${item.img}" style="width:100px;height:100px;object-fit:cover;border-radius:6px;">
-        <button onclick="quitarGaleriaTienda(${i})" style="position:absolute;top:-6px;right:-6px;background:var(--red-alert);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer;">✖</button>
+    <div class="galeria-foto-item">
+      <div class="galeria-foto-marco">
+        <img src="${item.img}">
+        <button type="button" class="galeria-foto-quitar" onclick="quitarGaleriaTienda(${i})">✖</button>
       </div>
-      <input type="text" value="${(item.nota||'').replace(/"/g,'&quot;')}" placeholder="Nota breve..." style="margin-top:4px;font-size:11px;padding:5px;" onchange="guardarNotaGaleria(${i}, this.value)">
+      <input type="text" class="galeria-foto-desc" value="${(item.nota||'').replace(/"/g,'&quot;')}" placeholder="Nota breve..." onchange="guardarNotaGaleria(${i}, this.value)">
     </div>`).join('');
 }
 function guardarNotaGaleria(i, valor){

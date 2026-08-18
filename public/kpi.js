@@ -126,7 +126,7 @@ function renderizarKPIs(){
 function verFichaQR(itemId){
   const it = buscarItemInventario(itemId);
   const bodega = buscarBodega(it.bodegaId);
-  const fotosHtml = (it.fotos||[]).map(f=>`<img src="${f}" style="width:70px;height:70px;object-fit:cover;border-radius:6px;margin-right:6px;">`).join('');
+  const fotosHtml = (it.fotos||[]).map(f=>`<img src="${srcDeFoto(f)}" style="width:70px;height:70px;object-fit:cover;border-radius:6px;margin-right:6px;">`).join('');
   const movimientos = db.kardex.filter(k=>k.itemId===itemId).sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
   const historialHtml = movimientos.length ? `
     <table class="data-table" style="margin-top:6px;"><thead><tr><th>Fecha</th><th>Tipo</th><th>Cant.</th><th>Usuario</th></tr></thead><tbody>

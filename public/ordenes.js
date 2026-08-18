@@ -184,7 +184,7 @@ function renderizarFormularioDinamicoDetalle(plantillaId, respuestasExistentes, 
       cont.innerHTML += `<div style="margin-top:10px;border-top:1px dashed var(--card-border);padding-top:8px;">
         <label>${campo.label}:</label>
         <input type="file" accept="image/*" multiple onchange="manejarFotoCampoDetalle(event, ${campo.id})">
-        <div class="fotos-grid" id="detPreviewFotoCampo${campo.id}"></div>
+        <div class="galeria-fotos" id="detPreviewFotoCampo${campo.id}"></div>
       </div>`;
       renderizarFotoCampoDetallePreview(campo.id);
     } else {
@@ -200,30 +200,20 @@ function renderizarFormularioDinamicoDetalle(plantillaId, respuestasExistentes, 
 function manejarFotoCampoDetalle(event, campoId){
   const files = Array.from(event.target.files);
   if(!fotosCamposDetalleTemp[campoId]) fotosCamposDetalleTemp[campoId] = [];
-  files.forEach(file=>{ comprimirImagen(file).then(dataUrl=>{ fotosCamposDetalleTemp[campoId].push(dataUrl); renderizarFotoCampoDetallePreview(campoId); }); });
+  files.forEach(file=>{ comprimirImagen(file).then(dataUrl=>{ fotosCamposDetalleTemp[campoId].push({ src:dataUrl, desc:'' }); renderizarFotoCampoDetallePreview(campoId); }); });
   event.target.value='';
 }
 function renderizarFotoCampoDetallePreview(campoId){
-  const cont = document.getElementById('detPreviewFotoCampo'+campoId);
-  if(!cont) return;
-  cont.innerHTML = (fotosCamposDetalleTemp[campoId]||[]).map((f,idx)=>`
-    <div class="foto-thumb"><img src="${f}"><button onclick="eliminarFotoCampoDetalleTemp(${campoId},${idx})">✖</button></div>
-  `).join('');
+  renderizarGaleriaFotos('detPreviewFotoCampo'+campoId, fotosCamposDetalleTemp[campoId], 'ordenCampo', campoId);
 }
-function eliminarFotoCampoDetalleTemp(campoId, idx){ fotosCamposDetalleTemp[campoId].splice(idx,1); renderizarFotoCampoDetallePreview(campoId); }
 function manejarFotosDetalle(event){
   const files = Array.from(event.target.files);
   files.forEach(file=>{ comprimirImagen(file).then(dataUrl=>{ fotosDetalleTemp.push({ src:dataUrl, desc:'' }); renderizarFotosDetallePreview(); }); });
   event.target.value='';
 }
 function renderizarFotosDetallePreview(){
-  document.getElementById('detPreviewFotos').innerHTML = fotosDetalleTemp.map((f,idx)=>`
-    <div class="foto-thumb foto-thumb-con-desc"><img src="${f.src}"><button onclick="eliminarFotoDetalleTemp(${idx})">✖</button>
-      <input type="text" class="foto-desc-input" placeholder="Descripción (opcional)" value="${(f.desc||'').replace(/"/g,'&quot;')}" oninput="fotosDetalleTemp[${idx}].desc=this.value">
-    </div>
-  `).join('');
+  renderizarGaleriaFotos('detPreviewFotos', fotosDetalleTemp, 'ordenGeneral');
 }
-function eliminarFotoDetalleTemp(idx){ fotosDetalleTemp.splice(idx,1); renderizarFotosDetallePreview(); }
 function inicializarCanvasFirmaConPrefill(id, firmaExistenteDataUrl, soloLectura){
   const canvas = document.getElementById(id);
   if(!canvas) return;

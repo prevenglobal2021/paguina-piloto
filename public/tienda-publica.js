@@ -102,7 +102,7 @@ function renderizarTiendaPublica(){
   });
   document.getElementById('tpEmptyState').style.display = productos.length ? 'none' : 'block';
   document.getElementById('tpGrid').innerHTML = productos.map(it=>{
-    const foto = (it.fotos && it.fotos[0]) ? `<img src="${it.fotos[0]}" class="tienda-card-img">` : `<div class="tienda-card-img-placeholder"><i class="fas fa-box-open"></i></div>`;
+    const foto = (it.fotos && it.fotos[0]) ? `<img src="${srcDeFoto(it.fotos[0])}" class="tienda-card-img">` : `<div class="tienda-card-img-placeholder"><i class="fas fa-box-open"></i></div>`;
     const agotado = it.stockActual <= 0;
     return `<div class="tienda-card" onclick="verDetalleProductoPublico(${it.id})">
       ${foto}
@@ -122,7 +122,7 @@ function renderizarTiendaPublica(){
 function verDetalleProductoPublico(itemId){
   const it = tiendaPublicaData.productos.find(p=>p.id===itemId);
   if(!it) return;
-  const fotos = (it.fotos||[]).map(f=>`<img src="${f}" style="width:100%;border-radius:10px;margin-bottom:8px;">`).join('') || `<div class="tienda-card-img-placeholder" style="border-radius:10px;"><i class="fas fa-box-open"></i></div>`;
+  const fotos = (it.fotos||[]).map(f=>`<img src="${srcDeFoto(f)}" style="width:100%;border-radius:10px;margin-bottom:8px;">`).join('') || `<div class="tienda-card-img-placeholder" style="border-radius:10px;"><i class="fas fa-box-open"></i></div>`;
   const agotado = it.stockActual <= 0;
   document.getElementById('detalleProductoTienda').innerHTML = `
     ${fotos}
@@ -180,7 +180,7 @@ function renderizarCarritoPublico(){
     if(!it) return '';
     const subtotal = (it.precio||0) * c.cantidad;
     total += subtotal;
-    const foto = (it.fotos && it.fotos[0]) ? it.fotos[0] : '';
+    const foto = (it.fotos && it.fotos[0]) ? srcDeFoto(it.fotos[0]) : '';
     return `<div class="carrito-item">
       ${foto ? `<img src="${foto}">` : '<div style="width:50px;height:50px;background:#0f172a;border-radius:8px;"></div>'}
       <div class="carrito-item-info">

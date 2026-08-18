@@ -320,6 +320,15 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .btn-orden-secundaria:hover{background:#e2e8f0;}
 .btn-orden-peligro{background:#fef2f2;color:#b91c1c;}
 .btn-orden-peligro:hover{background:#fee2e2;}
+/* Galería de fotos con descripción — cuadrícula uniforme, se ajusta sola
+   (2 columnas si hay pocas fotos, 3-4 si hay más, según el ancho disponible) */
+.galeria-fotos{display:grid;grid-template-columns:repeat(auto-fill, minmax(100px, 1fr));gap:10px;margin-top:8px;}
+.galeria-foto-item{display:flex;flex-direction:column;}
+.galeria-foto-marco{position:relative;width:100%;aspect-ratio:1/1;border-radius:8px;overflow:hidden;border:1px solid var(--card-border);background:rgba(0,0,0,.15);}
+.galeria-foto-marco img{width:100%;height:100%;object-fit:cover;display:block;}
+.galeria-foto-quitar{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;border:none;font-size:10px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+.galeria-foto-quitar:hover{background:var(--red-alert);}
+.galeria-foto-desc{width:100%;margin-top:5px;font-size:11px;padding:5px 6px;box-sizing:border-box;}
 .tema-claro-opcion{border:2px solid var(--card-border);border-radius:10px;padding:8px;cursor:pointer;text-align:center;transition:border-color .15s ease, transform .1s ease;background:rgba(0,0,0,.15);}
 .tema-claro-opcion:hover{transform:translateY(-2px);}
 .tema-claro-opcion.seleccionado{border-color:var(--blue-accent);box-shadow:0 0 0 2px color-mix(in srgb, var(--blue-accent) 30%, transparent);}
@@ -1085,7 +1094,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     </div>
     <label>Fotos de referencia (máx. 2):</label>
     <input type="file" id="invFotoInput" accept="image/*" multiple onchange="manejarFotoInventario(event)">
-    <div class="fotos-grid" id="previewFotosInventario"></div>
+    <div class="galeria-fotos" id="previewFotosInventario"></div>
     <hr style="border-color:var(--card-border);margin:14px 0;">
     <label style="display:flex;align-items:center;gap:8px;font-weight:normal;"><input type="checkbox" id="invPublicarTienda" style="width:auto;"> 🛒 Publicar este ítem en la Tienda Virtual</label>
     <div class="field-row">
@@ -1249,7 +1258,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 
     <label>Fotos de evidencia:</label>
     <input type="file" id="detInputFotos" accept="image/*" multiple onchange="manejarFotosDetalle(event)">
-    <div class="fotos-grid" id="detPreviewFotos"></div>
+    <div class="galeria-fotos" id="detPreviewFotos"></div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:10px;">
       <div>
@@ -1317,7 +1326,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <textarea id="eqModalFichaTecnica" rows="2" placeholder="Datos técnicos adicionales, hoja de datos, notas de instalación..."></textarea>
     <label>Fotos del equipo:</label>
     <input type="file" id="eqModalFotoInput" accept="image/*" multiple onchange="manejarFotoEquipoModal(event)">
-    <div class="fotos-grid" id="previewFotosEquipoModal"></div>
+    <div class="galeria-fotos" id="previewFotosEquipoModal"></div>
     <div style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalEquipo')">Cancelar</button>
       <button class="btn-custom" onclick="guardarEquipoModal()">Guardar Equipo</button>
@@ -1463,7 +1472,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <button class="btn-custom btn-secondary-custom btn-sm-custom" type="button" onclick="usarUbicacionActualCliente()"><i class="fas fa-crosshairs m-r-10"></i>Usar mi ubicación actual (más preciso que la dirección)</button>
           <label style="margin-top:12px;">Imágenes de referencia (fachada, entrada, punto de acceso):</label>
           <input type="file" id="cfgCliImagenInput" accept="image/*" multiple onchange="manejarImagenClienteUpload(event)">
-          <div class="fotos-grid" id="previewImagenesCliente"></div>
+          <div class="galeria-fotos" id="previewImagenesCliente"></div>
           <button class="btn-custom" style="margin-top:12px;" onclick="guardarClienteConfig()">Guardar Cliente</button>
         </div>
         <div>
@@ -1791,13 +1800,13 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <p style="font-size:11px;color:var(--text-muted);">Sube varias imágenes anchas — se van rotando solas cada pocos segundos arriba de la tienda.</p>
           <input type="file" id="inputBannerTienda" accept="image/*" multiple onchange="subirBannerTienda(event)">
           <small style="display:block;margin-top:4px;color:var(--text-muted);">📐 Medida recomendada: <strong>1600 × 500 px</strong> (panorámica), formato JPG. Puedes seleccionar varias imágenes a la vez.</small>
-          <div class="fotos-grid" id="previewBannerTienda"></div>
+          <div class="galeria-fotos" id="previewBannerTienda"></div>
 
           <h4 style="font-size:13px;">🖼️ Pasarela de imágenes (galería/carrusel)</h4>
           <p style="font-size:11px;color:var(--text-muted);">Imágenes adicionales para mostrar en un carrusel dentro de la tienda (proyectos, instalaciones, marcas que manejas, etc.).</p>
           <input type="file" id="inputGaleriaTienda" accept="image/*" multiple onchange="subirGaleriaTienda(event)">
           <small style="display:block;margin-top:4px;color:var(--text-muted);">📐 Medida recomendada: <strong>800 × 600 px</strong>, formato JPG. Puedes seleccionar varias imágenes a la vez.</small>
-          <div class="fotos-grid" id="previewGaleriaTienda"></div>
+          <div class="galeria-fotos" id="previewGaleriaTienda"></div>
         </div>
         <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;">
           <h4 style="margin-top:0;font-size:13px;">📞 Contacto de la tienda</h4>

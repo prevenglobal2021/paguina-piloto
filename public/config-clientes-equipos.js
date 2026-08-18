@@ -128,20 +128,12 @@ function manejarImagenClienteUpload(event){
   if(files.length===0) return;
   imagenesClienteModificado = true;
   files.forEach(file=>{
-    comprimirImagen(file).then(dataUrl=>{ imagenesClienteTemp.push(dataUrl); renderizarImagenesClientePreview(); });
+    comprimirImagen(file).then(dataUrl=>{ imagenesClienteTemp.push({ src:dataUrl, desc:'' }); renderizarImagenesClientePreview(); });
   });
   event.target.value = '';
 }
 function renderizarImagenesClientePreview(){
-  const cont = document.getElementById('previewImagenesCliente');
-  cont.innerHTML = imagenesClienteTemp.map((f,idx)=>`
-    <div class="foto-thumb"><img src="${f}"><button onclick="eliminarImagenClienteTemp(${idx})">✖</button></div>
-  `).join('');
-}
-function eliminarImagenClienteTemp(idx){
-  imagenesClienteTemp.splice(idx,1);
-  imagenesClienteModificado = true;
-  renderizarImagenesClientePreview();
+  renderizarGaleriaFotos('previewImagenesCliente', imagenesClienteTemp, 'cliente');
 }
 function abrirEnGoogleMaps(direccion){
   if(!direccion){ mostrarToast('Este registro no tiene una dirección guardada todavía.'); return; }
@@ -310,15 +302,12 @@ function poblarSedesModalEquipo(){
 }
 function manejarFotoEquipoModal(event){
   const files = Array.from(event.target.files);
-  files.forEach(file=>{ comprimirImagen(file).then(dataUrl=>{ fotosEquipoModalTemp.push(dataUrl); renderizarFotosEquipoModalPreview(); }); });
+  files.forEach(file=>{ comprimirImagen(file).then(dataUrl=>{ fotosEquipoModalTemp.push({ src:dataUrl, desc:'' }); renderizarFotosEquipoModalPreview(); }); });
   event.target.value = '';
 }
 function renderizarFotosEquipoModalPreview(){
-  document.getElementById('previewFotosEquipoModal').innerHTML = fotosEquipoModalTemp.map((f,idx)=>`
-    <div class="foto-thumb"><img src="${f}"><button onclick="eliminarFotoEquipoModalTemp(${idx})">✖</button></div>
-  `).join('');
+  renderizarGaleriaFotos('previewFotosEquipoModal', fotosEquipoModalTemp, 'equipoModal');
 }
-function eliminarFotoEquipoModalTemp(idx){ fotosEquipoModalTemp.splice(idx,1); renderizarFotosEquipoModalPreview(); }
 function guardarEquipoModal(){
   const idRaw = document.getElementById('eqModalId').value;
   const clienteId = parseInt(document.getElementById('eqModalCliente').value);

@@ -3,6 +3,66 @@
    UTILIDADES DE CONSULTA
 ========================================================= */
 function buscarCliente(id){ return db.clientes.find(c=>c.id===id); }
+// Extrae la URL real de una foto sin importar si quedó guardada como texto
+// plano (formato viejo) o como {src, desc} (formato nuevo, con descripción)
+// — así ningún lugar de la plataforma se rompe por el cambio de formato.
+function srcDeFoto(f){ return (typeof f === 'string') ? f : ((f && f.src) || ''); }
+// Misma idea que ya existía para las fotos de cierre de orden (normalizarFotosEvidencia),
+// pero de nombre genérico para usarla en cualquier galería de la plataforma.
+function normalizarGaleria(fotos){
+  return (fotos||[]).map(f => (typeof f === 'string') ? { src:f, desc:'' } : { src:f.src, desc:f.desc||'' });
+}
+/* =========================================================
+   GALERÍA DE FOTOS CON DESCRIPCIÓN — componente único, reutilizado
+   en todos los formularios que suben varias imágenes (inventario,
+   clientes, equipos, órdenes). Cuadrícula uniforme (recortada sin
+   deformar) con un campo de descripción corta debajo de cada foto.
+========================================================= */
+function renderizarGaleriaFotos(contenedorId, fotos, contexto, campoId){
+  const cont = document.getElementById(contenedorId);
+  if(!cont) return;
+  const lista = normalizarGaleria(fotos);
+  const sufijoCampo = campoId!==undefined ? ',' + campoId : '';
+  cont.innerHTML = lista.map((f,idx)=>`
+    <div class="galeria-foto-item">
+      <div class="galeria-foto-marco">
+        <img src="${f.src}">
+        <button type="button" class="galeria-foto-quitar" onclick="eliminarFotoGaleria('${contexto}',${idx}${sufijoCampo})">✖</button>
+      </div>
+      <input type="text" class="galeria-foto-desc" placeholder="Descripción (opcional)" value="${(f.desc||'').replace(/"/g,'&quot;')}" oninput="actualizarDescripcionGaleria('${contexto}',${idx},this.value${sufijoCampo})">
+    </div>`).join('');
+}
+function obtenerArregloGaleria(contexto, campoId){
+  if(contexto==='inventario') return fotosInventarioTemp;
+  if(contexto==='cliente') return imagenesClienteTemp;
+  if(contexto==='equipoModal') return fotosEquipoModalTemp;
+  if(contexto==='ordenGeneral') return fotosDetalleTemp;
+  if(contexto==='ordenCampo') return fotosCamposDetalleTemp[campoId];
+  return null;
+}
+function rerenderizarGaleria(contexto, campoId){
+  if(contexto==='inventario') renderizarFotosInventarioPreview();
+  else if(contexto==='cliente') renderizarImagenesClientePreview();
+  else if(contexto==='equipoModal') renderizarFotosEquipoModalPreview();
+  else if(contexto==='ordenGeneral') renderizarFotosDetallePreview();
+  else if(contexto==='ordenCampo') renderizarFotoCampoDetallePreview(campoId);
+}
+function eliminarFotoGaleria(contexto, idx, campoId){
+  const arr = obtenerArregloGaleria(contexto, campoId);
+  if(!arr) return;
+  arr.splice(idx,1);
+  if(contexto==='cliente') imagenesClienteModificado = true;
+  rerenderizarGaleria(contexto, campoId);
+}
+function actualizarDescripcionGaleria(contexto, idx, valor, campoId){
+  const arr = obtenerArregloGaleria(contexto, campoId);
+  if(!arr || arr[idx]===undefined) return;
+  if(typeof arr[idx] === 'string') arr[idx] = { src: arr[idx], desc: valor };
+  else arr[idx].desc = valor;
+  if(contexto==='cliente') imagenesClienteModificado = true;
+  // No hace falta redibujar toda la cuadrícula por cada letra escrita — el
+  // campo de texto ya quedó con lo que se escribió, y el dato ya se guardó arriba.
+}
 // Nombre del cliente de una orden, ya sea uno registrado o uno nuevo (no
 // registrado, ingresado directo en la orden) — usar esto en vez de
 // buscarCliente(o.clienteId) directo en cualquier lugar donde se muestre
