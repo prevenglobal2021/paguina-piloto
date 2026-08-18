@@ -88,8 +88,22 @@ function dbCargar(){
     }
   };
 }
+function guardarEnLocalStorage(){
+  // El respaldo local (localStorage) tiene un límite de tamaño del navegador
+  // (típicamente 5-10MB). Con el tiempo, muchas fotos/imágenes acumuladas
+  // (logo, firma, imagen de login, fotos de órdenes) pueden llenarlo. Antes,
+  // si esto fallaba, TRONABA aquí mismo y nunca llegaba a intentar guardar en
+  // el servidor — que es lo que de verdad importa. Ahora, si el respaldo local
+  // falla, se avisa por consola pero se sigue adelante igual: solo se pierde el
+  // respaldo offline de este dispositivo, nunca el guardado real.
+  try{
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+  }catch(err){
+    console.warn('[respaldo local] No se pudo guardar en este dispositivo (probablemente lleno):', err.message);
+  }
+}
 function dbGuardar(){
-  localStorage.setItem(DB_KEY, JSON.stringify(db));
+  guardarEnLocalStorage();
   sincronizarConBackend();
 }
 function dbGuardarInmediato(){
@@ -97,7 +111,7 @@ function dbGuardarInmediato(){
   // sin esperar la demora de 400ms que usa el guardado automático de fondo).
   // Devuelve la promesa real del guardado, para que quien llame pueda esperar
   // la confirmación del servidor antes de avisar que "ya quedó guardado".
-  localStorage.setItem(DB_KEY, JSON.stringify(db));
+  guardarEnLocalStorage();
   if(!empresaActual || !sesionServidor) return Promise.resolve();
   clearTimeout(sincronizacionPendiente);
   syncEstado = 'pendiente';
@@ -232,7 +246,7 @@ function cargarEstadoDesdeBackend(){
     if(!estadoServidor || !estadoServidor.config) return;
     db = estadoServidor;
     asegurarEliminados();
-    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    guardarEnLocalStorage();
     aplicarConfiguracionVisual();
     renderizarAgenda(); renderizarCalendario(); renderizarEquiposGlobal(''); actualizarKPIs();
     iniciarRefrescoSilencioso();
@@ -248,7 +262,7 @@ function refrescarSilenciosamenteDesdeServidor(){
   }).then(remoto=>{
     const huboCambios = fusionarAdicionesDesdeServidor(remoto);
     if(huboCambios){
-      localStorage.setItem(DB_KEY, JSON.stringify(db));
+      guardarEnLocalStorage();
       renderizarAgenda(); renderizarCalendario(); renderizarEquiposGlobal(''); actualizarKPIs();
       mostrarToast('📥 Se actualizó información nueva desde otro dispositivo.');
     }
