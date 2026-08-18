@@ -385,8 +385,8 @@ function poblarEquiposOrden(){
     <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--card-border);flex-wrap:wrap;">
       <input type="checkbox" class="chk-equipo-orden" data-equipo="${o.id}" data-sede="${o.sedeId!==null?o.sedeId:''}" style="width:auto;margin:0;">
       <span style="flex:1;min-width:140px;font-size:13px;">${o.texto}</span>
-      <select class="sel-tipo-equipo" data-equipo="${o.id}" style="max-width:170px;margin:0;" title="Tipo de mantenimiento para este equipo">${opcionesTipo}</select>
-      <select class="sel-plantilla-equipo" data-equipo="${o.id}" style="max-width:190px;margin:0;" title="Plantilla de formulario para este equipo">${opcionesPlantilla}</select>
+      <select class="sel-tipo-equipo" data-equipo="${o.id}" style="width:170px;flex-shrink:0;margin:0;" title="Tipo de mantenimiento para este equipo">${opcionesTipo}</select>
+      <select class="sel-plantilla-equipo" data-equipo="${o.id}" style="width:190px;flex-shrink:0;margin:0;" title="Plantilla de formulario para este equipo">${opcionesPlantilla}</select>
     </div>`).join('');
 }
 function guardarNuevaOrden(){

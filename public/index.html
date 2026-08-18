@@ -1093,7 +1093,14 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       Esta orden no está relacionada a un equipo puntual (servicio general al cliente)
     </label>
     <div id="wrapperEquiposOrden">
-      <label>Equipos del cliente (selecciona uno o varios, y para cada uno el tipo de mantenimiento y la plantilla a usar):</label>
+      <label>Equipos del cliente:</label>
+      <p style="font-size:11px;color:var(--text-muted);margin:2px 0 6px;">Marca uno o varios. Si el cliente tiene varios equipos, <strong>cada uno puede llevar su propio tipo de mantenimiento y su propio formato</strong> — no tienen que ser iguales entre sí (útil cuando a un equipo le toca preventivo y a otro correctivo, por ejemplo), para mantener la trazabilidad clara de cada uno.</p>
+      <div id="listaEquiposOrdenEncabezado" style="display:flex;gap:8px;padding:0 0 4px;font-size:10px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">
+        <span style="width:20px;"></span>
+        <span style="flex:1;min-width:140px;"></span>
+        <span style="width:170px;">Tipo de mantenimiento</span>
+        <span style="width:190px;">Formato / Plantilla a usar</span>
+      </div>
       <div id="listaEquiposOrden" style="max-height:220px;overflow-y:auto;border:1px solid var(--card-border);border-radius:8px;padding:8px;margin-top:4px;"></div>
     </div>
     <div id="wrapperPlantillaGeneral" style="display:none;">
