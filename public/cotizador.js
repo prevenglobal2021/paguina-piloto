@@ -18,7 +18,9 @@ function mesActualISO(){
    desde este nuevo registro (db.liquidacionesNomina) en vez del
    arreglo viejo db.nomina.
 ========================================================= */
-let liquidacionEstado = {}; // { [tecnicoId]: {dias, valorDia, ajustes:[], descuentos:[]} }
+let liquidacionEstado = {}; // { [id]: {esOcasional, nombreOcasional, tipoPago:'dias'|'horas', dias, valorDia, horas, valorHora, ajustes:[], descuentos:[]} }
+                             // El id es el id numérico del técnico (como texto), o "oc-<...>" para personal ocasional.
+let contadorOcasional = 0;
 
 function abrirModalLiquidacionNomina(){
   liquidacionEstado = {};
@@ -38,16 +40,32 @@ function renderizarListaTecnicosLiquidacion(){
       ${t.nombre}
     </label>`).join('') || '<p class="empty-state">No hay técnicos activos registrados.</p>';
 }
+function nuevaPersonaLiquidacionVacia(){
+  return { esOcasional:false, nombreOcasional:'', tipoPago:'dias', dias:0, valorDia:0, horas:0, valorHora:0, ajustes:[], descuentos:[] };
+}
 function toggleTecnicoLiquidacion(tecnicoId, marcado){
+  const id = String(tecnicoId);
   if(marcado){
-    liquidacionEstado[tecnicoId] = liquidacionEstado[tecnicoId] || { dias:0, valorDia:0, ajustes:[], descuentos:[] };
+    liquidacionEstado[id] = liquidacionEstado[id] || nuevaPersonaLiquidacionVacia();
   } else {
-    delete liquidacionEstado[tecnicoId];
+    delete liquidacionEstado[id];
   }
   renderizarDetallesLiquidacion();
 }
+function agregarPersonalOcasional(){
+  contadorOcasional++;
+  const id = 'oc-' + Date.now() + '-' + contadorOcasional;
+  liquidacionEstado[id] = Object.assign(nuevaPersonaLiquidacionVacia(), { esOcasional:true });
+  renderizarDetallesLiquidacion();
+}
+function quitarPersonalOcasional(id){
+  delete liquidacionEstado[id];
+  renderizarDetallesLiquidacion();
+}
 function calcularTotalesPersonaLiquidacion(persona){
-  const valorBase = (persona.dias||0) * (persona.valorDia||0);
+  const valorBase = persona.tipoPago==='horas'
+    ? (persona.horas||0) * (persona.valorHora||0)
+    : (persona.dias||0) * (persona.valorDia||0);
   const totalAjustes = persona.ajustes.reduce((a,x)=>a+(x.monto||0),0);
   const totalDescuentos = persona.descuentos.reduce((a,x)=>a+(x.monto||0),0);
   const totalNeto = valorBase + totalAjustes - totalDescuentos;
@@ -57,101 +75,153 @@ function renderizarDetallesLiquidacion(){
   const cont = document.getElementById('liqDetallesPersonas');
   const ids = Object.keys(liquidacionEstado);
   if(!ids.length){
-    cont.innerHTML = '<p class="empty-state">Marca arriba a las personas que vas a liquidar.</p>';
-    document.getElementById('liqResumenTexto').innerText = '';
-    return;
+    cont.innerHTML = '<p class="empty-state">Marca arriba a las personas que vas a liquidar, o agrega personal ocasional.</p>';
+  } else {
+    cont.innerHTML = ids.map(id=>renderizarTarjetaPersonaLiquidacion(id)).join('');
   }
-  let totalGeneral = 0;
-  cont.innerHTML = ids.map(idStr=>{
-    const tecnicoId = parseInt(idStr);
-    const t = buscarTecnico(tecnicoId);
-    const persona = liquidacionEstado[tecnicoId];
-    const { valorBase, totalNeto } = calcularTotalesPersonaLiquidacion(persona);
-    totalGeneral += totalNeto;
-    const filasAjustes = persona.ajustes.map((a,idx)=>`
-      <div class="field-row" style="margin-bottom:4px;">
-        <div><input type="text" placeholder="Concepto (ej. Bono, Hora extra)" value="${a.concepto||''}" oninput="actualizarItemLiquidacion(${tecnicoId},'ajustes',${idx},'concepto',this.value)"></div>
-        <div><input type="number" placeholder="Monto" value="${a.monto||''}" oninput="actualizarItemLiquidacion(${tecnicoId},'ajustes',${idx},'monto',this.value)"></div>
-        <div><input type="text" placeholder="Nota (opcional)" value="${a.nota||''}" oninput="actualizarItemLiquidacion(${tecnicoId},'ajustes',${idx},'nota',this.value)"></div>
-        <div style="flex:0;"><button type="button" class="btn-custom btn-danger-custom btn-sm-custom" onclick="quitarItemLiquidacion(${tecnicoId},'ajustes',${idx})">X</button></div>
-      </div>`).join('');
-    const filasDescuentos = persona.descuentos.map((d,idx)=>`
-      <div class="field-row" style="margin-bottom:4px;">
-        <div><input type="text" placeholder="Concepto (ej. Préstamo, Ausencia)" value="${d.concepto||''}" oninput="actualizarItemLiquidacion(${tecnicoId},'descuentos',${idx},'concepto',this.value)"></div>
-        <div><input type="number" placeholder="Monto" value="${d.monto||''}" oninput="actualizarItemLiquidacion(${tecnicoId},'descuentos',${idx},'monto',this.value)"></div>
-        <div><input type="text" placeholder="Nota (opcional)" value="${d.nota||''}" oninput="actualizarItemLiquidacion(${tecnicoId},'descuentos',${idx},'nota',this.value)"></div>
-        <div style="flex:0;"><button type="button" class="btn-custom btn-danger-custom btn-sm-custom" onclick="quitarItemLiquidacion(${tecnicoId},'descuentos',${idx})">X</button></div>
-      </div>`).join('');
-    return `<div class="panel" style="background:rgba(0,0,0,.15);margin-bottom:12px;">
-      <strong>${t?t.nombre:'—'}</strong>
-      <div class="field-row" style="margin-top:8px;">
-        <div><label style="font-size:11px;">Días laborados</label><input type="number" min="0" value="${persona.dias}" oninput="actualizarCampoLiquidacion(${tecnicoId},'dias',this.value)"></div>
-        <div><label style="font-size:11px;">Valor por día</label><input type="number" min="0" value="${persona.valorDia}" oninput="actualizarCampoLiquidacion(${tecnicoId},'valorDia',this.value)"></div>
-        <div><label style="font-size:11px;">Valor base</label><input type="text" disabled value="${formatoCOP(valorBase)}"></div>
-      </div>
-      <label style="font-size:11px;margin-top:8px;">Ajustes / bonificaciones (+)</label>
-      ${filasAjustes}
-      <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarItemLiquidacion(${tecnicoId},'ajustes')">+ Agregar ajuste</button>
-      <label style="font-size:11px;margin-top:10px;">Descuentos (-)</label>
-      ${filasDescuentos}
-      <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarItemLiquidacion(${tecnicoId},'descuentos')">+ Agregar descuento</button>
-      <div style="text-align:right;font-weight:700;margin-top:10px;border-top:1px solid var(--card-border);padding-top:8px;">
-        Total neto a pagar: ${formatoCOP(totalNeto)}
-      </div>
-    </div>`;
-  }).join('');
-  document.getElementById('liqResumenTexto').innerText = `${ids.length} persona(s) seleccionada(s) · Total a pagar: ${formatoCOP(totalGeneral)}`;
+  actualizarResumenGeneralLiquidacion();
 }
-function actualizarCampoLiquidacion(tecnicoId, campo, valor){
-  liquidacionEstado[tecnicoId][campo] = parseFloat(valor) || 0;
-  renderizarDetallesLiquidacion();
+function renderizarTarjetaPersonaLiquidacion(id){
+  const persona = liquidacionEstado[id];
+  const t = persona.esOcasional ? null : buscarTecnico(parseInt(id));
+  const { valorBase, totalNeto } = calcularTotalesPersonaLiquidacion(persona);
+  const filasAjustes = persona.ajustes.map((a,idx)=>`
+    <div class="field-row" style="margin-bottom:4px;">
+      <div><input type="text" placeholder="Concepto (ej. Bono, Hora extra)" value="${a.concepto||''}" oninput="actualizarItemLiquidacion('${id}','ajustes',${idx},'concepto',this.value)"></div>
+      <div><input type="number" placeholder="Monto" value="${a.monto||''}" oninput="actualizarItemLiquidacion('${id}','ajustes',${idx},'monto',this.value)"></div>
+      <div><input type="text" placeholder="Nota (opcional)" value="${a.nota||''}" oninput="actualizarItemLiquidacion('${id}','ajustes',${idx},'nota',this.value)"></div>
+      <div style="flex:0;"><button type="button" class="btn-custom btn-danger-custom btn-sm-custom" onclick="quitarItemLiquidacion('${id}','ajustes',${idx})">X</button></div>
+    </div>`).join('');
+  const filasDescuentos = persona.descuentos.map((d,idx)=>`
+    <div class="field-row" style="margin-bottom:4px;">
+      <div><input type="text" placeholder="Concepto (ej. Préstamo, Ausencia)" value="${d.concepto||''}" oninput="actualizarItemLiquidacion('${id}','descuentos',${idx},'concepto',this.value)"></div>
+      <div><input type="number" placeholder="Monto" value="${d.monto||''}" oninput="actualizarItemLiquidacion('${id}','descuentos',${idx},'monto',this.value)"></div>
+      <div><input type="text" placeholder="Nota (opcional)" value="${d.nota||''}" oninput="actualizarItemLiquidacion('${id}','descuentos',${idx},'nota',this.value)"></div>
+      <div style="flex:0;"><button type="button" class="btn-custom btn-danger-custom btn-sm-custom" onclick="quitarItemLiquidacion('${id}','descuentos',${idx})">X</button></div>
+    </div>`).join('');
+  const camposCantidad = persona.tipoPago==='horas' ? `
+    <div><label style="font-size:11px;">Horas laboradas</label><input type="number" min="0" value="${persona.horas}" oninput="actualizarCampoLiquidacion('${id}','horas',this.value)"></div>
+    <div><label style="font-size:11px;">Valor por hora</label><input type="number" min="0" value="${persona.valorHora}" oninput="actualizarCampoLiquidacion('${id}','valorHora',this.value)"></div>` : `
+    <div><label style="font-size:11px;">Días laborados</label><input type="number" min="0" value="${persona.dias}" oninput="actualizarCampoLiquidacion('${id}','dias',this.value)"></div>
+    <div><label style="font-size:11px;">Valor por día</label><input type="number" min="0" value="${persona.valorDia}" oninput="actualizarCampoLiquidacion('${id}','valorDia',this.value)"></div>`;
+  const encabezado = persona.esOcasional ? `
+    <div class="field-row" style="align-items:center;">
+      <div style="flex:2;"><input type="text" placeholder="Nombre de la persona" value="${persona.nombreOcasional||''}" style="font-weight:700;" oninput="actualizarNombreOcasional('${id}',this.value)"></div>
+      <div><span style="font-size:10px;background:#f59e0b;color:#fff;padding:3px 10px;border-radius:10px;white-space:nowrap;">PERSONAL OCASIONAL</span></div>
+      <div><select onchange="cambiarTipoPagoOcasional('${id}',this.value)">
+        <option value="dias" ${persona.tipoPago==='dias'?'selected':''}>Pagar por días</option>
+        <option value="horas" ${persona.tipoPago==='horas'?'selected':''}>Pagar por horas</option>
+      </select></div>
+      <div style="flex:0;"><button type="button" class="btn-custom btn-danger-custom btn-sm-custom" onclick="quitarPersonalOcasional('${id}')">Quitar</button></div>
+    </div>` : `<strong>${t?t.nombre:'—'}</strong>`;
+  return `<div class="panel" id="tarjeta-liq-${id}" style="background:rgba(0,0,0,.15);margin-bottom:12px;">
+    ${encabezado}
+    <div class="field-row" style="margin-top:8px;">
+      ${camposCantidad}
+      <div><label style="font-size:11px;">Valor base</label><input type="text" disabled id="valorBase-${id}" value="${formatoCOP(valorBase)}"></div>
+    </div>
+    <label style="font-size:11px;margin-top:8px;">Ajustes / bonificaciones (+)</label>
+    ${filasAjustes}
+    <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarItemLiquidacion('${id}','ajustes')">+ Agregar ajuste</button>
+    <label style="font-size:11px;margin-top:10px;">Descuentos (-)</label>
+    ${filasDescuentos}
+    <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarItemLiquidacion('${id}','descuentos')">+ Agregar descuento</button>
+    <div id="totalNeto-${id}" style="text-align:right;font-weight:700;margin-top:10px;border-top:1px solid var(--card-border);padding-top:8px;">
+      Total neto a pagar: ${formatoCOP(totalNeto)}
+    </div>
+  </div>`;
 }
-function agregarItemLiquidacion(tecnicoId, tipo){
-  liquidacionEstado[tecnicoId][tipo].push({ concepto:'', monto:0, nota:'' });
-  renderizarDetallesLiquidacion();
+function actualizarResumenGeneralLiquidacion(){
+  const ids = Object.keys(liquidacionEstado);
+  const totalGeneral = ids.reduce((suma,id)=>suma + calcularTotalesPersonaLiquidacion(liquidacionEstado[id]).totalNeto, 0);
+  document.getElementById('liqResumenTexto').innerText = ids.length ? `${ids.length} persona(s) seleccionada(s) · Total a pagar: ${formatoCOP(totalGeneral)}` : '';
 }
-function quitarItemLiquidacion(tecnicoId, tipo, idx){
-  liquidacionEstado[tecnicoId][tipo].splice(idx,1);
-  renderizarDetallesLiquidacion();
+// Actualiza SOLO los números ya calculados de una tarjeta (valor base y total neto),
+// sin reconstruir el HTML de la tarjeta — así el campo donde se está escribiendo
+// nunca se destruye ni se vuelve a crear, y se puede escribir de forma fluida,
+// sin que el cursor salte ni se pierda el foco en cada tecla.
+function actualizarTotalesVisualesPersona(id){
+  const persona = liquidacionEstado[id];
+  if(!persona) return;
+  const { valorBase, totalNeto } = calcularTotalesPersonaLiquidacion(persona);
+  const elBase = document.getElementById('valorBase-'+id);
+  const elTotal = document.getElementById('totalNeto-'+id);
+  if(elBase) elBase.value = formatoCOP(valorBase);
+  if(elTotal) elTotal.innerText = 'Total neto a pagar: ' + formatoCOP(totalNeto);
+  actualizarResumenGeneralLiquidacion();
 }
-function actualizarItemLiquidacion(tecnicoId, tipo, idx, campo, valor){
-  liquidacionEstado[tecnicoId][tipo][idx][campo] = (campo==='monto') ? (parseFloat(valor)||0) : valor;
-  if(campo!=='monto') return; // no hace falta redibujar todo por cada letra escrita en texto/nota
-  renderizarDetallesLiquidacion();
+function actualizarCampoLiquidacion(id, campo, valor){
+  liquidacionEstado[id][campo] = parseFloat(valor) || 0;
+  actualizarTotalesVisualesPersona(id);
+}
+function actualizarNombreOcasional(id, valor){
+  liquidacionEstado[id].nombreOcasional = valor; // el campo ya quedó escrito solo, no hace falta redibujar nada
+}
+function cambiarTipoPagoOcasional(id, valor){
+  liquidacionEstado[id].tipoPago = valor;
+  renderizarDetallesLiquidacion(); // este sí cambia qué campos se muestran (días↔horas), toca redibujar esa tarjeta
+}
+function agregarItemLiquidacion(id, tipo){
+  liquidacionEstado[id][tipo].push({ concepto:'', monto:0, nota:'' });
+  renderizarDetallesLiquidacion(); // agrega una fila nueva: sí cambia la estructura, toca redibujar
+}
+function quitarItemLiquidacion(id, tipo, idx){
+  liquidacionEstado[id][tipo].splice(idx,1);
+  renderizarDetallesLiquidacion(); // quita una fila: sí cambia la estructura, toca redibujar
+}
+function actualizarItemLiquidacion(id, tipo, idx, campo, valor){
+  liquidacionEstado[id][tipo][idx][campo] = (campo==='monto') ? (parseFloat(valor)||0) : valor;
+  if(campo==='monto') actualizarTotalesVisualesPersona(id); // solo actualiza los números, no redibuja la fila donde se escribe
 }
 function siguienteConsecutivoNomina(){
   db.config.consecutivoNomina = (db.config.consecutivoNomina || 0) + 1;
   return 'NOM-' + String(db.config.consecutivoNomina).padStart(5,'0');
 }
-function confirmarLiquidacionNomina(){
+async function confirmarLiquidacionNomina(){
   const ids = Object.keys(liquidacionEstado);
-  if(!ids.length){ mostrarToast('Selecciona al menos una persona para liquidar.'); return; }
+  if(!ids.length){ mostrarToast('Selecciona al menos una persona, o agrega personal ocasional, para liquidar.'); return; }
+  for(const id of ids){
+    if(liquidacionEstado[id].esOcasional && !liquidacionEstado[id].nombreOcasional.trim()){
+      mostrarToast('Escribe el nombre de cada persona ocasional que agregaste.'); return;
+    }
+  }
   const periodoDesde = document.getElementById('liqPeriodoDesde').value;
   const periodoHasta = document.getElementById('liqPeriodoHasta').value;
   if(!periodoDesde || !periodoHasta){ mostrarToast('Define el periodo a liquidar (desde/hasta).'); return; }
   const fechaLiquidacion = new Date().toISOString().slice(0,10);
   db.liquidacionesNomina = db.liquidacionesNomina || [];
+  const nuevos = [];
   let generados = 0;
-  ids.forEach(idStr=>{
-    const tecnicoId = parseInt(idStr);
-    const persona = liquidacionEstado[tecnicoId];
+  ids.forEach(id=>{
+    const persona = liquidacionEstado[id];
     const totales = calcularTotalesPersonaLiquidacion(persona);
-    db.liquidacionesNomina.push({
+    generados++;
+    nuevos.push({
       id: Date.now() + generados,
       numero: siguienteConsecutivoNomina(),
       fecha: fechaLiquidacion,
       periodoDesde, periodoHasta,
-      tecnicoId,
+      tecnicoId: persona.esOcasional ? null : parseInt(id),
+      esOcasional: !!persona.esOcasional,
+      personalOcasionalNombre: persona.esOcasional ? persona.nombreOcasional.trim() : null,
+      tipoPago: persona.tipoPago,
       diasLaborados: persona.dias, valorDia: persona.valorDia,
+      horasLaboradas: persona.horas, valorHora: persona.valorHora,
       valorBase: totales.valorBase,
       ajustes: persona.ajustes.filter(a=>a.concepto || a.monto),
       descuentos: persona.descuentos.filter(d=>d.concepto || d.monto),
       totalAjustes: totales.totalAjustes, totalDescuentos: totales.totalDescuentos,
       totalNeto: totales.totalNeto
     });
-    generados++;
   });
-  dbGuardarInmediato();
+  db.liquidacionesNomina.push(...nuevos);
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    nuevos.forEach(n=>{ const i = db.liquidacionesNomina.indexOf(n); if(i>-1) db.liquidacionesNomina.splice(i,1); });
+    mostrarToast('⚠️ No se pudo registrar la liquidación: ' + err.message, 'error');
+    return;
+  }
   registrarLog('Liquidar', 'Nómina', `${generados} persona(s) · periodo ${periodoDesde} a ${periodoHasta}`);
   cerrarModal('modalLiquidacionNomina');
   mostrarToast(`Liquidación registrada: ${generados} comprobante(s) generado(s). Descárgalos desde el historial.`);
@@ -180,13 +250,12 @@ function renderizarHistorialNomina(){
   const hasta = document.getElementById('nomFiltroHasta').value;
 
   let lista = db.liquidacionesNomina.filter(l=>{
-    if(tecnicoFiltro && String(l.tecnicoId)!==tecnicoFiltro) return false;
+    if(tecnicoFiltro && (l.esOcasional || String(l.tecnicoId)!==tecnicoFiltro)) return false;
     if(desde && l.fecha < desde) return false;
     if(hasta && l.fecha > hasta) return false;
     if(texto){
-      const t = buscarTecnico(l.tecnicoId);
-      const nombreTecnico = t ? t.nombre.toLowerCase() : '';
-      if(!nombreTecnico.includes(texto) && !l.numero.toLowerCase().includes(texto)) return false;
+      const nombre = l.esOcasional ? (l.personalOcasionalNombre||'') : (buscarTecnico(l.tecnicoId)?.nombre||'');
+      if(!nombre.toLowerCase().includes(texto) && !l.numero.toLowerCase().includes(texto)) return false;
     }
     return true;
   });
@@ -197,9 +266,11 @@ function renderizarHistorialNomina(){
   lista = lista.sort((a,b)=> b.fecha.localeCompare(a.fecha) || b.id - a.id);
 
   document.getElementById('tablaNomina').innerHTML = lista.map(l=>{
-    const t = buscarTecnico(l.tecnicoId);
+    const nombreMostrado = l.esOcasional
+      ? `${l.personalOcasionalNombre||'—'} <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;">OCASIONAL</span>`
+      : (buscarTecnico(l.tecnicoId)?.nombre || '—');
     return `<tr>
-      <td>${l.numero}</td><td>${t?t.nombre:'—'}</td><td>${l.periodoDesde} a ${l.periodoHasta}</td>
+      <td>${l.numero}</td><td>${nombreMostrado}</td><td>${l.periodoDesde} a ${l.periodoHasta}</td>
       <td>${formatoCOP(l.totalNeto)}</td>
       <td>
         <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verComprobanteNomina(${l.id})"><i class="fas fa-file-invoice"></i> Ver comprobante</button>
@@ -224,7 +295,13 @@ function verComprobanteNomina(id){
   comprobanteNominaActualId = id;
   const l = (db.liquidacionesNomina||[]).find(x=>x.id===id);
   if(!l) return;
-  const t = buscarTecnico(l.tecnicoId);
+  const nombrePersona = l.esOcasional ? (l.personalOcasionalNombre||'—') : (buscarTecnico(l.tecnicoId)?.nombre||'—');
+  const etiquetaTipo = l.esOcasional ? ' <small style="color:#b45309;">(Personal ocasional)</small>' : '';
+  const filaCantidad = l.tipoPago==='horas'
+    ? `<tr><td><strong>Horas laboradas</strong></td><td>${l.horasLaboradas}</td></tr>
+       <tr><td><strong>Valor por hora</strong></td><td>${formatoCOP(l.valorHora)}</td></tr>`
+    : `<tr><td><strong>Días laborados</strong></td><td>${l.diasLaborados}</td></tr>
+       <tr><td><strong>Valor por día</strong></td><td>${formatoCOP(l.valorDia)}</td></tr>`;
   const logoHtml = db.config.logo ? `<img src="${db.config.logo}">` : '';
   const filasAjustes = l.ajustes.map(a=>`<tr><td>${a.concepto||'Ajuste'}${a.nota?` — <small>${a.nota}</small>`:''}</td><td style="text-align:right;color:#16a34a;">+ ${formatoCOP(a.monto)}</td></tr>`).join('');
   const filasDescuentos = l.descuentos.map(d=>`<tr><td>${d.concepto||'Descuento'}${d.nota?` — <small>${d.nota}</small>`:''}</td><td style="text-align:right;color:#dc2626;">− ${formatoCOP(d.monto)}</td></tr>`).join('');
@@ -235,10 +312,9 @@ function verComprobanteNomina(id){
     </div>
     <div class="pdf-box"><h4>Datos de la liquidación</h4>
       <table class="pdf-tabla-datos" cellpadding="4">
-        <tr><td style="width:45%;"><strong>Persona liquidada</strong></td><td>${t?t.nombre:'—'}</td></tr>
+        <tr><td style="width:45%;"><strong>Persona liquidada</strong></td><td>${nombrePersona}${etiquetaTipo}</td></tr>
         <tr><td><strong>Periodo liquidado</strong></td><td>${l.periodoDesde} a ${l.periodoHasta}</td></tr>
-        <tr><td><strong>Días laborados</strong></td><td>${l.diasLaborados}</td></tr>
-        <tr><td><strong>Valor por día</strong></td><td>${formatoCOP(l.valorDia)}</td></tr>
+        ${filaCantidad}
         <tr><td><strong>Valor base</strong></td><td>${formatoCOP(l.valorBase)}</td></tr>
       </table>
     </div>
@@ -399,7 +475,7 @@ function actualizarPreviewCotizador(){
   document.getElementById('coPreviewPrecio').innerText = formatoCOP(precioCliente);
   document.getElementById('coPreviewUtilidad').innerText = formatoCOP(utilidadNeta);
 }
-function agregarControlOperativo(){
+async function agregarControlOperativo(){
   const fecha = document.getElementById('coFecha').value;
   const servicioCliente = document.getElementById('coServicioCliente').value.trim();
   if(!fecha){ mostrarToast('Selecciona la fecha del servicio.'); return; }
@@ -425,7 +501,13 @@ function agregarControlOperativo(){
     estadoCartera: document.getElementById('coCartera').value,
     dineroAbonado: parseFloat(document.getElementById('coDineroAbonado').value) || 0
   });
-  dbGuardarInmediato();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    mostrarToast('⚠️ No se pudo guardar el servicio: ' + err.message, 'error');
+    db.controlOperativo.pop(); // no dejar el registro "fantasma" en pantalla si el servidor lo rechazó
+    return;
+  }
   registrarLog('Crear', 'ControlOperativo', `${servicioCliente} · ${formatoCOP(precioCliente)}`);
   ['coServicioCliente'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('coHoras').value=0; document.getElementById('coComp').value=1; document.getElementById('coValorHora').value=0;
@@ -536,21 +618,23 @@ function verificarClaveAdminYEjecutar(accion){
     .catch(()=> mostrarToast('Clave de administrador incorrecta.'));
 }
 
-let edicionLiquidacion = null; // {id, dias, valorDia, ajustes:[], descuentos:[]}
+let edicionLiquidacion = null; // {id, tipoPago, dias, valorDia, horas, valorHora, ajustes:[], descuentos:[]}
 function editarLiquidacionNomina(id){
   verificarClaveAdminYEjecutar(()=>abrirModalEditarLiquidacion(id));
 }
 function abrirModalEditarLiquidacion(id){
   const l = (db.liquidacionesNomina||[]).find(x=>x.id===id);
   if(!l) return;
-  const t = buscarTecnico(l.tecnicoId);
+  const nombreMostrado = l.esOcasional ? `${l.personalOcasionalNombre||'—'} (Personal ocasional)` : (buscarTecnico(l.tecnicoId)?.nombre||'—');
   edicionLiquidacion = {
-    id: l.id, dias: l.diasLaborados, valorDia: l.valorDia,
+    id: l.id, tipoPago: l.tipoPago || 'dias',
+    dias: l.diasLaborados||0, valorDia: l.valorDia||0,
+    horas: l.horasLaboradas||0, valorHora: l.valorHora||0,
     ajustes: JSON.parse(JSON.stringify(l.ajustes||[])),
     descuentos: JSON.parse(JSON.stringify(l.descuentos||[]))
   };
   document.getElementById('editNominaNumero').innerText = l.numero;
-  document.getElementById('editNominaTecnicoNombre').innerText = t?t.nombre:'—';
+  document.getElementById('editNominaTecnicoNombre').innerText = nombreMostrado;
   document.getElementById('editLiqPeriodoDesde').value = l.periodoDesde;
   document.getElementById('editLiqPeriodoHasta').value = l.periodoHasta;
   renderizarEdicionLiquidacion();
@@ -572,11 +656,15 @@ function renderizarEdicionLiquidacion(){
       <div><input type="text" placeholder="Nota (opcional)" value="${d.nota||''}" oninput="actualizarItemEdicion('descuentos',${idx},'nota',this.value)"></div>
       <div style="flex:0;"><button type="button" class="btn-custom btn-danger-custom btn-sm-custom" onclick="quitarItemEdicion('descuentos',${idx})">X</button></div>
     </div>`).join('');
+  const camposCantidad = edicionLiquidacion.tipoPago==='horas' ? `
+    <div><label style="font-size:11px;">Horas laboradas</label><input type="number" min="0" value="${edicionLiquidacion.horas}" oninput="actualizarCampoEdicion('horas',this.value)"></div>
+    <div><label style="font-size:11px;">Valor por hora</label><input type="number" min="0" value="${edicionLiquidacion.valorHora}" oninput="actualizarCampoEdicion('valorHora',this.value)"></div>` : `
+    <div><label style="font-size:11px;">Días laborados</label><input type="number" min="0" value="${edicionLiquidacion.dias}" oninput="actualizarCampoEdicion('dias',this.value)"></div>
+    <div><label style="font-size:11px;">Valor por día</label><input type="number" min="0" value="${edicionLiquidacion.valorDia}" oninput="actualizarCampoEdicion('valorDia',this.value)"></div>`;
   document.getElementById('editLiqDetalle').innerHTML = `
     <div class="field-row" style="margin-top:8px;">
-      <div><label style="font-size:11px;">Días laborados</label><input type="number" min="0" value="${edicionLiquidacion.dias}" oninput="actualizarCampoEdicion('dias',this.value)"></div>
-      <div><label style="font-size:11px;">Valor por día</label><input type="number" min="0" value="${edicionLiquidacion.valorDia}" oninput="actualizarCampoEdicion('valorDia',this.value)"></div>
-      <div><label style="font-size:11px;">Valor base</label><input type="text" disabled value="${formatoCOP(totales.valorBase)}"></div>
+      ${camposCantidad}
+      <div><label style="font-size:11px;">Valor base</label><input type="text" disabled id="editValorBase" value="${formatoCOP(totales.valorBase)}"></div>
     </div>
     <label style="font-size:11px;margin-top:8px;">Ajustes / bonificaciones (+)</label>
     ${filasAjustes}
@@ -584,45 +672,71 @@ function renderizarEdicionLiquidacion(){
     <label style="font-size:11px;margin-top:10px;">Descuentos (-)</label>
     ${filasDescuentos}
     <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarItemEdicion('descuentos')">+ Agregar descuento</button>
-    <div style="text-align:right;font-weight:700;margin-top:10px;border-top:1px solid var(--card-border);padding-top:8px;">
+    <div id="editTotalNeto" style="text-align:right;font-weight:700;margin-top:10px;border-top:1px solid var(--card-border);padding-top:8px;">
       Total neto a pagar: ${formatoCOP(totales.totalNeto)}
     </div>`;
 }
-function actualizarCampoEdicion(campo, valor){ edicionLiquidacion[campo] = parseFloat(valor)||0; renderizarEdicionLiquidacion(); }
+// Igual que en la creación: actualiza solo los números, sin reconstruir el HTML,
+// para que el campo donde se está escribiendo no pierda el foco ni el cursor.
+function actualizarTotalesVisualesEdicion(){
+  const totales = calcularTotalesPersonaLiquidacion(edicionLiquidacion);
+  const elBase = document.getElementById('editValorBase');
+  const elTotal = document.getElementById('editTotalNeto');
+  if(elBase) elBase.value = formatoCOP(totales.valorBase);
+  if(elTotal) elTotal.innerText = 'Total neto a pagar: ' + formatoCOP(totales.totalNeto);
+}
+function actualizarCampoEdicion(campo, valor){
+  edicionLiquidacion[campo] = parseFloat(valor)||0;
+  actualizarTotalesVisualesEdicion();
+}
 function agregarItemEdicion(tipo){ edicionLiquidacion[tipo].push({concepto:'',monto:0,nota:''}); renderizarEdicionLiquidacion(); }
 function quitarItemEdicion(tipo, idx){ edicionLiquidacion[tipo].splice(idx,1); renderizarEdicionLiquidacion(); }
 function actualizarItemEdicion(tipo, idx, campo, valor){
   edicionLiquidacion[tipo][idx][campo] = (campo==='monto') ? (parseFloat(valor)||0) : valor;
-  if(campo!=='monto') return; // no hace falta redibujar todo por cada letra escrita en texto/nota
-  renderizarEdicionLiquidacion();
+  if(campo==='monto') actualizarTotalesVisualesEdicion();
 }
-function guardarEdicionLiquidacionNomina(){
+async function guardarEdicionLiquidacionNomina(){
   const l = (db.liquidacionesNomina||[]).find(x=>x.id===edicionLiquidacion.id);
   if(!l) return;
   const periodoDesde = document.getElementById('editLiqPeriodoDesde').value;
   const periodoHasta = document.getElementById('editLiqPeriodoHasta').value;
   if(!periodoDesde || !periodoHasta){ mostrarToast('Define el periodo (desde/hasta).'); return; }
   const totales = calcularTotalesPersonaLiquidacion(edicionLiquidacion);
+  const respaldo = JSON.parse(JSON.stringify(l)); // por si el guardado falla, se puede restaurar
   l.periodoDesde = periodoDesde; l.periodoHasta = periodoHasta;
   l.diasLaborados = edicionLiquidacion.dias; l.valorDia = edicionLiquidacion.valorDia;
+  l.horasLaboradas = edicionLiquidacion.horas; l.valorHora = edicionLiquidacion.valorHora;
   l.ajustes = edicionLiquidacion.ajustes.filter(a=>a.concepto || a.monto);
   l.descuentos = edicionLiquidacion.descuentos.filter(d=>d.concepto || d.monto);
   l.valorBase = totales.valorBase; l.totalAjustes = totales.totalAjustes;
   l.totalDescuentos = totales.totalDescuentos; l.totalNeto = totales.totalNeto;
-  dbGuardarInmediato();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    Object.assign(l, respaldo);
+    mostrarToast('⚠️ No se guardó el cambio: ' + err.message, 'error');
+    return;
+  }
   registrarLog('Editar', 'Nómina', `${l.numero} — nuevo total: ${formatoCOP(l.totalNeto)}`);
   cerrarModal('modalEditarNomina');
   mostrarToast('Liquidación actualizada.');
   renderizarHistorialNomina();
 }
 function eliminarLiquidacionNomina(id){
-  verificarClaveAdminYEjecutar(()=>{
+  verificarClaveAdminYEjecutar(async ()=>{
     const l = (db.liquidacionesNomina||[]).find(x=>x.id===id);
     if(!l) return;
     if(!confirm(`¿Eliminar el comprobante ${l.numero}? Esta acción no se puede deshacer.`)) return;
+    const listaAnterior = db.liquidacionesNomina.slice();
     db.liquidacionesNomina = db.liquidacionesNomina.filter(x=>x.id!==id);
     registrarEliminacion('liquidacionesNomina', id);
-    dbGuardarInmediato();
+    try{
+      await dbGuardarInmediato();
+    }catch(err){
+      db.liquidacionesNomina = listaAnterior;
+      mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
+      return;
+    }
     registrarLog('Eliminar', 'Nómina', l.numero);
     mostrarToast('Comprobante eliminado.');
     renderizarHistorialNomina();

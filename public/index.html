@@ -61,6 +61,10 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .contabilidad-cards .kpi-card:nth-child(3){background:#f0fdf4;border-color:#bbf7d0;}
 .contabilidad-cards .kpi-card:nth-child(4){background:#eff6ff;border-color:#bfdbfe;}
 .contabilidad-cards .kpi-card-label{color:#475569;}
+/* Encabezados de tabla y demás cajas oscuras dentro de todo el módulo de Contabilidad */
+#seccion-contabilidad table.data-table th{background:#eff6ff;color:#1e3a5f;}
+#seccion-contabilidad table.data-table td,#seccion-contabilidad table.data-table th{border-color:#dbeafe;}
+#seccion-contabilidad div[style*="background:rgba(0,0,0,.15)"]{background:#f8fafc !important;border:1px solid #e2e8f0;}
 .panel{background:linear-gradient(160deg, var(--panel-bg-1), var(--panel-bg-2));border:1px solid var(--card-border);border-radius:10px;padding:20px;margin-bottom:20px;}
 .panel-title{font-size:15px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--card-border);padding-bottom:10px;flex-wrap:wrap;gap:8px;}
 /* MÓDULO DE INDICADORES (KPI) */
@@ -764,10 +768,11 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <div class="panel-title"><span>🧾 Nómina</span></div>
           <button class="btn-custom" onclick="abrirModalLiquidacionNomina()"><i class="fas fa-file-invoice-dollar m-r-10"></i>Nueva liquidación de nómina</button>
           <div class="field-row" style="margin-top:12px;">
-            <div><input type="text" id="nomBuscarTexto" placeholder="Buscar por nombre o N.º de comprobante..." oninput="renderizarHistorialNomina()"></div>
+            <div><input type="text" id="nomBuscarTexto" placeholder="Buscar por nombre o N.º de comprobante..." onkeydown="if(event.key==='Enter')renderizarHistorialNomina()"></div>
             <div><label style="font-size:11px;">Técnico:</label><select id="nomFiltroTecnico" onchange="renderizarHistorialNomina()"><option value="">Todos</option></select></div>
             <div><label style="font-size:11px;">Desde:</label><input type="date" id="nomFiltroDesde" onchange="renderizarHistorialNomina()"></div>
             <div><label style="font-size:11px;">Hasta:</label><input type="date" id="nomFiltroHasta" onchange="renderizarHistorialNomina()"></div>
+            <div><button class="btn-custom btn-sm-custom" onclick="renderizarHistorialNomina()"><i class="fas fa-search"></i> Buscar</button></div>
             <div><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="limpiarFiltrosNomina()">Limpiar filtros</button></div>
           </div>
           <table class="data-table" style="margin-top:12px;">
@@ -1318,8 +1323,9 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <div><label>Periodo hasta</label><input type="date" id="liqPeriodoHasta"></div>
     </div>
     <label>Selecciona las personas a liquidar:</label>
-    <div id="liqListaTecnicos" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;"></div>
-    <div id="liqDetallesPersonas"></div>
+    <div id="liqListaTecnicos" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;"></div>
+    <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarPersonalOcasional()"><i class="fas fa-user-plus"></i> + Agregar persona ocasional (no es técnico fijo)</button>
+    <div id="liqDetallesPersonas" style="margin-top:14px;"></div>
     <div class="panel" style="background:rgba(0,136,255,.1);border-color:var(--blue-accent);margin-top:15px;">
       <strong id="liqResumenTexto" style="font-size:13px;"></strong>
     </div>
