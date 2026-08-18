@@ -27,9 +27,27 @@ const heicConvert = require('heic-convert');
 const nodemailer = require('nodemailer');
 
 const app = express();
+// Railway (como casi toda la nube) pone el servidor detrás de un proxy, que agrega
+// el encabezado X-Forwarded-For a cada petición. Sin esta línea, Express no confía
+// en ese encabezado, y "express-rate-limit" (usado en login y recuperación de clave)
+// lo rechaza con un error que en Node 22 tumba TODO el proceso del servidor — no solo
+// esa petición. Mientras se reinicia, cualquier otra cosa falla también (por ejemplo,
+// subir la imagen del login), aunque el problema real nunca fue la imagen.
+app.set('trust proxy', 1);
+process.on('unhandledRejection', (err) => {
+  console.error('[ERROR NO CONTROLADO — el servidor puede reiniciarse por esto]:', err);
+});
 app.use(cors());
 app.use(express.json({ limit: '80mb' })); // las fotos van como base64 y pueden pesar
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  // Sin esto, algunos navegadores (sobre todo en celular) pueden quedarse con una
+  // copia vieja en caché de los .js/.html incluso después de subir una versión
+  // nueva al repositorio — dando la sensación de que "el código no cambió" cuando
+  // en realidad sí cambió, solo que el navegador nunca fue a buscar la copia nueva.
+  // setHeaders obliga a revalidar con el servidor en cada carga, sin desactivar el
+  // caché del todo (los archivos que no cambiaron responden con 304, rápido igual).
+  setHeaders: (res) => { res.setHeader('Cache-Control', 'no-cache'); }
+}));
 
 // La mayoría de los hostings con Postgres administrado (Railway, un VPS con
 // Postgres propio detrás de un proxy, DigitalOcean, etc.) requieren SSL;
