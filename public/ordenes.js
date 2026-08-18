@@ -229,7 +229,7 @@ function inicializarCanvasFirmaConPrefill(id, firmaExistenteDataUrl, soloLectura
   canvas.style.pointerEvents = 'auto';
   activarDibujoCanvas(canvas, ctx, id);
 }
-function guardarDetalleOrden(finalizar){
+async function guardarDetalleOrden(finalizar){
   const o = db.ordenes.find(x=>x.id===ordenDetalleId);
   if(!o) return;
   const esEdicionForzada = o.estado==='Finalizado' && ordenDetalleEsEdicionForzada && esAdmin();
@@ -262,6 +262,11 @@ function guardarDetalleOrden(finalizar){
   const canvasTec = document.getElementById('detCanvasFirmaTecnico');
   const canvasCli = document.getElementById('detCanvasFirmaCliente');
 
+  // Respaldo del estado anterior de la orden, por si el guardado en el servidor
+  // falla — así se puede restaurar sin perder lo que ya tenía guardado antes,
+  // en vez de dejar la orden a medias con datos que nunca llegaron a guardarse.
+  const respaldoOrden = JSON.parse(JSON.stringify(o));
+
   o.clienteId = clienteId; o.sedeId = sedeId; o.equipoId = equipoId;
   o.tecnicoId = tecnicoIdRaw ? parseInt(tecnicoIdRaw) : null;
   o.tipo = document.getElementById('detTipo').value;
@@ -280,11 +285,27 @@ function guardarDetalleOrden(finalizar){
   };
   o.estado = (finalizar || esEdicionForzada) ? 'Finalizado' : document.getElementById('detEstado').value;
 
-  dbGuardar();
+  // Mientras se confirma el guardado real, se bloquean los botones — así el
+  // técnico no cierra el formulario pensando que ya terminó, ni le da doble clic.
+  const botones = document.querySelectorAll('#detAccionesEdicion button');
+  botones.forEach(b=>b.disabled = true);
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    // El guardado real falló: se revierte la orden a como estaba antes en memoria,
+    // PERO el formulario se queda abierto con todo lo escrito intacto (nada se
+    // borra), para que el técnico pueda intentar guardar de nuevo sin perder su
+    // trabajo — en vez de cerrar el formulario dando la falsa impresión de éxito.
+    Object.assign(o, respaldoOrden);
+    botones.forEach(b=>b.disabled = false);
+    mostrarToast('⚠️ No se pudo guardar el informe: ' + err.message + ' — tu información sigue aquí, vuelve a intentar "Guardar Cambios" cuando tengas conexión.', 'error');
+    return;
+  }
+  botones.forEach(b=>b.disabled = false);
   registrarLog(esEdicionForzada ? 'Editar orden finalizada' : (finalizar ? 'Finalizar' : 'Editar'), 'OrdenServicio', `${o.numero} (${nombreUsuarioActual()})`);
   cerrarModal('modalDetalleOrden');
   ordenDetalleEsEdicionForzada = false;
-  if(finalizar && !esEdicionForzada) mostrarToast('Orden finalizada. Los datos quedaron bloqueados para edición.');
+  mostrarToast((finalizar && !esEdicionForzada) ? '✅ Informe guardado y orden finalizada correctamente.' : '✅ Informe guardado correctamente.', 'exito');
   renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
 }
 function confirmarFinalizarOrden(){
