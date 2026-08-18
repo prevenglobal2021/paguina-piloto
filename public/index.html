@@ -1081,6 +1081,18 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   <div class="modal-box">
     <button class="close-modal" onclick="cerrarModal('modalNuevaOrden')">✖</button>
     <h3>🆕 Nueva Orden de Servicio</h3>
+    <label style="display:flex;align-items:center;gap:8px;font-weight:normal;">
+      <input type="checkbox" id="ordClienteNuevo" style="width:auto;" onchange="toggleOrdenClienteNuevo()">
+      Cliente nuevo (todavía no está registrado en Clientes)
+    </label>
+    <div id="wrapperClienteNuevo" style="display:none;background:rgba(0,0,0,.15);padding:10px;border-radius:8px;margin-bottom:10px;">
+      <p style="font-size:11px;color:var(--text-muted);margin:0 0 6px;">Para un cliente que llama pidiendo una revisión y aún no existe en tu base de clientes — la orden queda guardada igual, marcada como "Cliente nuevo", sin tener que crearlo antes en el módulo de Clientes.</p>
+      <label>Nombre del cliente:</label>
+      <input type="text" id="ordClienteNuevoNombre" placeholder="Nombre completo o de la empresa">
+      <label>Dirección:</label>
+      <input type="text" id="ordClienteNuevoDireccion" placeholder="Dirección donde se hará el servicio">
+    </div>
+    <div id="wrapperClienteExistente">
     <label>Cliente:</label>
     <div class="autocomplete-wrapper">
       <input type="text" id="ordClienteBuscador" placeholder="Escribe el nombre del cliente, o el nombre/serie de un equipo suyo..." autocomplete="off"
@@ -1088,7 +1100,8 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <input type="hidden" id="ordCliente">
       <div id="ordClienteResultados" class="autocomplete-resultados" style="display:none;"></div>
     </div>
-    <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:10px;">
+    </div>
+    <label id="lblOrdSinEquipo" style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:10px;">
       <input type="checkbox" id="ordSinEquipo" style="width:auto;" onchange="toggleOrdenSinEquipo()">
       Esta orden no está relacionada a un equipo puntual (servicio general al cliente)
     </label>
@@ -1191,9 +1204,12 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div id="detAvisoEdicionForzada" style="display:none;background:rgba(245,158,11,.12);border:1px solid var(--orange-warning);color:var(--orange-warning);padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px;">
       ✏️ Estás editando una orden ya Finalizada (acceso de administrador). Al guardar, la orden permanece Finalizada y el documento/PDF reflejará los cambios.
     </div>
+    <div id="detAvisoClienteNuevo" style="display:none;background:rgba(245,158,11,.12);border:1px solid #f59e0b;color:#f59e0b;padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px;">
+      🆕 Esta orden es de un <strong>cliente nuevo</strong> (no registrado en Clientes): <strong id="detClienteNuevoInfo"></strong>. No se puede reasignar a un cliente registrado desde aquí — si te equivocaste, elimina esta orden y crea una nueva.
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div><label>Cliente:</label><select id="detCliente" onchange="poblarEquiposDetalleOrden()"></select></div>
-      <div><label>Equipo:</label><select id="detEquipo"></select></div>
+      <div id="detWrapperClienteExistente"><label>Cliente:</label><select id="detCliente" onchange="poblarEquiposDetalleOrden()"></select></div>
+      <div id="detWrapperEquipoExistente"><label>Equipo:</label><select id="detEquipo"></select></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div><label>Técnico asignado:</label><select id="detTecnico"></select></div>

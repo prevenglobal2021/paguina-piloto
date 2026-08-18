@@ -7,6 +7,7 @@ function verPDF(ordenId){
   ordenPdfActualId = ordenId;
   const o = db.ordenes.find(x=>x.id===ordenId);
   const cliente = buscarCliente(o.clienteId), sede = buscarSede(o.clienteId,o.sedeId), equipo = buscarEquipo(o.clienteId,o.sedeId,o.equipoId), tecnico = buscarTecnico(o.tecnicoId);
+  const nombreClientePdf = nombreClienteOrden(o);
   const logoHtml = db.config.logo ? `<img src="${db.config.logo}">` : '';
   let camposSimplesHtml = '';
   let camposEspecialesHtml = '';
@@ -58,7 +59,7 @@ function verPDF(ordenId){
     <div style="background:#f1f5f9;padding:15px;border-radius:6px;margin-bottom:20px;">
       <small style="color:#64748b;font-weight:bold;">DOCUMENTO OPERATIVO</small>
       <h3 style="margin:5px 0 0 0;color:#0f172a;">${o.numero}</h3>
-      <p style="margin:4px 0 0 0;font-size:12px;color:#475569;">${cliente?cliente.nombre:''}</p>
+      <p style="margin:4px 0 0 0;font-size:12px;color:#475569;">${nombreClientePdf}${o.esClienteNuevo?' <small style="color:#b45309;">(Cliente nuevo)</small>':''}</p>
     </div>
 
     <div class="pdf-box"><h4>Datos de la Orden de Servicio</h4>
@@ -73,9 +74,9 @@ function verPDF(ordenId){
 
     <div class="pdf-box"><h4>Cliente, Sede y Equipo</h4>
       <table style="width:100%;font-size:12px;" cellpadding="4">
-        <tr><td style="width:45%;"><strong>Cliente</strong></td><td>${cliente?cliente.nombre:''}</td></tr>
+        <tr><td style="width:45%;"><strong>Cliente</strong></td><td>${nombreClientePdf}${o.esClienteNuevo?' (Cliente nuevo, no registrado)':''}</td></tr>
         ${(cliente && cliente.numeroDocumento) ? `<tr><td><strong>${cliente.tipoDocumento||'NIT'}</strong></td><td>${cliente.numeroDocumento}</td></tr>` : ''}
-        <tr><td><strong>Sede</strong></td><td>${sede?sede.nombre:'Sin sede'}</td></tr>
+        <tr><td><strong>Sede</strong></td><td>${o.esClienteNuevo ? (o.clienteNuevoDireccion || 'Sin dirección') : (sede?sede.nombre:'Sin sede')}</td></tr>
         <tr><td><strong>Equipo</strong></td><td>${equipo?equipo.nombre:''}</td></tr>
         ${(equipo && equipo.marca) ? `<tr><td><strong>Marca</strong></td><td>${equipo.marca}</td></tr>` : ''}
         ${(equipo && equipo.modelo) ? `<tr><td><strong>Modelo</strong></td><td>${equipo.modelo}</td></tr>` : ''}

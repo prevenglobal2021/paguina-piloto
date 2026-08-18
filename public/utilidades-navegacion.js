@@ -3,6 +3,19 @@
    UTILIDADES DE CONSULTA
 ========================================================= */
 function buscarCliente(id){ return db.clientes.find(c=>c.id===id); }
+// Nombre del cliente de una orden, ya sea uno registrado o uno nuevo (no
+// registrado, ingresado directo en la orden) — usar esto en vez de
+// buscarCliente(o.clienteId) directo en cualquier lugar donde se muestre
+// el cliente de una orden, para que el caso de "cliente nuevo" siempre
+// se vea correcto en vez de "—".
+function nombreClienteOrden(o){
+  if(o.esClienteNuevo) return o.clienteNuevoNombre || '(cliente nuevo sin nombre)';
+  const c = buscarCliente(o.clienteId);
+  return c ? c.nombre : '—';
+}
+function etiquetaClienteNuevoHtml(o){
+  return o.esClienteNuevo ? ' <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;white-space:nowrap;">CLIENTE NUEVO</span>' : '';
+}
 function equiposSinSedeDe(c){ if(!c.equiposSinSede) c.equiposSinSede = []; return c.equiposSinSede; }
 function buscarSede(clienteId,sedeId){ const c=buscarCliente(clienteId); return c ? c.sedes.find(s=>s.id===sedeId) : null; }
 function buscarEquipo(clienteId,sedeId,equipoId){

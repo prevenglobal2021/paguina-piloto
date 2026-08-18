@@ -64,8 +64,7 @@ function construirIndiceBusqueda(){
 
   // Órdenes de servicio
   (db.ordenes||[]).forEach(o=>{
-    const c = buscarCliente(o.clienteId);
-    indice.push({ tipo:'Orden', icono:'fa-clipboard-list', titulo:o.numero, subtitulo:`${c?c.nombre:'—'} · ${o.estado}`,
+    indice.push({ tipo:'Orden', icono:'fa-clipboard-list', titulo:o.numero, subtitulo:`${nombreClienteOrden(o)} · ${o.estado}`,
       accion:()=>{ mostrarSeccion('agenda'); setTimeout(()=>verDetalleOrden(o.id), 150); } });
   });
 
@@ -184,15 +183,17 @@ function renderizarAgenda(){
   const ordenesVisibles = ordenesVisiblesParaSesion();
   if(ordenesVisibles.length===0){ cont.innerHTML = '<div class="empty-state">Aún no hay órdenes de servicio para mostrar.</div>'; return; }
   ordenesVisibles.slice().reverse().forEach(o=>{
-    const cliente = buscarCliente(o.clienteId);
     const sede = buscarSede(o.clienteId, o.sedeId);
     const equipo = buscarEquipo(o.clienteId, o.sedeId, o.equipoId);
     const colorBorde = o.estado==='Finalizado' ? 'var(--green-success)' : (o.estado==='En Ejecución' ? 'var(--purple-info)' : 'var(--orange-warning)');
+    const lineaSedeEquipo = o.esClienteNuevo
+      ? `Dirección: ${o.clienteNuevoDireccion || '—'}`
+      : `Sede: ${sede?sede.nombre:'—'}<br>Equipo: ${equipo?equipo.nombre:'—'}`;
     cont.innerHTML += `
       <div style="background:rgba(0,0,0,.2);padding:15px;border-radius:8px;border-left:4px solid ${colorBorde};">
         ${badgeEstado(o.estado)}
-        <h5 style="margin:8px 0 2px 0;font-size:14px;">${o.numero} · ${cliente?cliente.nombre:'—'}</h5>
-        <p style="margin:0;font-size:12px;color:var(--text-muted);">Sede: ${sede?sede.nombre:'—'}<br>Equipo: ${equipo?equipo.nombre:'—'}<br>Tipo: ${o.tipo} · Prioridad: ${o.prioridad}<br>Fecha: ${o.fechaProgramada||'Sin definir'}${o.horaProgramada?` · Hora: ${o.horaProgramada}`:''}</p>
+        <h5 style="margin:8px 0 2px 0;font-size:14px;">${o.numero} · ${nombreClienteOrden(o)}${etiquetaClienteNuevoHtml(o)}</h5>
+        <p style="margin:0;font-size:12px;color:var(--text-muted);">${lineaSedeEquipo}<br>Tipo: ${o.tipo} · Prioridad: ${o.prioridad}<br>Fecha: ${o.fechaProgramada||'Sin definir'}${o.horaProgramada?` · Hora: ${o.horaProgramada}`:''}</p>
         <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
           ${o.estado!=='Finalizado' ? `<button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="iniciarCierre(${o.id})">Registrar Cierre</button>` : ''}
           ${o.estado!=='Finalizado' ? `<button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="ordenes_editar" onclick="verDetalleOrden(${o.id})"><i class="fas fa-pen"></i> Editar</button>` : ''}
@@ -268,10 +269,9 @@ function renderizarCalendario(){
     const fechaStr = `${anio}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
     const ordenesDia = ordenesVisibles.filter(o=>o.fechaProgramada===fechaStr);
     let chips = ordenesDia.map(o=>{
-      const cliente = buscarCliente(o.clienteId);
       const claseEstado = o.estado==='Finalizado' ? 'finalizado' : (o.estado==='En Ejecución' ? 'ejecucion' : '');
       const arrastrable = esAdmin() ? `draggable="true" ondragstart="dragOrdenStart(event,${o.id})"` : '';
-      return `<span class="calendar-chip ${claseEstado}" ${arrastrable} title="${o.numero} - ${cliente?cliente.nombre:''}${o.horaProgramada?' - '+o.horaProgramada:''}" onclick="verDetalleOrden(${o.id})">${o.horaProgramada?o.horaProgramada+' ':''}${o.numero}</span>`;
+      return `<span class="calendar-chip ${claseEstado}" ${arrastrable} title="${o.numero} - ${nombreClienteOrden(o)}${o.esClienteNuevo?' (Cliente nuevo)':''}${o.horaProgramada?' - '+o.horaProgramada:''}" onclick="verDetalleOrden(${o.id})">${o.horaProgramada?o.horaProgramada+' ':''}${o.numero}</span>`;
     }).join('');
     const soltable = esAdmin() ? `ondragover="event.preventDefault()" ondrop="dropOrdenEnDia(event,'${fechaStr}')"` : '';
     grid.innerHTML += `<div class="calendar-day" ${soltable}><div class="num-dia">${dia}</div>${chips}</div>`;
@@ -298,15 +298,32 @@ function dropOrdenEnDia(event, fechaStr){
 function abrirModalNuevaOrden(){
   document.getElementById('ordClienteBuscador').value = '';
   document.getElementById('ordCliente').value = '';
+  document.getElementById('ordClienteNuevo').checked = false;
+  document.getElementById('ordClienteNuevoNombre').value = '';
+  document.getElementById('ordClienteNuevoDireccion').value = '';
   cerrarListaClientesOrden();
   const selTec = document.getElementById('ordTecnico');
   selTec.innerHTML = db.tecnicos.filter(t=>t.activo!==false).map(t=>`<option value="${t.id}">${t.nombre}</option>`).join('') || '<option value="">Sin técnicos activos</option>';
   document.getElementById('ordTipo').innerHTML = db.config.tiposServicio.map(t=>`<option>${t}</option>`).join('');
   document.getElementById('ordPrioridad').innerHTML = db.config.prioridades.map(p=>`<option>${p}</option>`).join('');
   document.getElementById('ordSinEquipo').checked = false;
-  toggleOrdenSinEquipo();
+  toggleOrdenClienteNuevo();
   poblarEquiposOrden();
   abrirModal('modalNuevaOrden');
+}
+function toggleOrdenClienteNuevo(){
+  const esNuevo = document.getElementById('ordClienteNuevo').checked;
+  document.getElementById('wrapperClienteNuevo').style.display = esNuevo ? 'block' : 'none';
+  document.getElementById('wrapperClienteExistente').style.display = esNuevo ? 'none' : 'block';
+  document.getElementById('lblOrdSinEquipo').style.display = esNuevo ? 'none' : 'flex';
+  if(esNuevo){
+    document.getElementById('ordCliente').value = '';
+    document.getElementById('ordClienteBuscador').value = '';
+    document.getElementById('ordSinEquipo').checked = true;
+  } else {
+    document.getElementById('ordSinEquipo').checked = false;
+  }
+  toggleOrdenSinEquipo();
 }
 // Busca clientes por su propio nombre, o por el nombre/marca/modelo/serie de
 // cualquiera de sus equipos — así, si te acuerdas del equipo pero no del
@@ -389,10 +406,17 @@ function poblarEquiposOrden(){
       <select class="sel-plantilla-equipo" data-equipo="${o.id}" style="width:190px;flex-shrink:0;margin:0;" title="Plantilla de formulario para este equipo">${opcionesPlantilla}</select>
     </div>`).join('');
 }
-function guardarNuevaOrden(){
-  const clienteId = parseInt(document.getElementById('ordCliente').value);
+async function guardarNuevaOrden(){
+  const esClienteNuevo = document.getElementById('ordClienteNuevo').checked;
+  const clienteId = esClienteNuevo ? null : parseInt(document.getElementById('ordCliente').value);
+  const clienteNuevoNombre = esClienteNuevo ? document.getElementById('ordClienteNuevoNombre').value.trim() : null;
+  const clienteNuevoDireccion = esClienteNuevo ? document.getElementById('ordClienteNuevoDireccion').value.trim() : null;
+  if(esClienteNuevo){
+    if(!clienteNuevoNombre){ mostrarToast('Escribe el nombre del cliente nuevo.'); return; }
+  } else if(!clienteId){
+    mostrarToast('Selecciona el Cliente.'); return;
+  }
   const tecnicoId = parseInt(document.getElementById('ordTecnico').value);
-  if(!clienteId){ mostrarToast('Selecciona el Cliente.'); return; }
   const tipo = document.getElementById('ordTipo').value;
   const prioridad = document.getElementById('ordPrioridad').value;
   const fechaProgramada = document.getElementById('ordFecha').value || null;
@@ -405,15 +429,22 @@ function guardarNuevaOrden(){
     const nueva = {
       id: Date.now(), numero: `OS-2026-${String(consecutivo).padStart(4,'0')}`,
       clienteId, sedeId: null, equipoId: null, tecnicoId: tecnicoId||null,
+      esClienteNuevo, clienteNuevoNombre, clienteNuevoDireccion,
       tipo, prioridad, plantillaId,
       estado: 'Programado', fechaProgramada, horaProgramada, cierre: null
     };
     db.ordenes.push(nueva);
-    registrarLog('Crear', 'OrdenServicio', `${nueva.numero} (servicio general, sin equipo)`);
-    dbGuardar();
+    registrarLog('Crear', 'OrdenServicio', esClienteNuevo ? `${nueva.numero} (cliente nuevo: ${clienteNuevoNombre})` : `${nueva.numero} (servicio general, sin equipo)`);
+    try{
+      await dbGuardarInmediato();
+    }catch(err){
+      db.ordenes.pop();
+      mostrarToast('⚠️ No se pudo crear la orden: ' + err.message, 'error');
+      return;
+    }
     cerrarModal('modalNuevaOrden');
     renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
-    mostrarToast(`Orden ${nueva.numero} creada como servicio general, sin equipo asociado.`);
+    mostrarToast(esClienteNuevo ? `Orden ${nueva.numero} creada para el cliente nuevo "${clienteNuevoNombre}".` : `Orden ${nueva.numero} creada como servicio general, sin equipo asociado.`);
     return;
   }
 
@@ -421,6 +452,7 @@ function guardarNuevaOrden(){
   if(filasSeleccionadas.length===0){ mostrarToast('Selecciona al menos un equipo, o marca la opción de servicio general sin equipo.'); return; }
   let consecutivo = db.ordenes.length;
   const numerosCreados = [];
+  const nuevasCreadas = [];
   filasSeleccionadas.forEach(chk=>{
     const equipoId = parseInt(chk.dataset.equipo);
     // La sede viene directamente de la fila (ya filtrada por este Cliente al construir
@@ -439,12 +471,20 @@ function guardarNuevaOrden(){
       estado: 'Programado', fechaProgramada, horaProgramada, cierre: null
     };
     db.ordenes.push(nueva);
+    nuevasCreadas.push(nueva);
     numerosCreados.push(nueva.numero);
     registrarLog('Crear', 'OrdenServicio', nueva.numero);
   });
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    nuevasCreadas.forEach(n=>{ const i = db.ordenes.indexOf(n); if(i>-1) db.ordenes.splice(i,1); });
+    mostrarToast('⚠️ No se pudieron crear las órdenes: ' + err.message, 'error');
+    return;
+  }
   cerrarModal('modalNuevaOrden');
   renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
   if(numerosCreados.length > 1) mostrarToast(`Se crearon ${numerosCreados.length} órdenes de servicio: ${numerosCreados.join(', ')}`);
+  else mostrarToast(`Orden ${numerosCreados[0]} creada.`);
 }
 

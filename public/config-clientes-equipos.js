@@ -64,6 +64,7 @@ function renderizarAuditoria(){
 }
 function enviarPorWhatsApp(ordenId){
   const o = db.ordenes.find(x=>x.id===ordenId);
+  if(o.esClienteNuevo){ mostrarToast('Esta orden es de un cliente nuevo (no registrado), sin teléfono guardado — usa "Ver Documento" para descargar el informe y enviarlo tú mismo.'); return; }
   const cliente = buscarCliente(o.clienteId);
   if(!cliente || !cliente.telefono){ mostrarToast('Este cliente no tiene teléfono registrado.'); return; }
   const telefonoLimpio = cliente.telefono.replace(/[^0-9]/g,'');

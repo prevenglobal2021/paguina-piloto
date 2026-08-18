@@ -6,9 +6,8 @@ function iniciarCierre(ordenId){
   ordenActivaId = ordenId;
   fotosTempCierre = [];
   const o = db.ordenes.find(x=>x.id===ordenId);
-  const cliente = buscarCliente(o.clienteId);
   const equipo = buscarEquipo(o.clienteId, o.sedeId, o.equipoId);
-  document.getElementById('lblOrdenActivaCierre').innerText = `${o.numero} · ${cliente?cliente.nombre:''} · ${equipo?equipo.nombre:''}`;
+  document.getElementById('lblOrdenActivaCierre').innerText = `${o.numero} · ${nombreClienteOrden(o)}${o.esClienteNuevo?' (Cliente nuevo)':''} · ${equipo?equipo.nombre:''}`;
   document.getElementById('cierreDiagnostico').value = '';
   document.getElementById('previewFotosCierre').innerHTML = '';
   renderizarFormularioDinamico(o.plantillaId);
@@ -212,12 +211,19 @@ function verDetalleOrden(ordenId){
   solicitudEdicionForzada = false;
   const finalizada = o.estado === 'Finalizado' && !ordenDetalleEsEdicionForzada;
 
-  document.getElementById('lblNumeroOrdenDetalle').innerText = `📋 ${o.numero}${finalizada ? ' — Finalizada' : (ordenDetalleEsEdicionForzada ? ' — Editando orden finalizada' : '')}`;
+  document.getElementById('lblNumeroOrdenDetalle').innerText = `📋 ${o.numero} · ${nombreClienteOrden(o)}${finalizada ? ' — Finalizada' : (ordenDetalleEsEdicionForzada ? ' — Editando orden finalizada' : '')}`;
 
   const selCliente = document.getElementById('detCliente');
   selCliente.innerHTML = db.clientes.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
-  selCliente.value = o.clienteId;
-  poblarEquiposDetalleOrden(o.equipoId);
+  document.getElementById('detAvisoClienteNuevo').style.display = o.esClienteNuevo ? 'block' : 'none';
+  document.getElementById('detWrapperClienteExistente').style.display = o.esClienteNuevo ? 'none' : 'block';
+  document.getElementById('detWrapperEquipoExistente').style.display = o.esClienteNuevo ? 'none' : 'block';
+  if(o.esClienteNuevo){
+    document.getElementById('detClienteNuevoInfo').innerText = `${o.clienteNuevoNombre||'—'} — ${o.clienteNuevoDireccion||'sin dirección'}`;
+  } else {
+    selCliente.value = o.clienteId;
+    poblarEquiposDetalleOrden(o.equipoId);
+  }
 
   const selTec = document.getElementById('detTecnico');
   selTec.innerHTML = '<option value="">Sin asignar</option>' + db.tecnicos.filter(t=>t.activo!==false || t.id===o.tecnicoId).map(t=>`<option value="${t.id}">${t.nombre}${t.activo===false?' (inactivo)':''}</option>`).join('');
@@ -344,12 +350,19 @@ function guardarDetalleOrden(finalizar){
   if(!o) return;
   const esEdicionForzada = o.estado==='Finalizado' && ordenDetalleEsEdicionForzada && esAdmin();
   if(o.estado==='Finalizado' && !esEdicionForzada){ mostrarToast('Esta orden está finalizada y no se puede editar.'); return; }
-  const clienteId = parseInt(document.getElementById('detCliente').value);
-  const equipoId = parseInt(document.getElementById('detEquipo').value);
-  if(!clienteId || !equipoId){ mostrarToast('Selecciona Cliente y Equipo.'); return; }
-  const infoEquipo = ubicarEquipoPorId(equipoId);
-  if(!infoEquipo || infoEquipo.cliente.id !== clienteId){ mostrarToast('El equipo seleccionado no corresponde al cliente elegido.'); return; }
-  const sedeId = infoEquipo.sede ? infoEquipo.sede.id : null;
+  let clienteId, equipoId, sedeId;
+  if(o.esClienteNuevo){
+    // El cliente/equipo de una orden de cliente nuevo no se puede reasignar desde
+    // aquí — se conservan tal cual quedaron al crear la orden.
+    clienteId = o.clienteId; equipoId = o.equipoId; sedeId = o.sedeId;
+  } else {
+    clienteId = parseInt(document.getElementById('detCliente').value);
+    equipoId = parseInt(document.getElementById('detEquipo').value);
+    if(!clienteId || !equipoId){ mostrarToast('Selecciona Cliente y Equipo.'); return; }
+    const infoEquipo = ubicarEquipoPorId(equipoId);
+    if(!infoEquipo || infoEquipo.cliente.id !== clienteId){ mostrarToast('El equipo seleccionado no corresponde al cliente elegido.'); return; }
+    sedeId = infoEquipo.sede ? infoEquipo.sede.id : null;
+  }
   const tecnicoIdRaw = document.getElementById('detTecnico').value;
   const plantillaIdRaw = document.getElementById('detPlantilla').value;
 

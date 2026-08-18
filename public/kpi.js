@@ -78,7 +78,7 @@ function renderizarKPIs(){
 
   // --- Gráfica: servicios por cliente (top 8) ---
   const conteoClientes = {};
-  ordenesPeriodo.forEach(o=>{ const c = buscarCliente(o.clienteId); const nombre = c?c.nombre:'—'; conteoClientes[nombre] = (conteoClientes[nombre]||0)+1; });
+  ordenesPeriodo.forEach(o=>{ const nombre = nombreClienteOrden(o); conteoClientes[nombre] = (conteoClientes[nombre]||0)+1; });
   const topClientes = Object.entries(conteoClientes).sort((a,b)=>b[1]-a[1]).slice(0,8);
   if(chartsKPI.cliente) chartsKPI.cliente.destroy();
   chartsKPI.cliente = new Chart(document.getElementById('chartServiciosPorCliente'), {
@@ -199,8 +199,8 @@ function renderizarKardex(){
 function exportarExcel(){
   let csv = 'Orden,Cliente,Equipo,Tecnico,Estado,Tipo,Fecha\n';
   db.ordenes.forEach(o=>{
-    const cliente = buscarCliente(o.clienteId), equipo = buscarEquipo(o.clienteId,o.sedeId,o.equipoId), tecnico = buscarTecnico(o.tecnicoId);
-    csv += `${o.numero},${cliente?cliente.nombre:''},${equipo?equipo.nombre:''},${tecnico?tecnico.nombre:''},${o.estado},${o.tipo},${o.fechaProgramada||''}\n`;
+    const equipo = buscarEquipo(o.clienteId,o.sedeId,o.equipoId), tecnico = buscarTecnico(o.tecnicoId);
+    csv += `${o.numero},${nombreClienteOrden(o)}${o.esClienteNuevo?' (Cliente nuevo)':''},${equipo?equipo.nombre:''},${tecnico?tecnico.nombre:''},${o.estado},${o.tipo},${o.fechaProgramada||''}\n`;
   });
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   const link = document.createElement('a');
