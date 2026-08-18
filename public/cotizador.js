@@ -377,7 +377,56 @@ function enviarComprobanteNominaPorWhatsApp(id){
     registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (sin comprobante adjunto automático)`);
   });
 }
-function agregarGasto(){
+function toggleIngresoClienteEsporadico(){
+  const esEsporadico = document.getElementById('ingresoClienteEsporadico').checked;
+  document.getElementById('wrapperIngresoClienteExistente').style.display = esEsporadico ? 'none' : 'block';
+  document.getElementById('wrapperIngresoClienteEsporadico').style.display = esEsporadico ? 'block' : 'none';
+  if(!esEsporadico) document.getElementById('ingresoClienteEsporadicoNombre').value = '';
+}
+async function agregarIngreso(){
+  const esEsporadico = document.getElementById('ingresoClienteEsporadico').checked;
+  const clienteId = esEsporadico ? null : (document.getElementById('ingresoCliente').value ? parseInt(document.getElementById('ingresoCliente').value) : null);
+  const clienteEsporadicoNombre = esEsporadico ? document.getElementById('ingresoClienteEsporadicoNombre').value.trim() : null;
+  if(esEsporadico && !clienteEsporadicoNombre){ mostrarToast('Escribe el nombre del cliente esporádico.'); return; }
+  const concepto = document.getElementById('ingresoConcepto').value.trim();
+  const monto = parseFloat(document.getElementById('ingresoMonto').value);
+  const fecha = document.getElementById('ingresoFecha').value;
+  if(!concepto){ mostrarToast('Escribe el concepto del ingreso.'); return; }
+  if(!monto || monto<=0){ mostrarToast('Escribe un monto válido.'); return; }
+  if(!fecha){ mostrarToast('Selecciona la fecha del ingreso.'); return; }
+  db.ingresos = db.ingresos || [];
+  const nuevo = { id:Date.now(), clienteId, esClienteEsporadico: esEsporadico, clienteEsporadicoNombre, concepto, monto, fecha };
+  db.ingresos.push(nuevo);
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.ingresos.pop();
+    mostrarToast('⚠️ No se pudo registrar el ingreso: ' + err.message, 'error');
+    return;
+  }
+  const nombreClienteLog = esEsporadico ? clienteEsporadicoNombre : (buscarCliente(clienteId)?.nombre || 'General');
+  registrarLog('Crear', 'Ingreso', `${nombreClienteLog} · ${concepto} · ${formatoCOP(monto)}`);
+  document.getElementById('ingresoConcepto').value=''; document.getElementById('ingresoMonto').value=''; document.getElementById('ingresoFecha').value='';
+  document.getElementById('ingresoClienteEsporadico').checked = false; toggleIngresoClienteEsporadico();
+  document.getElementById('contaMesFiltro').value = fecha.slice(0,7); // así siempre se ve de inmediato lo que se acaba de registrar
+  renderizarContabilidad();
+  mostrarToast(`✅ Ingreso registrado: ${nombreClienteLog} — ${formatoCOP(monto)}`, 'exito');
+}
+async function eliminarIngreso(id){
+  if(!confirm('¿Eliminar este ingreso?')) return;
+  const listaAnterior = db.ingresos.slice();
+  db.ingresos = db.ingresos.filter(i=>i.id!==id);
+  registrarEliminacion('ingresos', id);
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.ingresos = listaAnterior;
+    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
+    return;
+  }
+  renderizarContabilidad();
+}
+async function agregarGasto(){
   const categoria = document.getElementById('gastoCategoria').value;
   const descripcion = document.getElementById('gastoDescripcion').value.trim();
   const monto = parseFloat(document.getElementById('gastoMonto').value);
@@ -386,20 +435,35 @@ function agregarGasto(){
   if(!monto || monto<=0){ mostrarToast('Escribe un monto válido.'); return; }
   if(!fecha){ mostrarToast('Selecciona la fecha del gasto.'); return; }
   db.gastos = db.gastos || [];
-  db.gastos.push({ id:Date.now(), categoria, descripcion, monto, fecha });
-  dbGuardarInmediato();
+  const nuevo = { id:Date.now(), categoria, descripcion, monto, fecha };
+  db.gastos.push(nuevo);
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.gastos.pop();
+    mostrarToast('⚠️ No se pudo registrar el gasto: ' + err.message, 'error');
+    return;
+  }
   registrarLog('Crear', 'Gasto', `${categoria} · ${descripcion} · ${formatoCOP(monto)}`);
   document.getElementById('gastoDescripcion').value=''; document.getElementById('gastoMonto').value=''; document.getElementById('gastoFecha').value='';
   renderizarContabilidad();
 }
-function eliminarGasto(id){
+async function eliminarGasto(id){
   if(!confirm('¿Eliminar este gasto?')) return;
+  const listaAnterior = db.gastos.slice();
   db.gastos = db.gastos.filter(g=>g.id!==id);
-  dbGuardarInmediato();
+  registrarEliminacion('gastos', id);
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.gastos = listaAnterior;
+    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
+    return;
+  }
   renderizarContabilidad();
 }
 function renderizarContabilidad(){
-  db.liquidacionesNomina = db.liquidacionesNomina || []; db.gastos = db.gastos || []; db.pedidosTienda = db.pedidosTienda || [];
+  db.liquidacionesNomina = db.liquidacionesNomina || []; db.gastos = db.gastos || []; db.pedidosTienda = db.pedidosTienda || []; db.ingresos = db.ingresos || [];
   const filtroMes = document.getElementById('contaMesFiltro');
   if(!filtroMes.value) filtroMes.value = mesActualISO();
   const mes = filtroMes.value; // "YYYY-MM"
@@ -407,10 +471,11 @@ function renderizarContabilidad(){
   const nominaDelMes = db.liquidacionesNomina.filter(l=>l.fecha && l.fecha.startsWith(mes));
   const gastosDelMes = db.gastos.filter(g=>g.fecha && g.fecha.startsWith(mes));
   const pedidosDelMes = db.pedidosTienda.filter(p=>p.fecha && p.fecha.startsWith(mes));
+  const ingresosDelMes = db.ingresos.filter(i=>i.fecha && i.fecha.startsWith(mes));
 
   const totalNomina = nominaDelMes.reduce((a,l)=>a+l.totalNeto,0);
   const totalGastos = gastosDelMes.reduce((a,g)=>a+g.monto,0);
-  const totalIngresos = pedidosDelMes.reduce((a,p)=>a+p.total,0);
+  const totalIngresos = pedidosDelMes.reduce((a,p)=>a+p.total,0) + ingresosDelMes.reduce((a,i)=>a+i.monto,0);
   const balance = totalIngresos - totalNomina - totalGastos;
 
   document.getElementById('contaCardIngresos').innerText = formatoCOP(totalIngresos);
@@ -421,6 +486,19 @@ function renderizarContabilidad(){
   cardBalance.style.color = balance >= 0 ? '#15803d' : '#b91c1c';
 
   renderizarHistorialNomina();
+
+  const selIngresoCliente = document.getElementById('ingresoCliente');
+  const valorSelActual = selIngresoCliente.value;
+  selIngresoCliente.innerHTML = '<option value="">(Ninguno / general)</option>' + db.clientes.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+  selIngresoCliente.value = valorSelActual;
+
+  document.getElementById('tablaIngresos').innerHTML = ingresosDelMes.slice().reverse().map(i=>{
+    const nombreCliente = i.esClienteEsporadico
+      ? `${i.clienteEsporadicoNombre||'—'} <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;">ESPORÁDICO</span>`
+      : (i.clienteId ? (buscarCliente(i.clienteId)?.nombre || '—') : '<span style="color:var(--text-muted);">General</span>');
+    return `<tr><td>${i.fecha}</td><td>${nombreCliente}</td><td>${i.concepto}</td><td>${formatoCOP(i.monto)}</td>
+      <td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarIngreso(${i.id})">X</button></td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="empty-state">Sin ingresos manuales registrados este mes.</td></tr>';
 
   document.getElementById('tablaGastos').innerHTML = gastosDelMes.map(g=>`
     <tr><td>${g.fecha}</td><td>${g.categoria}</td><td>${g.descripcion}</td><td>${formatoCOP(g.monto)}</td>

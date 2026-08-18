@@ -2,6 +2,18 @@
 /* =========================================================
    CONFIGURACIÓN: EMPRESA Y PERFIL (logo, dirección, misión, visión)
 ========================================================= */
+function actualizarPreviewLoginMini(){
+  const c1 = document.getElementById('cfgLoginColor1').value || '#7c3aed';
+  const c2 = document.getElementById('cfgLoginColor2').value || '#4c1d95';
+  const mini = document.getElementById('previewLoginMini');
+  mini.style.setProperty('--preview-login-color-1', c1);
+  mini.style.setProperty('--preview-login-color-2', c2);
+  document.getElementById('previewLoginMiniTitulo').innerText = document.getElementById('cfgLoginTituloIzquierda').value || 'Domina el sistema';
+  document.getElementById('previewLoginMiniSubtitulo').innerText = document.getElementById('cfgLoginSubtituloIzquierda').value || 'Controla clientes, equipos, órdenes de servicio e inventario desde un solo lugar.';
+  document.getElementById('previewLoginMiniBienvenida').innerText = document.getElementById('cfgLoginBienvenidaTitulo').value || '¡Bienvenido!';
+  document.getElementById('previewLoginMiniSubBienvenida').innerText = document.getElementById('cfgLoginBienvenidaSubtitulo').value || 'Por favor inicia sesión';
+  document.getElementById('previewLoginMiniIzq').style.backgroundImage = loginImagenTempBase64 ? `url('${loginImagenTempBase64}')` : 'none';
+}
 let loginImagenTempBase64 = null;
 function manejarLoginImagenUpload(event){
   const file = event.target.files[0];
@@ -9,6 +21,7 @@ function manejarLoginImagenUpload(event){
   const estadoEl = document.getElementById('loginImagenEstado');
   const inputEl = document.getElementById('cfgLoginImagenInput');
   const cargandoEl = document.getElementById('loginImagenCargando');
+  const btnGuardar = document.getElementById('btnGuardarAparienciaLogin');
   if(file.size > 10*1024*1024){
     estadoEl.innerText = '⚠️ Esa imagen pesa más de 10MB. Elige una más liviana.';
     estadoEl.style.color = 'var(--red-alert)';
@@ -18,6 +31,7 @@ function manejarLoginImagenUpload(event){
   estadoEl.innerText = '';
   cargandoEl.style.display = 'flex';
   inputEl.disabled = true; // evita que se pueda volver a intentar subir mientras se procesa la actual
+  if(btnGuardar) btnGuardar.disabled = true; // evita guardar antes de que la imagen termine de procesarse
   const reader = new FileReader();
   reader.onload = e=>{
     fetch(API_BASE + '/api/imagenes/login-fondo', {
@@ -32,7 +46,7 @@ function manejarLoginImagenUpload(event){
       // Solo se reemplaza la imagen guardada si el procesamiento fue exitoso —
       // si algo falla, lo que ya estaba configurado antes queda intacto.
       loginImagenTempBase64 = data.imagen;
-      document.getElementById('previewLoginImagenFondo').style.backgroundImage = `url('${loginImagenTempBase64}')`;
+      actualizarPreviewLoginMini();
       estadoEl.innerText = '✅ Imagen lista (recortada a 1080x1920, vista previa arriba). Falta guardar los cambios.';
       estadoEl.style.color = 'var(--exito-verde,#22c55e)';
     }).catch(err=>{
@@ -42,6 +56,7 @@ function manejarLoginImagenUpload(event){
     }).finally(()=>{
       cargandoEl.style.display = 'none';
       inputEl.disabled = false;
+      if(btnGuardar) btnGuardar.disabled = false;
     });
   };
   reader.onerror = ()=>{
@@ -49,6 +64,7 @@ function manejarLoginImagenUpload(event){
     estadoEl.style.color = 'var(--red-alert)';
     cargandoEl.style.display = 'none';
     inputEl.disabled = false;
+    if(btnGuardar) btnGuardar.disabled = false;
     inputEl.value = '';
   };
   reader.readAsDataURL(file);

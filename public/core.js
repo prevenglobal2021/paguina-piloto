@@ -135,7 +135,7 @@ let syncReintentoTimer = null;
 // desde el celular). Solo AGREGA lo que falta, por id; nunca modifica
 // ni elimina nada que ya esté localmente.
 // -----------------------------------------------------------------
-const CLAVES_FUSIONABLES = ['clientes','tecnicos','plantillas','ordenes','bodegas','inventario','kardex','pedidosTienda','liquidacionesNomina'];
+const CLAVES_FUSIONABLES = ['clientes','tecnicos','plantillas','ordenes','bodegas','inventario','kardex','pedidosTienda','liquidacionesNomina','ingresos','gastos'];
 
 // Antes de este arreglo, la fusión aditiva no distinguía "esto falta porque
 // mi copia está desactualizada" de "esto falta porque lo acabo de borrar a

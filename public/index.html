@@ -111,6 +111,19 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 @media (max-width:640px){ .btn-terminar-sesion-texto{display:none;} .btn-terminar-sesion{padding:6px;border-radius:50%;} }
 .spinner-imagen-login{width:26px;height:26px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:girar-spinner-login .8s linear infinite;}
 @keyframes girar-spinner-login{to{transform:rotate(360deg);}}
+/* Vista previa en miniatura de la pantalla de login (fiel al real: dos columnas) */
+.preview-login-mini{display:flex;width:100%;max-width:230px;height:280px;border-radius:10px;overflow:hidden;border:1px solid var(--card-border);margin:8px auto;box-shadow:0 4px 14px rgba(0,0,0,.2);}
+.preview-login-mini-izq{flex:0 0 38%;position:relative;background-size:cover;background-position:center;background-color:#e2e8f0;display:flex;flex-direction:column;justify-content:flex-end;padding:8px;}
+.preview-login-mini-izq::before{content:'';position:absolute;inset:0;background:linear-gradient(160deg, var(--preview-login-color-1,#7c3aed), var(--preview-login-color-2,#4c1d95));opacity:.85;}
+.preview-login-mini-texto{position:relative;z-index:1;color:#fff;}
+.preview-login-mini-texto strong{display:block;font-size:9px;line-height:1.25;font-weight:800;}
+.preview-login-mini-texto small{display:block;font-size:6px;line-height:1.35;opacity:.92;margin-top:3px;}
+.preview-login-mini-der{flex:1;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px;text-align:center;}
+.preview-login-mini-logo{width:26px;height:26px;border-radius:50%;background:#f1f5f9;border:1px solid #e2e8f0;margin-bottom:6px;}
+.preview-login-mini-der strong{font-size:10px;color:#1e293b;display:block;}
+.preview-login-mini-der small{font-size:7px;color:#64748b;display:block;margin-top:2px;margin-bottom:8px;}
+.preview-login-mini-input{width:85%;height:9px;background:#fff;border:1px solid #cbd5e1;border-radius:3px;margin-top:5px;}
+.preview-login-mini-boton{width:85%;height:14px;border-radius:12px;background:linear-gradient(120deg, var(--preview-login-color-1,#7c3aed), var(--preview-login-color-2,#4c1d95));margin-top:8px;color:#fff;font-size:6px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:.5px;}
 .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);display:none;justify-content:center;align-items:center;z-index:1000;padding:15px;}
 .modal-box{background:color-mix(in srgb, var(--card-bg) 88%, transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--card-border);width:100%;max-width:980px;max-height:90vh;overflow-y:auto;border-radius:12px;padding:25px;position:relative;color:var(--text-main);box-shadow:0 20px 60px rgba(0,0,0,.4);animation:apareceModal .2s ease;}
 @keyframes apareceModal{from{opacity:0;transform:translateY(8px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
@@ -759,7 +772,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       </div>
 
       <div class="kpi-cards-grid contabilidad-cards">
-        <div class="kpi-card"><div class="kpi-card-valor" id="contaCardIngresos" style="color:#15803d;">$0</div><div class="kpi-card-label">Ingresos del mes (pedidos de tienda)</div></div>
+        <div class="kpi-card"><div class="kpi-card-valor" id="contaCardIngresos" style="color:#15803d;">$0</div><div class="kpi-card-label">Ingresos del mes (tienda + registros manuales)</div></div>
         <div class="kpi-card"><div class="kpi-card-valor" id="contaCardNomina" style="color:#c2410c;">$0</div><div class="kpi-card-label">Nómina pagada del mes</div></div>
         <div class="kpi-card"><div class="kpi-card-valor" id="contaCardGastos" style="color:#b91c1c;">$0</div><div class="kpi-card-label">Gastos del mes</div></div>
         <div class="kpi-card"><div class="kpi-card-valor" id="contaCardBalance">$0</div><div class="kpi-card-label">Balance del mes</div></div>
@@ -781,6 +794,25 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
             <thead><tr><th>N.º</th><th>Técnico</th><th>Periodo</th><th>Total neto</th><th></th></tr></thead>
             <tbody id="tablaNomina"></tbody>
             <tfoot id="pieTotalNomina"></tfoot>
+          </table>
+        </div>
+        <div>
+          <div class="panel-title"><span>📈 Registro de ingreso</span></div>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:normal;">
+            <input type="checkbox" id="ingresoClienteEsporadico" style="width:auto;" onchange="toggleIngresoClienteEsporadico()">
+            Cliente esporádico (no está registrado en Clientes)
+          </label>
+          <div class="field-row">
+            <div id="wrapperIngresoClienteExistente"><label style="font-size:11px;">Cliente:</label><select id="ingresoCliente"><option value="">(Ninguno / general)</option></select></div>
+            <div id="wrapperIngresoClienteEsporadico" style="display:none;"><label style="font-size:11px;">Nombre del cliente esporádico:</label><input type="text" id="ingresoClienteEsporadicoNombre" placeholder="Nombre"></div>
+            <div><input type="text" id="ingresoConcepto" placeholder="Concepto (ej. Servicio, Venta de repuesto)"></div>
+            <div><input type="number" id="ingresoMonto" placeholder="Monto (COP)"></div>
+            <div><input type="date" id="ingresoFecha"></div>
+          </div>
+          <button class="btn-custom" onclick="agregarIngreso()">+ Registrar ingreso</button>
+          <table class="data-table" style="margin-top:12px;">
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Concepto</th><th>Monto</th><th></th></tr></thead>
+            <tbody id="tablaIngresos"></tbody>
           </table>
         </div>
         <div>
@@ -1629,29 +1661,46 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
         <h4 style="margin-top:0;font-size:13px;">🔐 Pantalla de inicio de sesión</h4>
         <p style="font-size:11px;color:var(--text-muted);">Así se ve la pantalla antes de entrar a la plataforma. Los cambios se ven la próxima vez que alguien inicie sesión.</p>
-        <div class="field-row">
-          <div><label>Color principal:</label><input type="color" id="cfgLoginColor1"></div>
-          <div><label>Color secundario:</label><input type="color" id="cfgLoginColor2"></div>
+
+        <label>Vista previa (fiel a como se ve el login real):</label>
+        <div class="preview-login-mini" id="previewLoginMini">
+          <div class="preview-login-mini-izq" id="previewLoginMiniIzq">
+            <div id="loginImagenCargando" style="display:none;position:absolute;inset:0;background:rgba(15,23,42,.72);flex-direction:column;align-items:center;justify-content:center;gap:6px;z-index:2;">
+              <div class="spinner-imagen-login" style="width:18px;height:18px;"></div>
+              <span style="color:#fff;font-size:9px;font-weight:600;">Procesando...</span>
+            </div>
+            <div class="preview-login-mini-texto">
+              <strong id="previewLoginMiniTitulo">Domina el sistema</strong>
+              <small id="previewLoginMiniSubtitulo">Controla clientes, equipos, órdenes de servicio e inventario desde un solo lugar.</small>
+            </div>
+          </div>
+          <div class="preview-login-mini-der">
+            <div class="preview-login-mini-logo"></div>
+            <strong id="previewLoginMiniBienvenida">¡Bienvenido!</strong>
+            <small id="previewLoginMiniSubBienvenida">Por favor inicia sesión</small>
+            <div class="preview-login-mini-input"></div>
+            <div class="preview-login-mini-input"></div>
+            <div class="preview-login-mini-boton" id="previewLoginMiniBoton">ENTRAR</div>
+          </div>
+        </div>
+
+        <div class="field-row" style="margin-top:10px;">
+          <div><label>Color principal:</label><input type="color" id="cfgLoginColor1" oninput="actualizarPreviewLoginMini()"></div>
+          <div><label>Color secundario:</label><input type="color" id="cfgLoginColor2" oninput="actualizarPreviewLoginMini()"></div>
         </div>
         <label>Imagen de fondo (columna izquierda):</label>
         <p style="font-size:11px;color:var(--text-muted);margin:2px 0 4px;">Acepta JPG, PNG, WEBP y HEIC/HEIF (fotos de iPhone) — máx. 10MB. Recomendado: vertical 1080 x 1920 px; cualquier otra medida se recorta y ajusta sola, sin deformarla.</p>
-        <div id="previewLoginImagenFondo" style="width:100%;height:120px;background-size:cover;background-position:center;border-radius:8px;margin:6px 0;border:1px solid var(--card-border);position:relative;overflow:hidden;">
-          <div id="loginImagenCargando" style="display:none;position:absolute;inset:0;background:rgba(15,23,42,.72);flex-direction:column;align-items:center;justify-content:center;gap:8px;">
-            <div class="spinner-imagen-login"></div>
-            <span style="color:#fff;font-size:12px;font-weight:600;">Procesando imagen...</span>
-          </div>
-        </div>
         <input type="file" id="cfgLoginImagenInput" accept="image/*,.heic,.heif" onchange="manejarLoginImagenUpload(event)">
         <p id="loginImagenEstado" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></p>
         <label style="margin-top:10px;">Título (columna izquierda):</label>
-        <input type="text" id="cfgLoginTituloIzquierda" placeholder="Ej. Domina el sistema">
+        <input type="text" id="cfgLoginTituloIzquierda" placeholder="Ej. Domina el sistema" oninput="actualizarPreviewLoginMini()">
         <label>Descripción corta (columna izquierda):</label>
-        <textarea id="cfgLoginSubtituloIzquierda" rows="2" placeholder="Ej. Controla clientes, equipos, órdenes de servicio e inventario desde un solo lugar."></textarea>
+        <textarea id="cfgLoginSubtituloIzquierda" rows="2" placeholder="Ej. Controla clientes, equipos, órdenes de servicio e inventario desde un solo lugar." oninput="actualizarPreviewLoginMini()"></textarea>
         <label style="margin-top:10px;">Título de bienvenida (formulario):</label>
-        <input type="text" id="cfgLoginBienvenidaTitulo" placeholder="Ej. ¡Bienvenido!">
+        <input type="text" id="cfgLoginBienvenidaTitulo" placeholder="Ej. ¡Bienvenido!" oninput="actualizarPreviewLoginMini()">
         <label>Subtítulo de bienvenida (formulario):</label>
-        <input type="text" id="cfgLoginBienvenidaSubtitulo" placeholder="Ej. Por favor inicia sesión">
-        <button class="btn-custom" style="margin-top:12px;" onclick="guardarAparienciaLogin()">Guardar pantalla de login</button>
+        <input type="text" id="cfgLoginBienvenidaSubtitulo" placeholder="Ej. Por favor inicia sesión" oninput="actualizarPreviewLoginMini()">
+        <button class="btn-custom" id="btnGuardarAparienciaLogin" style="margin-top:12px;" onclick="guardarAparienciaLogin()">Guardar pantalla de login</button>
       </div>
       <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
         <h4 style="margin-top:0;font-size:13px;">🧭 Menú Lateral, Barra Superior y Tarjetas</h4>

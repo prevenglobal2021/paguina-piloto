@@ -41,11 +41,11 @@ function cambiarTabConfig(tab, evt){
     document.getElementById('cfgLoginColor1').value = db.config.loginColor1 || '#7c3aed';
     document.getElementById('cfgLoginColor2').value = db.config.loginColor2 || '#4c1d95';
     loginImagenTempBase64 = db.config.loginImagenFondo || null;
-    document.getElementById('previewLoginImagenFondo').style.backgroundImage = db.config.loginImagenFondo ? `url('${db.config.loginImagenFondo}')` : 'none';
     document.getElementById('cfgLoginTituloIzquierda').value = db.config.loginTituloIzquierda || 'Domina el sistema';
     document.getElementById('cfgLoginSubtituloIzquierda').value = db.config.loginSubtituloIzquierda || 'Controla clientes, equipos, órdenes de servicio e inventario desde un solo lugar.';
     document.getElementById('cfgLoginBienvenidaTitulo').value = db.config.loginBienvenidaTitulo || '¡Bienvenido!';
     document.getElementById('cfgLoginBienvenidaSubtitulo').value = db.config.loginBienvenidaSubtitulo || 'Por favor inicia sesión';
+    actualizarPreviewLoginMini();
   }
   if(tab==='etiquetas') renderizarEtiquetas();
   if(tab==='whatsapp') document.getElementById('cfgPlantillaWhatsApp').value = db.config.plantillaWhatsApp;
