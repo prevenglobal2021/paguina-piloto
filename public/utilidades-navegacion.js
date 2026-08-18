@@ -3,6 +3,89 @@
    UTILIDADES DE CONSULTA
 ========================================================= */
 function buscarCliente(id){ return db.clientes.find(c=>c.id===id); }
+/* =========================================================
+   FIRMA TÁCTIL — componente único, reutilizado en:
+   - Firma del técnico y del cliente al cerrar una orden de servicio.
+   - Firma del representante en Configuración de empresa.
+   En celular, en vertical, la caja de firma se GIRA 90° con CSS para dar
+   todo el ancho de la pantalla como espacio de firma. El lienzo (canvas)
+   NO se gira internamente — solo se traduce matemáticamente la posición
+   del dedo/mouse a las coordenadas reales del lienzo, para que el trazo
+   quede exactamente donde se tocó, sin desalinearse por el giro visual.
+========================================================= */
+let firmaTactilContexto = null; // 'tecnico' | 'cliente' | 'representante'
+let firmaTactilCtx = null;
+let firmaTactilRotada = false;
+let firmaTactilDibujando = false;
+let firmaTecnicoTemp = null, firmaClienteTemp = null;
+
+function abrirFirmaTactil(contexto, firmaExistente){
+  firmaTactilContexto = contexto;
+  const titulos = { tecnico:'Firma del Técnico', cliente:'Firma de quien recibe el servicio', representante:'Firma del Representante' };
+  document.getElementById('firmaTactilTitulo').innerText = titulos[contexto] || 'Firma';
+  document.getElementById('firmaTactilOverlay').classList.add('activa');
+  document.body.style.overflow = 'hidden'; // evita que la página se desplace por detrás mientras se firma
+  // Pequeña espera para que el navegador termine de acomodar la caja ya
+  // girada antes de medir su tamaño real — si se mide muy pronto, puede
+  // tomar el tamaño de antes de girar y el lienzo queda mal proporcionado.
+  setTimeout(()=>{
+    const canvas = document.getElementById('firmaTactilCanvas');
+    firmaTactilRotada = window.matchMedia('(max-width:900px) and (orientation:portrait)').matches;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    const ctx = canvas.getContext('2d');
+    firmaTactilCtx = ctx;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(firmaExistente){
+      const img = new Image();
+      img.onload = ()=>ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      img.src = firmaExistente;
+    }
+    activarDibujoFirmaTactil(canvas, ctx);
+  }, 60);
+}
+function activarDibujoFirmaTactil(canvas, ctx){
+  const posicion = e=>{
+    const rect = canvas.getBoundingClientRect();
+    const t = e.touches && e.touches[0];
+    const clientX = t ? t.clientX : e.clientX;
+    const clientY = t ? t.clientY : e.clientY;
+    const dx = clientX - rect.left, dy = clientY - rect.top;
+    // Sin girar: la posición es directa. Girado 90°: la pantalla reporta el
+    // toque en su propio sistema de coordenadas (ya rotado), así que se
+    // traduce de vuelta al sistema del lienzo (fórmula verificada para un
+    // giro de 90°: x_real = distancia_desde_arriba, y_real = alto_del_lienzo - distancia_desde_la_izquierda).
+    return firmaTactilRotada ? { x: dy, y: canvas.height - dx } : { x: dx, y: dy };
+  };
+  const iniciar = e=>{ e.preventDefault(); firmaTactilDibujando=true; ctx.beginPath(); const p=posicion(e); ctx.moveTo(p.x,p.y); };
+  const mover = e=>{ if(!firmaTactilDibujando) return; e.preventDefault(); const p=posicion(e); ctx.lineWidth=2.5; ctx.strokeStyle="#1e293b"; ctx.lineCap='round'; ctx.lineTo(p.x,p.y); ctx.stroke(); };
+  const soltar = ()=>{ firmaTactilDibujando=false; };
+  canvas.onmousedown=iniciar; canvas.onmousemove=mover; canvas.onmouseup=soltar; canvas.onmouseleave=soltar;
+  canvas.ontouchstart=iniciar; canvas.ontouchmove=mover; canvas.ontouchend=soltar; canvas.ontouchcancel=soltar;
+}
+function limpiarFirmaTactil(){
+  const canvas = document.getElementById('firmaTactilCanvas');
+  if(firmaTactilCtx && canvas) firmaTactilCtx.clearRect(0,0,canvas.width,canvas.height);
+}
+function confirmarFirmaTactil(){
+  const canvas = document.getElementById('firmaTactilCanvas');
+  const dataUrl = canvas.toDataURL();
+  if(firmaTactilContexto==='tecnico'){ firmaTecnicoTemp = dataUrl; actualizarPreviewFirmaOrden('tecnico'); }
+  else if(firmaTactilContexto==='cliente'){ firmaClienteTemp = dataUrl; actualizarPreviewFirmaOrden('cliente'); }
+  else if(firmaTactilContexto==='representante'){ firmaTempBase64 = dataUrl; actualizarPreviewFirmaRepresentante(); }
+  cerrarFirmaTactil();
+}
+function cerrarFirmaTactil(){
+  document.getElementById('firmaTactilOverlay').classList.remove('activa');
+  document.body.style.overflow = '';
+}
+function actualizarPreviewFirmaOrden(contexto){
+  const dataUrl = contexto==='tecnico' ? firmaTecnicoTemp : firmaClienteTemp;
+  const img = document.getElementById(contexto==='tecnico' ? 'detPreviewFirmaTecnico' : 'detPreviewFirmaCliente');
+  const placeholder = document.getElementById(contexto==='tecnico' ? 'detPreviewFirmaTecnicoPlaceholder' : 'detPreviewFirmaClientePlaceholder');
+  if(!img) return;
+  if(dataUrl){ img.src = dataUrl; img.style.display='block'; if(placeholder) placeholder.style.display='none'; }
+}
 // Extrae la URL real de una foto sin importar si quedó guardada como texto
 // plano (formato viejo) o como {src, desc} (formato nuevo, con descripción)
 // — así ningún lugar de la plataforma se rompe por el cambio de formato.
