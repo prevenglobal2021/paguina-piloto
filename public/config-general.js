@@ -7,14 +7,17 @@ function manejarLoginImagenUpload(event){
   const file = event.target.files[0];
   if(!file) return;
   const estadoEl = document.getElementById('loginImagenEstado');
+  const inputEl = document.getElementById('cfgLoginImagenInput');
+  const cargandoEl = document.getElementById('loginImagenCargando');
   if(file.size > 10*1024*1024){
     estadoEl.innerText = '⚠️ Esa imagen pesa más de 10MB. Elige una más liviana.';
     estadoEl.style.color = 'var(--red-alert)';
     event.target.value = '';
     return;
   }
-  estadoEl.innerText = 'Procesando imagen (recortando a 1080x1920)...';
-  estadoEl.style.color = 'var(--text-muted)';
+  estadoEl.innerText = '';
+  cargandoEl.style.display = 'flex';
+  inputEl.disabled = true; // evita que se pueda volver a intentar subir mientras se procesa la actual
   const reader = new FileReader();
   reader.onload = e=>{
     fetch(API_BASE + '/api/imagenes/login-fondo', {
@@ -26,18 +29,27 @@ function manejarLoginImagenUpload(event){
       if(!r.ok) throw new Error(data.error || 'No se pudo procesar la imagen.');
       return data;
     }).then(data=>{
+      // Solo se reemplaza la imagen guardada si el procesamiento fue exitoso —
+      // si algo falla, lo que ya estaba configurado antes queda intacto.
       loginImagenTempBase64 = data.imagen;
       document.getElementById('previewLoginImagenFondo').style.backgroundImage = `url('${loginImagenTempBase64}')`;
-      estadoEl.innerText = '✅ Imagen lista (recortada a 1080x1920). Falta guardar los cambios.';
+      estadoEl.innerText = '✅ Imagen lista (recortada a 1080x1920, vista previa arriba). Falta guardar los cambios.';
       estadoEl.style.color = 'var(--exito-verde,#22c55e)';
     }).catch(err=>{
-      estadoEl.innerText = '⚠️ ' + err.message + ' Si tu foto es HEIC (típico de iPhone) o un formato poco común, prueba convirtiéndola a JPG primero.';
+      estadoEl.innerText = '⚠️ ' + err.message;
       estadoEl.style.color = 'var(--red-alert)';
+      inputEl.value = ''; // limpia la selección fallida, para que quede claro que hay que elegir otra
+    }).finally(()=>{
+      cargandoEl.style.display = 'none';
+      inputEl.disabled = false;
     });
   };
   reader.onerror = ()=>{
-    estadoEl.innerText = '⚠️ No se pudo leer el archivo. Intenta de nuevo.';
+    estadoEl.innerText = '⚠️ No se pudo leer el archivo desde tu dispositivo. Intenta de nuevo.';
     estadoEl.style.color = 'var(--red-alert)';
+    cargandoEl.style.display = 'none';
+    inputEl.disabled = false;
+    inputEl.value = '';
   };
   reader.readAsDataURL(file);
 }

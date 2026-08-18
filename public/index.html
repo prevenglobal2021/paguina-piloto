@@ -109,6 +109,8 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .btn-terminar-sesion:hover{background:rgba(239,68,68,.22);}
 .btn-terminar-sesion:hover i{transform:rotate(90deg);}
 @media (max-width:640px){ .btn-terminar-sesion-texto{display:none;} .btn-terminar-sesion{padding:6px;border-radius:50%;} }
+.spinner-imagen-login{width:26px;height:26px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:girar-spinner-login .8s linear infinite;}
+@keyframes girar-spinner-login{to{transform:rotate(360deg);}}
 .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);display:none;justify-content:center;align-items:center;z-index:1000;padding:15px;}
 .modal-box{background:color-mix(in srgb, var(--card-bg) 88%, transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--card-border);width:100%;max-width:980px;max-height:90vh;overflow-y:auto;border-radius:12px;padding:25px;position:relative;color:var(--text-main);box-shadow:0 20px 60px rgba(0,0,0,.4);animation:apareceModal .2s ease;}
 @keyframes apareceModal{from{opacity:0;transform:translateY(8px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
@@ -1609,9 +1611,14 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <div><label>Color secundario:</label><input type="color" id="cfgLoginColor2"></div>
         </div>
         <label>Imagen de fondo (columna izquierda):</label>
-        <p style="font-size:11px;color:var(--text-muted);margin:2px 0 4px;">Recomendado: imagen vertical 1080 x 1920 px (formato 9:16), máx. 10MB. Si subes una con otras medidas, el sistema la recorta y ajusta solo, sin deformarla.</p>
-        <div id="previewLoginImagenFondo" style="width:100%;height:120px;background-size:cover;background-position:center;border-radius:8px;margin:6px 0;border:1px solid var(--card-border);"></div>
-        <input type="file" id="cfgLoginImagenInput" accept="image/*" onchange="manejarLoginImagenUpload(event)">
+        <p style="font-size:11px;color:var(--text-muted);margin:2px 0 4px;">Acepta JPG, PNG, WEBP y HEIC/HEIF (fotos de iPhone) — máx. 10MB. Recomendado: vertical 1080 x 1920 px; cualquier otra medida se recorta y ajusta sola, sin deformarla.</p>
+        <div id="previewLoginImagenFondo" style="width:100%;height:120px;background-size:cover;background-position:center;border-radius:8px;margin:6px 0;border:1px solid var(--card-border);position:relative;overflow:hidden;">
+          <div id="loginImagenCargando" style="display:none;position:absolute;inset:0;background:rgba(15,23,42,.72);flex-direction:column;align-items:center;justify-content:center;gap:8px;">
+            <div class="spinner-imagen-login"></div>
+            <span style="color:#fff;font-size:12px;font-weight:600;">Procesando imagen...</span>
+          </div>
+        </div>
+        <input type="file" id="cfgLoginImagenInput" accept="image/*,.heic,.heif" onchange="manejarLoginImagenUpload(event)">
         <p id="loginImagenEstado" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></p>
         <label style="margin-top:10px;">Título (columna izquierda):</label>
         <input type="text" id="cfgLoginTituloIzquierda" placeholder="Ej. Domina el sistema">

@@ -23,6 +23,7 @@ const crypto = require('crypto');
 const { Pool } = require('pg');
 const rateLimit = require('express-rate-limit');
 const sharp = require('sharp');
+const heicConvert = require('heic-convert');
 const nodemailer = require('nodemailer');
 
 const app = express();
@@ -249,29 +250,62 @@ app.post('/api/tienda/:slug/pedido', limitePublico, async (req, res) => {
    y redimensionada a 1080x1920 (vertical, 9:16), sin dejarlo en
    manos del navegador ni del usuario.
 --------------------------------------------------------- */
+// Recorta/redimensiona a 1080x1920 (vertical), corrigiendo orientación EXIF sola.
+async function recortarParaLogin(buffer){
+  return sharp(buffer, {
+    failOnError: false,          // tolera imágenes con pequeñas imperfecciones en vez de rechazarlas de una
+    limitInputPixels: 400000000, // permite fotos de muy alta resolución (celulares modernos, hasta ~400MP)
+    animated: false,             // si es un formato con varios cuadros, usa solo el primero
+  })
+    .rotate() // corrige sola la orientación según los metadatos EXIF (fotos de celular a veces vienen "giradas")
+    .resize(1080, 1920, { fit: 'cover', position: 'centre' }) // recorte centrado, sin deformar
+    .jpeg({ quality: 88 })
+    .toBuffer();
+}
+
 app.post('/api/imagenes/login-fondo', requireAuth, async (req, res) => {
+  const { imagenBase64 } = req.body || {};
+  if (!imagenBase64) return res.status(400).json({ error: 'No llegó ninguna imagen. Intenta seleccionarla de nuevo.' });
+  const coincide = /^data:(image\/[\w.+-]+);base64,(.+)$/.exec(imagenBase64);
+  if (!coincide) return res.status(400).json({ error: 'Ese archivo no se reconoce como una imagen válida.' });
+
+  let buffer;
   try {
-    const { imagenBase64 } = req.body || {};
-    if (!imagenBase64) return res.status(400).json({ error: 'Falta la imagen.' });
-    const coincide = /^data:(image\/[\w.+-]+);base64,(.+)$/.exec(imagenBase64);
-    if (!coincide) return res.status(400).json({ error: 'No se reconoce el formato de ese archivo como imagen.' });
-    const buffer = Buffer.from(coincide[2], 'base64');
-    if (buffer.length > 10 * 1024 * 1024) {
-      return res.status(400).json({ error: 'La imagen pesa más de 10MB. Usa una más liviana.' });
+    buffer = Buffer.from(coincide[2], 'base64');
+  } catch {
+    return res.status(400).json({ error: 'El archivo llegó dañado durante la subida. Intenta de nuevo.' });
+  }
+  if (!buffer.length) return res.status(400).json({ error: 'El archivo llegó vacío. Intenta seleccionarlo de nuevo.' });
+  if (buffer.length > 10 * 1024 * 1024) {
+    return res.status(400).json({ error: 'La imagen pesa más de 10MB. Usa una más liviana.' });
+  }
+
+  // Paso 1: se intenta directo con sharp (cubre JPG, PNG, WEBP, y algunos HEIC si el
+  // servidor lo soporta de forma nativa).
+  try {
+    const procesada = await recortarParaLogin(buffer);
+    return res.json({ ok: true, imagen: `data:image/jpeg;base64,${procesada.toString('base64')}` });
+  } catch (errSharp) {
+    // Paso 2: si falló, puede ser un HEIC/HEIF que el servidor no decodifica de forma
+    // nativa — se convierte explícitamente a JPG con heic-convert antes de recortar,
+    // en vez de pedirle al usuario que lo convierta él mismo.
+    try {
+      const jpegIntermedio = await heicConvert({ buffer, format: 'JPEG', quality: 0.92 });
+      const procesada = await recortarParaLogin(Buffer.from(jpegIntermedio));
+      return res.json({ ok: true, imagen: `data:image/jpeg;base64,${procesada.toString('base64')}` });
+    } catch (errHeic) {
+      console.error('[login-fondo] sharp:', errSharp.message, '| heic-convert:', errHeic.message);
+      // Mensaje específico según lo que realmente pasó, no uno genérico.
+      let mensaje;
+      if (/premature|truncat|unexpected end/i.test(errSharp.message) || /premature|truncat/i.test(errHeic.message)) {
+        mensaje = 'El archivo parece estar incompleto o dañado (se cortó al subirlo). Intenta seleccionarlo de nuevo.';
+      } else if (/unsupported|no decode|codec|input format/i.test(errSharp.message)) {
+        mensaje = 'Ese formato de imagen no es compatible, ni siquiera con la conversión automática. Prueba con una foto en JPG o PNG.';
+      } else {
+        mensaje = 'No se pudo procesar esa imagen. Prueba con otra foto, o convirtiéndola a JPG con cualquier app de tu celular.';
+      }
+      return res.status(422).json({ error: mensaje });
     }
-    const procesada = await sharp(buffer, {
-      failOnError: false,       // tolera imágenes con pequeñas imperfecciones en vez de rechazarlas de una
-      limitInputPixels: 400000000, // permite fotos de muy alta resolución (celulares modernos, hasta ~400MP)
-      animated: false,          // si es un formato con varios cuadros, usa solo el primero
-    })
-      .rotate() // corrige sola la orientación según los metadatos EXIF (fotos de celular a veces vienen "giradas")
-      .resize(1080, 1920, { fit: 'cover', position: 'centre' }) // recorte centrado, sin deformar
-      .jpeg({ quality: 88 })
-      .toBuffer();
-    res.json({ ok: true, imagen: `data:image/jpeg;base64,${procesada.toString('base64')}` });
-  } catch (err) {
-    console.error('[login-fondo] Error procesando imagen:', err.message);
-    res.status(500).json({ error: 'No se pudo procesar esa imagen — parece estar dañada o ser un formato realmente poco común. Prueba con otra foto, o convirtiéndola a JPG con cualquier app de tu celular.' });
   }
 });
 
