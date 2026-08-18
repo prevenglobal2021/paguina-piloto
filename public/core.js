@@ -576,11 +576,9 @@ function aplicarRBACaUI(){
   });
 }
 
-let ordenActivaId = null, ordenReprogramarId = null;
+let ordenReprogramarId = null;
 let clienteActivoId = null, sedeActivaId = null, plantillaActivaId = null;
 let mesCalendarioActual = new Date();
-let fotosTempCierre = [];
-let fotosCamposTemp = {};
 let logoTempBase64 = null;
 let firmaTempBase64 = null;
 

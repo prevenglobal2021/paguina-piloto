@@ -300,6 +300,26 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .autocomplete-item:last-child{border-bottom:none;}
 .autocomplete-item:hover, .autocomplete-item.resaltado{background:rgba(0,136,255,.15);}
 .autocomplete-item small{display:block;color:var(--text-muted);font-size:11px;margin-top:2px;}
+/* Tarjeta de Orden de Servicio — Control de Órdenes Operativa */
+.orden-card{background:#fff;border:1px solid #e2e8f0;border-left:4px solid #f59e0b;border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.05);transition:box-shadow .15s ease;}
+.orden-card:hover{box-shadow:0 4px 14px rgba(0,0,0,.09);}
+.orden-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.orden-card-numero{font-size:11px;color:#94a3b8;font-weight:700;letter-spacing:.3px;}
+.orden-card-badge{font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;text-transform:uppercase;letter-spacing:.4px;}
+.orden-card-badge.badge-programado{background:#fef3c7;color:#92400e;}
+.orden-card-badge.badge-ejecucion{background:#ede9fe;color:#5b21b6;}
+.orden-card-badge.badge-finalizado{background:#dcfce7;color:#166534;}
+.orden-card-cliente{margin:2px 0 8px;font-size:15px;color:#1e293b;font-weight:700;}
+.orden-card-datos{display:flex;flex-wrap:wrap;gap:9px 16px;margin-bottom:12px;font-size:12px;color:#64748b;}
+.orden-card-datos i{width:14px;color:#94a3b8;margin-right:4px;}
+.orden-card-acciones{display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid #f1f5f9;padding-top:12px;}
+.btn-orden-accion{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:7px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s ease;font-family:inherit;}
+.btn-orden-principal{background:#2563eb;color:#fff;}
+.btn-orden-principal:hover{background:#1d4ed8;}
+.btn-orden-secundaria{background:#f1f5f9;color:#334155;}
+.btn-orden-secundaria:hover{background:#e2e8f0;}
+.btn-orden-peligro{background:#fef2f2;color:#b91c1c;}
+.btn-orden-peligro:hover{background:#fee2e2;}
 .tema-claro-opcion{border:2px solid var(--card-border);border-radius:10px;padding:8px;cursor:pointer;text-align:center;transition:border-color .15s ease, transform .1s ease;background:rgba(0,0,0,.15);}
 .tema-claro-opcion:hover{transform:translateY(-2px);}
 .tema-claro-opcion.seleccionado{border-color:var(--blue-accent);box-shadow:0 0 0 2px color-mix(in srgb, var(--blue-accent) 30%, transparent);}
@@ -1192,39 +1212,6 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 </div>
 
 <!-- MODAL: CIERRE DE SERVICIO -->
-<div class="modal-overlay" id="modalEvidencias">
-  <div class="modal-box">
-    <button class="close-modal" onclick="cerrarModal('modalEvidencias')">✖</button>
-    <h3>📷 Cierre de Servicio</h3>
-    <p id="lblOrdenActivaCierre" style="font-size:12px;color:var(--text-muted);"></p>
-    <label>Diagnóstico / observaciones generales:</label>
-    <textarea id="cierreDiagnostico" rows="2" placeholder="Detalle técnico de la actividad realizada..."></textarea>
-    <div id="contenedorCamposDinamicos" style="margin-top:10px;border-top:1px dashed var(--card-border);padding-top:10px;"></div>
-
-    <label>Fotos de evidencia:</label>
-    <input type="file" id="inputFotosCierre" accept="image/*" multiple onchange="manejarFotosCierre(event)">
-    <div class="fotos-grid" id="previewFotosCierre"></div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:10px;">
-      <div>
-        <label>Firma del Técnico:</label>
-        <canvas class="signature-pad" id="canvasFirmaTecnico"></canvas>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom" style="margin-top:4px;" onclick="limpiarFirma('canvasFirmaTecnico')">Limpiar</button>
-      </div>
-      <div>
-        <label>Firma del Cliente:</label>
-        <canvas class="signature-pad" id="canvasFirmaCliente"></canvas>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom" style="margin-top:4px;" onclick="limpiarFirma('canvasFirmaCliente')">Limpiar</button>
-      </div>
-    </div>
-
-    <div style="margin-top:15px;text-align:right;">
-      <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalEvidencias')">Cancelar</button>
-      <button class="btn-custom" onclick="guardarCierre()">Guardar Cierre</button>
-    </div>
-  </div>
-</div>
-
 <!-- MODAL: DETALLE / EDICIÓN DE ORDEN (desde el Calendario) -->
 <div class="modal-overlay" id="modalDetalleOrden">
   <div class="modal-box">

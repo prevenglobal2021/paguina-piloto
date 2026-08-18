@@ -1,69 +1,10 @@
 // ===== ordenes.js — extraído de prevenglobal__25_.html (líneas 2524-2919) =====
 /* =========================================================
-   CIERRE DE SERVICIO (plantilla + fotos + doble firma)
+   CIERRE DE SERVICIO — unificado dentro del flujo de "Ver / Cerrar Orden"
+   (ver verDetalleOrden / guardarDetalleOrden más abajo). Antes existía un
+   flujo aparte ("Registrar Cierre") que pedía casi los mismos datos que
+   éste — se quitó para no duplicar el formulario ni la información.
 ========================================================= */
-function iniciarCierre(ordenId){
-  ordenActivaId = ordenId;
-  fotosTempCierre = [];
-  const o = db.ordenes.find(x=>x.id===ordenId);
-  const equipo = buscarEquipo(o.clienteId, o.sedeId, o.equipoId);
-  document.getElementById('lblOrdenActivaCierre').innerText = `${o.numero} · ${nombreClienteOrden(o)}${o.esClienteNuevo?' (Cliente nuevo)':''} · ${equipo?equipo.nombre:''}`;
-  document.getElementById('cierreDiagnostico').value = '';
-  document.getElementById('previewFotosCierre').innerHTML = '';
-  renderizarFormularioDinamico(o.plantillaId);
-  abrirModal('modalEvidencias');
-  setTimeout(()=>{ inicializarCanvasFirma('canvasFirmaTecnico'); inicializarCanvasFirma('canvasFirmaCliente'); }, 50);
-}
-function renderizarFormularioDinamico(plantillaId){
-  const cont = document.getElementById('contenedorCamposDinamicos');
-  cont.innerHTML = '';
-  fotosCamposTemp = {};
-  const plantilla = buscarPlantilla(plantillaId);
-  if(!plantilla || plantilla.campos.length===0){ cont.innerHTML = '<p style="font-size:11px;color:var(--text-muted);">Esta orden no tiene plantilla de formulario asignada.</p>'; return; }
-  plantilla.campos.forEach(campo=>{
-    if(campo.tipo==='checklist'){
-      const itemsHtml = (campo.items||[]).map(item=>`
-        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
-          <input type="checkbox" data-campo="${campo.id}" data-item="${item.id}" style="width:auto;margin:0;">
-          <span style="font-size:12px;">${item.texto}</span>
-        </div>`).join('');
-      cont.innerHTML += `<div style="margin-top:10px;border-top:1px dashed var(--card-border);padding-top:8px;"><label>${campo.label}:</label>${itemsHtml}</div>`;
-    } else if(campo.tipo==='foto'){
-      fotosCamposTemp[campo.id] = [];
-      cont.innerHTML += `<div style="margin-top:10px;border-top:1px dashed var(--card-border);padding-top:8px;">
-        <label>${campo.label}:</label>
-        <input type="file" accept="image/*" multiple onchange="manejarFotoCampo(event, ${campo.id})">
-        <div class="fotos-grid" id="previewFotoCampo${campo.id}"></div>
-      </div>`;
-    } else {
-      let inputHtml;
-      if(campo.tipo==='textarea') inputHtml = `<textarea rows="2" data-campo="${campo.id}"></textarea>`;
-      else if(campo.tipo==='checkbox') inputHtml = `<select data-campo="${campo.id}"><option value="Sí">Sí</option><option value="No">No</option></select>`;
-      else inputHtml = `<input type="${campo.tipo}" data-campo="${campo.id}">`;
-      cont.innerHTML += `<div style="margin-top:8px;"><label>${campo.label}:</label>${inputHtml}</div>`;
-    }
-  });
-}
-function manejarFotoCampo(event, campoId){
-  const files = Array.from(event.target.files);
-  if(!fotosCamposTemp[campoId]) fotosCamposTemp[campoId] = [];
-  files.forEach(file=>{
-    comprimirImagen(file).then(dataUrl=>{ fotosCamposTemp[campoId].push(dataUrl); renderizarFotoCampoPreview(campoId); });
-  });
-  event.target.value = '';
-}
-function renderizarFotoCampoPreview(campoId){
-  const cont = document.getElementById('previewFotoCampo'+campoId);
-  if(!cont) return;
-  cont.innerHTML = (fotosCamposTemp[campoId]||[]).map((f,idx)=>`
-    <div class="foto-thumb"><img src="${f}"><button onclick="eliminarFotoCampoTemp(${campoId},${idx})">✖</button></div>
-  `).join('');
-}
-function eliminarFotoCampoTemp(campoId, idx){
-  fotosCamposTemp[campoId].splice(idx,1);
-  renderizarFotoCampoPreview(campoId);
-}
-
 /* --- Compresión automática de imágenes (antes de guardar en la BD) --- */
 function comprimirImagen(file, maxDim, calidad){
   maxDim = maxDim || 1280; calidad = calidad || 0.7;
@@ -111,24 +52,6 @@ function normalizarFotosEvidencia(fotos){
   // Compatibilidad: órdenes guardadas antes de esta función tenían las fotos como texto plano (solo la imagen, sin descripción).
   return (fotos||[]).map(f => (typeof f === 'string') ? { src:f, desc:'' } : { src:f.src, desc:f.desc||'' });
 }
-function manejarFotosCierre(event){
-  const files = Array.from(event.target.files);
-  if(files.length===0) return;
-  files.forEach(file=>{
-    comprimirImagen(file).then(dataUrl=>{ fotosTempCierre.push({ src:dataUrl, desc:'' }); renderizarFotosPreview(); });
-  });
-  event.target.value = '';
-}
-function renderizarFotosPreview(){
-  const cont = document.getElementById('previewFotosCierre');
-  cont.innerHTML = fotosTempCierre.map((f,idx)=>`
-    <div class="foto-thumb foto-thumb-con-desc"><img src="${f.src}"><button onclick="eliminarFotoTemp(${idx})">✖</button>
-      <input type="text" class="foto-desc-input" placeholder="Descripción (opcional)" value="${(f.desc||'').replace(/"/g,'&quot;')}" oninput="fotosTempCierre[${idx}].desc=this.value">
-    </div>
-  `).join('');
-}
-function eliminarFotoTemp(idx){ fotosTempCierre.splice(idx,1); renderizarFotosPreview(); }
-
 /* --- Firmas (técnico + cliente) --- */
 let canvasCtxs = {}; let dibujandoCanvas = null;
 function activarDibujoCanvas(canvas, ctx, id){
@@ -145,46 +68,9 @@ function activarDibujoCanvas(canvas, ctx, id){
   // Táctil (celular/tablet): antes solo funcionaba con mouse, no respondía al dedo.
   canvas.ontouchstart = iniciar; canvas.ontouchmove = mover; canvas.ontouchend = soltar; canvas.ontouchcancel = soltar;
 }
-function inicializarCanvasFirma(id){
-  const canvas = document.getElementById(id);
-  if(!canvas) return;
-  canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
-  const ctx = canvas.getContext('2d');
-  canvasCtxs[id] = ctx;
-  activarDibujoCanvas(canvas, ctx, id);
-}
 function limpiarFirma(id){ const ctx=canvasCtxs[id]; const canvas=document.getElementById(id); if(ctx&&canvas) ctx.clearRect(0,0,canvas.width,canvas.height); }
 
-function guardarCierre(){
-  const o = db.ordenes.find(x=>x.id===ordenActivaId);
-  if(!o) return;
-  const respuestas = {};
-  document.querySelectorAll('#contenedorCamposDinamicos [data-campo]').forEach(el=>{
-    if(el.dataset.item){
-      if(!respuestas[el.dataset.campo]) respuestas[el.dataset.campo] = {};
-      respuestas[el.dataset.campo][el.dataset.item] = el.checked;
-    } else {
-      respuestas[el.dataset.campo] = el.value;
-    }
-  });
-  const canvasTec = document.getElementById('canvasFirmaTecnico');
-  const canvasCli = document.getElementById('canvasFirmaCliente');
-  o.cierre = {
-    fecha: new Date().toISOString().slice(0,10),
-    diagnostico: document.getElementById('cierreDiagnostico').value,
-    respuestas,
-    fotos: fotosTempCierre.slice(),
-    fotosPorCampo: JSON.parse(JSON.stringify(fotosCamposTemp)),
-    firmaTecnico: canvasTec ? canvasTec.toDataURL() : null,
-    firmaCliente: canvasCli ? canvasCli.toDataURL() : null
-  };
-  o.estado = 'Finalizado';
-  dbGuardar();
-  registrarLog('Registrar cierre', 'OrdenServicio', `${o.numero} finalizada por ${nombreUsuarioActual()}`);
-  cerrarModal('modalEvidencias');
-  mostrarToast('Cierre registrado en la base de datos.');
-  renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
-}
+
 
 /* =========================================================
    DETALLE / EDICIÓN DE ORDEN DESDE EL CALENDARIO
@@ -244,7 +130,15 @@ function verDetalleOrden(ordenId){
   renderizarFotosDetallePreview();
   renderizarFormularioDinamicoDetalle(o.plantillaId, (o.cierre && o.cierre.respuestas) || {}, (o.cierre && o.cierre.fotosPorCampo) || {});
 
-  const camposEditables = ['detCliente','detEquipo','detTecnico','detTipo','detPrioridad','detFecha','detHora','detEstado','detPlantilla','detDiagnostico','detInputFotos'];
+  // Los datos de la orden (cliente, equipo, técnico asignado, tipo, plantilla, etc.)
+  // solo los puede cambiar quien tenga permiso de "Editar orden completa" — pero
+  // cerrar la orden (llenar el formulario, fotos, firmas y finalizar) sigue
+  // disponible para cualquier técnico con la orden asignada, sin ese permiso,
+  // igual que ya funcionaba con el botón "Registrar Cierre" que se unificó aquí.
+  const puedeEditarMetadata = !finalizada && (esAdmin() || tienePermiso('ordenes_editar'));
+  const camposMetadata = ['detCliente','detEquipo','detTecnico','detTipo','detPrioridad','detFecha','detHora','detEstado','detPlantilla'];
+  camposMetadata.forEach(id=>{ const el=document.getElementById(id); if(el) el.disabled = !puedeEditarMetadata; });
+  const camposEditables = ['detDiagnostico','detInputFotos'];
   camposEditables.forEach(id=>{ const el=document.getElementById(id); if(el) el.disabled = finalizada; });
   document.querySelectorAll('#detCamposDinamicos [data-campo]').forEach(el=>el.disabled = finalizada);
   document.querySelectorAll('#detPreviewFotos button, [id^="detPreviewFotoCampo"] button').forEach(b=>b.style.display = finalizada ? 'none' : '');

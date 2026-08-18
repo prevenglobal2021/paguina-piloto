@@ -185,22 +185,30 @@ function renderizarAgenda(){
   ordenesVisibles.slice().reverse().forEach(o=>{
     const sede = buscarSede(o.clienteId, o.sedeId);
     const equipo = buscarEquipo(o.clienteId, o.sedeId, o.equipoId);
-    const colorBorde = o.estado==='Finalizado' ? 'var(--green-success)' : (o.estado==='En Ejecución' ? 'var(--purple-info)' : 'var(--orange-warning)');
+    const claseEstado = o.estado==='Finalizado' ? 'finalizado' : (o.estado==='En Ejecución' ? 'ejecucion' : 'programado');
+    const colorBorde = o.estado==='Finalizado' ? '#22c55e' : (o.estado==='En Ejecución' ? '#8b5cf6' : '#f59e0b');
     const lineaSedeEquipo = o.esClienteNuevo
-      ? `Dirección: ${o.clienteNuevoDireccion || '—'}`
-      : `Sede: ${sede?sede.nombre:'—'}<br>Equipo: ${equipo?equipo.nombre:'—'}`;
+      ? `<span><i class="fas fa-map-marker-alt"></i> ${o.clienteNuevoDireccion || '—'}</span>`
+      : `<span><i class="fas fa-building"></i> ${sede?sede.nombre:'—'}</span><span><i class="fas fa-snowflake"></i> ${equipo?equipo.nombre:'—'}</span>`;
     cont.innerHTML += `
-      <div style="background:rgba(0,0,0,.2);padding:15px;border-radius:8px;border-left:4px solid ${colorBorde};">
-        ${badgeEstado(o.estado)}
-        <h5 style="margin:8px 0 2px 0;font-size:14px;">${o.numero} · ${nombreClienteOrden(o)}${etiquetaClienteNuevoHtml(o)}</h5>
-        <p style="margin:0;font-size:12px;color:var(--text-muted);">${lineaSedeEquipo}<br>Tipo: ${o.tipo} · Prioridad: ${o.prioridad}<br>Fecha: ${o.fechaProgramada||'Sin definir'}${o.horaProgramada?` · Hora: ${o.horaProgramada}`:''}</p>
-        <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
-          ${o.estado!=='Finalizado' ? `<button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="iniciarCierre(${o.id})">Registrar Cierre</button>` : ''}
-          ${o.estado!=='Finalizado' ? `<button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="ordenes_editar" onclick="verDetalleOrden(${o.id})"><i class="fas fa-pen"></i> Editar</button>` : ''}
-          <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="ordenes_reprogramar" onclick="abrirReprogramar(${o.id})">Reprogramar</button>
-          ${o.cierre ? `<button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verPDF(${o.id})">Ver Documento</button>` : ''}
-          ${o.estado==='Finalizado' ? `<button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="ordenes_editar_finalizadas" onclick="editarOrdenFinalizada(${o.id})"><i class="fas fa-unlock"></i> Editar</button>` : ''}
-          <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" data-permiso="ordenes_eliminar" onclick="eliminarOrden(${o.id})">Eliminar</button>
+      <div class="orden-card" style="border-left-color:${colorBorde};">
+        <div class="orden-card-top">
+          <span class="orden-card-badge badge-${claseEstado}">${o.estado}</span>
+          <span class="orden-card-numero">${o.numero}</span>
+        </div>
+        <h5 class="orden-card-cliente">${nombreClienteOrden(o)}${etiquetaClienteNuevoHtml(o)}</h5>
+        <div class="orden-card-datos">
+          ${lineaSedeEquipo}
+          <span><i class="fas fa-wrench"></i> ${o.tipo}</span>
+          <span><i class="fas fa-flag"></i> ${o.prioridad}</span>
+          <span><i class="fas fa-calendar-day"></i> ${o.fechaProgramada||'Sin definir'}${o.horaProgramada?` · ${o.horaProgramada}`:''}</span>
+        </div>
+        <div class="orden-card-acciones">
+          ${o.estado!=='Finalizado' ? `<button class="btn-orden-accion btn-orden-principal" onclick="verDetalleOrden(${o.id})"><i class="fas fa-clipboard-check"></i> Ver / Cerrar Orden</button>` : ''}
+          <button class="btn-orden-accion btn-orden-secundaria solo-admin" data-permiso="ordenes_reprogramar" onclick="abrirReprogramar(${o.id})"><i class="fas fa-calendar-alt"></i> Reprogramar</button>
+          ${o.cierre ? `<button class="btn-orden-accion btn-orden-secundaria" onclick="verPDF(${o.id})"><i class="fas fa-file-pdf"></i> Documento</button>` : ''}
+          ${o.estado==='Finalizado' ? `<button class="btn-orden-accion btn-orden-secundaria solo-admin" data-permiso="ordenes_editar_finalizadas" onclick="editarOrdenFinalizada(${o.id})"><i class="fas fa-unlock"></i> Editar</button>` : ''}
+          <button class="btn-orden-accion btn-orden-peligro solo-admin" data-permiso="ordenes_eliminar" onclick="eliminarOrden(${o.id})"><i class="fas fa-trash"></i> Eliminar</button>
         </div>
       </div>`;
   });
