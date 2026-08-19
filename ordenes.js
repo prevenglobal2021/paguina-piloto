@@ -197,7 +197,14 @@ function manejarFotoCampoDetalle(event, campoId){
   event.target.value='';
 }
 function renderizarFotoCampoDetallePreview(campoId){
-  renderizarGaleriaFotos('detPreviewFotoCampo'+campoId, fotosCamposDetalleTemp[campoId], 'ordenCampo', campoId);
+  // El tamaño de bloque es el que se definió al diseñar la plantilla para
+  // este campo puntual (Configuración → Plantillas de Formularios) — se
+  // busca aquí para que se respete sin importar desde dónde se llame esta
+  // función (al abrir la orden, al subir una foto nueva, al quitar una, etc.).
+  const o = db.ordenes.find(x=>x.id===ordenDetalleId);
+  const plantilla = o ? buscarPlantilla(o.plantillaId) : null;
+  const campo = plantilla ? plantilla.campos.find(c=>c.id===campoId) : null;
+  renderizarGaleriaFotos('detPreviewFotoCampo'+campoId, fotosCamposDetalleTemp[campoId], 'ordenCampo', campoId, campo ? campo.bloqueImagenes : null);
 }
 function manejarFotosDetalle(event){
   const files = Array.from(event.target.files);

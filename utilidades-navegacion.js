@@ -127,19 +127,46 @@ function normalizarGaleria(fotos){
    clientes, equipos, órdenes). Cuadrícula uniforme (recortada sin
    deformar) con un campo de descripción corta debajo de cada foto.
 ========================================================= */
-function renderizarGaleriaFotos(contenedorId, fotos, contexto, campoId){
+function renderizarGaleriaFotos(contenedorId, fotos, contexto, campoId, tamanoBloque){
   const cont = document.getElementById(contenedorId);
   if(!cont) return;
   const lista = normalizarGaleria(fotos);
   const sufijoCampo = campoId!==undefined ? ',' + campoId : '';
-  cont.innerHTML = lista.map((f,idx)=>`
+  // El marcado de UNA foto (marco + botón de quitar + descripción) es el mismo
+  // sin importar si se muestra suelta o agrupada en un bloque — así el
+  // componente sigue siendo uno solo, reutilizado en todos lados.
+  const itemHtml = (f, idx) => `
     <div class="galeria-foto-item">
       <div class="galeria-foto-marco">
         <img src="${f.src}">
         <button type="button" class="galeria-foto-quitar" onclick="eliminarFotoGaleria('${contexto}',${idx}${sufijoCampo})">✖</button>
       </div>
       <input type="text" class="galeria-foto-desc" placeholder="Descripción (opcional)" value="${(f.desc||'').replace(/"/g,'&quot;')}" oninput="actualizarDescripcionGaleria('${contexto}',${idx},this.value${sufijoCampo})">
-    </div>`).join('');
+    </div>`;
+
+  if(!tamanoBloque || tamanoBloque < 1){
+    // Sin agrupar: igual que siempre, una sola cuadrícula continua.
+    cont.classList.remove('galeria-por-bloques');
+    cont.innerHTML = lista.map(itemHtml).join('');
+    return;
+  }
+
+  // Agrupado en bloques (definido al diseñar la plantilla, campo por campo):
+  // cada bloque es su propia mini-cuadrícula con etiqueta ("Bloque 1", "Bloque
+  // 2"...), usando el MISMO marcado por foto de arriba — solo cambia cómo se
+  // reparten entre sub-contenedores.
+  cont.classList.add('galeria-por-bloques');
+  let html = '';
+  for(let inicio=0; inicio<lista.length; inicio+=tamanoBloque){
+    const numeroBloque = Math.floor(inicio/tamanoBloque) + 1;
+    const trozo = lista.slice(inicio, inicio+tamanoBloque);
+    const itemsHtml = trozo.map((f,i)=>itemHtml(f, inicio+i)).join('');
+    html += `<div class="galeria-bloque">
+      <div class="galeria-bloque-titulo">Bloque ${numeroBloque} <span style="font-weight:400;text-transform:none;">(${trozo.length}/${tamanoBloque})</span></div>
+      <div class="galeria-fotos">${itemsHtml}</div>
+    </div>`;
+  }
+  cont.innerHTML = html || '';
 }
 function obtenerArregloGaleria(contexto, campoId){
   if(contexto==='inventario') return fotosInventarioTemp;

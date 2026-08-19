@@ -20,8 +20,25 @@ function verPDF(ordenId){
         const itemsHtml = (campo.items||[]).map(it=>`<div style="font-size:12px;">${resp[it.id]?'☑':'☐'} ${it.texto}</div>`).join('');
         camposEspecialesHtml += `<div class="pdf-box"><h4>${campo.label}</h4>${itemsHtml}</div>`;
       } else if(campo.tipo==='foto'){
-        const fotosCampo = (o.cierre.fotosPorCampo && o.cierre.fotosPorCampo[campo.id]) || [];
-        if(fotosCampo.length) camposEspecialesHtml += `<div class="pdf-box"><h4>${campo.label}</h4><div class="pdf-fotos">${fotosCampo.map(f=>`<img src="${f}">`).join('')}</div></div>`;
+        const fotosCampo = normalizarFotosEvidencia((o.cierre.fotosPorCampo && o.cierre.fotosPorCampo[campo.id]) || []);
+        if(fotosCampo.length){
+          const figura = f => f.desc ? `<figure><img src="${f.src}"><figcaption>${f.desc}</figcaption></figure>` : `<img src="${f.src}">`;
+          let contenidoFotos;
+          if(campo.bloqueImagenes){
+            // Mismo agrupado en bloques que se definió al diseñar la plantilla,
+            // para que el documento final se vea igual de organizado que en pantalla.
+            let bloques = '';
+            for(let inicio=0; inicio<fotosCampo.length; inicio+=campo.bloqueImagenes){
+              const numeroBloque = Math.floor(inicio/campo.bloqueImagenes) + 1;
+              const trozo = fotosCampo.slice(inicio, inicio+campo.bloqueImagenes);
+              bloques += `<p style="font-size:10px;color:#64748b;margin:8px 0 4px;font-weight:700;">BLOQUE ${numeroBloque}</p><div class="pdf-fotos">${trozo.map(figura).join('')}</div>`;
+            }
+            contenidoFotos = bloques;
+          } else {
+            contenidoFotos = `<div class="pdf-fotos">${fotosCampo.map(figura).join('')}</div>`;
+          }
+          camposEspecialesHtml += `<div class="pdf-box"><h4>${campo.label}</h4>${contenidoFotos}</div>`;
+        }
       } else {
         const vacio = respuesta===undefined || respuesta===null || String(respuesta).trim()==='';
         if(!vacio) camposSimplesHtml += `<tr><td style="width:45%;">${campo.label}</td><td>${respuesta}</td></tr>`;

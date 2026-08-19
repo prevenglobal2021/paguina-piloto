@@ -329,6 +329,14 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .galeria-foto-quitar{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;border:none;font-size:10px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
 .galeria-foto-quitar:hover{background:var(--red-alert);}
 .galeria-foto-desc{width:100%;margin-top:5px;font-size:11px;padding:5px 6px;box-sizing:border-box;}
+/* Agrupación en bloques (configurable al diseñar la plantilla): el contenedor
+   pasa de cuadrícula continua a una columna de bloques apilados, y cada
+   bloque usa por dentro la MISMA cuadrícula de siempre, solo que acotada a
+   las fotos de ese bloque. */
+.galeria-fotos.galeria-por-bloques{display:flex;flex-direction:column;gap:12px;}
+.galeria-bloque{background:rgba(0,0,0,.12);border:1px solid var(--card-border);border-radius:8px;padding:10px;}
+.galeria-bloque-titulo{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;}
+.galeria-bloque .galeria-fotos{margin-top:0;}
 /* ===== FIRMA TÁCTIL — pantalla completa, con rotación a horizontal en celular ===== */
 .firma-tactil-overlay{display:none;position:fixed;inset:0;background:#0f172a;z-index:6000;touch-action:none;}
 .firma-tactil-overlay.activa{display:block;}
@@ -1587,6 +1595,15 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         </div>
         <div id="wrapperCampoItems" style="display:none;">
           <input type="text" id="cfgCampoItems" placeholder="Ítems separados por coma (Ej. Compresor, Ventilador, Termostato, Fugas)">
+        </div>
+        <div id="wrapperCampoBloqueImagenes" style="display:none;">
+          <label>Agrupar las fotos de este campo en bloques de:</label>
+          <select id="cfgCampoBloqueImagenes">
+            <option value="">Sin agrupar (todas juntas)</option>
+            <option value="2">Bloques de 2</option>
+            <option value="3">Bloques de 3</option>
+            <option value="4">Bloques de 4</option>
+          </select>
         </div>
         <table class="data-table"><thead><tr><th>Etiqueta</th><th>Tipo</th><th>Acción</th></tr></thead><tbody id="tablaConfigCamposBody"></tbody></table>
       </div>
