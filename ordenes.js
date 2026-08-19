@@ -193,7 +193,7 @@ function renderizarFormularioDinamicoDetalle(plantillaId, respuestasExistentes, 
 function manejarFotoCampoDetalle(event, campoId){
   const files = Array.from(event.target.files);
   if(!fotosCamposDetalleTemp[campoId]) fotosCamposDetalleTemp[campoId] = [];
-  files.forEach(file=>{ comprimirImagen(file).then(dataUrl=>{ fotosCamposDetalleTemp[campoId].push({ src:dataUrl, desc:'' }); renderizarFotoCampoDetallePreview(campoId); }); });
+  files.forEach(file=>{ comprimirImagen(file, 1000, 0.62).then(dataUrl=>{ fotosCamposDetalleTemp[campoId].push({ src:dataUrl, desc:'' }); renderizarFotoCampoDetallePreview(campoId); }); });
   event.target.value='';
 }
 function renderizarFotoCampoDetallePreview(campoId){
@@ -201,7 +201,7 @@ function renderizarFotoCampoDetallePreview(campoId){
 }
 function manejarFotosDetalle(event){
   const files = Array.from(event.target.files);
-  files.forEach(file=>{ comprimirImagen(file).then(dataUrl=>{ fotosDetalleTemp.push({ src:dataUrl, desc:'' }); renderizarFotosDetallePreview(); }); });
+  files.forEach(file=>{ comprimirImagen(file, 1000, 0.62).then(dataUrl=>{ fotosDetalleTemp.push({ src:dataUrl, desc:'' }); renderizarFotosDetallePreview(); }); });
   event.target.value='';
 }
 function renderizarFotosDetallePreview(){

@@ -220,7 +220,7 @@ async function enviarEstadoAlServidor(){
     method: 'PUT',
     headers: headersAutenticados({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(db)
-  }, 45);
+  }, 70);
   if(!resp.ok){
     // Antes esto no se verificaba: un 413 (payload muy grande, típico con fotos sin
     // comprimir de celular) o un 500 pasaban como "enviado" sin serlo, en silencio.
