@@ -39,7 +39,15 @@ process.on('unhandledRejection', (err) => {
 });
 app.use(cors());
 app.use(express.json({ limit: '80mb' })); // las fotos van como base64 y pueden pesar
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  // Sin esto, algunos navegadores (sobre todo en celular) pueden quedarse con una
+  // copia vieja en caché de los .js/.html incluso después de subir una versión
+  // nueva al repositorio — dando la sensación de que "el código no cambió" cuando
+  // en realidad sí cambió, solo que el navegador nunca fue a buscar la copia nueva.
+  // setHeaders obliga a revalidar con el servidor en cada carga, sin desactivar el
+  // caché del todo (los archivos que no cambiaron responden con 304, rápido igual).
+  setHeaders: (res) => { res.setHeader('Cache-Control', 'no-cache'); }
+}));
 
 // La mayoría de los hostings con Postgres administrado (Railway, un VPS con
 // Postgres propio detrás de un proxy, DigitalOcean, etc.) requieren SSL;
@@ -464,15 +472,29 @@ app.get('/api/state', requireAuth, async (req, res) => {
 });
 
 app.put('/api/state', requireAuth, async (req, res) => {
+  // --- Registro temporal de diagnóstico: se puede quitar más adelante,
+  // pero por ahora ayuda a ver EXACTAMENTE qué está pasando con cada
+  // guardado (tamaño recibido, cantidad de órdenes/fotos, y el resultado). ---
+  const inicio = Date.now();
   try {
     const anterior = await leerEstadoEmpresa(req.slug);
     if (!anterior) return res.status(404).json({ error: 'Empresa no encontrada.' });
     const nuevo = req.body || {};
+    const pesoKB = Math.round(JSON.stringify(nuevo).length / 1024);
+    const cantidadOrdenes = (nuevo.ordenes || []).length;
+    console.log(`[guardar-state] recibido: ${pesoKB} KB, ${cantidadOrdenes} órdenes, empresa=${req.slug}`);
 
     const tecnicosFusionados = (nuevo.tecnicos || []).map(t => {
       const previo = (anterior.tecnicos || []).find(x => x.id === t.id);
       const passwordHash = t.password ? hashPassword(t.password) : (previo ? previo.passwordHash : null);
-      return { id: t.id, nombre: t.nombre, telefono: t.telefono, usuario: t.usuario, passwordHash };
+      // Antes, esta reconstrucción solo conservaba id/nombre/telefono/usuario/
+      // passwordHash — cualquier otro campo (activo, rol, accesoTotal, permisos)
+      // se perdía en SILENCIO cada vez que se guardaba CUALQUIER cosa en la
+      // plataforma, no solo al editar Personal. Ahora se conserva todo lo que
+      // ya traía el registro, y solo se actualiza lo que de verdad cambió.
+      const fusionado = Object.assign({}, previo, t, { passwordHash });
+      delete fusionado.password; // nunca debe quedar la clave en texto plano guardada
+      return fusionado;
     });
 
     const configNuevo = Object.assign({}, anterior.config, nuevo.config || {});
@@ -482,10 +504,11 @@ app.put('/api/state', requireAuth, async (req, res) => {
 
     const estadoFinal = Object.assign({}, nuevo, { tecnicos: tecnicosFusionados, config: configNuevo });
     await guardarEstadoEmpresa(req.slug, estadoFinal);
+    console.log(`[guardar-state] OK en ${Date.now()-inicio}ms — empresa=${req.slug}`);
     res.json({ ok: true });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ ok: false, error: err.message });
+    console.error(`[guardar-state] FALLÓ tras ${Date.now()-inicio}ms — empresa=${req.slug}:`, err);
+    res.status(500).json({ ok: false, error: err.message || 'Error desconocido al guardar.' });
   }
 });
 
@@ -512,6 +535,16 @@ async function bootstrapEmpresaInicial() {
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Red de seguridad final: si algo revienta ANTES de llegar a la función de
+// guardado correspondiente (por ejemplo, al leer el cuerpo de una petición
+// muy pesada), esto lo atrapa, lo deja registrado con detalle, y le devuelve
+// al usuario un mensaje real en vez de dejarlo sin ninguna respuesta.
+app.use((err, req, res, next) => {
+  console.error(`[error-no-atrapado] ${req.method} ${req.originalUrl}:`, err);
+  if (res.headersSent) return next(err);
+  res.status(err.status || 500).json({ ok: false, error: err.message || 'Error inesperado en el servidor.' });
 });
 
 const PORT = process.env.PORT || 8080;

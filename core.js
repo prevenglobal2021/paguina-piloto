@@ -224,9 +224,14 @@ async function enviarEstadoAlServidor(){
   if(!resp.ok){
     // Antes esto no se verificaba: un 413 (payload muy grande, típico con fotos sin
     // comprimir de celular) o un 500 pasaban como "enviado" sin serlo, en silencio.
+    // Ahora también se lee el detalle real que devuelve el servidor (antes se
+    // ignoraba, y solo se mostraba un código genérico sin explicar qué pasó).
     let detalle = '';
-    if(resp.status === 413) detalle = 'La información es demasiado pesada (posiblemente una foto sin comprimir).';
-    else if(resp.status === 401) detalle = 'Tu sesión expiró, vuelve a iniciar sesión.';
+    try{ const cuerpo = await resp.json(); if(cuerpo && cuerpo.error) detalle = cuerpo.error; }catch(e){ /* la respuesta no traía detalle en JSON */ }
+    if(!detalle){
+      if(resp.status === 413) detalle = 'La información es demasiado pesada (posiblemente una foto sin comprimir).';
+      else if(resp.status === 401) detalle = 'Tu sesión expiró, vuelve a iniciar sesión.';
+    }
     throw new Error(`El servidor rechazó el guardado (código ${resp.status}). ${detalle}`);
   }
   syncEstado = 'ok';
