@@ -320,6 +320,13 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .btn-orden-secundaria:hover{background:#e2e8f0;}
 .btn-orden-peligro{background:#fef2f2;color:#b91c1c;}
 .btn-orden-peligro:hover{background:#fee2e2;}
+/* Secciones de formulario modernas — usado en Nueva Orden de Servicio */
+.form-seccion{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:14px;}
+.form-seccion-titulo{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
+.form-seccion-titulo i{color:#2563eb;}
+.toggle-opcional{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;cursor:pointer;font-weight:500;font-size:13px;color:#334155;margin-bottom:4px;transition:border-color .15s ease;}
+.toggle-opcional:hover{border-color:#93c5fd;}
+.toggle-opcional input{width:auto;margin:0;accent-color:#2563eb;}
 /* Galería de fotos con descripción — cuadrícula uniforme, se ajusta sola
    (2 columnas si hay pocas fotos, 3-4 si hay más, según el ancho disponible) */
 .galeria-fotos{display:grid;grid-template-columns:repeat(auto-fill, minmax(100px, 1fr));gap:10px;margin-top:8px;}
@@ -564,6 +571,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <label>Correo electrónico:</label><input type="email" id="tpCheckoutEmail" placeholder="correo@ejemplo.com">
       <label>Dirección de entrega o notas adicionales:</label>
       <textarea id="tpCheckoutNotas" rows="2" placeholder="Dirección, ciudad, indicaciones..."></textarea>
+      <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" id="btnGpsCheckoutTienda" style="margin-top:4px;" onclick="obtenerUbicacionGPS('tpCheckoutNotas','btnGpsCheckoutTienda')"><i class="fas fa-location-crosshairs"></i> Usar mi ubicación actual</button>
       <div style="background:rgba(245,158,11,.12);border:1px solid #f59e0b;border-radius:8px;padding:12px;margin-top:12px;font-size:12px;">
         💳 <strong>Pago en línea próximamente.</strong> Por ahora tu pedido queda registrado y un asesor te contactará para coordinar el pago y la entrega.
       </div>
@@ -985,6 +993,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <label>Correo electrónico:</label><input type="email" id="checkoutEmail" placeholder="correo@ejemplo.com">
       <label>Dirección de entrega o notas adicionales:</label>
       <textarea id="checkoutNotas" rows="2" placeholder="Dirección, ciudad, indicaciones..."></textarea>
+      <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" id="btnGpsCheckoutAdmin" style="margin-top:4px;" onclick="obtenerUbicacionGPS('checkoutNotas','btnGpsCheckoutAdmin')"><i class="fas fa-location-crosshairs"></i> Usar mi ubicación actual</button>
       <div style="background:rgba(245,158,11,.12);border:1px solid var(--alerta-naranja,#f59e0b);border-radius:8px;padding:12px;margin-top:12px;font-size:12px;">
         💳 <strong>Pago en línea próximamente.</strong> Por ahora tu pedido queda registrado y un asesor te contactará para coordinar el pago y la entrega.
       </div>
@@ -1194,59 +1203,77 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 <div class="modal-overlay" id="modalNuevaOrden">
   <div class="modal-box">
     <button class="close-modal" onclick="cerrarModal('modalNuevaOrden')">✖</button>
-    <h3>🆕 Nueva Orden de Servicio</h3>
-    <label style="display:flex;align-items:center;gap:8px;font-weight:normal;">
-      <input type="checkbox" id="ordClienteNuevo" style="width:auto;" onchange="toggleOrdenClienteNuevo()">
-      Cliente nuevo (todavía no está registrado en Clientes)
-    </label>
-    <div id="wrapperClienteNuevo" style="display:none;background:rgba(0,0,0,.15);padding:10px;border-radius:8px;margin-bottom:10px;">
-      <p style="font-size:11px;color:var(--text-muted);margin:0 0 6px;">Para un cliente que llama pidiendo una revisión y aún no existe en tu base de clientes — la orden queda guardada igual, marcada como "Cliente nuevo", sin tener que crearlo antes en el módulo de Clientes.</p>
-      <label>Nombre del cliente:</label>
-      <input type="text" id="ordClienteNuevoNombre" placeholder="Nombre completo o de la empresa">
-      <label>Dirección:</label>
-      <input type="text" id="ordClienteNuevoDireccion" placeholder="Dirección donde se hará el servicio">
-    </div>
-    <div id="wrapperClienteExistente">
-    <label>Cliente:</label>
-    <div class="autocomplete-wrapper">
-      <input type="text" id="ordClienteBuscador" placeholder="Escribe el nombre del cliente, o el nombre/serie de un equipo suyo..." autocomplete="off"
-        oninput="filtrarClientesOrden()" onfocus="filtrarClientesOrden()" onblur="setTimeout(cerrarListaClientesOrden, 150)">
-      <input type="hidden" id="ordCliente">
-      <div id="ordClienteResultados" class="autocomplete-resultados" style="display:none;"></div>
-    </div>
-    </div>
-    <label id="lblOrdSinEquipo" style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:10px;">
-      <input type="checkbox" id="ordSinEquipo" style="width:auto;" onchange="toggleOrdenSinEquipo()">
-      Esta orden no está relacionada a un equipo puntual (servicio general al cliente)
-    </label>
-    <div id="wrapperEquiposOrden">
-      <label>Equipos del cliente:</label>
-      <p style="font-size:11px;color:var(--text-muted);margin:2px 0 6px;">Marca uno o varios. Si el cliente tiene varios equipos, <strong>cada uno puede llevar su propio tipo de mantenimiento y su propio formato</strong> — no tienen que ser iguales entre sí (útil cuando a un equipo le toca preventivo y a otro correctivo, por ejemplo), para mantener la trazabilidad clara de cada uno.</p>
-      <div id="listaEquiposOrdenEncabezado" style="display:flex;gap:8px;padding:0 0 4px;font-size:10px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">
-        <span style="width:20px;"></span>
-        <span style="flex:1;min-width:140px;"></span>
-        <span style="width:170px;">Tipo de mantenimiento</span>
-        <span style="width:190px;">Formato / Plantilla a usar</span>
+    <h3 style="color:#1e293b;">🆕 Nueva Orden de Servicio</h3>
+
+    <div class="form-seccion">
+      <div class="form-seccion-titulo"><i class="fas fa-user"></i> Cliente</div>
+      <label class="toggle-opcional">
+        <input type="checkbox" id="ordClienteNuevo" onchange="toggleOrdenClienteNuevo()">
+        Cliente nuevo (todavía no está registrado en Clientes)
+      </label>
+      <div id="wrapperClienteNuevo" style="display:none;background:#fff;border:1px solid #e2e8f0;padding:10px;border-radius:8px;margin-top:6px;">
+        <p style="font-size:11px;color:#64748b;margin:0 0 6px;">Para un cliente que llama pidiendo una revisión y aún no existe en tu base de clientes — la orden queda guardada igual, marcada como "Cliente nuevo", sin tener que crearlo antes en el módulo de Clientes.</p>
+        <label>Nombre del cliente:</label>
+        <input type="text" id="ordClienteNuevoNombre" placeholder="Nombre completo o de la empresa">
+        <label>Dirección:</label>
+        <input type="text" id="ordClienteNuevoDireccion" placeholder="Dirección donde se hará el servicio">
+        <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" id="btnGpsOrdenNueva" style="margin-top:4px;" onclick="obtenerUbicacionGPS('ordClienteNuevoDireccion','btnGpsOrdenNueva')"><i class="fas fa-location-crosshairs"></i> Usar mi ubicación actual</button>
       </div>
-      <div id="listaEquiposOrden" style="max-height:220px;overflow-y:auto;border:1px solid var(--card-border);border-radius:8px;padding:8px;margin-top:4px;"></div>
-    </div>
-    <div id="wrapperPlantillaGeneral" style="display:none;">
-      <label>Plantilla de formulario a usar:</label>
-      <select id="ordPlantillaGeneral"></select>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div><label>Técnico asignado:</label><select id="ordTecnico"></select></div>
-      <div><label>Tipo de servicio:</label>
-        <select id="ordTipo"></select>
+      <div id="wrapperClienteExistente" style="margin-top:6px;">
+      <label>Cliente:</label>
+      <div class="autocomplete-wrapper">
+        <input type="text" id="ordClienteBuscador" placeholder="Escribe el nombre del cliente, o el nombre/serie de un equipo suyo..." autocomplete="off"
+          oninput="filtrarClientesOrden()" onfocus="filtrarClientesOrden()" onblur="setTimeout(cerrarListaClientesOrden, 150)">
+        <input type="hidden" id="ordCliente">
+        <div id="ordClienteResultados" class="autocomplete-resultados" style="display:none;"></div>
+      </div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div><label>Prioridad:</label><select id="ordPrioridad"></select></div>
+
+    <div class="form-seccion">
+      <div class="form-seccion-titulo"><i class="fas fa-screwdriver-wrench"></i> Equipo y formulario a usar</div>
+      <label id="lblOrdSinEquipo" class="toggle-opcional">
+        <input type="checkbox" id="ordSinEquipo" onchange="toggleOrdenSinEquipo()">
+        Esta orden no está relacionada a un equipo puntual (servicio general al cliente)
+      </label>
+      <div id="wrapperEquiposOrden" style="margin-top:6px;">
+        <label>Equipos del cliente:</label>
+        <p style="font-size:11px;color:#64748b;margin:2px 0 6px;">Marca uno o varios. Si el cliente tiene varios equipos, <strong>cada uno puede llevar su propio tipo de mantenimiento y su propio formato</strong> — no tienen que ser iguales entre sí (útil cuando a un equipo le toca preventivo y a otro correctivo, por ejemplo), para mantener la trazabilidad clara de cada uno.</p>
+        <div id="listaEquiposOrdenEncabezado" style="display:flex;gap:8px;padding:0 0 4px;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">
+          <span style="width:20px;"></span>
+          <span style="flex:1;min-width:140px;"></span>
+          <span style="width:170px;">Tipo de mantenimiento</span>
+          <span style="width:190px;">Formato / Plantilla a usar</span>
+        </div>
+        <div id="listaEquiposOrden" style="max-height:220px;overflow-y:auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px;margin-top:4px;"></div>
+      </div>
+      <div id="wrapperPlantillaGeneral" style="display:none;margin-top:6px;">
+        <label>Plantilla de formulario a usar:</label>
+        <select id="ordPlantillaGeneral"></select>
+      </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div><label>Fecha programada:</label><input type="date" id="ordFecha"></div>
-      <div><label>Hora programada:</label><input type="time" id="ordHora"></div>
+
+    <div class="form-seccion">
+      <div class="form-seccion-titulo"><i class="fas fa-clipboard-list"></i> Detalles del servicio</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><label>Técnico asignado:</label><select id="ordTecnico"></select></div>
+        <div><label>Tipo de servicio:</label>
+          <select id="ordTipo"></select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><label>Prioridad:</label><select id="ordPrioridad"></select></div>
+      </div>
     </div>
+
+    <div class="form-seccion" style="margin-bottom:6px;">
+      <div class="form-seccion-titulo"><i class="fas fa-calendar-days"></i> Programación</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><label>Fecha programada:</label><input type="date" id="ordFecha"></div>
+        <div><label>Hora programada:</label><input type="time" id="ordHora"></div>
+      </div>
+    </div>
+
     <div style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalNuevaOrden')">Cancelar</button>
       <button class="btn-custom" onclick="guardarNuevaOrden()">Crear Orden</button>
@@ -1524,6 +1551,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           </div>
           <label>Teléfono de Contacto:</label><input type="text" id="cfgCliTelefono" placeholder="Ej. 3001234567">
           <label>Dirección principal:</label><input type="text" id="cfgCliDireccion" placeholder="Ej. Calle 123 #45-67, Bogotá">
+          <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" id="btnGpsCliente" style="margin-top:4px;" onclick="obtenerUbicacionGPS('cfgCliDireccion','btnGpsCliente')"><i class="fas fa-location-crosshairs"></i> Usar mi ubicación actual</button>
           <div class="field-row">
             <div><input type="text" id="cfgCliLat" placeholder="Latitud (opcional)"></div>
             <div><input type="text" id="cfgCliLng" placeholder="Longitud (opcional)"></div>
@@ -1546,7 +1574,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <h4 style="margin-top:0;font-size:13px;" id="cfgTituloSedes">Sedes de: -</h4>
         <div class="field-row">
           <div><input type="text" id="cfgSedeNombre" placeholder="Nombre de la sede (Ej. Sucursal Centro)"></div>
-          <div><input type="text" id="cfgSedeDireccion" placeholder="Dirección"></div>
+          <div style="display:flex;gap:4px;"><input type="text" id="cfgSedeDireccion" placeholder="Dirección" style="flex:1;"><button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" id="btnGpsSede" title="Usar mi ubicación actual" onclick="obtenerUbicacionGPS('cfgSedeDireccion','btnGpsSede')"><i class="fas fa-location-crosshairs"></i></button></div>
           <button class="btn-custom" onclick="agregarSedeConfig()">+ Añadir Sede</button>
         </div>
         <table class="data-table"><thead><tr><th>Sede</th><th>Dirección</th><th>Equipos</th><th>Acción</th></tr></thead><tbody id="tablaConfigSedesBody"></tbody></table>
@@ -1677,6 +1705,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <input type="text" id="cfgEmpresaSub">
         <label>Dirección:</label>
         <input type="text" id="cfgEmpresaDireccion" placeholder="Ej. Calle 123 #45-67, Bogotá">
+        <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" id="btnGpsEmpresa" style="margin-top:4px;" onclick="obtenerUbicacionGPS('cfgEmpresaDireccion','btnGpsEmpresa')"><i class="fas fa-location-crosshairs"></i> Usar mi ubicación actual</button>
         <label>Misión:</label>
         <textarea id="cfgEmpresaMision" rows="2" placeholder="¿Cuál es el propósito de tu empresa?"></textarea>
         <label>Visión:</label>
@@ -1971,19 +2000,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=29"></script>
-<script src="utilidades-navegacion.js?v=29"></script>
-<script src="buscador-agenda.js?v=29"></script>
-<script src="ordenes.js?v=29"></script>
-<script src="equipos-trazabilidad.js?v=29"></script>
-<script src="pdf.js?v=29"></script>
-<script src="config-clientes-equipos.js?v=29"></script>
-<script src="config-plantillas-tecnicos.js?v=29"></script>
-<script src="cotizador.js?v=29"></script>
-<script src="config-general.js?v=29"></script>
-<script src="inventario.js?v=29"></script>
-<script src="tienda-admin.js?v=29"></script>
-<script src="tienda-publica.js?v=29"></script>
-<script src="kpi.js?v=29"></script>
+<script src="core.js?v=39"></script>
+<script src="utilidades-navegacion.js?v=39"></script>
+<script src="buscador-agenda.js?v=39"></script>
+<script src="ordenes.js?v=39"></script>
+<script src="equipos-trazabilidad.js?v=39"></script>
+<script src="pdf.js?v=39"></script>
+<script src="config-clientes-equipos.js?v=39"></script>
+<script src="config-plantillas-tecnicos.js?v=39"></script>
+<script src="cotizador.js?v=39"></script>
+<script src="config-general.js?v=39"></script>
+<script src="inventario.js?v=39"></script>
+<script src="tienda-admin.js?v=39"></script>
+<script src="tienda-publica.js?v=39"></script>
+<script src="kpi.js?v=39"></script>
 </body>
 </html>

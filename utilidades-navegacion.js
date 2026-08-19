@@ -4,6 +4,47 @@
 ========================================================= */
 function buscarCliente(id){ return db.clientes.find(c=>c.id===id); }
 /* =========================================================
+   UBICACIÓN GPS — botón reutilizable para cualquier campo de
+   dirección de la plataforma. Usa el GPS del dispositivo y
+   convierte las coordenadas a una dirección legible (servicio
+   gratuito de OpenStreetMap, sin necesidad de clave ni configurar
+   nada). Si no se puede convertir a texto, deja las coordenadas
+   tal cual — nunca deja el campo vacío por un fallo de conversión.
+========================================================= */
+async function obtenerUbicacionGPS(inputId, botonId){
+  if(!navigator.geolocation){ mostrarToast('Tu navegador no permite obtener la ubicación GPS.', 'error'); return; }
+  const boton = document.getElementById(botonId);
+  const input = document.getElementById(inputId);
+  const textoOriginal = boton.innerHTML;
+  boton.disabled = true;
+  boton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Obteniendo ubicación...';
+  navigator.geolocation.getCurrentPosition(async (pos)=>{
+    const { latitude, longitude } = pos.coords;
+    let direccion = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+    try{
+      const resp = await fetchConLimite(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`, {}, 10);
+      if(resp.ok){
+        const data = await resp.json();
+        if(data && data.display_name) direccion = data.display_name;
+      }
+    }catch(err){ /* si falla la conversión a texto, se dejan las coordenadas — nunca se deja el campo vacío */ }
+    if(input.tagName==='TEXTAREA' && input.value.trim()){
+      input.value = input.value.trim() + ' — ' + direccion; // en campos de notas, se agrega sin borrar lo ya escrito
+    } else {
+      input.value = direccion;
+    }
+    mostrarToast('📍 Ubicación obtenida correctamente.');
+    boton.disabled = false; boton.innerHTML = textoOriginal;
+  }, (err)=>{
+    boton.disabled = false; boton.innerHTML = textoOriginal;
+    let msg = 'No se pudo obtener tu ubicación.';
+    if(err.code === 1) msg = 'Permiso de ubicación denegado — actívalo en la configuración de tu navegador o celular.';
+    else if(err.code === 2) msg = 'No se pudo determinar tu ubicación (señal GPS no disponible en este momento).';
+    else if(err.code === 3) msg = 'Se agotó el tiempo esperando la ubicación. Intenta de nuevo.';
+    mostrarToast(msg, 'error');
+  }, { enableHighAccuracy:true, timeout:15000, maximumAge:0 });
+}
+/* =========================================================
    FIRMA TÁCTIL — componente único, reutilizado en:
    - Firma del técnico y del cliente al cerrar una orden de servicio.
    - Firma del representante en Configuración de empresa.
