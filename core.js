@@ -189,24 +189,38 @@ function fusionarAdicionesDesdeServidor(remoto){
 // Antes de subir cualquier cambio local, primero se trae lo último del servidor
 // y se fusiona — así el guardado del PC nunca sobreescribe algo agregado, por
 // ejemplo, desde el celular unos segundos antes.
+// Petición con límite de tiempo real: antes, en una conexión de celular lenta
+// (típico en campo, con varias fotos por subir), una petición podía quedarse
+// esperando sin límite, dando la sensación de que "no pasó nada" mientras en
+// realidad seguía intentando en segundo plano, a veces por más de un minuto.
+function fetchConLimite(url, opciones, segundos){
+  const controlador = new AbortController();
+  const id = setTimeout(()=>controlador.abort(), segundos*1000);
+  return fetch(url, Object.assign({}, opciones, { signal: controlador.signal }))
+    .catch(err=>{
+      if(err.name === 'AbortError') throw new Error('La conexión tardó demasiado (más de ' + segundos + ' segundos). Revisa tu señal e intenta de nuevo.');
+      throw err;
+    })
+    .finally(()=>clearTimeout(id));
+}
 async function fusionarConServidorAntesDeGuardar(){
   if(!empresaActual || !sesionServidor) return;
   try{
-    const r = await fetch(API_BASE + '/api/state', { headers: headersAutenticados() });
+    const r = await fetchConLimite(API_BASE + '/api/state', { headers: headersAutenticados() }, 8);
     if(r.ok){
       const remoto = await r.json();
       fusionarAdicionesDesdeServidor(remoto);
     }
-  }catch(e){ /* sin conexión: seguimos con la copia local, ya sin fusionar */ }
+  }catch(e){ /* sin conexión o muy lenta: seguimos con la copia local, ya sin fusionar — no debe demorar el guardado real */ }
 }
 
 async function enviarEstadoAlServidor(){
   await fusionarConServidorAntesDeGuardar();
-  const resp = await fetch(API_BASE + '/api/state', {
+  const resp = await fetchConLimite(API_BASE + '/api/state', {
     method: 'PUT',
     headers: headersAutenticados({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(db)
-  });
+  }, 45);
   if(!resp.ok){
     // Antes esto no se verificaba: un 413 (payload muy grande, típico con fotos sin
     // comprimir de celular) o un 500 pasaban como "enviado" sin serlo, en silencio.

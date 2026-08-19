@@ -23,14 +23,36 @@ function abrirFirmaTactil(contexto, firmaExistente){
   firmaTactilContexto = contexto;
   const titulos = { tecnico:'Firma del Técnico', cliente:'Firma de quien recibe el servicio', representante:'Firma del Representante' };
   document.getElementById('firmaTactilTitulo').innerText = titulos[contexto] || 'Firma';
-  document.getElementById('firmaTactilOverlay').classList.add('activa');
-  document.body.style.overflow = 'hidden'; // evita que la página se desplace por detrás mientras se firma
+  const overlay = document.getElementById('firmaTactilOverlay');
+  const caja = document.getElementById('firmaTactilCaja');
+  overlay.classList.add('activa');
+  // Bloqueo robusto del fondo mientras se firma: además de ocultar el scroll,
+  // se fija la posición de la página (evita el "rebote" de iOS al arrastrar
+  // el dedo cerca de los bordes, que antes también sacudía la pantalla de firma).
+  document.body.dataset.scrollY = window.scrollY;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${window.scrollY}px`;
+  document.body.style.width = '100%';
+
+  firmaTactilRotada = window.matchMedia('(max-width:900px) and (orientation:portrait)').matches;
+  if(firmaTactilRotada){
+    // Tamaño fijo en píxeles, calculado UNA SOLA VEZ aquí — a propósito NO se
+    // usa 100vh/100vw en el CSS, porque esa medida cambia sola en el navegador
+    // del celular cuando la barra de direcciones aparece/desaparece mientras
+    // se firma, y eso era lo que hacía que la pantalla se reacomodara a medio
+    // trazo. Con un valor fijo, la caja de firma ya no se mueve por el resto
+    // de la sesión, sin importar qué haga el navegador alrededor.
+    caja.style.width = window.innerHeight + 'px';
+    caja.style.height = window.innerWidth + 'px';
+    caja.classList.add('firma-tactil-rotada');
+  } else {
+    caja.style.width = ''; caja.style.height = '';
+    caja.classList.remove('firma-tactil-rotada');
+  }
   // Pequeña espera para que el navegador termine de acomodar la caja ya
-  // girada antes de medir su tamaño real — si se mide muy pronto, puede
-  // tomar el tamaño de antes de girar y el lienzo queda mal proporcionado.
+  // dimensionada antes de medir el tamaño real del lienzo interno.
   setTimeout(()=>{
     const canvas = document.getElementById('firmaTactilCanvas');
-    firmaTactilRotada = window.matchMedia('(max-width:900px) and (orientation:portrait)').matches;
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
     const ctx = canvas.getContext('2d');
@@ -77,7 +99,11 @@ function confirmarFirmaTactil(){
 }
 function cerrarFirmaTactil(){
   document.getElementById('firmaTactilOverlay').classList.remove('activa');
-  document.body.style.overflow = '';
+  const scrollY = parseInt(document.body.dataset.scrollY || '0');
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.width = '';
+  window.scrollTo(0, scrollY);
 }
 function actualizarPreviewFirmaOrden(contexto){
   const dataUrl = contexto==='tecnico' ? firmaTecnicoTemp : firmaClienteTemp;

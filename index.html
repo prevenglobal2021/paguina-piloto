@@ -330,7 +330,7 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .galeria-foto-quitar:hover{background:var(--red-alert);}
 .galeria-foto-desc{width:100%;margin-top:5px;font-size:11px;padding:5px 6px;box-sizing:border-box;}
 /* ===== FIRMA TÁCTIL — pantalla completa, con rotación a horizontal en celular ===== */
-.firma-tactil-overlay{display:none;position:fixed;inset:0;background:#0f172a;z-index:6000;}
+.firma-tactil-overlay{display:none;position:fixed;inset:0;background:#0f172a;z-index:6000;touch-action:none;}
 .firma-tactil-overlay.activa{display:block;}
 .firma-tactil-caja{position:absolute;top:50%;left:50%;background:#fff;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.5);border-radius:12px;overflow:hidden;
   width:min(94vw,900px);height:min(80vh,480px);transform:translate(-50%,-50%);}
@@ -345,13 +345,12 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .firma-tactil-btn{flex:1;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;}
 .firma-tactil-btn-borrar{background:#334155;color:#fff;}
 .firma-tactil-btn-confirmar{background:#16a34a;color:#fff;}
-/* En celular, en vertical: la caja se GIRA 90° para dar todo el ancho de la
-   pantalla como espacio de firma (más natural para firmar con el dedo).
-   El lienzo mide su tamaño real ya rotado, y el cálculo de dónde toca el
-   dedo se ajusta para esa rotación (ver activarDibujoFirmaTactil en JS). */
-@media (max-width:900px) and (orientation:portrait){
-  .firma-tactil-caja{ width:100vh; height:100vw; transform:translate(-50%,-50%) rotate(90deg); }
-}
+/* La rotación a horizontal en celular (transform:rotate) se agrega desde JavaScript
+   (clase .firma-tactil-rotada), con un tamaño en píxeles fijos calculado una sola
+   vez al abrir — así la caja de firma NUNCA se reacomoda a medio trazo, aunque la
+   barra de direcciones del navegador aparezca/desaparezca mientras se firma (eso
+   es lo que hacía inestable la versión anterior, basada en 100vh/100vw). */
+.firma-tactil-caja.firma-tactil-rotada{ transform:translate(-50%,-50%) rotate(90deg); }
 /* Vista previa de una firma ya capturada, antes de guardar la orden/empresa */
 .firma-preview-caja{width:100%;max-width:260px;height:90px;background:#fff;border-radius:8px;border:1px solid var(--card-border);display:flex;align-items:center;justify-content:center;overflow:hidden;margin:6px 0;}
 .firma-preview-caja img{max-width:92%;max-height:92%;object-fit:contain;}

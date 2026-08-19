@@ -264,6 +264,7 @@ async function guardarDetalleOrden(finalizar){
   // técnico no cierra el formulario pensando que ya terminó, ni le da doble clic.
   const botones = document.querySelectorAll('#detAccionesEdicion button');
   botones.forEach(b=>b.disabled = true);
+  mostrarToast('Guardando informe... esto puede tardar unos segundos si hay fotos.');
   try{
     await dbGuardarInmediato();
   }catch(err){
