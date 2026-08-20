@@ -211,7 +211,8 @@ async function confirmarLiquidacionNomina(){
       ajustes: persona.ajustes.filter(a=>a.concepto || a.monto),
       descuentos: persona.descuentos.filter(d=>d.concepto || d.monto),
       totalAjustes: totales.totalAjustes, totalDescuentos: totales.totalDescuentos,
-      totalNeto: totales.totalNeto
+      totalNeto: totales.totalNeto,
+      estadoPago: 'pendiente', fechaPago: null
     });
   });
   db.liquidacionesNomina.push(...nuevos);
@@ -269,23 +270,28 @@ function renderizarHistorialNomina(){
     const nombreMostrado = l.esOcasional
       ? `${l.personalOcasionalNombre||'—'} <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;">OCASIONAL</span>`
       : (buscarTecnico(l.tecnicoId)?.nombre || '—');
+    const estadoPagoHtml = l.estadoPago==='pagado'
+      ? `<span style="font-size:10px;font-weight:700;background:#dcfce7;color:#166534;padding:3px 10px;border-radius:12px;white-space:nowrap;"><i class="fas fa-circle-check"></i> Pagado</span>`
+      : `<span style="font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:12px;white-space:nowrap;"><i class="fas fa-clock"></i> Pendiente por pagar</span>`;
     return `<tr>
       <td>${l.numero}</td><td>${nombreMostrado}</td><td>${l.periodoDesde} a ${l.periodoHasta}</td>
       <td>${formatoCOP(l.totalNeto)}</td>
+      <td>${estadoPagoHtml}</td>
       <td>
         <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verComprobanteNomina(${l.id})"><i class="fas fa-file-invoice"></i> Ver comprobante</button>
+        ${l.estadoPago!=='pagado' ? `<button class="btn-custom btn-success-custom btn-sm-custom solo-admin" data-permiso="nomina_editar" onclick="marcarNominaPagada(${l.id})"><i class="fas fa-hand-holding-dollar"></i> Marcar como Pagado</button>` : ''}
         <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="nomina_editar" onclick="editarLiquidacionNomina(${l.id})"><i class="fas fa-pen"></i> Editar</button>
         <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" data-permiso="nomina_eliminar" onclick="eliminarLiquidacionNomina(${l.id})"><i class="fas fa-trash"></i> Eliminar</button>
       </td>
     </tr>`;
-  }).join('') || '<tr><td colspan="5" class="empty-state">Sin liquidaciones que coincidan con la búsqueda.</td></tr>';
+  }).join('') || '<tr><td colspan="6" class="empty-state">Sin liquidaciones que coincidan con la búsqueda.</td></tr>';
 
   // Total general de justo lo que está filtrado/visible en la tabla en este momento.
   const totalGeneral = lista.reduce((suma,l)=>suma + l.totalNeto, 0);
   const pieTabla = document.getElementById('pieTotalNomina');
   if(pieTabla){
     pieTabla.innerHTML = lista.length
-      ? `<tr style="font-weight:700;background:#eff6ff;color:#1e3a5f;border-top:2px solid #bfdbfe;"><td colspan="3" style="text-align:right;">Total (${lista.length} comprobante${lista.length===1?'':'s'}):</td><td colspan="2">${formatoCOP(totalGeneral)}</td></tr>`
+      ? `<tr style="font-weight:700;background:#eff6ff;color:#1e3a5f;border-top:2px solid #bfdbfe;"><td colspan="3" style="text-align:right;">Total (${lista.length} comprobante${lista.length===1?'':'s'}):</td><td colspan="3">${formatoCOP(totalGeneral)}</td></tr>`
       : '';
   }
   aplicarRBACaUI();
@@ -306,6 +312,7 @@ function verComprobanteNomina(id){
   const filasAjustes = l.ajustes.map(a=>`<tr><td>${a.concepto||'Ajuste'}${a.nota?` — <small>${a.nota}</small>`:''}</td><td style="text-align:right;color:#16a34a;">+ ${formatoCOP(a.monto)}</td></tr>`).join('');
   const filasDescuentos = l.descuentos.map(d=>`<tr><td>${d.concepto||'Descuento'}${d.nota?` — <small>${d.nota}</small>`:''}</td><td style="text-align:right;color:#dc2626;">− ${formatoCOP(d.monto)}</td></tr>`).join('');
   document.getElementById('comprobanteNominaContenido').innerHTML = `
+    ${l.estadoPago==='pagado' ? `<div style="position:absolute;top:42%;left:50%;transform:translate(-50%,-50%) rotate(-22deg);font-size:60px;font-weight:900;color:rgba(22,163,74,.28);border:6px solid rgba(22,163,74,.28);padding:4px 26px;border-radius:14px;pointer-events:none;z-index:5;letter-spacing:5px;white-space:nowrap;">PAGADO</div>` : ''}
     <div class="pdf-header">
       <div>${logoHtml}<h2 style="color:#0088ff;margin:0;">${db.config.nombre}</h2><small>${db.config.subtitulo||''}</small></div>
       <div style="text-align:right;"><strong>Comprobante de Pago de Nómina</strong><br><small>N.º ${l.numero}</small><br><small>Fecha: ${new Date(l.fecha+'T00:00:00').toLocaleDateString('es-CO')}</small></div>
@@ -341,7 +348,22 @@ function enviarComprobanteNominaPorWhatsApp(id){
   if(!t || !t.telefono){ mostrarToast('Esta persona no tiene teléfono registrado en su ficha de técnico.'); return; }
   const telefonoLimpio = t.telefono.replace(/[^0-9]/g,'');
   const mensaje = `Hola ${t.nombre}, adjuntamos tu comprobante de pago de nómina N.º ${l.numero}, correspondiente al periodo ${l.periodoDesde} a ${l.periodoHasta}. Cualquier duda con gusto la resolvemos.`;
-  const abrirChatWhatsApp = ()=> window.open(`https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`, '_blank');
+  const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
+
+  // En celular con panel nativo de compartir, el PDF se adjunta directo — no
+  // hace falta el enlace de WhatsApp aparte. En computador (sin ese panel),
+  // WhatsApp se abre YA MISMO, en respuesta directa al clic: si se espera a
+  // que el PDF termine de generarse primero, el navegador bloquea la ventana
+  // en silencio (sin avisar nada), y por eso antes parecía que "no hacía nada".
+  const puedeCompartirArchivosNativo = !!(navigator.share && navigator.canShare);
+  let ventanaWhatsApp = null;
+  if(!puedeCompartirArchivosNativo){
+    ventanaWhatsApp = window.open(enlaceWhatsApp, '_blank');
+    if(!ventanaWhatsApp){
+      mostrarToast('⚠️ El navegador bloqueó la ventana de WhatsApp. Busca el ícono de "ventana emergente bloqueada" en la barra de direcciones, permítela para este sitio, e intenta de nuevo.', 'error');
+      return;
+    }
+  }
 
   verComprobanteNomina(id); // arma el contenido del comprobante en #comprobanteNominaContenido
   const nombreArchivo = `Comprobante_${l.numero}_${t.nombre}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
@@ -349,7 +371,7 @@ function enviarComprobanteNominaPorWhatsApp(id){
   const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
 
   if(typeof html2pdf === 'undefined'){
-    abrirChatWhatsApp();
+    if(puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
     registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (sin comprobante adjunto automático — sin conexión)`);
     return;
   }
@@ -357,23 +379,24 @@ function enviarComprobanteNominaPorWhatsApp(id){
     cerrarModal('modalComprobanteNomina');
     const archivoPdf = new File([blob], nombreArchivo, { type:'application/pdf' });
 
-    if(navigator.canShare && navigator.canShare({ files:[archivoPdf] })){
+    if(puedeCompartirArchivosNativo && navigator.canShare({ files:[archivoPdf] })){
       navigator.share({ files:[archivoPdf], title:`Comprobante ${l.numero}`, text: mensaje }).then(()=>{
         registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (comprobante compartido directo desde el celular)`);
       }).catch(()=>{ /* el usuario cerró el panel de compartir sin elegir nada: no se registra como enviado */ });
       return;
     }
 
+    // Este dispositivo no comparte archivos de forma nativa: WhatsApp ya está
+    // abierto desde el principio del clic — solo falta descargar el PDF para adjuntarlo.
     const url = URL.createObjectURL(blob);
     const enlaceDescarga = document.createElement('a');
     enlaceDescarga.href = url; enlaceDescarga.download = nombreArchivo; enlaceDescarga.click();
     URL.revokeObjectURL(url);
-    mostrarToast(`Se descargó el comprobante "${nombreArchivo}". Ahora se abre WhatsApp con el mensaje listo: adjunta ese archivo en el chat (📎 → Documento) antes de enviarlo — desde el computador, WhatsApp no permite adjuntar archivos automáticamente por este tipo de enlace. Desde el celular, este mismo botón comparte el PDF directo, sin este paso.`);
-    abrirChatWhatsApp();
+    mostrarToast(`Se descargó el comprobante "${nombreArchivo}". WhatsApp ya está abierto con el mensaje listo: adjunta ese archivo en el chat (📎 → Documento) antes de enviarlo.`);
     registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (con comprobante PDF descargado para adjuntar)`);
   }).catch(()=>{
-    mostrarToast('No se pudo generar el PDF automáticamente. Se abrirá WhatsApp; puedes generar el comprobante desde "Ver comprobante" y adjuntarlo manualmente.');
-    abrirChatWhatsApp();
+    if(!ventanaWhatsApp && !puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
+    mostrarToast('No se pudo generar el PDF automáticamente. WhatsApp está abierto; genera el comprobante desde "Ver comprobante" y adjúntalo manualmente.');
     registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (sin comprobante adjunto automático)`);
   });
 }
@@ -772,6 +795,25 @@ function quitarItemEdicion(tipo, idx){ edicionLiquidacion[tipo].splice(idx,1); r
 function actualizarItemEdicion(tipo, idx, campo, valor){
   edicionLiquidacion[tipo][idx][campo] = (campo==='monto') ? (parseFloat(valor)||0) : valor;
   if(campo==='monto') actualizarTotalesVisualesEdicion();
+}
+async function marcarNominaPagada(id){
+  const l = (db.liquidacionesNomina||[]).find(x=>x.id===id);
+  if(!l) return;
+  const nombrePersona = l.esOcasional ? (l.personalOcasionalNombre||'—') : (buscarTecnico(l.tecnicoId)?.nombre||'—');
+  if(!confirm(`¿Confirmas que ya se le pagó a ${nombrePersona} el comprobante ${l.numero} por ${formatoCOP(l.totalNeto)}?\n\nQuedará marcado como "Pagado" y el comprobante mostrará una marca de agua.`)) return;
+  const estadoAnterior = l.estadoPago, fechaPagoAnterior = l.fechaPago;
+  l.estadoPago = 'pagado';
+  l.fechaPago = new Date().toISOString().slice(0,10);
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    l.estadoPago = estadoAnterior; l.fechaPago = fechaPagoAnterior;
+    mostrarToast('⚠️ No se pudo marcar como pagado: ' + err.message, 'error');
+    return;
+  }
+  registrarLog('Marcar pagado', 'Nómina', `${l.numero} — ${nombrePersona}`);
+  mostrarToast(`✅ ${l.numero} marcado como Pagado.`, 'exito');
+  renderizarHistorialNomina();
 }
 async function guardarEdicionLiquidacionNomina(){
   const l = (db.liquidacionesNomina||[]).find(x=>x.id===edicionLiquidacion.id);

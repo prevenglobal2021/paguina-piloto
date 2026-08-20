@@ -376,7 +376,7 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .tema-claro-preview{height:44px;border-radius:6px;display:flex;align-items:center;overflow:hidden;border:1px solid rgba(0,0,0,.1);}
 .tema-claro-opcion span{display:block;font-size:11px;margin-top:6px;color:var(--text-main);}
 .field-row > div{flex:1;min-width:120px;}
-.pdf-preview{background:#fff;color:#333;padding:30px;border-radius:8px;font-size:13px;}
+.pdf-preview{background:#fff;color:#333;padding:30px;border-radius:8px;font-size:13px;position:relative;overflow:hidden;}
 .pdf-header{display:flex;justify-content:space-between;border-bottom:2px solid #0088ff;padding-bottom:12px;margin-bottom:20px;align-items:center;}
 /* 1.1 Logo en encabezado del PDF: 5cm x 5cm */
 .pdf-header img{width:5cm;height:5cm;object-fit:contain;margin-bottom:6px;}
@@ -862,7 +862,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
             <div><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="limpiarFiltrosNomina()">Limpiar filtros</button></div>
           </div>
           <table class="data-table" style="margin-top:12px;">
-            <thead><tr><th>N.º</th><th>Técnico</th><th>Periodo</th><th>Total neto</th><th></th></tr></thead>
+            <thead><tr><th>N.º</th><th>Técnico</th><th>Periodo</th><th>Total neto</th><th>Estado</th><th></th></tr></thead>
             <tbody id="tablaNomina"></tbody>
             <tfoot id="pieTotalNomina"></tfoot>
           </table>
@@ -2000,19 +2000,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=39"></script>
-<script src="utilidades-navegacion.js?v=39"></script>
-<script src="buscador-agenda.js?v=39"></script>
-<script src="ordenes.js?v=39"></script>
-<script src="equipos-trazabilidad.js?v=39"></script>
-<script src="pdf.js?v=39"></script>
-<script src="config-clientes-equipos.js?v=39"></script>
-<script src="config-plantillas-tecnicos.js?v=39"></script>
-<script src="cotizador.js?v=39"></script>
-<script src="config-general.js?v=39"></script>
-<script src="inventario.js?v=39"></script>
-<script src="tienda-admin.js?v=39"></script>
-<script src="tienda-publica.js?v=39"></script>
-<script src="kpi.js?v=39"></script>
+<script src="core.js?v=40"></script>
+<script src="utilidades-navegacion.js?v=40"></script>
+<script src="buscador-agenda.js?v=40"></script>
+<script src="ordenes.js?v=40"></script>
+<script src="equipos-trazabilidad.js?v=40"></script>
+<script src="pdf.js?v=40"></script>
+<script src="config-clientes-equipos.js?v=40"></script>
+<script src="config-plantillas-tecnicos.js?v=40"></script>
+<script src="cotizador.js?v=40"></script>
+<script src="config-general.js?v=40"></script>
+<script src="inventario.js?v=40"></script>
+<script src="tienda-admin.js?v=40"></script>
+<script src="tienda-publica.js?v=40"></script>
+<script src="kpi.js?v=40"></script>
 </body>
 </html>

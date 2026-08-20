@@ -71,7 +71,22 @@ function enviarPorWhatsApp(ordenId){
   let mensaje = db.config.plantillaWhatsApp
     .replace(/{nombre_cliente}/g, cliente.nombre)
     .replace(/{numero_orden}/g, o.numero);
-  const abrirChatWhatsApp = ()=> window.open(`https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`, '_blank');
+  const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
+
+  // En celular con panel nativo de compartir, el PDF se adjunta directo — no
+  // hace falta el enlace de WhatsApp aparte. En computador, WhatsApp se abre
+  // YA MISMO, en respuesta directa al clic: si se espera a que el PDF termine
+  // de generarse primero, el navegador bloquea la ventana en silencio (sin
+  // avisar nada), y por eso antes parecía que el botón "no hacía nada".
+  const puedeCompartirArchivosNativo = !!(navigator.share && navigator.canShare);
+  let ventanaWhatsApp = null;
+  if(!puedeCompartirArchivosNativo){
+    ventanaWhatsApp = window.open(enlaceWhatsApp, '_blank');
+    if(!ventanaWhatsApp){
+      mostrarToast('⚠️ El navegador bloqueó la ventana de WhatsApp. Busca el ícono de "ventana emergente bloqueada" en la barra de direcciones, permítela para este sitio, e intenta de nuevo.', 'error');
+      return;
+    }
+  }
 
   verPDF(ordenId); // arma el contenido del informe (ficha completa) en #pdfContenido
   const nombreArchivo = `Informe_${o.numero}_${cliente.nombre}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
@@ -80,7 +95,7 @@ function enviarPorWhatsApp(ordenId){
 
   if(typeof html2pdf === 'undefined'){
     // sin conexión para cargar la librería de PDF: igual abrimos WhatsApp, el usuario adjunta manualmente con "Ver Documento"
-    abrirChatWhatsApp();
+    if(puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
     registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (sin informe adjunto automático — sin conexión)`);
     return;
   }
@@ -89,24 +104,23 @@ function enviarPorWhatsApp(ordenId){
     const archivoPdf = new File([blob], nombreArchivo, { type:'application/pdf' });
 
     // Celular (Android/iOS): panel nativo de compartir, con WhatsApp como una opción directa — el PDF ya va adjunto.
-    if(navigator.canShare && navigator.canShare({ files:[archivoPdf] })){
+    if(puedeCompartirArchivosNativo && navigator.canShare({ files:[archivoPdf] })){
       navigator.share({ files:[archivoPdf], title:`Informe ${o.numero}`, text: mensaje }).then(()=>{
         registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (informe compartido directo desde el celular)`);
       }).catch(()=>{ /* el usuario cerró el panel de compartir sin elegir nada: no se registra como enviado */ });
       return;
     }
 
-    // Escritorio (sin panel de compartir con archivos): se descarga el PDF y se abre el chat con el mensaje listo.
+    // Escritorio (sin panel de compartir con archivos): WhatsApp ya está abierto desde el clic — solo falta descargar el PDF.
     const url = URL.createObjectURL(blob);
     const enlaceDescarga = document.createElement('a');
     enlaceDescarga.href = url; enlaceDescarga.download = nombreArchivo; enlaceDescarga.click();
     URL.revokeObjectURL(url);
-    mostrarToast(`Se descargó el informe "${nombreArchivo}". Ahora se abre WhatsApp con el mensaje listo: adjunta ese archivo en el chat (📎 → Documento) antes de enviarlo — desde el computador, WhatsApp no permite adjuntar archivos automáticamente por este tipo de enlace. Desde el celular, este mismo botón comparte el PDF directo, sin este paso.`);
-    abrirChatWhatsApp();
+    mostrarToast(`Se descargó el informe "${nombreArchivo}". WhatsApp ya está abierto con el mensaje listo: adjunta ese archivo en el chat (📎 → Documento) antes de enviarlo.`);
     registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (con informe PDF descargado para adjuntar)`);
   }).catch(()=>{
-    mostrarToast('No se pudo generar el PDF automáticamente. Se abrirá WhatsApp; puedes generar el informe desde "Ver Documento" y adjuntarlo manualmente.');
-    abrirChatWhatsApp();
+    if(!ventanaWhatsApp && !puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
+    mostrarToast('No se pudo generar el PDF automáticamente. WhatsApp está abierto; genera el informe desde "Ver Documento" y adjúntalo manualmente.');
     registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (sin informe adjunto automático)`);
   });
 }
