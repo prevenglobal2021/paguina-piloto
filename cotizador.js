@@ -471,6 +471,7 @@ async function agregarGasto(){
   registrarLog('Crear', 'Gasto', `${categoria} · ${descripcion} · ${formatoCOP(monto)}`);
   document.getElementById('gastoDescripcion').value=''; document.getElementById('gastoMonto').value=''; document.getElementById('gastoFecha').value='';
   renderizarContabilidad();
+  mostrarToast(`✅ Gasto registrado: ${categoria} — ${formatoCOP(monto)}`, 'exito');
 }
 async function eliminarGasto(id){
   if(!confirm('¿Eliminar este gasto?')) return;
