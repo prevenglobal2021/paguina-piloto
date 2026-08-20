@@ -270,16 +270,15 @@ function renderizarHistorialNomina(){
     const nombreMostrado = l.esOcasional
       ? `${l.personalOcasionalNombre||'—'} <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;">OCASIONAL</span>`
       : (buscarTecnico(l.tecnicoId)?.nombre || '—');
-    const estadoPagoHtml = l.estadoPago==='pagado'
-      ? `<span style="font-size:10px;font-weight:700;background:#dcfce7;color:#166534;padding:3px 10px;border-radius:12px;white-space:nowrap;"><i class="fas fa-circle-check"></i> Pagado</span>`
-      : `<span style="font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:12px;white-space:nowrap;"><i class="fas fa-clock"></i> Pendiente por pagar</span>`;
+    const infoEstadoPago = infoEstadoPagoNomina(l.estadoPago);
+    const estadoPagoHtml = `<span style="font-size:10px;font-weight:700;background:${infoEstadoPago.fondo};color:${infoEstadoPago.texto};padding:3px 10px;border-radius:12px;white-space:nowrap;" title="${l.montoAbonado ? 'Abonado: '+formatoCOP(l.montoAbonado)+' de '+formatoCOP(l.totalNeto) : ''}"><i class="fas ${infoEstadoPago.icono}"></i> ${infoEstadoPago.etiqueta}</span>`;
     return `<tr>
       <td>${l.numero}</td><td>${nombreMostrado}</td><td>${l.periodoDesde} a ${l.periodoHasta}</td>
       <td>${formatoCOP(l.totalNeto)}</td>
       <td>${estadoPagoHtml}</td>
       <td>
         <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verComprobanteNomina(${l.id})"><i class="fas fa-file-invoice"></i> Ver comprobante</button>
-        ${l.estadoPago!=='pagado' ? `<button class="btn-custom btn-success-custom btn-sm-custom solo-admin" data-permiso="nomina_editar" onclick="marcarNominaPagada(${l.id})"><i class="fas fa-hand-holding-dollar"></i> Marcar como Pagado</button>` : ''}
+        <button class="btn-custom btn-success-custom btn-sm-custom solo-admin" data-permiso="nomina_editar" onclick="cambiarEstadoPagoNomina(${l.id})"><i class="fas fa-hand-holding-dollar"></i> Estado de pago</button>
         <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="nomina_editar" onclick="editarLiquidacionNomina(${l.id})"><i class="fas fa-pen"></i> Editar</button>
         <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" data-permiso="nomina_eliminar" onclick="eliminarLiquidacionNomina(${l.id})"><i class="fas fa-trash"></i> Eliminar</button>
       </td>
@@ -311,8 +310,9 @@ function verComprobanteNomina(id){
   const logoHtml = db.config.logo ? `<img src="${db.config.logo}">` : '';
   const filasAjustes = l.ajustes.map(a=>`<tr><td>${a.concepto||'Ajuste'}${a.nota?` — <small>${a.nota}</small>`:''}</td><td style="text-align:right;color:#16a34a;">+ ${formatoCOP(a.monto)}</td></tr>`).join('');
   const filasDescuentos = l.descuentos.map(d=>`<tr><td>${d.concepto||'Descuento'}${d.nota?` — <small>${d.nota}</small>`:''}</td><td style="text-align:right;color:#dc2626;">− ${formatoCOP(d.monto)}</td></tr>`).join('');
+  const marcaAgua = { pagado:{texto:'PAGADO',color:'22,163,74'}, parcial:{texto:'PAGO PARCIAL',color:'29,78,216'}, abonado:{texto:'ABONADO',color:'109,40,217'} }[l.estadoPago];
   document.getElementById('comprobanteNominaContenido').innerHTML = `
-    ${l.estadoPago==='pagado' ? `<div style="position:absolute;top:42%;left:50%;transform:translate(-50%,-50%) rotate(-22deg);font-size:60px;font-weight:900;color:rgba(22,163,74,.28);border:6px solid rgba(22,163,74,.28);padding:4px 26px;border-radius:14px;pointer-events:none;z-index:5;letter-spacing:5px;white-space:nowrap;">PAGADO</div>` : ''}
+    ${marcaAgua ? `<div style="position:absolute;top:42%;left:50%;transform:translate(-50%,-50%) rotate(-22deg);font-size:52px;font-weight:900;color:rgba(${marcaAgua.color},.28);border:6px solid rgba(${marcaAgua.color},.28);padding:4px 26px;border-radius:14px;pointer-events:none;z-index:5;letter-spacing:4px;white-space:nowrap;">${marcaAgua.texto}</div>` : ''}
     <div class="pdf-header">
       <div>${logoHtml}<h2 style="color:#0088ff;margin:0;">${db.config.nombre}</h2><small>${db.config.subtitulo||''}</small></div>
       <div style="text-align:right;"><strong>Comprobante de Pago de Nómina</strong><br><small>N.º ${l.numero}</small><br><small>Fecha: ${new Date(l.fecha+'T00:00:00').toLocaleDateString('es-CO')}</small></div>
@@ -330,6 +330,7 @@ function verComprobanteNomina(id){
     <div class="pdf-box" style="background:#eff6ff;border-color:#bfdbfe;">
       <h4 style="margin:0 0 4px 0;">Total neto pagado</h4>
       <p style="font-size:22px;font-weight:700;color:#1d4ed8;margin:0;">${formatoCOP(l.totalNeto)}</p>
+      ${(l.estadoPago==='parcial'||l.estadoPago==='abonado') ? `<p style="font-size:12px;margin:8px 0 0;color:#475569;">Abonado hasta ahora: <strong>${formatoCOP(l.montoAbonado||0)}</strong> · Saldo pendiente: <strong style="color:#b45309;">${formatoCOP(l.totalNeto-(l.montoAbonado||0))}</strong></p>` : ''}
     </div>
     <div class="pdf-box" style="margin-top:30px;">
       <div style="text-align:center;width:260px;margin:20px auto 0;">
@@ -796,23 +797,65 @@ function actualizarItemEdicion(tipo, idx, campo, valor){
   edicionLiquidacion[tipo][idx][campo] = (campo==='monto') ? (parseFloat(valor)||0) : valor;
   if(campo==='monto') actualizarTotalesVisualesEdicion();
 }
-async function marcarNominaPagada(id){
+// Un solo lugar con la info visual de cada estado de pago posible — así
+// cualquier ajuste futuro a colores/textos se hace en un solo sitio.
+function infoEstadoPagoNomina(estado){
+  const mapa = {
+    pendiente: { etiqueta:'Pendiente por pagar', fondo:'#fef3c7', texto:'#92400e', icono:'fa-clock' },
+    pagado:    { etiqueta:'Pagada completa',      fondo:'#dcfce7', texto:'#166534', icono:'fa-circle-check' },
+    parcial:   { etiqueta:'Pagada parcialmente',  fondo:'#dbeafe', texto:'#1e40af', icono:'fa-coins' },
+    abonado:   { etiqueta:'Abonada',              fondo:'#ede9fe', texto:'#5b21b6', icono:'fa-hand-holding-dollar' }
+  };
+  return mapa[estado] || mapa.pendiente;
+}
+let nominaEstadoPagoActualId = null;
+function cambiarEstadoPagoNomina(id){
+  // Cambiar el estado de pago (o el monto abonado) siempre pide la clave de
+  // administrador primero — igual que Editar liquidación — antes de mostrar
+  // siquiera el selector, para que nadie lo cambie por accidente o sin permiso.
+  verificarClaveAdminYEjecutar(()=>abrirModalEstadoPagoNomina(id));
+}
+function abrirModalEstadoPagoNomina(id){
   const l = (db.liquidacionesNomina||[]).find(x=>x.id===id);
   if(!l) return;
+  nominaEstadoPagoActualId = id;
   const nombrePersona = l.esOcasional ? (l.personalOcasionalNombre||'—') : (buscarTecnico(l.tecnicoId)?.nombre||'—');
-  if(!confirm(`¿Confirmas que ya se le pagó a ${nombrePersona} el comprobante ${l.numero} por ${formatoCOP(l.totalNeto)}?\n\nQuedará marcado como "Pagado" y el comprobante mostrará una marca de agua.`)) return;
-  const estadoAnterior = l.estadoPago, fechaPagoAnterior = l.fechaPago;
-  l.estadoPago = 'pagado';
-  l.fechaPago = new Date().toISOString().slice(0,10);
+  document.getElementById('lblNominaEstadoPago').innerText = `${l.numero} — ${nombrePersona} — Total: ${formatoCOP(l.totalNeto)}`;
+  document.getElementById('selEstadoPagoNomina').value = l.estadoPago || 'pendiente';
+  document.getElementById('inputMontoAbonadoNomina').value = l.montoAbonado || '';
+  toggleMontoAbonadoNomina();
+  abrirModal('modalEstadoPagoNomina');
+}
+function toggleMontoAbonadoNomina(){
+  const estado = document.getElementById('selEstadoPagoNomina').value;
+  document.getElementById('wrapperMontoAbonadoNomina').style.display = (estado==='parcial' || estado==='abonado') ? 'block' : 'none';
+}
+async function guardarEstadoPagoNomina(){
+  const l = (db.liquidacionesNomina||[]).find(x=>x.id===nominaEstadoPagoActualId);
+  if(!l) return;
+  const nuevoEstado = document.getElementById('selEstadoPagoNomina').value;
+  const montoAbonadoRaw = document.getElementById('inputMontoAbonadoNomina').value;
+  let montoAbonado = null;
+  if(nuevoEstado==='parcial' || nuevoEstado==='abonado'){
+    montoAbonado = parseFloat(montoAbonadoRaw);
+    if(!montoAbonado || montoAbonado<=0){ mostrarToast('Escribe el monto abonado hasta ahora.'); return; }
+    if(montoAbonado >= l.totalNeto){ mostrarToast('El monto abonado no puede ser igual o mayor al total — para eso usa "Pagada completa".'); return; }
+  }
+  const respaldo = { estadoPago: l.estadoPago, fechaPago: l.fechaPago, montoAbonado: l.montoAbonado };
+  l.estadoPago = nuevoEstado;
+  l.fechaPago = nuevoEstado==='pendiente' ? null : new Date().toISOString().slice(0,10);
+  l.montoAbonado = montoAbonado;
   try{
     await dbGuardarInmediato();
   }catch(err){
-    l.estadoPago = estadoAnterior; l.fechaPago = fechaPagoAnterior;
-    mostrarToast('⚠️ No se pudo marcar como pagado: ' + err.message, 'error');
+    Object.assign(l, respaldo);
+    mostrarToast('⚠️ No se pudo actualizar el estado de pago: ' + err.message, 'error');
     return;
   }
-  registrarLog('Marcar pagado', 'Nómina', `${l.numero} — ${nombrePersona}`);
-  mostrarToast(`✅ ${l.numero} marcado como Pagado.`, 'exito');
+  const nombrePersona = l.esOcasional ? (l.personalOcasionalNombre||'—') : (buscarTecnico(l.tecnicoId)?.nombre||'—');
+  registrarLog('Cambiar estado de pago', 'Nómina', `${l.numero} — ${nombrePersona} → ${infoEstadoPagoNomina(nuevoEstado).etiqueta}${montoAbonado?' ('+formatoCOP(montoAbonado)+')':''}`);
+  cerrarModal('modalEstadoPagoNomina');
+  mostrarToast(`✅ Estado de pago actualizado: ${infoEstadoPagoNomina(nuevoEstado).etiqueta}.`, 'exito');
   renderizarHistorialNomina();
 }
 async function guardarEdicionLiquidacionNomina(){

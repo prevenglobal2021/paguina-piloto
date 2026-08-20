@@ -1489,6 +1489,29 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 </div>
 
 <!-- MODAL: EDITAR LIQUIDACIÓN DE NÓMINA (requiere clave de administrador para abrirse) -->
+<div class="modal-overlay" id="modalEstadoPagoNomina">
+  <div class="modal-box" style="max-width:420px;">
+    <button class="close-modal" onclick="cerrarModal('modalEstadoPagoNomina')">✖</button>
+    <h3>💰 Estado de pago</h3>
+    <p id="lblNominaEstadoPago" style="font-size:12px;color:var(--text-muted);"></p>
+    <label>Estado:</label>
+    <select id="selEstadoPagoNomina" onchange="toggleMontoAbonadoNomina()">
+      <option value="pendiente">Pendiente por pagar</option>
+      <option value="pagado">Pagada completa</option>
+      <option value="parcial">Pagada parcialmente</option>
+      <option value="abonado">Abonada</option>
+    </select>
+    <div id="wrapperMontoAbonadoNomina" style="display:none;margin-top:8px;">
+      <label>Monto abonado hasta ahora:</label>
+      <input type="number" id="inputMontoAbonadoNomina" placeholder="Monto en COP">
+    </div>
+    <div style="margin-top:15px;text-align:right;">
+      <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalEstadoPagoNomina')">Cancelar</button>
+      <button class="btn-custom" onclick="guardarEstadoPagoNomina()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalEditarNomina">
   <div class="modal-box">
     <button class="close-modal" onclick="cerrarModal('modalEditarNomina')">✖</button>
@@ -2000,19 +2023,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=40"></script>
-<script src="utilidades-navegacion.js?v=40"></script>
-<script src="buscador-agenda.js?v=40"></script>
-<script src="ordenes.js?v=40"></script>
-<script src="equipos-trazabilidad.js?v=40"></script>
-<script src="pdf.js?v=40"></script>
-<script src="config-clientes-equipos.js?v=40"></script>
-<script src="config-plantillas-tecnicos.js?v=40"></script>
-<script src="cotizador.js?v=40"></script>
-<script src="config-general.js?v=40"></script>
-<script src="inventario.js?v=40"></script>
-<script src="tienda-admin.js?v=40"></script>
-<script src="tienda-publica.js?v=40"></script>
-<script src="kpi.js?v=40"></script>
+<script src="core.js?v=41"></script>
+<script src="utilidades-navegacion.js?v=41"></script>
+<script src="buscador-agenda.js?v=41"></script>
+<script src="ordenes.js?v=41"></script>
+<script src="equipos-trazabilidad.js?v=41"></script>
+<script src="pdf.js?v=41"></script>
+<script src="config-clientes-equipos.js?v=41"></script>
+<script src="config-plantillas-tecnicos.js?v=41"></script>
+<script src="cotizador.js?v=41"></script>
+<script src="config-general.js?v=41"></script>
+<script src="inventario.js?v=41"></script>
+<script src="tienda-admin.js?v=41"></script>
+<script src="tienda-publica.js?v=41"></script>
+<script src="kpi.js?v=41"></script>
 </body>
 </html>
