@@ -221,7 +221,7 @@ app.get('/api/tienda/:slug', limitePublico, async (req, res) => {
   res.json({
     nombre: cfg.nombre, logo: cfg.tiendaLogo || cfg.logo || null,
     banner: cfg.tiendaBanner || [], galeria: cfg.tiendaGaleria || [],
-    color: cfg.tiendaColor || '#0088ff', imgEstilo: cfg.tiendaImgEstilo || 'cover',
+    color: cfg.tiendaColor || '#0088ff', colorFondo: cfg.tiendaColorFondo || '#f1f5f9', imgEstilo: cfg.tiendaImgEstilo || 'cover',
     tamanoTarjeta: cfg.tiendaTamanoTarjeta || 230,
     telefono: cfg.tiendaTelefono || '', whatsapp: cfg.tiendaWhatsapp || '',
     secciones: cfg.tiendaSecciones || { equipo: [], servicios: [], proyectos: [], clientes: [], certificaciones: [] },
