@@ -1,31 +1,4 @@
 // ===== core.js — extraído de prevenglobal__25_.html (líneas 1601-1956) =====
-/* =========================================================
-   CAPA DE DATOS (equivalente a db.js) — hoy: localStorage.
-
-   NOTA SOBRE ARQUITECTURA DE ALMACENAMIENTO (punto 3 del alcance):
-   Este archivo es un PROTOTIPO 100% de navegador (front-end puro):
-   guarda todo en localStorage y no tiene servidor ni base de datos
-   real. La estructura jerárquica de carpetas y el modelo relacional
-   descritos abajo son el diseño objetivo para la implementación en
-   producción (backend + storage en la nube), y no pueden crearse
-   dentro de este prototipo porque requieren un servidor:
-
-   Storage de archivos (backend):
-     /Clientes/[ID_Nombre_Cliente]/Sedes/[Nombre_Sede]/Equipos/[QR_ID_Equipo]/
-     /Clientes/[ID_Nombre_Cliente]/Ordenes_Servicio/[Año_Mes]/[No_Orden.pdf]
-     /Inventario/Bodegas/[ID_Bodega]/Items/[Codigo_Item]/
-
-   Base de datos relacional (backend):
-     Cliente (1) -> Sedes/Sucursales (N) -> Equipos (N)
-     Auditoría automatizada (logs) por fecha, hora y usuario en cada
-     cambio — en este prototipo ya se registra en db.logs.
-
-   Este prototipo ya refleja ese modelo en su estructura de datos en
-   memoria (clientes -> sedes -> equipos, bodegas -> ítems, y un QR
-   único por equipo/ítem para trazabilidad), de modo que migrar a un
-   backend real (p. ej. Node/Express + Postgres + S3 o almacenamiento
-   en la nube siguiendo las rutas de arriba) sea un mapeo directo.
-========================================================= */
 const DB_KEY = 'prevenglobal_db_v2';
 
 function dbCargar(){
@@ -108,9 +81,6 @@ function dbGuardarInmediato(){
   return enviarEstadoAlServidor().catch(err=>{ marcarErrorSync(err); throw err; });
 }
 
-/* ---------------------------------------------------------
-   PLATAFORMA MULTIEMPRESA — sincronización con el backend real.
---------------------------------------------------------- */
 const API_BASE = '';
 const EMPRESA_KEY = 'prevenglobal_empresa_v1';
 const TOKEN_KEY = 'prevenglobal_token_v1';
@@ -291,6 +261,10 @@ function iniciarRefrescoSilencioso(){
   }
 }
 function forzarNuevoLogin(){
+  // Si está en modo escaneo QR público, no forzar login
+  var params = new URLSearchParams(location.search);
+  if(params.has('equipo') || params.has('tienda')) return;
+
   localStorage.removeItem(TOKEN_KEY);
   sesionServidor = null;
   mostrarLogin();
@@ -309,9 +283,6 @@ if(!db.inventario) db.inventario = [];
 if(!db.kardex) db.kardex = [];
 if(!db.logs) db.logs = [];
 
-/* =========================================================
-   RBAC — sesión, roles y permisos
-========================================================= */
 const SESION_KEY = 'prevenglobal_sesion_v1';
 let sesionActual = JSON.parse(localStorage.getItem(SESION_KEY) || 'null');
 function esAdmin(){ return sesionActual && sesionActual.rol==='admin'; }
@@ -345,6 +316,16 @@ function cerrarSesion(){
 
 /* --- Pantalla de login --- */
 function mostrarLogin(){
+  // Si la URL contiene ?equipo=... (escaneo de QR público) o ?tienda=..., NUNCA abrir el login
+  var params = new URLSearchParams(window.location.search);
+  if(params.has('equipo') || params.has('tienda')) {
+    var overlay = document.getElementById('loginOverlay');
+    if(overlay) overlay.style.display = 'none';
+    var sk = document.getElementById('skeletonBoot');
+    if(sk) sk.style.display = 'none';
+    return;
+  }
+
   ocultarSkeletonBoot();
   document.getElementById('loginOverlay').style.display = 'flex';
   const slug = empresaActual || 'prevenglobal';
@@ -592,9 +573,6 @@ let mesCalendarioActual = new Date();
 let logoTempBase64 = null;
 let firmaTempBase64 = null;
 
-/* =========================================================
-   CONTROLADOR DE FORMATO DE TEXTO ENRIQUECIDO (DIAGNÓSTICO)
-========================================================= */
 let rangoSeleccionDiagnostico = null;
 
 function guardarSeleccionDiagnostico() {

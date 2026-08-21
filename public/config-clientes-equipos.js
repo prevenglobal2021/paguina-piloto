@@ -74,11 +74,6 @@ function enviarPorWhatsApp(ordenId){
     .replace(/{numero_orden}/g, o.numero);
   const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
 
-  // En celular con panel nativo de compartir, el PDF se adjunta directo — no
-  // hace falta el enlace de WhatsApp aparte. En computador, WhatsApp se abre
-  // YA MISMO, en respuesta directa al clic: si se espera a que el PDF termine
-  // de generarse primero, el navegador bloquea la ventana en silencio (sin
-  // avisar nada), y por eso antes parecía que el botón "no hacía nada".
   const puedeCompartirArchivosNativo = !!(navigator.share && navigator.canShare);
   let ventanaWhatsApp = null;
   if(!puedeCompartirArchivosNativo){
@@ -89,13 +84,12 @@ function enviarPorWhatsApp(ordenId){
     }
   }
 
-  verPDF(ordenId); // arma el contenido del informe (ficha completa) en #pdfContenido
+  verPDF(ordenId);
   const nombreArchivo = `Informe_${o.numero}_${cliente.nombre}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
   const elemento = document.getElementById('pdfContenido');
   const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
 
   if(typeof html2pdf === 'undefined'){
-    // sin conexión para cargar la librería de PDF: igual abrimos WhatsApp, el usuario adjunta manualmente con "Ver Documento"
     if(puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
     registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (sin informe adjunto automático — sin conexión)`);
     return;
@@ -104,15 +98,13 @@ function enviarPorWhatsApp(ordenId){
     cerrarModal('modalPDF');
     const archivoPdf = new File([blob], nombreArchivo, { type:'application/pdf' });
 
-    // Celular (Android/iOS): panel nativo de compartir, con WhatsApp como una opción directa — el PDF ya va adjunto.
     if(puedeCompartirArchivosNativo && navigator.canShare({ files:[archivoPdf] })){
       navigator.share({ files:[archivoPdf], title:`Informe ${o.numero}`, text: mensaje }).then(()=>{
         registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (informe compartido directo desde el celular)`);
-      }).catch(()=>{ /* el usuario cerró el panel de compartir sin elegir nada: no se registra como enviado */ });
+      }).catch(()=>{ });
       return;
     }
 
-    // Escritorio (sin panel de compartir con archivos): WhatsApp ya está abierto desde el clic — solo falta descargar el PDF.
     const url = URL.createObjectURL(blob);
     const enlaceDescarga = document.createElement('a');
     enlaceDescarga.href = url; enlaceDescarga.download = nombreArchivo; enlaceDescarga.click();
@@ -267,7 +259,7 @@ function renderizarSedesConfig(){
   c.sedes.forEach(s=>{
     tbody.innerHTML += `<tr><td>${s.nombre}</td><td>${s.direccion||''}</td><td>${s.equipos.length}</td>
       <td><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="seleccionarSedeConfig(${s.id})">Equipos</button>
-      <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirEnGoogleMaps('${(s.direccion||'').replace(/'/g,"\\'")}')"><i class="fas fa-map-marker-alt"></i></button>
+      <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirEnGoogleMaps('${(s.direccion||'').replace(/'/g,"\'")}')"><i class="fas fa-map-marker-alt"></i></button>
       <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarSedeConfig(${s.id})">X</button></td></tr>`;
   });
 }
@@ -286,8 +278,9 @@ function seleccionarSedeConfig(id){
   document.getElementById('cfgTituloEquipos').innerText = `Equipos de: ${s.nombre}`;
   renderizarEquiposConfig();
 }
+
 /* =========================================================
-   REGISTRO / EDICIÓN DE EQUIPO (modal global con relación Cliente → Sede)
+   REGISTRO / EDICIÓN DE EQUIPO
 ========================================================= */
 let fotosEquipoModalTemp = [];
 function abrirModalEquipo(equipoId, clientePreset, sedePreset){
@@ -415,18 +408,55 @@ function eliminarEquipoConfig(id){
 }
 
 /* =========================================================
-   QR CORPORATIVO DEL EQUIPO (etiqueta 5x5cm + redirección al escanear)
+   QR CORPORATIVO DEL EQUIPO (5x5cm / 10x10cm + Redirección Pública)
 ========================================================= */
-function verEtiquetaQR(equipoId){
+let equipoQREdicionActualId = null;
+let tamanoEtiquetaActual = '5cm';
+
+function verEtiquetaQR(equipoId, tamano = '5cm'){
   const info = ubicarEquipoPorId(equipoId);
   if(!info) return;
+  equipoQREdicionActualId = equipoId;
+  tamanoEtiquetaActual = tamano;
   if(!info.equipo.qrId){ info.equipo.qrId = 'EQ-'+equipoId; dbGuardar(); }
-  const urlEquipo = `${location.origin}${location.pathname}?equipo=${equipoId}`;
+  
+  cambiarTamanoEtiqueta(tamanoEtiquetaActual);
+  abrirModal('modalEtiquetaQR');
+}
+
+function cambiarTamanoEtiqueta(tamano){
+  tamanoEtiquetaActual = tamano;
+  const btn5 = document.getElementById('btnTamanoQR5');
+  const btn10 = document.getElementById('btnTamanoQR10');
+  if(btn5) btn5.classList.toggle('active', tamano === '5cm');
+  if(btn10) btn10.classList.toggle('active', tamano === '10cm');
+
+  const info = ubicarEquipoPorId(equipoQREdicionActualId);
+  if(!info) return;
+
+  const urlEquipo = `${location.origin}${location.pathname}?equipo=${equipoQREdicionActualId}`;
   const wrap = document.getElementById('etiquetaQRWrap');
+  const container = document.getElementById('etiquetaQRPrint');
   wrap.innerHTML = '';
-  new QRCode(wrap, { text: urlEquipo, width:300, height:300, correctLevel: QRCode.CorrectLevel.H });
+
+  const esGrande = tamano === '10cm';
+  if(container){
+    container.style.width = esGrande ? '10cm' : '5cm';
+    container.style.height = esGrande ? '10cm' : '5cm';
+    container.className = 'etiqueta-qr-print ' + (esGrande ? 'etiqueta-10cm' : 'etiqueta-5cm');
+  }
+
+  const qrPixelSize = esGrande ? 240 : 150;
+  new QRCode(wrap, { text: urlEquipo, width: qrPixelSize, height: qrPixelSize, correctLevel: QRCode.CorrectLevel.H });
+  
   document.getElementById('etiquetaQRNombre').innerText = info.equipo.nombre;
-  document.getElementById('etiquetaQRCodigo').innerText = info.equipo.serie || info.equipo.qrId;
+  document.getElementById('etiquetaQRCodigo').innerText = info.equipo.serie ? `SERIE: ${info.equipo.serie}` : info.equipo.qrId;
+  
+  const subtituloInfo = document.getElementById('etiquetaQRSubInfo');
+  if(subtituloInfo){
+    subtituloInfo.innerText = `${info.cliente.nombre}${info.sede ? ' · ' + info.sede.nombre : ''}`;
+  }
+
   if(db.config.logo){
     setTimeout(()=>{
       const existente = wrap.querySelector('.etiqueta-logo-centro');
@@ -437,15 +467,18 @@ function verEtiquetaQR(equipoId){
       wrap.appendChild(logoImg);
     }, 80);
   }
-  abrirModal('modalEtiquetaQR');
 }
+
 function imprimirEtiquetaQR(){
+  const tam = tamanoEtiquetaActual || '5cm';
   const estilo = document.createElement('style');
   estilo.id = 'estiloPaginaEtiqueta';
-  estilo.innerHTML = '@page{size:5cm 5cm;margin:0;}';
+  estilo.innerHTML = `@page { size: ${tam} ${tam}; margin: 0; } @media print { html, body { width: ${tam} !important; height: ${tam} !important; max-height: ${tam} !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; } }`;
   document.head.appendChild(estilo);
+  
   document.body.classList.add('imprimiendo-etiqueta');
   window.print();
+  
   const limpiar = ()=>{
     document.body.classList.remove('imprimiendo-etiqueta');
     const el = document.getElementById('estiloPaginaEtiqueta');
@@ -455,17 +488,144 @@ function imprimirEtiquetaQR(){
   window.addEventListener('afterprint', limpiar);
   setTimeout(limpiar, 1500);
 }
+
+/* =========================================================
+   HOJA DE VIDA PÚBLICA (ESCANEO DE QR SIN LOGIN)
+========================================================= */
 function manejarParametroQR(){
   const params = new URLSearchParams(location.search);
   const equipoId = params.get('equipo');
   const itemId = params.get('item');
+  
   if(equipoId){
-    irATrazabilidadEquipo(equipoId);
+    renderizarHojaVidaPublica(parseInt(equipoId));
     return;
   }
   if(itemId){
-    mostrarSeccion('inventario');
-    setTimeout(()=>{ verFichaQR(parseInt(itemId)); }, 80);
+    if(sesionActual){
+      mostrarSeccion('inventario');
+      setTimeout(()=>{ verFichaQR(parseInt(itemId)); }, 80);
+    }
   }
 }
 
+function renderizarHojaVidaPublica(equipoId){
+  const info = ubicarEquipoPorId(equipoId);
+  const wrapPublico = document.getElementById('hojaVidaPublicaWrapper');
+  const mainWrapper = document.getElementById('main-wrapper');
+  const skeleton = document.getElementById('skeletonBoot');
+  const login = document.getElementById('loginOverlay');
+  
+  if(skeleton) skeleton.style.display = 'none';
+  if(login) login.style.display = 'none';
+
+  if(!info){
+    if(mainWrapper) mainWrapper.style.display = 'none';
+    if(wrapPublico){
+      wrapPublico.style.display = 'block';
+      wrapPublico.innerHTML = `
+        <div style="max-width:600px;margin:40px auto;background:#fff;padding:30px;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.06);text-align:center;font-family:var(--font-sans);">
+          <i class="fas fa-exclamation-circle" style="font-size:48px;color:#ef4444;margin-bottom:12px;"></i>
+          <h3 style="color:#0f172a;margin:0 0 6px;">Equipo No Encontrado</h3>
+          <p style="color:#64748b;font-size:14px;">El código escaneado no corresponde a un equipo activo o registrado en la plataforma.</p>
+          <a href="${location.pathname}" class="btn-custom" style="margin-top:16px;text-decoration:none;display:inline-flex;">Ir al Inicio</a>
+        </div>`;
+    }
+    return;
+  }
+
+  if(mainWrapper) mainWrapper.style.display = 'none';
+  if(wrapPublico){
+    wrapPublico.style.display = 'block';
+    
+    const ordenesEquipo = (db.ordenes||[]).filter(o=>o.equipoId===equipoId).sort((a,b)=> (b.fechaProgramada||'').localeCompare(a.fechaProgramada||''));
+    const finalizadas = ordenesEquipo.filter(o=>o.estado==='Finalizado').length;
+    
+    const fotosEq = (info.equipo.fotos && info.equipo.fotos.length) 
+      ? `<div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;margin-top:10px;">
+          ${info.equipo.fotos.map(f=>`<img src="${srcDeFoto(f)}" style="width:110px;height:110px;object-fit:cover;border-radius:10px;border:1px solid #e2e8f0;flex-shrink:0;">`).join('')}
+         </div>`
+      : '';
+
+    let timelineHtml = '';
+    if(ordenesEquipo.length === 0){
+      timelineHtml = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:13px;"><i class="fas fa-clipboard-check" style="font-size:28px;display:block;margin-bottom:8px;"></i>Este equipo aún no registra mantenimientos u órdenes finalizadas.</div>';
+    } else {
+      timelineHtml = '<div class="timeline" style="margin-top:16px;border-left:2px solid #0066ff;padding-left:18px;">';
+      ordenesEquipo.forEach(o=>{
+        const tecnico = buscarTecnico(o.tecnicoId);
+        const fotosCierre = (o.cierre && o.cierre.fotos && o.cierre.fotos.length) 
+          ? `<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+              ${normalizarFotosEvidencia(o.cierre.fotos).map(f=>`<img src="${f.src}" style="width:65px;height:65px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;">`).join('')}
+             </div>`
+          : '';
+
+        let badgeClass = 'background:#fef3c7;color:#92400e;';
+        if(o.estado === 'Finalizado') badgeClass = 'background:#dcfce7;color:#166534;';
+        if(o.estado === 'En Ejecución') badgeClass = 'background:#ede9fe;color:#5b21b6;';
+
+        timelineHtml += `
+          <div class="timeline-item" style="position:relative;margin-bottom:24px;">
+            <div style="font-size:11px;font-weight:700;color:#64748b;display:flex;align-items:center;gap:8px;">
+              <span><i class="fas fa-calendar-day"></i> ${o.fechaProgramada || (o.cierre?o.cierre.fecha:'Sin fecha')}</span>
+              <span style="font-size:10px;padding:2px 8px;border-radius:10px;font-weight:800;text-transform:uppercase;${badgeClass}">${o.estado}</span>
+            </div>
+            <div style="font-size:14px;font-weight:800;color:#0f172a;margin:4px 0;">${o.numero} — ${o.tipo}</div>
+            <div style="font-size:12.5px;color:#475569;line-height:1.5;">
+              <strong>Técnico:</strong> ${tecnico ? tecnico.nombre : 'Personal asignado'}<br>
+              ${o.cierre ? `<strong>Diagnóstico técnico:</strong> <div style="margin-top:2px;color:#1e293b;">${o.cierre.diagnostico || 'Servicio completado satisfactoriamente.'}</div>` : 'Intervención en progreso.'}
+            </div>
+            ${fotosCierre}
+          </div>`;
+      });
+      timelineHtml += '</div>';
+    }
+
+    const logoEmpresaHtml = db.config.logo ? `<img src="${db.config.logo}" style="height:48px;max-width:140px;object-fit:contain;">` : `<h2 style="margin:0;font-size:18px;font-weight:800;color:#0066ff;">${db.config.nombre || 'Prevenglobal'}</h2>`;
+
+    wrapPublico.innerHTML = `
+      <div style="max-width:760px;margin:0 auto;padding:20px 14px;font-family:var(--font-sans);">
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,0.03);margin-bottom:16px;">
+          <div>${logoEmpresaHtml}</div>
+          <div style="text-align:right;">
+            <span style="font-size:11px;font-weight:800;background:#eff6ff;color:#0066ff;padding:4px 10px;border-radius:20px;display:inline-block;">HOJA DE VIDA DIGITAL</span>
+            <small style="display:block;color:#64748b;font-size:11px;margin-top:3px;">Trazabilidad Técnica en Tiempo Real</small>
+          </div>
+        </div>
+
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,0.03);margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+            <div>
+              <span style="font-size:11px;font-weight:700;color:#0066ff;text-transform:uppercase;letter-spacing:0.5px;">${info.cliente.nombre} ${info.sede ? ' &bull; ' + info.sede.nombre : ''}</span>
+              <h2 style="font-size:20px;font-weight:800;color:#0f172a;margin:2px 0 4px;">${info.equipo.nombre}</h2>
+              <div style="font-size:12px;color:#64748b;">Código / Serie: <strong style="color:#0f172a;">${info.equipo.serie || info.equipo.qrId}</strong></div>
+            </div>
+            <div style="text-align:right;">
+              <span style="font-size:11px;font-weight:700;background:#ecfdf5;color:#10b981;padding:4px 12px;border-radius:20px;display:inline-block;">${finalizadas} Mantenimiento(s)</span>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:16px;background:#f8fafc;padding:14px;border-radius:10px;border:1px solid #e2e8f0;">
+            <div><span style="font-size:11px;color:#64748b;display:block;">Marca / Modelo:</span><strong style="font-size:13px;color:#0f172a;">${info.equipo.marca || '—'} ${info.equipo.modelo || ''}</strong></div>
+            <div><span style="font-size:11px;color:#64748b;display:block;">Capacidad:</span><strong style="font-size:13px;color:#0f172a;">${info.equipo.capacidad || '—'}</strong></div>
+            <div><span style="font-size:11px;color:#64748b;display:block;">Refrigerante:</span><strong style="font-size:13px;color:#0066ff;">${info.equipo.refrigerante || '—'}</strong></div>
+            <div><span style="font-size:11px;color:#64748b;display:block;">Voltaje:</span><strong style="font-size:13px;color:#0f172a;">${info.equipo.voltaje || '—'}</strong></div>
+          </div>
+
+          ${info.equipo.fichaTecnica ? `<div style="margin-top:14px;font-size:12.5px;color:#334155;background:#ffffff;border:1px dashed #cbd5e1;padding:10px 12px;border-radius:8px;"><strong>Notas técnicas:</strong> ${info.equipo.fichaTecnica}</div>` : ''}
+          ${fotosEq}
+        </div>
+
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+          <h3 style="font-size:16px;font-weight:800;color:#0f172a;margin:0 0 4px;"><i class="fas fa-history" style="color:#0066ff;margin-right:6px;"></i>Historial de Mantenimientos e Intervenciones</h3>
+          <p style="font-size:12px;color:#64748b;margin:0 0 16px;">Registro cronológico detallado de actividades ejecutadas sobre este equipo.</p>
+          ${timelineHtml}
+        </div>
+
+        <div style="text-align:center;margin-top:24px;padding:16px;color:#94a3b8;font-size:11px;">
+          Plataforma de Control Técnico &bull; ${db.config.nombre || 'Prevenglobal'}<br>
+          <a href="${location.pathname}" style="color:#0066ff;text-decoration:none;font-weight:700;margin-top:6px;display:inline-block;">Ingreso al Panel Administrativo</a>
+        </div>
+      </div>`;
+  }
+}
