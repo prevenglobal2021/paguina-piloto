@@ -114,10 +114,11 @@ async function leerEstadoEmpresa(slug) {
   return r.rows[0] ? r.rows[0].estado_app : null;
 }
 async function guardarEstadoEmpresa(slug, data) {
-  await pool.query(
-    'UPDATE empresas SET estado_app = $1, actualizado_en = now() WHERE slug = $2',
+  const r = await pool.query(
+    'UPDATE empresas SET estado_app = $1, actualizado_en = now() WHERE slug = $2 RETURNING actualizado_en',
     [JSON.stringify(data), slug]
   );
+  return r.rows[0] ? r.rows[0].actualizado_en : null;
 }
 async function crearEmpresa(slug, nombre, estadoInicial) {
   await pool.query(
@@ -462,6 +463,20 @@ app.post('/api/auth/confirmar-reset', limiteLogin, async (req, res) => {
 /* ---------------------------------------------------------
    API — Estado de la aplicación (protegido, por empresa)
 --------------------------------------------------------- */
+// Endpoint liviano: solo dice CUÁNDO fue el último cambio guardado (unos
+// bytes), sin bajar toda la información. Se usa para revisar frecuentemente
+// "¿cambió algo?" sin gastar ancho de banda — solo si la respuesta indica
+// que sí cambió, el frontend pide entonces el estado completo con /api/state.
+app.get('/api/state/meta', requireAuth, async (req, res) => {
+  try{
+    const r = await pool.query('SELECT actualizado_en FROM empresas WHERE slug = $1', [req.slug]);
+    if(!r.rows[0]) return res.status(404).json({ error: 'Empresa no encontrada.' });
+    res.json({ actualizadoEn: r.rows[0].actualizado_en });
+  }catch(err){
+    console.error('[state-meta] Error:', err);
+    res.status(500).json({ error: err.message || 'Error al consultar.' });
+  }
+});
 app.get('/api/state', requireAuth, async (req, res) => {
   const data = await leerEstadoEmpresa(req.slug);
   if (!data) return res.status(404).json({ error: 'Empresa no encontrada.' });
@@ -503,9 +518,9 @@ app.put('/api/state', requireAuth, async (req, res) => {
     delete configNuevo.adminPassword;
 
     const estadoFinal = Object.assign({}, nuevo, { tecnicos: tecnicosFusionados, config: configNuevo });
-    await guardarEstadoEmpresa(req.slug, estadoFinal);
+    const actualizadoEn = await guardarEstadoEmpresa(req.slug, estadoFinal);
     console.log(`[guardar-state] OK en ${Date.now()-inicio}ms — empresa=${req.slug}`);
-    res.json({ ok: true });
+    res.json({ ok: true, actualizadoEn });
   } catch (err) {
     console.error(`[guardar-state] FALLÓ tras ${Date.now()-inicio}ms — empresa=${req.slug}:`, err);
     res.status(500).json({ ok: false, error: err.message || 'Error desconocido al guardar.' });

@@ -288,7 +288,7 @@ async function guardarDetalleOrden(finalizar){
   registrarLog(esEdicionForzada ? 'Editar orden finalizada' : (finalizar ? 'Finalizar' : 'Editar'), 'OrdenServicio', `${o.numero} (${nombreUsuarioActual()})`);
   cerrarModal('modalDetalleOrden');
   ordenDetalleEsEdicionForzada = false;
-  mostrarToast((finalizar && !esEdicionForzada) ? '✅ Informe guardado y orden finalizada correctamente.' : '✅ Informe guardado correctamente.', 'exito');
+  mostrarToast((finalizar && !esEdicionForzada) ? '✅ Informe guardado y orden finalizada correctamente.' : '✅ Avance guardado — puedes cerrar y continuar cuando quieras.', 'exito');
   renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
 }
 function confirmarFinalizarOrden(){

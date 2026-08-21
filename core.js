@@ -206,6 +206,17 @@ function fetchConLimite(url, opciones, segundos){
 async function fusionarConServidorAntesDeGuardar(){
   if(!empresaActual || !sesionServidor) return;
   try{
+    // Primero se revisa liviano (unos bytes) si de verdad hay algo nuevo desde
+    // el último dato que ya tenemos — la mayoría de las veces, gracias al
+    // sondeo frecuente de fondo, la copia local ya está al día, y así el
+    // guardado se salta el paso pesado de bajar todo de nuevo, sintiéndose
+    // más rápido. Solo si sí hay algo nuevo, se baja y se fusiona como antes.
+    const rMeta = await fetchConLimite(API_BASE + '/api/state/meta', { headers: headersAutenticados() }, 4);
+    if(rMeta.ok){
+      const { actualizadoEn } = await rMeta.json();
+      if(ultimaVersionConocida !== null && actualizadoEn === ultimaVersionConocida) return; // ya estamos al día, no hace falta bajar nada
+      ultimaVersionConocida = actualizadoEn;
+    }
     const r = await fetchConLimite(API_BASE + '/api/state', { headers: headersAutenticados() }, 8);
     if(r.ok){
       const remoto = await r.json();
@@ -234,6 +245,10 @@ async function enviarEstadoAlServidor(){
     }
     throw new Error(`El servidor rechazó el guardado (código ${resp.status}). ${detalle}`);
   }
+  try{
+    const cuerpo = await resp.json();
+    if(cuerpo && cuerpo.actualizadoEn) ultimaVersionConocida = cuerpo.actualizadoEn;
+  }catch(e){ /* si la respuesta no trae el dato, el próximo sondeo simplemente lo revisa igual */ }
   syncEstado = 'ok';
   actualizarBadgeConexion();
 }
@@ -255,6 +270,7 @@ function sincronizarConBackend(){
     enviarEstadoAlServidor().catch(marcarErrorSync);
   }, 400);
 }
+let ultimaVersionConocida = null; // marca de tiempo del último cambio que ya tenemos, para saber si hace falta bajar todo de nuevo
 function cargarEstadoDesdeBackend(){
   if(!empresaActual || !sesionServidor) return;
   fetch(API_BASE + '/api/state', { headers: headersAutenticados() }).then(r=>{
@@ -268,10 +284,39 @@ function cargarEstadoDesdeBackend(){
     guardarEnLocalStorage();
     aplicarConfiguracionVisual();
     renderizarAgenda(); renderizarCalendario(); renderizarEquiposGlobal(''); actualizarKPIs();
+    anotarVersionConocidaActual();
     iniciarRefrescoSilencioso();
   }).catch(()=>{ /* sin conexión: seguimos trabajando con la copia local (modo offline) */ });
 }
+// Anota en qué momento quedó el último cambio guardado, consultando el
+// endpoint liviano — así, la próxima vez que se revise, se puede comparar
+// sin tener que bajar toda la información de nuevo.
+async function anotarVersionConocidaActual(){
+  try{
+    const r = await fetchConLimite(API_BASE + '/api/state/meta', { headers: headersAutenticados() }, 6);
+    if(r.ok){ const d = await r.json(); ultimaVersionConocida = d.actualizadoEn; }
+  }catch(e){ /* si falla, simplemente se revisará de nuevo en el próximo ciclo */ }
+}
 let intervaloRefrescoSilencioso = null;
+// Revisión liviana: pregunta "¿cambió algo?" (unos bytes) en vez de bajar
+// toda la información cada vez — solo si la respuesta dice que sí cambió,
+// se baja el estado completo y se fusiona. Esto permite revisar mucho más
+// seguido (antes cada 20s bajando todo; ahora cada 5s con un dato mínimo),
+// haciendo que los cambios entre celular y computador se vean casi al instante.
+async function revisarSiHayCambiosNuevos(){
+  if(!empresaActual || !sesionServidor) return;
+  if(syncEstado === 'pendiente') return; // no interferir mientras hay un guardado en curso
+  try{
+    const r = await fetchConLimite(API_BASE + '/api/state/meta', { headers: headersAutenticados() }, 6);
+    if(!r.ok) return;
+    const { actualizadoEn } = await r.json();
+    if(ultimaVersionConocida === null){ ultimaVersionConocida = actualizadoEn; return; } // primera revisión: solo se anota
+    if(actualizadoEn !== ultimaVersionConocida){
+      ultimaVersionConocida = actualizadoEn;
+      refrescarSilenciosamenteDesdeServidor();
+    }
+  }catch(e){ /* sin conexión: se reintenta en el próximo ciclo */ }
+}
 function refrescarSilenciosamenteDesdeServidor(){
   if(!empresaActual || !sesionServidor) return;
   if(syncEstado === 'pendiente') return; // no interferir mientras hay un guardado en curso
@@ -289,7 +334,14 @@ function refrescarSilenciosamenteDesdeServidor(){
 }
 function iniciarRefrescoSilencioso(){
   clearInterval(intervaloRefrescoSilencioso);
-  intervaloRefrescoSilencioso = setInterval(refrescarSilenciosamenteDesdeServidor, 20000);
+  intervaloRefrescoSilencioso = setInterval(revisarSiHayCambiosNuevos, 5000);
+  if(!window.__refrescoAlVolverConfigurado){
+    // Si el usuario vuelve a la pestaña/app después de tenerla en segundo
+    // plano, revisa de inmediato en vez de esperar al siguiente ciclo — así
+    // se siente instantáneo al regresar después de un cambio en otro dispositivo.
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) revisarSiHayCambiosNuevos(); });
+    window.__refrescoAlVolverConfigurado = true;
+  }
 }
 function forzarNuevoLogin(){
   localStorage.removeItem(TOKEN_KEY);
