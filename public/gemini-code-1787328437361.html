@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Prevenglobal - App Móvil</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --blue: #0088ff;
+      --green: #22c55e;
+      --yellow: #f59e0b;
+      --purple: #8b5cf6;
+      --red: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background: var(--bg); color: var(--text); padding-bottom: 75px; }
+
+    /* Barra Superior Móvil */
+    header { position: sticky; top: 0; z-index: 100; background: #fff; border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+    header h1 { font-size: 16px; font-weight: 700; color: var(--blue); }
+    .status-badge { font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: 600; }
+    .status-ok { background: #dcfce7; color: #166534; }
+    .status-sync { background: #fef3c7; color: #92400e; }
+
+    /* Pestañas de Navegación */
+    .tab-content { display: none; padding: 14px; }
+    .tab-content.active { display: block; }
+    nav { position: fixed; bottom: 0; left: 0; right: 0; height: 60px; background: #fff; border-top: 1px solid var(--border); display: flex; z-index: 100; }
+    .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); text-decoration: none; font-size: 11px; gap: 4px; }
+    .nav-item.active { color: var(--blue); font-weight: 600; }
+    .nav-item i { font-size: 18px; }
+
+    /* Tarjetas de Órdenes */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+    .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; }
+    .badge-prog { background: #fef3c7; color: #92400e; }
+    .badge-proc { background: #ede9fe; color: #5b21b6; }
+    .badge-fin { background: #dcfce7; color: #166534; }
+    .card-title { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 6px; }
+    .card-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+
+    /* Formularios y Botones */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 12px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: var(--blue); color: #fff; }
+    .btn-success { background: var(--green); color: #fff; }
+    .btn-secondary { background: #e2e8f0; color: var(--text); }
+    input, select, textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 15px; margin-top: 4px; margin-bottom: 10px; background: #fff; }
+
+    /* Galería de Fotos y Canvas */
+    .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0; }
+    .photo-thumb { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); }
+    .canvas-wrap { background: #fff; border: 1px dashed var(--border); border-radius: 8px; touch-action: none; margin: 6px 0; }
+    
+    /* Login / Modales */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 200; align-items: flex-end; }
+    .modal-box { background: #fff; width: 100%; max-height: 90vh; border-radius: 16px 16px 0 0; padding: 18px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+
+  <!-- Encabezado -->
+  <header>
+    <h1 id="appTitulo">Prevenglobal</h1>
+    <span class="status-badge status-ok" id="badgeSync">Sincronizado</span>
+  </header>
+
+  <!-- Pestaña 1: Órdenes de Servicio -->
+  <main class="tab-content active" id="tabOrdenes">
+    <div style="display:flex; gap:8px; margin-bottom:12px;">
+      <input type="text" id="filtroOrdenes" placeholder="Buscar orden o cliente..." oninput="renderizarOrdenesMovil()" style="margin:0;">
+    </div>
+    <div id="listaOrdenesMovil"></div>
+  </main>
+
+  <!-- Pestaña 2: Clientes y Equipos -->
+  <main class="tab-content" id="tabEquipos">
+    <input type="text" id="filtroEquipos" placeholder="Buscar cliente, modelo o serie..." oninput="renderizarEquiposMovil()">
+    <div id="listaEquiposMovil"></div>
+  </main>
+
+  <!-- Pestaña 3: Inventario de Repuestos -->
+  <main class="tab-content" id="tabInventario">
+    <input type="text" id="filtroInventario" placeholder="Buscar repuesto en bodega..." oninput="renderizarInventarioMovil()">
+    <div id="listaInventarioMovil"></div>
+  </main>
+
+  <!-- Barra de Navegación Inferior -->
+  <nav>
+    <a href="#" class="nav-item active" onclick="cambiarTab('tabOrdenes', this)"><i class="fa-solid fa-clipboard-check"></i>Órdenes</a>
+    <a href="#" class="nav-item" onclick="cambiarTab('tabEquipos', this)"><i class="fa-solid fa-snowflake"></i>Equipos</a>
+    <a href="#" class="nav-item" onclick="cambiarTab('tabInventario', this)"><i class="fa-solid fa-boxes-stacked"></i>Stock</a>
+  </nav>
+
+  <!-- Modal: Cerrar / Editar Orden en Campo -->
+  <div class="modal" id="modalOrden">
+    <div class="modal-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 id="modalOrdenTitulo" style="font-size:16px;">Orden de Servicio</h3>
+        <button onclick="cerrarModalOrden()" style="border:none;background:none;font-size:18px;">✕</button>
+      </div>
+
+      <input type="hidden" id="ordenActivaId">
+      
+      <label style="font-size:12px; font-weight:600;">Estado de la orden:</label>
+      <select id="modalOrdenEstado">
+        <option value="Programado">Programado</option>
+        <option value="En Ejecución">En Ejecución</option>
+        <option value="Finalizado">Finalizado</option>
+      </select>
+
+      <label style="font-size:12px; font-weight:600;">Diagnóstico y Actividades:</label>
+      <textarea id="modalOrdenDiagnostico" rows="3" placeholder="Describe el mantenimiento realizado, fallas o ajustes..."></textarea>
+
+      <label style="font-size:12px; font-weight:600;">Fotos de evidencia:</label>
+      <input type="file" id="inputFotoMovil" accept="image/*" multiple capture="environment" onchange="capturarFotosMovil(event)">
+      <div class="photo-grid" id="gridFotosOrden"></div>
+
+      <label style="font-size:12px; font-weight:600; margin-top:8px;">Firma del Técnico:</label>
+      <div class="canvas-wrap"><canvas id="canvasFirma" height="110"></canvas></div>
+      <button class="btn btn-secondary" style="padding:6px; font-size:12px; margin-bottom:12px;" onclick="limpiarCanvas()">Borrar Firma</button>
+
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-secondary" onclick="cerrarModalOrden()">Cancelar</button>
+        <button class="btn btn-success" onclick="guardarCierreOrdenMovil()">Guardar Orden</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================
+       SINCRONIZACIÓN Y ESTADO CON BACKEND
+    ========================================================= */
+    const TOKEN_KEY = 'prevenglobal_token_v1';
+    const DB_KEY = 'prevenglobal_db_v2';
+    const EMPRESA_KEY = 'prevenglobal_empresa_v1';
+
+    let db = JSON.parse(localStorage.getItem(DB_KEY) || '{"ordenes":[], "clientes":[], "inventario":[], "config":{}}');
+    let sesionServidor = JSON.parse(localStorage.getItem(TOKEN_KEY) || 'null');
+    let empresaSlug = localStorage.getItem(EMPRESA_KEY) || 'prevenglobal';
+    let fotosOrdenTemp = [];
+    let canvas, ctx, dibujando = false;
+
+    function headersAutenticados(extra) {
+      const h = Object.assign({ 'X-Empresa': empresaSlug }, extra || {});
+      if (sesionServidor && sesionServidor.token) h['Authorization'] = 'Bearer ' + sesionServidor.token;
+      return h;
+    }
+
+    async function cargarEstadoServidor() {
+      if (!sesionServidor) return;
+      try {
+        const r = await fetch('/api/state', { headers: headersAutenticados() });
+        if (r.ok) {
+          db = await r.json();
+          localStorage.setItem(DB_KEY, JSON.stringify(db));
+          renderizarTodo();
+        }
+      } catch (e) {
+        console.warn('Modo offline activo');
+      }
+    }
+
+    async function guardarEstadoServidor() {
+      document.getElementById('badgeSync').className = 'status-badge status-sync';
+      document.getElementById('badgeSync').innerText = 'Guardando...';
+      localStorage.setItem(DB_KEY, JSON.stringify(db));
+      try {
+        const r = await fetch('/api/state', {
+          method: 'PUT',
+          headers: headersAutenticados({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(db)
+        });
+        if (r.ok) {
+          document.getElementById('badgeSync').className = 'status-badge status-ok';
+          document.getElementById('badgeSync').innerText = 'Sincronizado';
+        }
+      } catch (e) {
+        document.getElementById('badgeSync').innerText = 'Guardado Local';
+      }
+    }
+
+    /* =========================================================
+       RENDERIZADO DE MÓDULOS MÓVILES
+    ========================================================= */
+    function cambiarTab(tabId, el) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      el.classList.add('active');
+    }
+
+    function renderizarOrdenesMovil() {
+      const cont = document.getElementById('listaOrdenesMovil');
+      const q = (document.getElementById('filtroOrdenes').value || '').toLowerCase();
+      const lista = (db.ordenes || []).filter(o => {
+        const cli = o.clienteNuevoNombre || (db.clientes.find(c => c.id === o.clienteId)?.nombre || '');
+        return o.numero.toLowerCase().includes(q) || cli.toLowerCase().includes(q);
+      });
+
+      if (!lista.length) { cont.innerHTML = '<p style="text-align:center;color:gray;padding:20px;">Sin órdenes de servicio</p>'; return; }
+
+      cont.innerHTML = lista.slice().reverse().map(o => {
+        const cliNombre = o.clienteNuevoNombre || (db.clientes.find(c => c.id === o.clienteId)?.nombre || 'General');
+        const badgeClase = o.estado === 'Finalizado' ? 'badge-fin' : (o.estado === 'En Ejecución' ? 'badge-proc' : 'badge-prog');
+        return `
+          <div class="card" onclick="abrirCierreOrden(${o.id})">
+            <div class="card-top">
+              <span class="badge ${badgeClase}">${o.estado}</span>
+              <strong style="font-size:12px;color:var(--text-muted);">${o.numero}</strong>
+            </div>
+            <div class="card-title">${cliNombre}</div>
+            <div class="card-row"><i class="fa-solid fa-wrench"></i> ${o.tipo}</div>
+            <div class="card-row"><i class="fa-solid fa-calendar"></i> ${o.fechaProgramada || 'Sin fecha'} ${o.horaProgramada ? '· ' + o.horaProgramada : ''}</div>
+          </div>`;
+      }).join('');
+    }
+
+    function renderizarEquiposMovil() {
+      const cont = document.getElementById('listaEquiposMovil');
+      const q = (document.getElementById('filtroEquipos').value || '').toLowerCase();
+      let html = '';
+      (db.clientes || []).forEach(c => {
+        (c.sedes || []).forEach(s => {
+          (s.equipos || []).forEach(e => {
+            if (!q || e.nombre.toLowerCase().includes(q) || (e.serie || '').toLowerCase().includes(q) || c.nombre.toLowerCase().includes(q)) {
+              html += `
+                <div class="card">
+                  <div class="card-title"><i class="fa-solid fa-snowflake" style="color:var(--blue)"></i> ${e.nombre}</div>
+                  <div class="card-row"><i class="fa-solid fa-user"></i> ${c.nombre} (${s.nombre})</div>
+                  <div class="card-row"><i class="fa-solid fa-barcode"></i> Serie: ${e.serie || '—'} · Ref: ${e.refrigerante || '—'}</div>
+                </div>`;
+            }
+          });
+        });
+      });
+      cont.innerHTML = html || '<p style="text-align:center;color:gray;padding:20px;">Sin equipos registrados</p>';
+    }
+
+    function renderizarInventarioMovil() {
+      const cont = document.getElementById('listaInventarioMovil');
+      const q = (document.getElementById('filtroInventario').value || '').toLowerCase();
+      const lista = (db.inventario || []).filter(i => i.nombre.toLowerCase().includes(q) || (i.categoria || '').toLowerCase().includes(q));
+      cont.innerHTML = lista.map(i => `
+        <div class="card">
+          <div class="card-top">
+            <strong>${i.nombre}</strong>
+            <span class="badge ${i.stockActual <= i.stockMinimo ? 'badge-prog' : 'badge-fin'}">Stock: ${i.stockActual}</span>
+          </div>
+          <div class="card-row"><i class="fa-solid fa-tag"></i> ${i.categoria || 'General'}</div>
+        </div>`).join('') || '<p style="text-align:center;color:gray;padding:20px;">Sin repuestos en catálogo</p>';
+    }
+
+    function renderizarTodo() {
+      document.getElementById('appTitulo').innerText = db.config?.nombre || 'Prevenglobal';
+      renderizarOrdenesMovil();
+      renderizarEquiposMovil();
+      renderizarInventarioMovil();
+    }
+
+    /* =========================================================
+       CIERRE, FOTOS Y FIRMA TÁCTIL
+    ========================================================= */
+    function abrirCierreOrden(id) {
+      const o = db.ordenes.find(x => x.id === id);
+      if (!o) return;
+      document.getElementById('ordenActivaId').value = o.id;
+      document.getElementById('modalOrdenTitulo').innerText = o.numero;
+      document.getElementById('modalOrdenEstado').value = o.estado;
+      document.getElementById('modalOrdenDiagnostico').value = o.cierre ? o.cierre.diagnostico || '' : '';
+      fotosOrdenTemp = (o.cierre && o.cierre.fotos) ? o.cierre.fotos.slice() : [];
+      renderizarFotosOrden();
+      document.getElementById('modalOrden').style.display = 'flex';
+      iniciarCanvasFirma();
+    }
+
+    function cerrarModalOrden() {
+      document.getElementById('modalOrden').style.display = 'none';
+    }
+
+    function capturarFotosMovil(event) {
+      const files = Array.from(event.target.files);
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          fotosOrdenTemp.push(e.target.result);
+          renderizarFotosOrden();
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function renderizarFotosOrden() {
+      const cont = document.getElementById('gridFotosOrden');
+      cont.innerHTML = fotosOrdenTemp.map(src => `<img src="${src}" class="photo-thumb">`).join('');
+    }
+
+    function iniciarCanvasFirma() {
+      canvas = document.getElementById('canvasFirma');
+      canvas.width = canvas.parentElement.clientWidth;
+      ctx = canvas.getContext('2d');
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#000';
+
+      const pos = e => {
+        const rect = canvas.getBoundingClientRect();
+        const t = e.touches ? e.touches[0] : e;
+        return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+      };
+
+      canvas.ontouchstart = canvas.onmousedown = e => { dibujando = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+      canvas.ontouchmove = canvas.onmousemove = e => { if (!dibujando) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); };
+      canvas.ontouchend = canvas.onmouseup = () => { dibujando = false; };
+    }
+
+    function limpiarCanvas() {
+      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function guardarCierreOrdenMovil() {
+      const id = parseInt(document.getElementById('ordenActivaId').value);
+      const o = db.ordenes.find(x => x.id === id);
+      if (!o) return;
+
+      o.estado = document.getElementById('modalOrdenEstado').value;
+      const diag = document.getElementById('modalOrdenDiagnostico').value;
+      const firma = canvas.toDataURL();
+
+      o.cierre = o.cierre || {};
+      o.cierre.fecha = new Date().toISOString().slice(0, 10);
+      o.cierre.diagnostico = diag;
+      o.cierre.fotos = fotosOrdenTemp;
+      o.cierre.firmaTecnico = firma;
+
+      cerrarModalOrden();
+      renderizarOrdenesMovil();
+      guardarEstadoServidor();
+    }
+
+    // Inicio automático
+    cargarEstadoServidor();
+    renderizarTodo();
+  </script>
+</body>
+</html>
