@@ -114,10 +114,11 @@ async function leerEstadoEmpresa(slug) {
   return r.rows[0] ? r.rows[0].estado_app : null;
 }
 async function guardarEstadoEmpresa(slug, data) {
-  await pool.query(
-    'UPDATE empresas SET estado_app = $1, actualizado_en = now() WHERE slug = $2',
+  const r = await pool.query(
+    'UPDATE empresas SET estado_app = $1, actualizado_en = now() WHERE slug = $2 RETURNING actualizado_en',
     [JSON.stringify(data), slug]
   );
+  return r.rows[0] ? r.rows[0].actualizado_en : null;
 }
 async function crearEmpresa(slug, nombre, estadoInicial) {
   await pool.query(
@@ -462,6 +463,20 @@ app.post('/api/auth/confirmar-reset', limiteLogin, async (req, res) => {
 /* ---------------------------------------------------------
    API — Estado de la aplicación (protegido, por empresa)
 --------------------------------------------------------- */
+// Endpoint liviano: solo dice CUÁNDO fue el último cambio guardado (unos
+// bytes), sin bajar toda la información. Se usa para revisar frecuentemente
+// "¿cambió algo?" sin gastar ancho de banda — solo si la respuesta indica
+// que sí cambió, el frontend pide entonces el estado completo con /api/state.
+app.get('/api/state/meta', requireAuth, async (req, res) => {
+  try{
+    const r = await pool.query('SELECT actualizado_en FROM empresas WHERE slug = $1', [req.slug]);
+    if(!r.rows[0]) return res.status(404).json({ error: 'Empresa no encontrada.' });
+    res.json({ actualizadoEn: r.rows[0].actualizado_en });
+  }catch(err){
+    console.error('[state-meta] Error:', err);
+    res.status(500).json({ error: err.message || 'Error al consultar.' });
+  }
+});
 app.get('/api/state', requireAuth, async (req, res) => {
   const data = await leerEstadoEmpresa(req.slug);
   if (!data) return res.status(404).json({ error: 'Empresa no encontrada.' });
@@ -472,15 +487,29 @@ app.get('/api/state', requireAuth, async (req, res) => {
 });
 
 app.put('/api/state', requireAuth, async (req, res) => {
+  // --- Registro temporal de diagnóstico: se puede quitar más adelante,
+  // pero por ahora ayuda a ver EXACTAMENTE qué está pasando con cada
+  // guardado (tamaño recibido, cantidad de órdenes/fotos, y el resultado). ---
+  const inicio = Date.now();
   try {
     const anterior = await leerEstadoEmpresa(req.slug);
     if (!anterior) return res.status(404).json({ error: 'Empresa no encontrada.' });
     const nuevo = req.body || {};
+    const pesoKB = Math.round(JSON.stringify(nuevo).length / 1024);
+    const cantidadOrdenes = (nuevo.ordenes || []).length;
+    console.log(`[guardar-state] recibido: ${pesoKB} KB, ${cantidadOrdenes} órdenes, empresa=${req.slug}`);
 
     const tecnicosFusionados = (nuevo.tecnicos || []).map(t => {
       const previo = (anterior.tecnicos || []).find(x => x.id === t.id);
       const passwordHash = t.password ? hashPassword(t.password) : (previo ? previo.passwordHash : null);
-      return { id: t.id, nombre: t.nombre, telefono: t.telefono, usuario: t.usuario, passwordHash };
+      // Antes, esta reconstrucción solo conservaba id/nombre/telefono/usuario/
+      // passwordHash — cualquier otro campo (activo, rol, accesoTotal, permisos)
+      // se perdía en SILENCIO cada vez que se guardaba CUALQUIER cosa en la
+      // plataforma, no solo al editar Personal. Ahora se conserva todo lo que
+      // ya traía el registro, y solo se actualiza lo que de verdad cambió.
+      const fusionado = Object.assign({}, previo, t, { passwordHash });
+      delete fusionado.password; // nunca debe quedar la clave en texto plano guardada
+      return fusionado;
     });
 
     const configNuevo = Object.assign({}, anterior.config, nuevo.config || {});
@@ -489,11 +518,12 @@ app.put('/api/state', requireAuth, async (req, res) => {
     delete configNuevo.adminPassword;
 
     const estadoFinal = Object.assign({}, nuevo, { tecnicos: tecnicosFusionados, config: configNuevo });
-    await guardarEstadoEmpresa(req.slug, estadoFinal);
-    res.json({ ok: true });
+    const actualizadoEn = await guardarEstadoEmpresa(req.slug, estadoFinal);
+    console.log(`[guardar-state] OK en ${Date.now()-inicio}ms — empresa=${req.slug}`);
+    res.json({ ok: true, actualizadoEn });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ ok: false, error: err.message });
+    console.error(`[guardar-state] FALLÓ tras ${Date.now()-inicio}ms — empresa=${req.slug}:`, err);
+    res.status(500).json({ ok: false, error: err.message || 'Error desconocido al guardar.' });
   }
 });
 
@@ -520,6 +550,16 @@ async function bootstrapEmpresaInicial() {
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Red de seguridad final: si algo revienta ANTES de llegar a la función de
+// guardado correspondiente (por ejemplo, al leer el cuerpo de una petición
+// muy pesada), esto lo atrapa, lo deja registrado con detalle, y le devuelve
+// al usuario un mensaje real en vez de dejarlo sin ninguna respuesta.
+app.use((err, req, res, next) => {
+  console.error(`[error-no-atrapado] ${req.method} ${req.originalUrl}:`, err);
+  if (res.headersSent) return next(err);
+  res.status(err.status || 500).json({ ok: false, error: err.message || 'Error inesperado en el servidor.' });
 });
 
 const PORT = process.env.PORT || 8080;

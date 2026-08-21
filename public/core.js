@@ -189,32 +189,66 @@ function fusionarAdicionesDesdeServidor(remoto){
 // Antes de subir cualquier cambio local, primero se trae lo último del servidor
 // y se fusiona — así el guardado del PC nunca sobreescribe algo agregado, por
 // ejemplo, desde el celular unos segundos antes.
+// Petición con límite de tiempo real: antes, en una conexión de celular lenta
+// (típico en campo, con varias fotos por subir), una petición podía quedarse
+// esperando sin límite, dando la sensación de que "no pasó nada" mientras en
+// realidad seguía intentando en segundo plano, a veces por más de un minuto.
+function fetchConLimite(url, opciones, segundos){
+  const controlador = new AbortController();
+  const id = setTimeout(()=>controlador.abort(), segundos*1000);
+  return fetch(url, Object.assign({}, opciones, { signal: controlador.signal }))
+    .catch(err=>{
+      if(err.name === 'AbortError') throw new Error('La conexión tardó demasiado (más de ' + segundos + ' segundos). Revisa tu señal e intenta de nuevo.');
+      throw err;
+    })
+    .finally(()=>clearTimeout(id));
+}
 async function fusionarConServidorAntesDeGuardar(){
   if(!empresaActual || !sesionServidor) return;
   try{
-    const r = await fetch(API_BASE + '/api/state', { headers: headersAutenticados() });
+    // Primero se revisa liviano (unos bytes) si de verdad hay algo nuevo desde
+    // el último dato que ya tenemos — la mayoría de las veces, gracias al
+    // sondeo frecuente de fondo, la copia local ya está al día, y así el
+    // guardado se salta el paso pesado de bajar todo de nuevo, sintiéndose
+    // más rápido. Solo si sí hay algo nuevo, se baja y se fusiona como antes.
+    const rMeta = await fetchConLimite(API_BASE + '/api/state/meta', { headers: headersAutenticados() }, 4);
+    if(rMeta.ok){
+      const { actualizadoEn } = await rMeta.json();
+      if(ultimaVersionConocida !== null && actualizadoEn === ultimaVersionConocida) return; // ya estamos al día, no hace falta bajar nada
+      ultimaVersionConocida = actualizadoEn;
+    }
+    const r = await fetchConLimite(API_BASE + '/api/state', { headers: headersAutenticados() }, 8);
     if(r.ok){
       const remoto = await r.json();
       fusionarAdicionesDesdeServidor(remoto);
     }
-  }catch(e){ /* sin conexión: seguimos con la copia local, ya sin fusionar */ }
+  }catch(e){ /* sin conexión o muy lenta: seguimos con la copia local, ya sin fusionar — no debe demorar el guardado real */ }
 }
 
 async function enviarEstadoAlServidor(){
   await fusionarConServidorAntesDeGuardar();
-  const resp = await fetch(API_BASE + '/api/state', {
+  const resp = await fetchConLimite(API_BASE + '/api/state', {
     method: 'PUT',
     headers: headersAutenticados({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(db)
-  });
+  }, 70);
   if(!resp.ok){
     // Antes esto no se verificaba: un 413 (payload muy grande, típico con fotos sin
     // comprimir de celular) o un 500 pasaban como "enviado" sin serlo, en silencio.
+    // Ahora también se lee el detalle real que devuelve el servidor (antes se
+    // ignoraba, y solo se mostraba un código genérico sin explicar qué pasó).
     let detalle = '';
-    if(resp.status === 413) detalle = 'La información es demasiado pesada (posiblemente una foto sin comprimir).';
-    else if(resp.status === 401) detalle = 'Tu sesión expiró, vuelve a iniciar sesión.';
+    try{ const cuerpo = await resp.json(); if(cuerpo && cuerpo.error) detalle = cuerpo.error; }catch(e){ /* la respuesta no traía detalle en JSON */ }
+    if(!detalle){
+      if(resp.status === 413) detalle = 'La información es demasiado pesada (posiblemente una foto sin comprimir).';
+      else if(resp.status === 401) detalle = 'Tu sesión expiró, vuelve a iniciar sesión.';
+    }
     throw new Error(`El servidor rechazó el guardado (código ${resp.status}). ${detalle}`);
   }
+  try{
+    const cuerpo = await resp.json();
+    if(cuerpo && cuerpo.actualizadoEn) ultimaVersionConocida = cuerpo.actualizadoEn;
+  }catch(e){ /* si la respuesta no trae el dato, el próximo sondeo simplemente lo revisa igual */ }
   syncEstado = 'ok';
   actualizarBadgeConexion();
 }
@@ -236,6 +270,7 @@ function sincronizarConBackend(){
     enviarEstadoAlServidor().catch(marcarErrorSync);
   }, 400);
 }
+let ultimaVersionConocida = null; // marca de tiempo del último cambio que ya tenemos, para saber si hace falta bajar todo de nuevo
 function cargarEstadoDesdeBackend(){
   if(!empresaActual || !sesionServidor) return;
   fetch(API_BASE + '/api/state', { headers: headersAutenticados() }).then(r=>{
@@ -249,10 +284,39 @@ function cargarEstadoDesdeBackend(){
     guardarEnLocalStorage();
     aplicarConfiguracionVisual();
     renderizarAgenda(); renderizarCalendario(); renderizarEquiposGlobal(''); actualizarKPIs();
+    anotarVersionConocidaActual();
     iniciarRefrescoSilencioso();
   }).catch(()=>{ /* sin conexión: seguimos trabajando con la copia local (modo offline) */ });
 }
+// Anota en qué momento quedó el último cambio guardado, consultando el
+// endpoint liviano — así, la próxima vez que se revise, se puede comparar
+// sin tener que bajar toda la información de nuevo.
+async function anotarVersionConocidaActual(){
+  try{
+    const r = await fetchConLimite(API_BASE + '/api/state/meta', { headers: headersAutenticados() }, 6);
+    if(r.ok){ const d = await r.json(); ultimaVersionConocida = d.actualizadoEn; }
+  }catch(e){ /* si falla, simplemente se revisará de nuevo en el próximo ciclo */ }
+}
 let intervaloRefrescoSilencioso = null;
+// Revisión liviana: pregunta "¿cambió algo?" (unos bytes) en vez de bajar
+// toda la información cada vez — solo si la respuesta dice que sí cambió,
+// se baja el estado completo y se fusiona. Esto permite revisar mucho más
+// seguido (antes cada 20s bajando todo; ahora cada 5s con un dato mínimo),
+// haciendo que los cambios entre celular y computador se vean casi al instante.
+async function revisarSiHayCambiosNuevos(){
+  if(!empresaActual || !sesionServidor) return;
+  if(syncEstado === 'pendiente') return; // no interferir mientras hay un guardado en curso
+  try{
+    const r = await fetchConLimite(API_BASE + '/api/state/meta', { headers: headersAutenticados() }, 6);
+    if(!r.ok) return;
+    const { actualizadoEn } = await r.json();
+    if(ultimaVersionConocida === null){ ultimaVersionConocida = actualizadoEn; return; } // primera revisión: solo se anota
+    if(actualizadoEn !== ultimaVersionConocida){
+      ultimaVersionConocida = actualizadoEn;
+      refrescarSilenciosamenteDesdeServidor();
+    }
+  }catch(e){ /* sin conexión: se reintenta en el próximo ciclo */ }
+}
 function refrescarSilenciosamenteDesdeServidor(){
   if(!empresaActual || !sesionServidor) return;
   if(syncEstado === 'pendiente') return; // no interferir mientras hay un guardado en curso
@@ -270,7 +334,14 @@ function refrescarSilenciosamenteDesdeServidor(){
 }
 function iniciarRefrescoSilencioso(){
   clearInterval(intervaloRefrescoSilencioso);
-  intervaloRefrescoSilencioso = setInterval(refrescarSilenciosamenteDesdeServidor, 20000);
+  intervaloRefrescoSilencioso = setInterval(revisarSiHayCambiosNuevos, 5000);
+  if(!window.__refrescoAlVolverConfigurado){
+    // Si el usuario vuelve a la pestaña/app después de tenerla en segundo
+    // plano, revisa de inmediato en vez de esperar al siguiente ciclo — así
+    // se siente instantáneo al regresar después de un cambio en otro dispositivo.
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) revisarSiHayCambiosNuevos(); });
+    window.__refrescoAlVolverConfigurado = true;
+  }
 }
 function forzarNuevoLogin(){
   localStorage.removeItem(TOKEN_KEY);

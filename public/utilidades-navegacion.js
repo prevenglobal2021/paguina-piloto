@@ -4,6 +4,47 @@
 ========================================================= */
 function buscarCliente(id){ return db.clientes.find(c=>c.id===id); }
 /* =========================================================
+   UBICACIÓN GPS — botón reutilizable para cualquier campo de
+   dirección de la plataforma. Usa el GPS del dispositivo y
+   convierte las coordenadas a una dirección legible (servicio
+   gratuito de OpenStreetMap, sin necesidad de clave ni configurar
+   nada). Si no se puede convertir a texto, deja las coordenadas
+   tal cual — nunca deja el campo vacío por un fallo de conversión.
+========================================================= */
+async function obtenerUbicacionGPS(inputId, botonId){
+  if(!navigator.geolocation){ mostrarToast('Tu navegador no permite obtener la ubicación GPS.', 'error'); return; }
+  const boton = document.getElementById(botonId);
+  const input = document.getElementById(inputId);
+  const textoOriginal = boton.innerHTML;
+  boton.disabled = true;
+  boton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Obteniendo ubicación...';
+  navigator.geolocation.getCurrentPosition(async (pos)=>{
+    const { latitude, longitude } = pos.coords;
+    let direccion = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+    try{
+      const resp = await fetchConLimite(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`, {}, 10);
+      if(resp.ok){
+        const data = await resp.json();
+        if(data && data.display_name) direccion = data.display_name;
+      }
+    }catch(err){ /* si falla la conversión a texto, se dejan las coordenadas — nunca se deja el campo vacío */ }
+    if(input.tagName==='TEXTAREA' && input.value.trim()){
+      input.value = input.value.trim() + ' — ' + direccion; // en campos de notas, se agrega sin borrar lo ya escrito
+    } else {
+      input.value = direccion;
+    }
+    mostrarToast('📍 Ubicación obtenida correctamente.');
+    boton.disabled = false; boton.innerHTML = textoOriginal;
+  }, (err)=>{
+    boton.disabled = false; boton.innerHTML = textoOriginal;
+    let msg = 'No se pudo obtener tu ubicación.';
+    if(err.code === 1) msg = 'Permiso de ubicación denegado — actívalo en la configuración de tu navegador o celular.';
+    else if(err.code === 2) msg = 'No se pudo determinar tu ubicación (señal GPS no disponible en este momento).';
+    else if(err.code === 3) msg = 'Se agotó el tiempo esperando la ubicación. Intenta de nuevo.';
+    mostrarToast(msg, 'error');
+  }, { enableHighAccuracy:true, timeout:15000, maximumAge:0 });
+}
+/* =========================================================
    FIRMA TÁCTIL — componente único, reutilizado en:
    - Firma del técnico y del cliente al cerrar una orden de servicio.
    - Firma del representante en Configuración de empresa.
@@ -23,14 +64,36 @@ function abrirFirmaTactil(contexto, firmaExistente){
   firmaTactilContexto = contexto;
   const titulos = { tecnico:'Firma del Técnico', cliente:'Firma de quien recibe el servicio', representante:'Firma del Representante' };
   document.getElementById('firmaTactilTitulo').innerText = titulos[contexto] || 'Firma';
-  document.getElementById('firmaTactilOverlay').classList.add('activa');
-  document.body.style.overflow = 'hidden'; // evita que la página se desplace por detrás mientras se firma
+  const overlay = document.getElementById('firmaTactilOverlay');
+  const caja = document.getElementById('firmaTactilCaja');
+  overlay.classList.add('activa');
+  // Bloqueo robusto del fondo mientras se firma: además de ocultar el scroll,
+  // se fija la posición de la página (evita el "rebote" de iOS al arrastrar
+  // el dedo cerca de los bordes, que antes también sacudía la pantalla de firma).
+  document.body.dataset.scrollY = window.scrollY;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${window.scrollY}px`;
+  document.body.style.width = '100%';
+
+  firmaTactilRotada = window.matchMedia('(max-width:900px) and (orientation:portrait)').matches;
+  if(firmaTactilRotada){
+    // Tamaño fijo en píxeles, calculado UNA SOLA VEZ aquí — a propósito NO se
+    // usa 100vh/100vw en el CSS, porque esa medida cambia sola en el navegador
+    // del celular cuando la barra de direcciones aparece/desaparece mientras
+    // se firma, y eso era lo que hacía que la pantalla se reacomodara a medio
+    // trazo. Con un valor fijo, la caja de firma ya no se mueve por el resto
+    // de la sesión, sin importar qué haga el navegador alrededor.
+    caja.style.width = window.innerHeight + 'px';
+    caja.style.height = window.innerWidth + 'px';
+    caja.classList.add('firma-tactil-rotada');
+  } else {
+    caja.style.width = ''; caja.style.height = '';
+    caja.classList.remove('firma-tactil-rotada');
+  }
   // Pequeña espera para que el navegador termine de acomodar la caja ya
-  // girada antes de medir su tamaño real — si se mide muy pronto, puede
-  // tomar el tamaño de antes de girar y el lienzo queda mal proporcionado.
+  // dimensionada antes de medir el tamaño real del lienzo interno.
   setTimeout(()=>{
     const canvas = document.getElementById('firmaTactilCanvas');
-    firmaTactilRotada = window.matchMedia('(max-width:900px) and (orientation:portrait)').matches;
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
     const ctx = canvas.getContext('2d');
@@ -77,7 +140,11 @@ function confirmarFirmaTactil(){
 }
 function cerrarFirmaTactil(){
   document.getElementById('firmaTactilOverlay').classList.remove('activa');
-  document.body.style.overflow = '';
+  const scrollY = parseInt(document.body.dataset.scrollY || '0');
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.width = '';
+  window.scrollTo(0, scrollY);
 }
 function actualizarPreviewFirmaOrden(contexto){
   const dataUrl = contexto==='tecnico' ? firmaTecnicoTemp : firmaClienteTemp;
@@ -101,19 +168,46 @@ function normalizarGaleria(fotos){
    clientes, equipos, órdenes). Cuadrícula uniforme (recortada sin
    deformar) con un campo de descripción corta debajo de cada foto.
 ========================================================= */
-function renderizarGaleriaFotos(contenedorId, fotos, contexto, campoId){
+function renderizarGaleriaFotos(contenedorId, fotos, contexto, campoId, tamanoBloque){
   const cont = document.getElementById(contenedorId);
   if(!cont) return;
   const lista = normalizarGaleria(fotos);
   const sufijoCampo = campoId!==undefined ? ',' + campoId : '';
-  cont.innerHTML = lista.map((f,idx)=>`
+  // El marcado de UNA foto (marco + botón de quitar + descripción) es el mismo
+  // sin importar si se muestra suelta o agrupada en un bloque — así el
+  // componente sigue siendo uno solo, reutilizado en todos lados.
+  const itemHtml = (f, idx) => `
     <div class="galeria-foto-item">
       <div class="galeria-foto-marco">
         <img src="${f.src}">
         <button type="button" class="galeria-foto-quitar" onclick="eliminarFotoGaleria('${contexto}',${idx}${sufijoCampo})">✖</button>
       </div>
       <input type="text" class="galeria-foto-desc" placeholder="Descripción (opcional)" value="${(f.desc||'').replace(/"/g,'&quot;')}" oninput="actualizarDescripcionGaleria('${contexto}',${idx},this.value${sufijoCampo})">
-    </div>`).join('');
+    </div>`;
+
+  if(!tamanoBloque || tamanoBloque < 1){
+    // Sin agrupar: igual que siempre, una sola cuadrícula continua.
+    cont.classList.remove('galeria-por-bloques');
+    cont.innerHTML = lista.map(itemHtml).join('');
+    return;
+  }
+
+  // Agrupado en bloques (definido al diseñar la plantilla, campo por campo):
+  // cada bloque es su propia mini-cuadrícula con etiqueta ("Bloque 1", "Bloque
+  // 2"...), usando el MISMO marcado por foto de arriba — solo cambia cómo se
+  // reparten entre sub-contenedores.
+  cont.classList.add('galeria-por-bloques');
+  let html = '';
+  for(let inicio=0; inicio<lista.length; inicio+=tamanoBloque){
+    const numeroBloque = Math.floor(inicio/tamanoBloque) + 1;
+    const trozo = lista.slice(inicio, inicio+tamanoBloque);
+    const itemsHtml = trozo.map((f,i)=>itemHtml(f, inicio+i)).join('');
+    html += `<div class="galeria-bloque">
+      <div class="galeria-bloque-titulo">Bloque ${numeroBloque} <span style="font-weight:400;text-transform:none;">(${trozo.length}/${tamanoBloque})</span></div>
+      <div class="galeria-fotos">${itemsHtml}</div>
+    </div>`;
+  }
+  cont.innerHTML = html || '';
 }
 function obtenerArregloGaleria(contexto, campoId){
   if(contexto==='inventario') return fotosInventarioTemp;

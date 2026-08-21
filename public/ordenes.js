@@ -193,15 +193,22 @@ function renderizarFormularioDinamicoDetalle(plantillaId, respuestasExistentes, 
 function manejarFotoCampoDetalle(event, campoId){
   const files = Array.from(event.target.files);
   if(!fotosCamposDetalleTemp[campoId]) fotosCamposDetalleTemp[campoId] = [];
-  files.forEach(file=>{ comprimirImagen(file).then(dataUrl=>{ fotosCamposDetalleTemp[campoId].push({ src:dataUrl, desc:'' }); renderizarFotoCampoDetallePreview(campoId); }); });
+  files.forEach(file=>{ comprimirImagen(file, 1000, 0.62).then(dataUrl=>{ fotosCamposDetalleTemp[campoId].push({ src:dataUrl, desc:'' }); renderizarFotoCampoDetallePreview(campoId); }); });
   event.target.value='';
 }
 function renderizarFotoCampoDetallePreview(campoId){
-  renderizarGaleriaFotos('detPreviewFotoCampo'+campoId, fotosCamposDetalleTemp[campoId], 'ordenCampo', campoId);
+  // El tamaño de bloque es el que se definió al diseñar la plantilla para
+  // este campo puntual (Configuración → Plantillas de Formularios) — se
+  // busca aquí para que se respete sin importar desde dónde se llame esta
+  // función (al abrir la orden, al subir una foto nueva, al quitar una, etc.).
+  const o = db.ordenes.find(x=>x.id===ordenDetalleId);
+  const plantilla = o ? buscarPlantilla(o.plantillaId) : null;
+  const campo = plantilla ? plantilla.campos.find(c=>c.id===campoId) : null;
+  renderizarGaleriaFotos('detPreviewFotoCampo'+campoId, fotosCamposDetalleTemp[campoId], 'ordenCampo', campoId, campo ? campo.bloqueImagenes : null);
 }
 function manejarFotosDetalle(event){
   const files = Array.from(event.target.files);
-  files.forEach(file=>{ comprimirImagen(file).then(dataUrl=>{ fotosDetalleTemp.push({ src:dataUrl, desc:'' }); renderizarFotosDetallePreview(); }); });
+  files.forEach(file=>{ comprimirImagen(file, 1000, 0.62).then(dataUrl=>{ fotosDetalleTemp.push({ src:dataUrl, desc:'' }); renderizarFotosDetallePreview(); }); });
   event.target.value='';
 }
 function renderizarFotosDetallePreview(){
@@ -264,6 +271,7 @@ async function guardarDetalleOrden(finalizar){
   // técnico no cierra el formulario pensando que ya terminó, ni le da doble clic.
   const botones = document.querySelectorAll('#detAccionesEdicion button');
   botones.forEach(b=>b.disabled = true);
+  mostrarToast('Guardando informe... esto puede tardar unos segundos si hay fotos.');
   try{
     await dbGuardarInmediato();
   }catch(err){
@@ -280,7 +288,7 @@ async function guardarDetalleOrden(finalizar){
   registrarLog(esEdicionForzada ? 'Editar orden finalizada' : (finalizar ? 'Finalizar' : 'Editar'), 'OrdenServicio', `${o.numero} (${nombreUsuarioActual()})`);
   cerrarModal('modalDetalleOrden');
   ordenDetalleEsEdicionForzada = false;
-  mostrarToast((finalizar && !esEdicionForzada) ? '✅ Informe guardado y orden finalizada correctamente.' : '✅ Informe guardado correctamente.', 'exito');
+  mostrarToast((finalizar && !esEdicionForzada) ? '✅ Informe guardado y orden finalizada correctamente.' : '✅ Avance guardado — puedes cerrar y continuar cuando quieras.', 'exito');
   renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
 }
 function confirmarFinalizarOrden(){

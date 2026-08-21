@@ -44,7 +44,7 @@ function visualizarPlantilla(id){
 
   const boxesFoto = camposFoto.map(c=>`
     <div class="pdf-box"><h4>${c.label}</h4>
-      <p style="font-size:11px;color:#94a3b8;margin:0;">(Aquí se mostrarán las fotos que el técnico tome para este campo)</p>
+      <p style="font-size:11px;color:#94a3b8;margin:0;">(Aquí se mostrarán las fotos que el técnico tome para este campo${c.bloqueImagenes ? `, agrupadas en bloques de ${c.bloqueImagenes}` : ''})</p>
     </div>`).join('');
 
   document.getElementById('vpContenidoFormulario').innerHTML = `
@@ -88,6 +88,7 @@ function editarPlantillaConfig(id){
 function toggleCampoItemsInput(){
   const tipo = document.getElementById('cfgCampoTipo').value;
   document.getElementById('wrapperCampoItems').style.display = (tipo==='checklist') ? 'block' : 'none';
+  document.getElementById('wrapperCampoBloqueImagenes').style.display = (tipo==='foto') ? 'block' : 'none';
 }
 const NOMBRES_TIPO_CAMPO = { number:'Numérico', text:'Texto corto', textarea:'Observación larga', checkbox:'Verificación (Sí/No)', checklist:'Lista de chequeo', foto:'Foto específica' };
 function guardarCampoConfig(){
@@ -102,15 +103,19 @@ function guardarCampoConfig(){
     if(items.length===0){ mostrarToast('Escribe al menos un ítem para la lista de chequeo (separados por coma)'); return; }
   }
   const p = buscarPlantilla(plantillaActivaId);
+  const bloqueImagenesRaw = document.getElementById('cfgCampoBloqueImagenes').value;
+  const bloqueImagenes = (tipo==='foto' && bloqueImagenesRaw) ? parseInt(bloqueImagenesRaw) : null;
   if(idRaw){
     const campo = p.campos.find(c=>c.id===parseInt(idRaw));
     if(campo){
       campo.label = label; campo.tipo = tipo;
       if(tipo==='checklist') campo.items = items; else delete campo.items;
+      if(tipo==='foto') campo.bloqueImagenes = bloqueImagenes; else delete campo.bloqueImagenes;
     }
   } else {
     const nuevoCampo = { id:Date.now(), label, tipo };
     if(tipo==='checklist') nuevoCampo.items = items;
+    if(tipo==='foto') nuevoCampo.bloqueImagenes = bloqueImagenes;
     p.campos.push(nuevoCampo);
   }
   dbGuardar();
@@ -126,6 +131,7 @@ function editarCampoConfig(campoId){
   document.getElementById('cfgCampoTipo').value = campo.tipo;
   toggleCampoItemsInput();
   document.getElementById('cfgCampoItems').value = (campo.items||[]).map(it=>it.texto).join(', ');
+  document.getElementById('cfgCampoBloqueImagenes').value = campo.bloqueImagenes || '';
   document.getElementById('btnGuardarCampo').innerText = 'Guardar Cambios';
   document.getElementById('btnCancelarEdicionCampo').style.display = 'inline-block';
 }
@@ -134,6 +140,7 @@ function cancelarEdicionCampo(){
   document.getElementById('cfgCampoLabel').value = '';
   document.getElementById('cfgCampoItems').value = '';
   document.getElementById('cfgCampoTipo').value = 'number';
+  document.getElementById('cfgCampoBloqueImagenes').value = '';
   toggleCampoItemsInput();
   document.getElementById('btnGuardarCampo').innerText = '+ Agregar Campo';
   document.getElementById('btnCancelarEdicionCampo').style.display = 'none';
@@ -145,6 +152,7 @@ function renderizarCamposConfig(){
   p.campos.forEach(campo=>{
     let descTipo = NOMBRES_TIPO_CAMPO[campo.tipo] || campo.tipo;
     if(campo.tipo==='checklist') descTipo += ` (${(campo.items||[]).length} ítems)`;
+    if(campo.tipo==='foto') descTipo += campo.bloqueImagenes ? ` (bloques de ${campo.bloqueImagenes})` : ' (sin agrupar)';
     tbody.innerHTML += `<tr><td>${campo.label}</td><td>${descTipo}</td>
       <td><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="editarCampoConfig(${campo.id})">✏️ Editar</button>
       <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarCampoConfig(${campo.id})">X</button></td></tr>`;
