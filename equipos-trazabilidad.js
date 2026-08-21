@@ -3,48 +3,45 @@
    EQUIPOS (VISTA GLOBAL)
 ========================================================= */
 function renderizarEquiposGlobal(filtro){
-  const tbody = document.getElementById('tablaEquiposGlobal');
-  tbody.innerHTML = '';
+  const cont = document.getElementById('vistaEquiposGlobal');
+  cont.innerHTML = '';
   filtro = (filtro||'').toLowerCase();
+  const tarjetaEquipo = (e, c, s) => {
+    const numServicios = db.ordenes.filter(o=>o.equipoId===e.id).length;
+    return `<div class="orden-card" style="border-left-color:#0ea5e9;">
+      <div class="orden-card-top">
+        <span class="orden-card-badge" style="background:#e0f2fe;color:#075985;">${numServicios} servicio${numServicios===1?'':'s'}</span>
+        <span class="orden-card-numero">${e.serie||'Sin serie'}</span>
+      </div>
+      <h5 class="orden-card-cliente"><i class="fas fa-snowflake" style="color:#0ea5e9;"></i> ${e.nombre}</h5>
+      <div class="orden-card-datos">
+        <span><i class="fas fa-industry"></i> ${e.marca||'—'} ${e.modelo||''}</span>
+        <span><i class="fas fa-user"></i> ${c.nombre}</span>
+        <span><i class="fas fa-building"></i> ${s?s.nombre:'Sin sede'}</span>
+        <span><i class="fas fa-flask"></i> ${e.refrigerante||'—'}</span>
+      </div>
+      <div class="orden-card-acciones">
+        <button class="btn-orden-accion btn-orden-principal" onclick="irATrazabilidadEquipo(${e.id})"><i class="fas fa-clock-rotate-left"></i> Historial</button>
+        <button class="btn-orden-accion btn-orden-secundaria solo-admin" data-permiso="equipos_gestionar" onclick="abrirModalEquipo(${e.id})"><i class="fas fa-pen"></i> Editar</button>
+        <button class="btn-orden-accion btn-orden-secundaria" onclick="verEtiquetaQR(${e.id})"><i class="fas fa-qrcode"></i> QR</button>
+        <button class="btn-orden-accion btn-orden-peligro solo-admin" data-permiso="equipos_eliminar" onclick="eliminarEquipoGlobal(${e.id})"><i class="fas fa-trash"></i> Eliminar</button>
+      </div>
+    </div>`;
+  };
   db.clientes.forEach(c=>{
     c.sedes.forEach(s=>s.equipos.forEach(e=>{
-    const texto = `${e.nombre} ${e.serie||''} ${c.nombre} ${e.marca||''} ${e.modelo||''}`.toLowerCase();
-    if(filtro && !texto.includes(filtro)) return;
-    const numServicios = db.ordenes.filter(o=>o.equipoId===e.id).length;
-    tbody.innerHTML += `<tr>
-      <td><strong>${e.nombre}</strong><br><small style="color:var(--text-muted);">${e.marca||''} ${e.modelo||''}</small></td>
-      <td>${c.nombre}<br><small style="color:var(--text-muted);">${s.nombre}</small></td>
-      <td>${e.serie||'—'}</td>
-      <td>${e.refrigerante||'—'}</td>
-      <td>${numServicios}</td>
-      <td>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="irATrazabilidadEquipo(${e.id})">Historial</button>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="equipos_gestionar" onclick="abrirModalEquipo(${e.id})">Editar</button>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verEtiquetaQR(${e.id})"><i class="fas fa-qrcode"></i></button>
-        <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" data-permiso="equipos_eliminar" onclick="eliminarEquipoGlobal(${e.id})">Eliminar</button>
-      </td>
-    </tr>`;
+      const texto = `${e.nombre} ${e.serie||''} ${c.nombre} ${e.marca||''} ${e.modelo||''}`.toLowerCase();
+      if(filtro && !texto.includes(filtro)) return;
+      cont.innerHTML += tarjetaEquipo(e, c, s);
     }));
     equiposSinSedeDe(c).forEach(e=>{
       const texto = `${e.nombre} ${e.serie||''} ${c.nombre} ${e.marca||''} ${e.modelo||''}`.toLowerCase();
       if(filtro && !texto.includes(filtro)) return;
-      const numServicios = db.ordenes.filter(o=>o.equipoId===e.id).length;
-      tbody.innerHTML += `<tr>
-        <td><strong>${e.nombre}</strong><br><small style="color:var(--text-muted);">${e.marca||''} ${e.modelo||''}</small></td>
-        <td>${c.nombre}<br><small style="color:var(--text-muted);">Sin sede</small></td>
-        <td>${e.serie||'—'}</td>
-        <td>${e.refrigerante||'—'}</td>
-        <td>${numServicios}</td>
-        <td>
-          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="irATrazabilidadEquipo(${e.id})">Historial</button>
-          <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="equipos_gestionar" onclick="abrirModalEquipo(${e.id})">Editar</button>
-          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verEtiquetaQR(${e.id})"><i class="fas fa-qrcode"></i></button>
-          <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" data-permiso="equipos_eliminar" onclick="eliminarEquipoGlobal(${e.id})">Eliminar</button>
-        </td>
-      </tr>`;
+      cont.innerHTML += tarjetaEquipo(e, c, null);
     });
   });
-  if(tbody.innerHTML==='') tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No se encontraron equipos.</td></tr>';
+  if(cont.innerHTML==='') cont.innerHTML = '<div class="empty-state">No se encontraron equipos.</div>';
+  aplicarRBACaUI();
 }
 
 function eliminarEquipoGlobal(equipoId){

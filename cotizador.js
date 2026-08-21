@@ -35,7 +35,7 @@ function renderizarListaTecnicosLiquidacion(){
   const cont = document.getElementById('liqListaTecnicos');
   const activos = db.tecnicos.filter(t=>t.activo!==false);
   cont.innerHTML = activos.map(t=>`
-    <label style="display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.15);padding:6px 12px;border-radius:6px;font-size:13px;font-weight:400;margin:0;">
+    <label style="display:flex;align-items:center;gap:6px;background:#f1f5f9;border:1px solid #e2e8f0;padding:6px 12px;border-radius:6px;font-size:13px;font-weight:400;margin:0;color:#1e293b;">
       <input type="checkbox" style="width:auto;margin:0;" onchange="toggleTecnicoLiquidacion(${t.id}, this.checked)">
       ${t.nombre}
     </label>`).join('') || '<p class="empty-state">No hay técnicos activos registrados.</p>';
@@ -114,7 +114,7 @@ function renderizarTarjetaPersonaLiquidacion(id){
       </select></div>
       <div style="flex:0;"><button type="button" class="btn-custom btn-danger-custom btn-sm-custom" onclick="quitarPersonalOcasional('${id}')">Quitar</button></div>
     </div>` : `<strong>${t?t.nombre:'—'}</strong>`;
-  return `<div class="panel" id="tarjeta-liq-${id}" style="background:rgba(0,0,0,.15);margin-bottom:12px;">
+  return `<div class="panel" id="tarjeta-liq-${id}" style="background:#f8fafc;border:1px solid #e2e8f0;margin-bottom:12px;color:#1e293b;">
     ${encabezado}
     <div class="field-row" style="margin-top:8px;">
       ${camposCantidad}
@@ -678,7 +678,7 @@ function renderizarCuadroMandoAnual(){
   }).join('');
   const totalGeneral = totalAprobada + totalPendiente;
   const metaAnual = meta*12;
-  const filaTotal = `<tr style="font-weight:700;background:rgba(0,0,0,.2);"><td>TOTAL ANUAL</td><td>${formatoCOP(totalAprobada)}</td><td>${formatoCOP(totalPendiente)}</td><td>${formatoCOP(totalGeneral)}</td><td>${formatoCOP(metaAnual)}</td>
+  const filaTotal = `<tr style="font-weight:700;background:#eff6ff;color:#1e3a5f;"><td>TOTAL ANUAL</td><td>${formatoCOP(totalAprobada)}</td><td>${formatoCOP(totalPendiente)}</td><td>${formatoCOP(totalGeneral)}</td><td>${formatoCOP(metaAnual)}</td>
     <td>${metaAnual?(totalAprobada/metaAnual*100).toFixed(1):0}%</td><td>${metaAnual?(totalGeneral/metaAnual*100).toFixed(1):0}%</td></tr>`;
   document.getElementById('tablaCuadroMandoAnual').innerHTML = filas + filaTotal;
 }

@@ -94,7 +94,15 @@ function eliminarItemInventario(id){
 }
 function renderizarInventario(){
   const tbody = document.getElementById('tablaInventario');
-  tbody.innerHTML = db.inventario.map(it=>{
+  const buscadorEl = document.getElementById('invBuscador');
+  const texto = buscadorEl ? buscadorEl.value.trim().toLowerCase() : '';
+  const itemsFiltrados = !texto ? db.inventario : db.inventario.filter(it=>{
+    const bodega = buscarBodega(it.bodegaId);
+    return (it.nombre||'').toLowerCase().includes(texto)
+      || (it.categoria||'').toLowerCase().includes(texto)
+      || (bodega && bodega.nombre.toLowerCase().includes(texto));
+  });
+  tbody.innerHTML = itemsFiltrados.map(it=>{
     const bodega = buscarBodega(it.bodegaId);
     const bajoStock = it.stockActual <= it.stockMinimo;
     const fotosHtml = (it.fotos||[]).map(f=>`<img src="${srcDeFoto(f)}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;margin-right:3px;">`).join('');
@@ -107,7 +115,7 @@ function renderizarInventario(){
       <td><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalItemInventario(${it.id})">Editar</button>
       <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarItemInventario(${it.id})">X</button></td>
     </tr>`;
-  }).join('') || '<tr><td colspan="6" class="empty-state">Sin ítems registrados. Crea uno con "+ Ítem".</td></tr>';
+  }).join('') || `<tr><td colspan="6" class="empty-state">${texto ? 'Sin ítems que coincidan con "'+buscadorEl.value+'".' : 'Sin ítems registrados. Crea uno con "+ Ítem".'}</td></tr>`;
 
   const bajos = db.inventario.filter(i=>i.stockActual<=i.stockMinimo);
   document.getElementById('alertasStockBajo').innerHTML = bajos.length ? `

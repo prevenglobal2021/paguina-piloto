@@ -719,10 +719,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <button class="btn-custom btn-sm-custom solo-admin" data-permiso="equipos_gestionar" onclick="abrirModalEquipo()">+ Registrar Equipo</button>
         </div>
       </div>
-      <table class="data-table">
-        <thead><tr><th>Equipo</th><th>Cliente / Sede</th><th>Código</th><th>Refrigerante</th><th>Servicios</th><th>Acción</th></tr></thead>
-        <tbody id="tablaEquiposGlobal"></tbody>
-      </table>
+      <div id="vistaEquiposGlobal" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:15px;"></div>
     </div>
 
     <!-- SECCION TRAZABILIDAD -->
@@ -747,6 +744,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         </div>
       </div>
       <div id="alertasStockBajo"></div>
+      <input type="text" id="invBuscador" placeholder="🔍 Buscar por nombre, categoría o bodega..." oninput="renderizarInventario()" style="margin-bottom:10px;">
       <table class="data-table">
         <thead><tr><th>Ítem</th><th>Bodega</th><th>Stock</th><th>Fotos</th><th>QR</th><th>Acción</th></tr></thead>
         <tbody id="tablaInventario"></tbody>
@@ -1588,6 +1586,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <div>
           <h4 style="margin-top:0;font-size:13px;">📋 Directorio de Clientes</h4>
           <div style="max-height:250px;overflow-y:auto;">
+            <input type="text" id="cliBuscadorConfig" placeholder="🔍 Buscar por nombre, documento, teléfono o dirección..." oninput="renderizarClientesConfig()" style="margin-bottom:10px;">
             <table class="data-table"><thead><tr><th>Cliente</th><th>Acciones</th></tr></thead><tbody id="tablaConfigClientesBody"></tbody></table>
           </div>
         </div>
@@ -2023,19 +2022,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=42"></script>
-<script src="utilidades-navegacion.js?v=42"></script>
-<script src="buscador-agenda.js?v=42"></script>
-<script src="ordenes.js?v=42"></script>
-<script src="equipos-trazabilidad.js?v=42"></script>
-<script src="pdf.js?v=42"></script>
-<script src="config-clientes-equipos.js?v=42"></script>
-<script src="config-plantillas-tecnicos.js?v=42"></script>
-<script src="cotizador.js?v=42"></script>
-<script src="config-general.js?v=42"></script>
-<script src="inventario.js?v=42"></script>
-<script src="tienda-admin.js?v=42"></script>
-<script src="tienda-publica.js?v=42"></script>
-<script src="kpi.js?v=42"></script>
+<script src="core.js?v=43"></script>
+<script src="utilidades-navegacion.js?v=43"></script>
+<script src="buscador-agenda.js?v=43"></script>
+<script src="ordenes.js?v=43"></script>
+<script src="equipos-trazabilidad.js?v=43"></script>
+<script src="pdf.js?v=43"></script>
+<script src="config-clientes-equipos.js?v=43"></script>
+<script src="config-plantillas-tecnicos.js?v=43"></script>
+<script src="cotizador.js?v=43"></script>
+<script src="config-general.js?v=43"></script>
+<script src="inventario.js?v=43"></script>
+<script src="tienda-admin.js?v=43"></script>
+<script src="tienda-publica.js?v=43"></script>
+<script src="kpi.js?v=43"></script>
 </body>
 </html>
