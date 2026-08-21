@@ -3,6 +3,34 @@
    UTILIDADES DE CONSULTA
 ========================================================= */
 function buscarCliente(id){ return db.clientes.find(c=>c.id===id); }
+// Genera la barra de formato tipo Word + el área de texto enriquecido, para
+// cualquier campo de "observaciones" de la plataforma — un solo componente
+// reutilizado tanto en el diagnóstico general como en los campos dinámicos
+// de plantilla de tipo "Observación larga".
+function generarEditorRico(idEditor, contenidoInicial, soloLectura, atributoDataCampo){
+  const idSeguro = idEditor.replace(/'/g,"\\'");
+  return `<div class="editor-rico-toolbar" ${soloLectura?'style="display:none;"':''}>
+    <select onmousedown="event.preventDefault()" onchange="document.getElementById('${idSeguro}').focus();document.execCommand('fontName',false,this.value);" title="Tipo de letra">
+      <option value="Arial,sans-serif">Arial</option>
+      <option value="Georgia,serif">Georgia</option>
+      <option value="'Courier New',monospace">Courier</option>
+      <option value="Verdana,sans-serif">Verdana</option>
+    </select>
+    <select onmousedown="event.preventDefault()" onchange="document.getElementById('${idSeguro}').focus();document.execCommand('fontSize',false,this.value);" title="Tamaño de letra">
+      <option value="2">Pequeño</option>
+      <option value="3" selected>Normal</option>
+      <option value="5">Grande</option>
+      <option value="7">Muy grande</option>
+    </select>
+    <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('${idSeguro}').focus();document.execCommand('bold');" title="Negrita"><b>N</b></button>
+    <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('${idSeguro}').focus();document.execCommand('italic');" title="Cursiva"><i>K</i></button>
+    <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('${idSeguro}').focus();document.execCommand('underline');" title="Subrayado"><u>S</u></button>
+    <input type="color" value="#fef08a" onmousedown="event.preventDefault()" onchange="document.getElementById('${idSeguro}').focus();document.execCommand('hiliteColor',false,this.value);" title="Resaltar texto">
+    <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('${idSeguro}').focus();document.execCommand('insertUnorderedList');" title="Viñetas"><i class="fas fa-list-ul"></i></button>
+    <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('${idSeguro}').focus();document.execCommand('removeFormat');" title="Quitar formato"><i class="fas fa-eraser"></i></button>
+  </div>
+  <div class="editor-rico-area" id="${idEditor}" ${atributoDataCampo?`data-campo="${atributoDataCampo}"`:''} contenteditable="${soloLectura?'false':'true'}" data-placeholder="Escribe aquí...">${contenidoInicial||''}</div>`;
+}
 /* =========================================================
    UBICACIÓN GPS — botón reutilizable para cualquier campo de
    dirección de la plataforma. Usa el GPS del dispositivo y
@@ -390,6 +418,10 @@ function aplicarConfiguracionVisual(){
   document.body.classList.remove('letra-pequena','letra-grande');
   if(db.config.tamanoLetra==='sm') document.body.classList.add('letra-pequena');
   if(db.config.tamanoLetra==='lg') document.body.classList.add('letra-grande');
+  const mapaTamanoBotones = { sm:{padding:'6px 12px',fontSize:'12px'}, md:{padding:'8px 16px',fontSize:'13px'}, lg:{padding:'11px 22px',fontSize:'15px'} };
+  const tb = mapaTamanoBotones[db.config.formTamanoBotones] || mapaTamanoBotones.md;
+  document.documentElement.style.setProperty('--form-btn-padding', tb.padding);
+  document.documentElement.style.setProperty('--form-btn-font-size', tb.fontSize);
   const logoImg = document.getElementById('sidebarLogo');
   const iconoDefault = document.getElementById('sidebarIconoDefault');
   if(db.config.logo){ logoImg.src = db.config.logo; logoImg.style.display='block'; iconoDefault.style.display='none'; }

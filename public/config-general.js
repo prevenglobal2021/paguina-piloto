@@ -187,6 +187,7 @@ async function guardarApariencia(){
   db.config.formRadius = document.getElementById('cfgFormRadius').value;
   db.config.formBorderColor = document.getElementById('cfgFormBorderColor').value;
   db.config.fontFamily = document.getElementById('cfgTipoLetra').value;
+  db.config.formTamanoBotones = document.getElementById('cfgFormTamanoBotones').value;
   try{
     await dbGuardarInmediato();
     aplicarConfiguracionVisual();

@@ -327,6 +327,26 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .toggle-opcional{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;cursor:pointer;font-weight:500;font-size:13px;color:#334155;margin-bottom:4px;transition:border-color .15s ease;}
 .toggle-opcional:hover{border-color:#93c5fd;}
 .toggle-opcional input{width:auto;margin:0;accent-color:#2563eb;}
+/* Barra de formato tipo Word — para diagnóstico técnico y observaciones */
+.editor-rico-toolbar{display:flex;flex-wrap:wrap;gap:4px;align-items:center;background:#f1f5f9;border:1px solid #e2e8f0;border-bottom:none;border-radius:8px 8px 0 0;padding:6px 8px;}
+.editor-rico-toolbar button{background:#fff;border:1px solid #e2e8f0;border-radius:5px;width:28px;height:28px;cursor:pointer;font-size:12px;color:#334155;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit;}
+.editor-rico-toolbar button:hover{background:#e0f2fe;border-color:#7dd3fc;}
+.editor-rico-toolbar select{border:1px solid #e2e8f0;border-radius:5px;font-size:11px;height:28px;background:#fff;color:#334155;max-width:110px;}
+.editor-rico-toolbar input[type=color]{border:1px solid #e2e8f0;border-radius:5px;height:28px;width:28px;padding:2px;background:#fff;}
+.editor-rico-area{min-height:70px;max-height:240px;overflow-y:auto;background:#fff;border:1px solid #e2e8f0;border-radius:0 0 8px 8px;padding:8px 10px;font-size:13px;color:#1e293b;outline:none;}
+.editor-rico-area:focus{border-color:#60a5fa;}
+.editor-rico-area ul{margin:4px 0 4px 20px;padding:0;}
+.editor-rico-area:empty:before{content:attr(data-placeholder);color:#94a3b8;pointer-events:none;}
+/* Tamaño de botones del formulario — configurable en Apariencia, se aplica
+   solo a los botones dentro de modales/formularios (Guardar, Cancelar, etc.),
+   sin afectar los botones de acción de las listas (Editar, Eliminar...). */
+:root{ --form-btn-padding: 8px 16px; --form-btn-font-size: 13px; }
+/* La tienda pública siempre usa sus propios colores claros y modernos,
+   sin importar qué tema (claro/oscuro) tenga elegido el panel administrativo
+   — antes las tarjetas de producto se veían oscuras porque tomaban el mismo
+   color que el panel interno, que nunca se pone en "modo claro" aquí. */
+#tiendaPublicaWrapper{ --card-bg:#ffffff; --card-border:#e2e8f0; --text-main:#0f172a; --text-muted:#64748b; }
+.modal-box .btn-custom:not(.btn-sm-custom){ padding: var(--form-btn-padding); font-size: var(--form-btn-font-size); }
 /* Galería de fotos con descripción — cuadrícula uniforme, se ajusta sola
    (2 columnas si hay pocas fotos, 3-4 si hay más, según el ancho disponible) */
 .galeria-fotos{display:grid;grid-template-columns:repeat(auto-fill, minmax(100px, 1fr));gap:10px;margin-top:8px;}
@@ -521,7 +541,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 <body>
 
 <!-- TIENDA PÚBLICA (enlace independiente, sin sesión ni acceso al resto del sistema) -->
-<div id="tiendaPublicaWrapper" style="display:none;min-height:100vh;background:var(--bg-dark);padding:20px;">
+<div id="tiendaPublicaWrapper" style="display:none;min-height:100vh;background:var(--tienda-bg,#f1f5f9);padding:20px;">
   <div style="max-width:1100px;margin:0 auto;">
     <div id="tpBannerWrap" class="tienda-banner-wrap" style="display:none;"><div id="tpBannerTrack" class="tienda-banner-track"></div></div>
     <div class="tienda-header">
@@ -1331,7 +1351,27 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <div><label>Estado:</label><select id="detEstado"><option>Programado</option><option>En Ejecución</option></select></div>
     </div>
     <label>Diagnóstico / observaciones generales:</label>
-    <textarea id="detDiagnostico" rows="2" placeholder="Detalle técnico de la actividad realizada..."></textarea>
+    <div class="editor-rico-toolbar">
+      <select onmousedown="event.preventDefault()" onchange="document.getElementById('detDiagnostico').focus();document.execCommand('fontName',false,this.value);" title="Tipo de letra">
+        <option value="Arial,sans-serif">Arial</option>
+        <option value="Georgia,serif">Georgia</option>
+        <option value="'Courier New',monospace">Courier</option>
+        <option value="Verdana,sans-serif">Verdana</option>
+      </select>
+      <select onmousedown="event.preventDefault()" onchange="document.getElementById('detDiagnostico').focus();document.execCommand('fontSize',false,this.value);" title="Tamaño de letra">
+        <option value="2">Pequeño</option>
+        <option value="3" selected>Normal</option>
+        <option value="5">Grande</option>
+        <option value="7">Muy grande</option>
+      </select>
+      <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('detDiagnostico').focus();document.execCommand('bold');" title="Negrita"><b>N</b></button>
+      <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('detDiagnostico').focus();document.execCommand('italic');" title="Cursiva"><i>K</i></button>
+      <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('detDiagnostico').focus();document.execCommand('underline');" title="Subrayado"><u>S</u></button>
+      <input type="color" value="#fef08a" onmousedown="event.preventDefault()" onchange="document.getElementById('detDiagnostico').focus();document.execCommand('hiliteColor',false,this.value);" title="Resaltar texto">
+      <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('detDiagnostico').focus();document.execCommand('insertUnorderedList');" title="Viñetas"><i class="fas fa-list-ul"></i></button>
+      <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('detDiagnostico').focus();document.execCommand('removeFormat');" title="Quitar formato"><i class="fas fa-eraser"></i></button>
+    </div>
+    <div class="editor-rico-area" id="detDiagnostico" contenteditable="true" data-placeholder="Detalle técnico de la actividad realizada..."></div>
     <div id="detCamposDinamicos" style="margin-top:10px;border-top:1px dashed var(--card-border);padding-top:10px;"></div>
 
     <label>Fotos de evidencia:</label>
@@ -1867,6 +1907,14 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
             <label>Color de línea/borde de los campos:</label>
             <input type="color" id="cfgFormBorderColor">
           </div>
+          <div>
+            <label>Tamaño de los botones:</label>
+            <select id="cfgFormTamanoBotones">
+              <option value="sm">Pequeño</option>
+              <option value="md">Mediano (por defecto)</option>
+              <option value="lg">Grande</option>
+            </select>
+          </div>
         </div>
         <a href="javascript:void(0)" onclick="restablecerBordeFormulario()" style="font-size:11px;color:var(--blue-accent);display:inline-block;margin-top:8px;">Restablecer color de borde por defecto</a>
       </div>
@@ -1942,6 +1990,9 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <button class="btn-custom" style="margin-top:10px;" onclick="guardarContactoTienda()">Guardar contacto</button>
 
           <h4 style="font-size:13px;">🎨 Apariencia de la tienda</h4>
+          <label>Color de fondo de la pantalla:</label>
+          <input type="color" id="cfgTiendaColorFondo" style="height:40px;padding:4px;cursor:pointer;">
+          <p style="font-size:11px;color:var(--text-muted);margin:2px 0 10px;">Este es el color de fondo que ven tus clientes al entrar a la tienda — elige uno claro para que se vea moderna y fácil de leer.</p>
           <label>Color principal de la tienda:</label>
           <input type="color" id="cfgTiendaColor" style="height:40px;padding:4px;cursor:pointer;">
           <label style="margin-top:10px;">Cómo se ven las imágenes de los productos:</label>
@@ -2023,19 +2074,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=44"></script>
-<script src="utilidades-navegacion.js?v=44"></script>
-<script src="buscador-agenda.js?v=44"></script>
-<script src="ordenes.js?v=44"></script>
-<script src="equipos-trazabilidad.js?v=44"></script>
-<script src="pdf.js?v=44"></script>
-<script src="config-clientes-equipos.js?v=44"></script>
-<script src="config-plantillas-tecnicos.js?v=44"></script>
-<script src="cotizador.js?v=44"></script>
-<script src="config-general.js?v=44"></script>
-<script src="inventario.js?v=44"></script>
-<script src="tienda-admin.js?v=44"></script>
-<script src="tienda-publica.js?v=44"></script>
-<script src="kpi.js?v=44"></script>
+<script src="core.js?v=46"></script>
+<script src="utilidades-navegacion.js?v=46"></script>
+<script src="buscador-agenda.js?v=46"></script>
+<script src="ordenes.js?v=46"></script>
+<script src="equipos-trazabilidad.js?v=46"></script>
+<script src="pdf.js?v=46"></script>
+<script src="config-clientes-equipos.js?v=46"></script>
+<script src="config-plantillas-tecnicos.js?v=46"></script>
+<script src="cotizador.js?v=46"></script>
+<script src="config-general.js?v=46"></script>
+<script src="inventario.js?v=46"></script>
+<script src="tienda-admin.js?v=46"></script>
+<script src="tienda-publica.js?v=46"></script>
+<script src="kpi.js?v=46"></script>
 </body>
 </html>

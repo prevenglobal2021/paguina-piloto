@@ -110,7 +110,7 @@ function verDetalleOrden(ordenId){
   selPlant.innerHTML = '<option value="">Sin plantilla</option>' + db.plantillas.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('');
   selPlant.value = o.plantillaId || '';
 
-  document.getElementById('detDiagnostico').value = (o.cierre && o.cierre.diagnostico) || '';
+  document.getElementById('detDiagnostico').innerHTML = (o.cierre && o.cierre.diagnostico) || '';
   fotosDetalleTemp = normalizarFotosEvidencia(o.cierre && o.cierre.fotos);
   renderizarFotosDetallePreview();
   renderizarFormularioDinamicoDetalle(o.plantillaId, (o.cierre && o.cierre.respuestas) || {}, (o.cierre && o.cierre.fotosPorCampo) || {});
@@ -123,9 +123,21 @@ function verDetalleOrden(ordenId){
   const puedeEditarMetadata = !finalizada && (esAdmin() || tienePermiso('ordenes_editar'));
   const camposMetadata = ['detCliente','detEquipo','detTecnico','detTipo','detPrioridad','detFecha','detHora','detEstado','detPlantilla'];
   camposMetadata.forEach(id=>{ const el=document.getElementById(id); if(el) el.disabled = !puedeEditarMetadata; });
-  const camposEditables = ['detDiagnostico','detInputFotos'];
+  const camposEditables = ['detInputFotos'];
   camposEditables.forEach(id=>{ const el=document.getElementById(id); if(el) el.disabled = finalizada; });
-  document.querySelectorAll('#detCamposDinamicos [data-campo]').forEach(el=>el.disabled = finalizada);
+  const editorDiagnostico = document.getElementById('detDiagnostico');
+  if(editorDiagnostico){ editorDiagnostico.contentEditable = finalizada ? 'false' : 'true'; }
+  const barraFormatoDiagnostico = editorDiagnostico ? editorDiagnostico.previousElementSibling : null;
+  if(barraFormatoDiagnostico) barraFormatoDiagnostico.style.display = finalizada ? 'none' : 'flex';
+  document.querySelectorAll('#detCamposDinamicos [data-campo]').forEach(el=>{
+    if(el.hasAttribute('contenteditable')){
+      el.contentEditable = finalizada ? 'false' : 'true';
+      const barra = el.previousElementSibling;
+      if(barra && barra.classList.contains('editor-rico-toolbar')) barra.style.display = finalizada ? 'none' : 'flex';
+    } else {
+      el.disabled = finalizada;
+    }
+  });
   document.querySelectorAll('#detPreviewFotos button, [id^="detPreviewFotoCampo"] button').forEach(b=>b.style.display = finalizada ? 'none' : '');
   document.getElementById('detAccionesEdicion').style.display = finalizada ? 'none' : 'flex';
   document.getElementById('detAccionesSoloLectura').style.display = finalizada ? 'block' : 'none';
@@ -154,8 +166,11 @@ function poblarEquiposDetalleOrden(equipoIdPreseleccionado){
   let opciones = [];
   c.sedes.forEach(s=>s.equipos.forEach(e=>opciones.push({ id:e.id, texto:`${e.nombre}${e.serie?' ('+e.serie+')':''} — ${s.nombre}` })));
   equiposSinSedeDe(c).forEach(e=>opciones.push({ id:e.id, texto:`${e.nombre}${e.serie?' ('+e.serie+')':''} — Sin sede` }));
-  selEq.innerHTML = opciones.length ? opciones.map(o=>`<option value="${o.id}">${o.texto}</option>`).join('') : '<option value="">Este cliente no tiene equipos</option>';
-  if(equipoIdPreseleccionado) selEq.value = equipoIdPreseleccionado;
+  // Siempre se ofrece la opción de "sin equipo" — hay clientes sin equipos
+  // registrados todavía, u órdenes de servicio general que no van ligadas
+  // a un equipo puntual, y antes no había forma de guardar esos casos.
+  selEq.innerHTML = '<option value="">Sin equipo (servicio general)</option>' + opciones.map(o=>`<option value="${o.id}">${o.texto}</option>`).join('');
+  selEq.value = equipoIdPreseleccionado || '';
 }
 function renderizarFormularioDinamicoDetalle(plantillaId, respuestasExistentes, fotosPorCampoExistentes){
   const cont = document.getElementById('detCamposDinamicos');
@@ -183,7 +198,7 @@ function renderizarFormularioDinamicoDetalle(plantillaId, respuestasExistentes, 
     } else {
       const valorExistente = respuestasExistentes[campo.id] || '';
       let inputHtml;
-      if(campo.tipo==='textarea') inputHtml = `<textarea rows="2" data-campo="${campo.id}">${valorExistente}</textarea>`;
+      if(campo.tipo==='textarea') inputHtml = generarEditorRico('detCampo'+campo.id, valorExistente, false, campo.id);
       else if(campo.tipo==='checkbox') inputHtml = `<select data-campo="${campo.id}"><option value="Sí" ${valorExistente==='Sí'?'selected':''}>Sí</option><option value="No" ${valorExistente==='No'?'selected':''}>No</option></select>`;
       else inputHtml = `<input type="${campo.tipo}" data-campo="${campo.id}" value="${valorExistente}">`;
       cont.innerHTML += `<div style="margin-top:8px;"><label>${campo.label}:</label>${inputHtml}</div>`;
@@ -226,11 +241,19 @@ async function guardarDetalleOrden(finalizar){
     clienteId = o.clienteId; equipoId = o.equipoId; sedeId = o.sedeId;
   } else {
     clienteId = parseInt(document.getElementById('detCliente').value);
-    equipoId = parseInt(document.getElementById('detEquipo').value);
-    if(!clienteId || !equipoId){ mostrarToast('Selecciona Cliente y Equipo.'); return; }
-    const infoEquipo = ubicarEquipoPorId(equipoId);
-    if(!infoEquipo || infoEquipo.cliente.id !== clienteId){ mostrarToast('El equipo seleccionado no corresponde al cliente elegido.'); return; }
-    sedeId = infoEquipo.sede ? infoEquipo.sede.id : null;
+    if(!clienteId){ mostrarToast('Selecciona el Cliente.'); return; }
+    const equipoRaw = document.getElementById('detEquipo').value;
+    // El equipo es OPCIONAL — hay clientes sin equipos registrados, u órdenes
+    // de servicio general que no van ligadas a un equipo puntual. Antes esto
+    // bloqueaba el guardado por completo; ahora solo se valida si sí se eligió uno.
+    if(equipoRaw){
+      equipoId = parseInt(equipoRaw);
+      const infoEquipo = ubicarEquipoPorId(equipoId);
+      if(!infoEquipo || infoEquipo.cliente.id !== clienteId){ mostrarToast('El equipo seleccionado no corresponde al cliente elegido.'); return; }
+      sedeId = infoEquipo.sede ? infoEquipo.sede.id : null;
+    } else {
+      equipoId = null; sedeId = null;
+    }
   }
   const tecnicoIdRaw = document.getElementById('detTecnico').value;
   const plantillaIdRaw = document.getElementById('detPlantilla').value;
@@ -240,6 +263,8 @@ async function guardarDetalleOrden(finalizar){
     if(el.dataset.item){
       if(!respuestas[el.dataset.campo]) respuestas[el.dataset.campo] = {};
       respuestas[el.dataset.campo][el.dataset.item] = el.checked;
+    } else if(el.hasAttribute('contenteditable')){
+      respuestas[el.dataset.campo] = el.innerHTML;
     } else {
       respuestas[el.dataset.campo] = el.value;
     }
@@ -258,7 +283,7 @@ async function guardarDetalleOrden(finalizar){
   o.plantillaId = plantillaIdRaw ? parseInt(plantillaIdRaw) : null;
   o.cierre = {
     fecha: (o.cierre && o.cierre.fecha) || new Date().toISOString().slice(0,10),
-    diagnostico: document.getElementById('detDiagnostico').value,
+    diagnostico: document.getElementById('detDiagnostico').innerHTML,
     respuestas,
     fotos: fotosDetalleTemp.slice(),
     fotosPorCampo: JSON.parse(JSON.stringify(fotosCamposDetalleTemp)),

@@ -36,6 +36,7 @@ function cambiarTabConfig(tab, evt){
     document.getElementById('cfgColorTexto').value = db.config.colorTexto || '#1e293b';
     document.getElementById('cfgFormRadius').value = db.config.formRadius!==undefined ? db.config.formRadius : '6';
     document.getElementById('cfgFormBorderColor').value = db.config.formBorderColor || '#cbd5e1';
+    document.getElementById('cfgFormTamanoBotones').value = db.config.formTamanoBotones || 'md';
     document.getElementById('cfgTipoLetra').value = db.config.fontFamily || "'Segoe UI',Tahoma,Geneva,Verdana,sans-serif";
     renderizarTemasClaros();
     document.getElementById('cfgLoginColor1').value = db.config.loginColor1 || '#7c3aed';
