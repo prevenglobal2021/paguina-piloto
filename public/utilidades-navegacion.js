@@ -3,6 +3,25 @@
    UTILIDADES DE CONSULTA
 ========================================================= */
 function buscarCliente(id){ return db.clientes.find(c=>c.id===id); }
+// Antes de aplicar negrita/viñetas/etc., el área de texto necesita tener un
+// cursor o selección activa DENTRO de ella — con solo .focus() no basta si
+// el usuario nunca tocó el texto primero (por eso los botones parecían no
+// hacer nada al presionarlos directamente). Esto coloca el cursor al final
+// del texto si todavía no había ninguno puesto ahí.
+function enfocarYColocarCursor(idEditor){
+  const el = document.getElementById(idEditor);
+  if(!el) return;
+  el.focus();
+  const seleccion = window.getSelection();
+  const yaHayCursorAdentro = seleccion.rangeCount > 0 && el.contains(seleccion.getRangeAt(0).commonAncestorContainer);
+  if(!yaHayCursorAdentro){
+    const rango = document.createRange();
+    rango.selectNodeContents(el);
+    rango.collapse(false); // al final del texto ya escrito
+    seleccion.removeAllRanges();
+    seleccion.addRange(rango);
+  }
+}
 // Genera la barra de formato tipo Word + el área de texto enriquecido, para
 // cualquier campo de "observaciones" de la plataforma — un solo componente
 // reutilizado tanto en el diagnóstico general como en los campos dinámicos
@@ -10,24 +29,27 @@ function buscarCliente(id){ return db.clientes.find(c=>c.id===id); }
 function generarEditorRico(idEditor, contenidoInicial, soloLectura, atributoDataCampo){
   const idSeguro = idEditor.replace(/'/g,"\\'");
   return `<div class="editor-rico-toolbar" ${soloLectura?'style="display:none;"':''}>
-    <select onmousedown="event.preventDefault()" onchange="document.getElementById('${idSeguro}').focus();document.execCommand('fontName',false,this.value);" title="Tipo de letra">
+    <select onmousedown="event.preventDefault()" onchange="enfocarYColocarCursor('${idSeguro}');document.execCommand('fontName',false,this.value);" title="Tipo de letra">
       <option value="Arial,sans-serif">Arial</option>
       <option value="Georgia,serif">Georgia</option>
       <option value="'Courier New',monospace">Courier</option>
       <option value="Verdana,sans-serif">Verdana</option>
     </select>
-    <select onmousedown="event.preventDefault()" onchange="document.getElementById('${idSeguro}').focus();document.execCommand('fontSize',false,this.value);" title="Tamaño de letra">
+    <select onmousedown="event.preventDefault()" onchange="enfocarYColocarCursor('${idSeguro}');document.execCommand('fontSize',false,this.value);" title="Tamaño de letra">
       <option value="2">Pequeño</option>
       <option value="3" selected>Normal</option>
       <option value="5">Grande</option>
       <option value="7">Muy grande</option>
     </select>
-    <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('${idSeguro}').focus();document.execCommand('bold');" title="Negrita"><b>N</b></button>
-    <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('${idSeguro}').focus();document.execCommand('italic');" title="Cursiva"><i>K</i></button>
-    <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('${idSeguro}').focus();document.execCommand('underline');" title="Subrayado"><u>S</u></button>
-    <input type="color" value="#fef08a" onmousedown="event.preventDefault()" onchange="document.getElementById('${idSeguro}').focus();document.execCommand('hiliteColor',false,this.value);" title="Resaltar texto">
-    <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('${idSeguro}').focus();document.execCommand('insertUnorderedList');" title="Viñetas"><i class="fas fa-list-ul"></i></button>
-    <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('${idSeguro}').focus();document.execCommand('removeFormat');" title="Quitar formato"><i class="fas fa-eraser"></i></button>
+    <span class="editor-rico-separador"></span>
+    <button type="button" onmousedown="event.preventDefault()" onclick="enfocarYColocarCursor('${idSeguro}');document.execCommand('bold');" title="Negrita"><b>N</b></button>
+    <button type="button" onmousedown="event.preventDefault()" onclick="enfocarYColocarCursor('${idSeguro}');document.execCommand('italic');" title="Cursiva"><i>K</i></button>
+    <button type="button" onmousedown="event.preventDefault()" onclick="enfocarYColocarCursor('${idSeguro}');document.execCommand('underline');" title="Subrayado"><u>S</u></button>
+    <span class="editor-rico-separador"></span>
+    <input type="color" value="#fef08a" onmousedown="event.preventDefault()" onchange="enfocarYColocarCursor('${idSeguro}');document.execCommand('hiliteColor',false,this.value);" title="Resaltar texto">
+    <span class="editor-rico-separador"></span>
+    <button type="button" onmousedown="event.preventDefault()" onclick="enfocarYColocarCursor('${idSeguro}');document.execCommand('insertUnorderedList');" title="Viñetas"><i class="fas fa-list-ul"></i></button>
+    <button type="button" onmousedown="event.preventDefault()" onclick="enfocarYColocarCursor('${idSeguro}');document.execCommand('removeFormat');" title="Quitar formato"><i class="fas fa-eraser"></i></button>
   </div>
   <div class="editor-rico-area" id="${idEditor}" ${atributoDataCampo?`data-campo="${atributoDataCampo}"`:''} contenteditable="${soloLectura?'false':'true'}" data-placeholder="Escribe aquí...">${contenidoInicial||''}</div>`;
 }

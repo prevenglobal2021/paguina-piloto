@@ -328,12 +328,17 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .toggle-opcional:hover{border-color:#93c5fd;}
 .toggle-opcional input{width:auto;margin:0;accent-color:#2563eb;}
 /* Barra de formato tipo Word — para diagnóstico técnico y observaciones */
-.editor-rico-toolbar{display:flex;flex-wrap:wrap;gap:4px;align-items:center;background:#f1f5f9;border:1px solid #e2e8f0;border-bottom:none;border-radius:8px 8px 0 0;padding:6px 8px;}
-.editor-rico-toolbar button{background:#fff;border:1px solid #e2e8f0;border-radius:5px;width:28px;height:28px;cursor:pointer;font-size:12px;color:#334155;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit;}
-.editor-rico-toolbar button:hover{background:#e0f2fe;border-color:#7dd3fc;}
-.editor-rico-toolbar select{border:1px solid #e2e8f0;border-radius:5px;font-size:11px;height:28px;background:#fff;color:#334155;max-width:110px;}
-.editor-rico-toolbar input[type=color]{border:1px solid #e2e8f0;border-radius:5px;height:28px;width:28px;padding:2px;background:#fff;}
-.editor-rico-area{min-height:70px;max-height:240px;overflow-y:auto;background:#fff;border:1px solid #e2e8f0;border-radius:0 0 8px 8px;padding:8px 10px;font-size:13px;color:#1e293b;outline:none;}
+.editor-rico-toolbar{display:flex;flex-wrap:wrap;gap:5px;align-items:center;background:linear-gradient(180deg,#f8fafc,#eef2f7);border:1px solid #e2e8f0;border-bottom:none;border-radius:10px 10px 0 0;padding:8px 10px;}
+.editor-rico-toolbar button{background:#fff;border:1px solid #e2e8f0;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:13px;color:#334155;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit;transition:background .12s ease,border-color .12s ease,transform .08s ease;}
+.editor-rico-toolbar button:hover{background:#e0f2fe;border-color:#7dd3fc;color:#0369a1;}
+.editor-rico-toolbar button:active{transform:scale(.92);}
+.editor-rico-separador{width:1px;align-self:stretch;background:#dbe3ec;margin:2px 1px;}
+.editor-rico-toolbar select{border:1px solid #e2e8f0;border-radius:6px;font-size:12px;height:32px;background:#fff;color:#334155;max-width:112px;padding:0 6px;cursor:pointer;transition:border-color .12s ease;}
+.editor-rico-toolbar select:hover{border-color:#93c5fd;}
+.editor-rico-toolbar input[type=color]{border:1px solid #e2e8f0;border-radius:6px;height:32px;width:32px;padding:3px;background:#fff;cursor:pointer;transition:border-color .12s ease;}
+.editor-rico-toolbar input[type=color]:hover{border-color:#93c5fd;}
+.editor-rico-area{min-height:78px;max-height:240px;overflow-y:auto;background:#fff;border:1px solid #e2e8f0;border-radius:0 0 10px 10px;padding:10px 12px;font-size:13px;line-height:1.55;color:#1e293b;outline:none;transition:border-color .15s ease,box-shadow .15s ease;}
+.editor-rico-area:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(96,165,250,.15);}
 .editor-rico-area:focus{border-color:#60a5fa;}
 .editor-rico-area ul{margin:4px 0 4px 20px;padding:0;}
 .editor-rico-area:empty:before{content:attr(data-placeholder);color:#94a3b8;pointer-events:none;}
@@ -1352,24 +1357,27 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     </div>
     <label>Diagnóstico / observaciones generales:</label>
     <div class="editor-rico-toolbar">
-      <select onmousedown="event.preventDefault()" onchange="document.getElementById('detDiagnostico').focus();document.execCommand('fontName',false,this.value);" title="Tipo de letra">
+      <select onmousedown="event.preventDefault()" onchange="enfocarYColocarCursor('detDiagnostico');document.execCommand('fontName',false,this.value);" title="Tipo de letra">
         <option value="Arial,sans-serif">Arial</option>
         <option value="Georgia,serif">Georgia</option>
         <option value="'Courier New',monospace">Courier</option>
         <option value="Verdana,sans-serif">Verdana</option>
       </select>
-      <select onmousedown="event.preventDefault()" onchange="document.getElementById('detDiagnostico').focus();document.execCommand('fontSize',false,this.value);" title="Tamaño de letra">
+      <select onmousedown="event.preventDefault()" onchange="enfocarYColocarCursor('detDiagnostico');document.execCommand('fontSize',false,this.value);" title="Tamaño de letra">
         <option value="2">Pequeño</option>
         <option value="3" selected>Normal</option>
         <option value="5">Grande</option>
         <option value="7">Muy grande</option>
       </select>
-      <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('detDiagnostico').focus();document.execCommand('bold');" title="Negrita"><b>N</b></button>
-      <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('detDiagnostico').focus();document.execCommand('italic');" title="Cursiva"><i>K</i></button>
-      <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('detDiagnostico').focus();document.execCommand('underline');" title="Subrayado"><u>S</u></button>
-      <input type="color" value="#fef08a" onmousedown="event.preventDefault()" onchange="document.getElementById('detDiagnostico').focus();document.execCommand('hiliteColor',false,this.value);" title="Resaltar texto">
-      <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('detDiagnostico').focus();document.execCommand('insertUnorderedList');" title="Viñetas"><i class="fas fa-list-ul"></i></button>
-      <button type="button" onmousedown="event.preventDefault()" onclick="document.getElementById('detDiagnostico').focus();document.execCommand('removeFormat');" title="Quitar formato"><i class="fas fa-eraser"></i></button>
+      <span class="editor-rico-separador"></span>
+      <button type="button" onmousedown="event.preventDefault()" onclick="enfocarYColocarCursor('detDiagnostico');document.execCommand('bold');" title="Negrita"><b>N</b></button>
+      <button type="button" onmousedown="event.preventDefault()" onclick="enfocarYColocarCursor('detDiagnostico');document.execCommand('italic');" title="Cursiva"><i>K</i></button>
+      <button type="button" onmousedown="event.preventDefault()" onclick="enfocarYColocarCursor('detDiagnostico');document.execCommand('underline');" title="Subrayado"><u>S</u></button>
+      <span class="editor-rico-separador"></span>
+      <input type="color" value="#fef08a" onmousedown="event.preventDefault()" onchange="enfocarYColocarCursor('detDiagnostico');document.execCommand('hiliteColor',false,this.value);" title="Resaltar texto">
+      <span class="editor-rico-separador"></span>
+      <button type="button" onmousedown="event.preventDefault()" onclick="enfocarYColocarCursor('detDiagnostico');document.execCommand('insertUnorderedList');" title="Viñetas"><i class="fas fa-list-ul"></i></button>
+      <button type="button" onmousedown="event.preventDefault()" onclick="enfocarYColocarCursor('detDiagnostico');document.execCommand('removeFormat');" title="Quitar formato"><i class="fas fa-eraser"></i></button>
     </div>
     <div class="editor-rico-area" id="detDiagnostico" contenteditable="true" data-placeholder="Detalle técnico de la actividad realizada..."></div>
     <div id="detCamposDinamicos" style="margin-top:10px;border-top:1px dashed var(--card-border);padding-top:10px;"></div>
@@ -2074,19 +2082,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=46"></script>
-<script src="utilidades-navegacion.js?v=46"></script>
-<script src="buscador-agenda.js?v=46"></script>
-<script src="ordenes.js?v=46"></script>
-<script src="equipos-trazabilidad.js?v=46"></script>
-<script src="pdf.js?v=46"></script>
-<script src="config-clientes-equipos.js?v=46"></script>
-<script src="config-plantillas-tecnicos.js?v=46"></script>
-<script src="cotizador.js?v=46"></script>
-<script src="config-general.js?v=46"></script>
-<script src="inventario.js?v=46"></script>
-<script src="tienda-admin.js?v=46"></script>
-<script src="tienda-publica.js?v=46"></script>
-<script src="kpi.js?v=46"></script>
+<script src="core.js?v=48"></script>
+<script src="utilidades-navegacion.js?v=48"></script>
+<script src="buscador-agenda.js?v=48"></script>
+<script src="ordenes.js?v=48"></script>
+<script src="equipos-trazabilidad.js?v=48"></script>
+<script src="pdf.js?v=48"></script>
+<script src="config-clientes-equipos.js?v=48"></script>
+<script src="config-plantillas-tecnicos.js?v=48"></script>
+<script src="cotizador.js?v=48"></script>
+<script src="config-general.js?v=48"></script>
+<script src="inventario.js?v=48"></script>
+<script src="tienda-admin.js?v=48"></script>
+<script src="tienda-publica.js?v=48"></script>
+<script src="kpi.js?v=48"></script>
 </body>
 </html>
