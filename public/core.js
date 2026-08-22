@@ -1,4 +1,31 @@
 // ===== core.js — extraído de prevenglobal__25_.html (líneas 1601-1956) =====
+/* =========================================================
+   CAPA DE DATOS (equivalente a db.js) — hoy: localStorage.
+
+   NOTA SOBRE ARQUITECTURA DE ALMACENAMIENTO (punto 3 del alcance):
+   Este archivo es un PROTOTIPO 100% de navegador (front-end puro):
+   guarda todo en localStorage y no tiene servidor ni base de datos
+   real. La estructura jerárquica de carpetas y el modelo relacional
+   descritos abajo son el diseño objetivo para la implementación en
+   producción (backend + storage en la nube), y no pueden crearse
+   dentro de este prototipo porque requieren un servidor:
+
+   Storage de archivos (backend):
+     /Clientes/[ID_Nombre_Cliente]/Sedes/[Nombre_Sede]/Equipos/[QR_ID_Equipo]/
+     /Clientes/[ID_Nombre_Cliente]/Ordenes_Servicio/[Año_Mes]/[No_Orden.pdf]
+     /Inventario/Bodegas/[ID_Bodega]/Items/[Codigo_Item]/
+
+   Base de datos relacional (backend):
+     Cliente (1) -> Sedes/Sucursales (N) -> Equipos (N)
+     Auditoría automatizada (logs) por fecha, hora y usuario en cada
+     cambio — en este prototipo ya se registra en db.logs.
+
+   Este prototipo ya refleja ese modelo en su estructura de datos en
+   memoria (clientes -> sedes -> equipos, bodegas -> ítems, y un QR
+   único por equipo/ítem para trazabilidad), de modo que migrar a un
+   backend real (p. ej. Node/Express + Postgres + S3 o almacenamiento
+   en la nube siguiendo las rutas de arriba) sea un mapeo directo.
+========================================================= */
 const DB_KEY = 'prevenglobal_db_v2';
 
 function dbCargar(){
@@ -62,6 +89,13 @@ function dbCargar(){
   };
 }
 function guardarEnLocalStorage(){
+  // El respaldo local (localStorage) tiene un límite de tamaño del navegador
+  // (típicamente 5-10MB). Con el tiempo, muchas fotos/imágenes acumuladas
+  // (logo, firma, imagen de login, fotos de órdenes) pueden llenarlo. Antes,
+  // si esto fallaba, TRONABA aquí mismo y nunca llegaba a intentar guardar en
+  // el servidor — que es lo que de verdad importa. Ahora, si el respaldo local
+  // falla, se avisa por consola pero se sigue adelante igual: solo se pierde el
+  // respaldo offline de este dispositivo, nunca el guardado real.
   try{
     localStorage.setItem(DB_KEY, JSON.stringify(db));
   }catch(err){
@@ -73,6 +107,10 @@ function dbGuardar(){
   sincronizarConBackend();
 }
 function dbGuardarInmediato(){
+  // Para acciones explícitas de "Guardar" (el usuario espera que quede guardado YA,
+  // sin esperar la demora de 400ms que usa el guardado automático de fondo).
+  // Devuelve la promesa real del guardado, para que quien llame pueda esperar
+  // la confirmación del servidor antes de avisar que "ya quedó guardado".
   guardarEnLocalStorage();
   if(!empresaActual || !sesionServidor) return Promise.resolve();
   clearTimeout(sincronizacionPendiente);
@@ -81,11 +119,19 @@ function dbGuardarInmediato(){
   return enviarEstadoAlServidor().catch(err=>{ marcarErrorSync(err); throw err; });
 }
 
+/* ---------------------------------------------------------
+   PLATAFORMA MULTIEMPRESA — sincronización con el backend real.
+   Cada empresa (tenant) tiene su propio espacio de datos en el
+   servidor, identificado por un "código de empresa" (slug). El
+   inicio de sesión (técnico o administrador) se valida siempre
+   en el servidor —incluida la contraseña maestra—, nunca en el
+   navegador. localStorage sigue siendo la copia local/offline.
+--------------------------------------------------------- */
 const API_BASE = '';
 const EMPRESA_KEY = 'prevenglobal_empresa_v1';
 const TOKEN_KEY = 'prevenglobal_token_v1';
 let empresaActual = localStorage.getItem(EMPRESA_KEY) || '';
-let sesionServidor = JSON.parse(localStorage.getItem(TOKEN_KEY) || 'null');
+let sesionServidor = JSON.parse(localStorage.getItem(TOKEN_KEY) || 'null'); // {token, rol, tecnicoId, nombreEmpresa}
 
 function headersAutenticados(extra){
   const h = Object.assign({ 'X-Empresa': empresaActual }, extra || {});
@@ -93,11 +139,23 @@ function headersAutenticados(extra){
   return h;
 }
 let sincronizacionPendiente = null;
-let syncEstado = 'ok';
+let syncEstado = 'ok'; // 'ok' | 'pendiente' | 'error' — refleja si el servidor realmente confirmó el último guardado
 let syncReintentoTimer = null;
 
+// -----------------------------------------------------------------
+// FUSIÓN ADITIVA — evita que un dispositivo con datos desactualizados
+// (ej. el PC con la pestaña abierta desde antes) borre por accidente
+// algo que se guardó desde otro dispositivo (ej. un técnico agregado
+// desde el celular). Solo AGREGA lo que falta, por id; nunca modifica
+// ni elimina nada que ya esté localmente.
+// -----------------------------------------------------------------
 const CLAVES_FUSIONABLES = ['clientes','tecnicos','plantillas','ordenes','bodegas','inventario','kardex','pedidosTienda','liquidacionesNomina','ingresos','gastos'];
 
+// Antes de este arreglo, la fusión aditiva no distinguía "esto falta porque
+// mi copia está desactualizada" de "esto falta porque lo acabo de borrar a
+// propósito" — y volvía a agregar cualquier elemento borrado, tanto al
+// guardar como en el refresco silencioso cada 20s. Ahora, cada vez que se
+// borra algo, su id queda marcado aquí, y la fusión ya no lo vuelve a traer.
 function asegurarEliminados(){
   if(!db.eliminados || typeof db.eliminados !== 'object') db.eliminados = {};
   CLAVES_FUSIONABLES.forEach(clave=>{
@@ -128,7 +186,13 @@ function fusionarAdicionesDesdeServidor(remoto){
   });
   return huboCambios;
 }
-
+// Antes de subir cualquier cambio local, primero se trae lo último del servidor
+// y se fusiona — así el guardado del PC nunca sobreescribe algo agregado, por
+// ejemplo, desde el celular unos segundos antes.
+// Petición con límite de tiempo real: antes, en una conexión de celular lenta
+// (típico en campo, con varias fotos por subir), una petición podía quedarse
+// esperando sin límite, dando la sensación de que "no pasó nada" mientras en
+// realidad seguía intentando en segundo plano, a veces por más de un minuto.
 function fetchConLimite(url, opciones, segundos){
   const controlador = new AbortController();
   const id = setTimeout(()=>controlador.abort(), segundos*1000);
@@ -142,10 +206,15 @@ function fetchConLimite(url, opciones, segundos){
 async function fusionarConServidorAntesDeGuardar(){
   if(!empresaActual || !sesionServidor) return;
   try{
+    // Primero se revisa liviano (unos bytes) si de verdad hay algo nuevo desde
+    // el último dato que ya tenemos — la mayoría de las veces, gracias al
+    // sondeo frecuente de fondo, la copia local ya está al día, y así el
+    // guardado se salta el paso pesado de bajar todo de nuevo, sintiéndose
+    // más rápido. Solo si sí hay algo nuevo, se baja y se fusiona como antes.
     const rMeta = await fetchConLimite(API_BASE + '/api/state/meta', { headers: headersAutenticados() }, 4);
     if(rMeta.ok){
       const { actualizadoEn } = await rMeta.json();
-      if(ultimaVersionConocida !== null && actualizadoEn === ultimaVersionConocida) return;
+      if(ultimaVersionConocida !== null && actualizadoEn === ultimaVersionConocida) return; // ya estamos al día, no hace falta bajar nada
       ultimaVersionConocida = actualizadoEn;
     }
     const r = await fetchConLimite(API_BASE + '/api/state', { headers: headersAutenticados() }, 8);
@@ -153,7 +222,7 @@ async function fusionarConServidorAntesDeGuardar(){
       const remoto = await r.json();
       fusionarAdicionesDesdeServidor(remoto);
     }
-  }catch(e){ }
+  }catch(e){ /* sin conexión o muy lenta: seguimos con la copia local, ya sin fusionar — no debe demorar el guardado real */ }
 }
 
 async function enviarEstadoAlServidor(){
@@ -164,8 +233,12 @@ async function enviarEstadoAlServidor(){
     body: JSON.stringify(db)
   }, 70);
   if(!resp.ok){
+    // Antes esto no se verificaba: un 413 (payload muy grande, típico con fotos sin
+    // comprimir de celular) o un 500 pasaban como "enviado" sin serlo, en silencio.
+    // Ahora también se lee el detalle real que devuelve el servidor (antes se
+    // ignoraba, y solo se mostraba un código genérico sin explicar qué pasó).
     let detalle = '';
-    try{ const cuerpo = await resp.json(); if(cuerpo && cuerpo.error) detalle = cuerpo.error; }catch(e){ }
+    try{ const cuerpo = await resp.json(); if(cuerpo && cuerpo.error) detalle = cuerpo.error; }catch(e){ /* la respuesta no traía detalle en JSON */ }
     if(!detalle){
       if(resp.status === 413) detalle = 'La información es demasiado pesada (posiblemente una foto sin comprimir).';
       else if(resp.status === 401) detalle = 'Tu sesión expiró, vuelve a iniciar sesión.';
@@ -175,7 +248,7 @@ async function enviarEstadoAlServidor(){
   try{
     const cuerpo = await resp.json();
     if(cuerpo && cuerpo.actualizadoEn) ultimaVersionConocida = cuerpo.actualizadoEn;
-  }catch(e){ }
+  }catch(e){ /* si la respuesta no trae el dato, el próximo sondeo simplemente lo revisa igual */ }
   syncEstado = 'ok';
   actualizarBadgeConexion();
 }
@@ -189,7 +262,7 @@ function marcarErrorSync(err){
 }
 
 function sincronizarConBackend(){
-  if(!empresaActual || !sesionServidor) return;
+  if(!empresaActual || !sesionServidor) return; // sin sesión activa: no hay a dónde sincronizar todavía
   clearTimeout(sincronizacionPendiente);
   syncEstado = 'pendiente';
   actualizarBadgeConexion();
@@ -197,7 +270,7 @@ function sincronizarConBackend(){
     enviarEstadoAlServidor().catch(marcarErrorSync);
   }, 400);
 }
-let ultimaVersionConocida = null;
+let ultimaVersionConocida = null; // marca de tiempo del último cambio que ya tenemos, para saber si hace falta bajar todo de nuevo
 function cargarEstadoDesdeBackend(){
   if(!empresaActual || !sesionServidor) return;
   fetch(API_BASE + '/api/state', { headers: headersAutenticados() }).then(r=>{
@@ -213,33 +286,40 @@ function cargarEstadoDesdeBackend(){
     renderizarAgenda(); renderizarCalendario(); renderizarEquiposGlobal(''); actualizarKPIs();
     anotarVersionConocidaActual();
     iniciarRefrescoSilencioso();
-  }).catch(()=>{ });
+  }).catch(()=>{ /* sin conexión: seguimos trabajando con la copia local (modo offline) */ });
 }
-
+// Anota en qué momento quedó el último cambio guardado, consultando el
+// endpoint liviano — así, la próxima vez que se revise, se puede comparar
+// sin tener que bajar toda la información de nuevo.
 async function anotarVersionConocidaActual(){
   try{
     const r = await fetchConLimite(API_BASE + '/api/state/meta', { headers: headersAutenticados() }, 6);
     if(r.ok){ const d = await r.json(); ultimaVersionConocida = d.actualizadoEn; }
-  }catch(e){ }
+  }catch(e){ /* si falla, simplemente se revisará de nuevo en el próximo ciclo */ }
 }
 let intervaloRefrescoSilencioso = null;
+// Revisión liviana: pregunta "¿cambió algo?" (unos bytes) en vez de bajar
+// toda la información cada vez — solo si la respuesta dice que sí cambió,
+// se baja el estado completo y se fusiona. Esto permite revisar mucho más
+// seguido (antes cada 20s bajando todo; ahora cada 5s con un dato mínimo),
+// haciendo que los cambios entre celular y computador se vean casi al instante.
 async function revisarSiHayCambiosNuevos(){
   if(!empresaActual || !sesionServidor) return;
-  if(syncEstado === 'pendiente') return;
+  if(syncEstado === 'pendiente') return; // no interferir mientras hay un guardado en curso
   try{
     const r = await fetchConLimite(API_BASE + '/api/state/meta', { headers: headersAutenticados() }, 6);
     if(!r.ok) return;
     const { actualizadoEn } = await r.json();
-    if(ultimaVersionConocida === null){ ultimaVersionConocida = actualizadoEn; return; }
+    if(ultimaVersionConocida === null){ ultimaVersionConocida = actualizadoEn; return; } // primera revisión: solo se anota
     if(actualizadoEn !== ultimaVersionConocida){
       ultimaVersionConocida = actualizadoEn;
       refrescarSilenciosamenteDesdeServidor();
     }
-  }catch(e){ }
+  }catch(e){ /* sin conexión: se reintenta en el próximo ciclo */ }
 }
 function refrescarSilenciosamenteDesdeServidor(){
   if(!empresaActual || !sesionServidor) return;
-  if(syncEstado === 'pendiente') return;
+  if(syncEstado === 'pendiente') return; // no interferir mientras hay un guardado en curso
   fetch(API_BASE + '/api/state', { headers: headersAutenticados() }).then(r=>{
     if(!r.ok) throw new Error('sin respuesta');
     return r.json();
@@ -250,21 +330,20 @@ function refrescarSilenciosamenteDesdeServidor(){
       renderizarAgenda(); renderizarCalendario(); renderizarEquiposGlobal(''); actualizarKPIs();
       mostrarToast('📥 Se actualizó información nueva desde otro dispositivo.');
     }
-  }).catch(()=>{ });
+  }).catch(()=>{ /* sin conexión: se reintenta en el próximo ciclo */ });
 }
 function iniciarRefrescoSilencioso(){
   clearInterval(intervaloRefrescoSilencioso);
   intervaloRefrescoSilencioso = setInterval(revisarSiHayCambiosNuevos, 5000);
   if(!window.__refrescoAlVolverConfigurado){
+    // Si el usuario vuelve a la pestaña/app después de tenerla en segundo
+    // plano, revisa de inmediato en vez de esperar al siguiente ciclo — así
+    // se siente instantáneo al regresar después de un cambio en otro dispositivo.
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) revisarSiHayCambiosNuevos(); });
     window.__refrescoAlVolverConfigurado = true;
   }
 }
 function forzarNuevoLogin(){
-  // Si está en modo escaneo QR público, no forzar login
-  var params = new URLSearchParams(location.search);
-  if(params.has('equipo') || params.has('tienda')) return;
-
   localStorage.removeItem(TOKEN_KEY);
   sesionServidor = null;
   mostrarLogin();
@@ -283,6 +362,9 @@ if(!db.inventario) db.inventario = [];
 if(!db.kardex) db.kardex = [];
 if(!db.logs) db.logs = [];
 
+/* =========================================================
+   RBAC — sesión, roles y permisos
+========================================================= */
 const SESION_KEY = 'prevenglobal_sesion_v1';
 let sesionActual = JSON.parse(localStorage.getItem(SESION_KEY) || 'null');
 function esAdmin(){ return sesionActual && sesionActual.rol==='admin'; }
@@ -306,6 +388,8 @@ function cerrarSesion(){
     location.reload();
   };
   if(token){
+    // Best-effort: si no hay conexión, igual se cierra localmente — no se
+    // deja al usuario atrapado en la plataforma por falta de internet.
     fetch(API_BASE + '/api/auth/logout', { method:'POST', headers: headersAutenticados() })
       .catch(()=>{})
       .finally(finalizarLocal);
@@ -314,22 +398,14 @@ function cerrarSesion(){
   }
 }
 
-/* --- Pantalla de login --- */
+/* --- Pantalla de login: paso 1 (empresa) / paso 1b (crear empresa) / paso 2 (credenciales) --- */
 function mostrarLogin(){
-  // Si la URL contiene ?equipo=... (escaneo de QR público) o ?tienda=..., NUNCA abrir el login
-  var params = new URLSearchParams(window.location.search);
-  if(params.has('equipo') || params.has('tienda')) {
-    var overlay = document.getElementById('loginOverlay');
-    if(overlay) overlay.style.display = 'none';
-    var sk = document.getElementById('skeletonBoot');
-    if(sk) sk.style.display = 'none';
-    return;
-  }
-
   ocultarSkeletonBoot();
   document.getElementById('loginOverlay').style.display = 'flex';
   const slug = empresaActual || 'prevenglobal';
   document.getElementById('loginEmpresaSlug').value = slug;
+  // Empresa única: se salta el paso de "código de empresa" y va directo a
+  // credenciales, cargando de una vez el logo/colores/textos configurados.
   fetch(API_BASE + '/api/empresas/' + encodeURIComponent(slug)).then(r=>{
     if(!r.ok) throw new Error('sin respuesta');
     return r.json();
@@ -338,6 +414,8 @@ function mostrarLogin(){
     localStorage.setItem(EMPRESA_KEY, slug);
     mostrarPasoCredenciales(info);
   }).catch(()=>{
+    // Si no hay conexión con el servidor, sí se muestra el paso de empresa
+    // como respaldo, para no dejar al usuario sin ninguna pantalla útil.
     mostrarPasoEmpresa();
   });
 }
@@ -399,7 +477,7 @@ function confirmarNuevaPassword(){
     if(!r.ok) throw new Error(data.error || 'No se pudo cambiar la contraseña.');
     msgEl.style.color = '#15803d';
     msgEl.innerText = '✅ Contraseña actualizada. Ya puedes iniciar sesión con ella.';
-    setTimeout(()=>{ location.href = location.pathname; }, 2200);
+    setTimeout(()=>{ location.href = location.pathname; }, 2200); // limpia el ?resetToken= de la URL y vuelve al login
   }).catch(err=>{
     msgEl.style.color = 'var(--red-alert)';
     msgEl.innerText = err.message;
@@ -420,7 +498,7 @@ function cargarListaEmpresas(){
     if(!lista || !lista.length) return;
     cont.innerHTML = '<label style="text-align:left;">Empresas registradas — toca la tuya:</label>' +
       lista.map(e=>`<div class="boton-empresa-registrada" onclick="document.getElementById('loginEmpresaSlug').value='${e.slug}';continuarConEmpresa();">${e.nombre} <small>${e.slug}</small></div>`).join('');
-  }).catch(()=>{ });
+  }).catch(()=>{ /* sin conexión: el campo de texto sigue funcionando igual */ });
 }
 function mostrarFormularioEmpresaNueva(){
   document.getElementById('loginPasoEmpresa').style.display = 'none';
@@ -442,7 +520,7 @@ function continuarConEmpresa(){
     localStorage.setItem(EMPRESA_KEY, slug);
     mostrarPasoCredenciales(info);
   }).catch(err=>{
-    if(err.message==='no existe') return;
+    if(err.message==='no existe') return; // ya se mostró el mensaje correspondiente arriba
     errEl.innerText = 'No se pudo conectar con el servidor. Verifica que la app esté corriendo (node server.js) y que la estés abriendo desde su dirección http://, no como archivo local.';
     errEl.style.display = 'block';
   });
@@ -525,7 +603,9 @@ function completarLogin(resultado){
   cargarEstadoDesdeBackend();
   registrarLog('Inicio de sesión', 'Sesión', nombreUsuarioActual());
 }
-
+// Catálogo de permisos disponibles para asignar a cada persona del Personal
+// (administrativo o técnico). "accesoTotal" en una persona ignora esta lista
+// y le da todo; si no tiene accesoTotal, solo ve/hace lo que aquí se le marque.
 const CATALOGO_PERMISOS = [
   { grupo:'Operativo', clave:'ordenes_crear', etiqueta:'Crear órdenes de servicio' },
   { grupo:'Operativo', clave:'ordenes_editar', etiqueta:'Editar orden completa (técnico, tipo, plantilla)' },
@@ -552,7 +632,7 @@ const CATALOGO_PERMISOS = [
   { grupo:'Negocio', clave:'reportes_exportar', etiqueta:'Exportar Reporte Excel' },
 ];
 function tienePermiso(clave){
-  if(esAdmin()) return true;
+  if(esAdmin()) return true; // la cuenta maestra de administrador siempre tiene todo
   if(!sesionActual || !sesionActual.tecnicoId) return false;
   const t = buscarTecnico(sesionActual.tecnicoId);
   if(!t) return false;
@@ -573,40 +653,3 @@ let mesCalendarioActual = new Date();
 let logoTempBase64 = null;
 let firmaTempBase64 = null;
 
-let rangoSeleccionDiagnostico = null;
-
-function guardarSeleccionDiagnostico() {
-  const sel = window.getSelection();
-  if (sel && sel.rangeCount > 0) {
-    const editor = document.getElementById('detDiagnostico');
-    const range = sel.getRangeAt(0);
-    if (editor && editor.contains(range.commonAncestorContainer)) {
-      rangoSeleccionDiagnostico = range.cloneRange();
-    }
-  }
-}
-
-function restaurarSeleccionDiagnostico() {
-  const editor = document.getElementById('detDiagnostico');
-  if (!editor) return;
-  editor.focus();
-  if (rangoSeleccionDiagnostico) {
-    const sel = window.getSelection();
-    if (sel) {
-      sel.removeAllRanges();
-      sel.addRange(rangoSeleccionDiagnostico);
-    }
-  }
-}
-
-function aplicarFormatoDiagnostico(comando, valor) {
-  restaurarSeleccionDiagnostico();
-  if (comando === 'hiliteColor') {
-    if (!document.execCommand('hiliteColor', false, valor)) {
-      document.execCommand('backColor', false, valor);
-    }
-  } else {
-    document.execCommand(comando, false, valor || null);
-  }
-  guardarSeleccionDiagnostico();
-}
