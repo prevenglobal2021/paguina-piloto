@@ -290,6 +290,7 @@ function cargarTabTiendaConfig(){
   document.getElementById('cfgTiendaWhatsapp').value = db.config.tiendaWhatsapp||'';
   document.getElementById('cfgTiendaFacebook').value = db.config.tiendaFacebook||'';
   document.getElementById('cfgTiendaInstagram').value = db.config.tiendaInstagram||'';
+  document.getElementById('cfgTiendaColorFondo').value = db.config.tiendaColorFondo || '#f1f5f9';
   document.getElementById('cfgTiendaColor').value = db.config.tiendaColor || '#0088ff';
   document.getElementById('cfgTiendaImgEstilo').value = db.config.tiendaImgEstilo || 'cover';
   document.getElementById('cfgTiendaTamanoTarjeta').value = db.config.tiendaTamanoTarjeta || 230;
@@ -504,21 +505,36 @@ function guardarContactoTienda(){
   mostrarToast('Datos de contacto de la tienda guardados.');
   renderizarTienda();
 }
-function guardarAparienciaTienda(){
+async function guardarAparienciaTienda(){
+  const respaldo = { tiendaColorFondo: db.config.tiendaColorFondo, tiendaColor: db.config.tiendaColor, tiendaImgEstilo: db.config.tiendaImgEstilo, tiendaTamanoTarjeta: db.config.tiendaTamanoTarjeta };
+  db.config.tiendaColorFondo = document.getElementById('cfgTiendaColorFondo').value;
   db.config.tiendaColor = document.getElementById('cfgTiendaColor').value;
   db.config.tiendaImgEstilo = document.getElementById('cfgTiendaImgEstilo').value;
   db.config.tiendaTamanoTarjeta = parseInt(document.getElementById('cfgTiendaTamanoTarjeta').value);
-  dbGuardarInmediato();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    Object.assign(db.config, respaldo);
+    mostrarToast('⚠️ No se pudo guardar la apariencia de la tienda: ' + err.message, 'error');
+    return;
+  }
   aplicarAparienciaTienda();
-  mostrarToast('Apariencia de la tienda actualizada.');
+  mostrarToast('✅ Apariencia de la tienda actualizada.', 'exito');
 }
-function restablecerAparienciaTienda(){
-  db.config.tiendaColor = '#0088ff'; db.config.tiendaImgEstilo = 'cover'; db.config.tiendaTamanoTarjeta = 230;
-  dbGuardarInmediato();
+async function restablecerAparienciaTienda(){
+  db.config.tiendaColorFondo = '#f1f5f9'; db.config.tiendaColor = '#0088ff'; db.config.tiendaImgEstilo = 'cover'; db.config.tiendaTamanoTarjeta = 230;
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    mostrarToast('⚠️ No se pudo restablecer: ' + err.message, 'error');
+    return;
+  }
   cargarTabTiendaConfig();
   aplicarAparienciaTienda();
+  mostrarToast('Apariencia de la tienda restablecida.', 'exito');
 }
 function aplicarAparienciaTienda(){
+  document.documentElement.style.setProperty('--tienda-bg', db.config.tiendaColorFondo || '#f1f5f9');
   document.documentElement.style.setProperty('--tienda-accent', db.config.tiendaColor || '#0088ff');
   document.documentElement.style.setProperty('--tienda-img-fit', db.config.tiendaImgEstilo || 'cover');
   document.documentElement.style.setProperty('--tienda-card-min', (db.config.tiendaTamanoTarjeta || 230) + 'px');

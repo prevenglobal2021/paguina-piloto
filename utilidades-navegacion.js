@@ -3,6 +3,96 @@
    UTILIDADES DE CONSULTA
 ========================================================= */
 function buscarCliente(id){ return db.clientes.find(c=>c.id===id); }
+// Antes de aplicar negrita/viñetas/etc., el área de texto necesita tener un
+// cursor o selección activa DENTRO de ella — con solo .focus() no basta si
+// el usuario nunca tocó el texto primero. Esto coloca el cursor al final
+// del texto si todavía no había ninguno puesto ahí.
+function enfocarYColocarCursor(idEditor){
+  const el = document.getElementById(idEditor);
+  if(!el) return null;
+  el.focus();
+  const seleccion = window.getSelection();
+  const yaHayCursorAdentro = seleccion.rangeCount > 0 && el.contains(seleccion.getRangeAt(0).commonAncestorContainer);
+  if(!yaHayCursorAdentro){
+    const rango = document.createRange();
+    rango.selectNodeContents(el);
+    rango.collapse(false); // al final del texto ya escrito
+    seleccion.removeAllRanges();
+    seleccion.addRange(rango);
+  }
+  return el;
+}
+// Aplica el formato de la barra tipo Word. Algunos navegadores de celular
+// rechazan ciertos comandos (por ejemplo, "resaltar" a veces necesita el
+// nombre alterno "backColor" en vez de "hiliteColor") — si el primer intento
+// no funciona, se reintenta automáticamente con el alterno antes de avisar
+// que ese formato no es compatible con ese navegador.
+function ejecutarFormatoRico(idEditor, comando, valor){
+  const el = enfocarYColocarCursor(idEditor);
+  if(!el) return;
+  let exito = false;
+  try{ exito = document.execCommand(comando, false, valor===undefined?null:valor); }catch(e){ exito = false; }
+  if(!exito && comando==='hiliteColor'){
+    try{ exito = document.execCommand('backColor', false, valor); }catch(e){ /* tampoco este navegador lo admite */ }
+  }
+  if(!exito){
+    mostrarToast('Ese formato no es compatible con este navegador — prueba actualizar la app o usar otro navegador.', 'error');
+  }
+  actualizarEstadoBotonesFormato(idEditor);
+}
+// Ilumina los botones (negrita/cursiva/subrayado) cuando el cursor está
+// sobre texto que ya tiene ese formato — igual que en Word, para saber de
+// un vistazo qué está activo, sin tener que adivinar.
+function actualizarEstadoBotonesFormato(idEditor){
+  const el = document.getElementById(idEditor);
+  if(!el) return;
+  const barra = el.previousElementSibling;
+  if(!barra || !barra.classList.contains('editor-rico-toolbar')) return;
+  const mapaComandos = { 'Negrita':'bold', 'Cursiva':'italic', 'Subrayado':'underline' };
+  barra.querySelectorAll('button[title]').forEach(boton=>{
+    const comando = mapaComandos[boton.title];
+    if(!comando) return;
+    let activo = false;
+    try{ activo = document.queryCommandState(comando); }catch(e){ activo = false; }
+    boton.classList.toggle('activo', activo);
+  });
+}
+document.addEventListener('selectionchange', ()=>{
+  const activo = document.activeElement;
+  if(activo && activo.classList && activo.classList.contains('editor-rico-area')) actualizarEstadoBotonesFormato(activo.id);
+});
+// Genera la barra de formato tipo Word + el área de texto enriquecido, para
+// cualquier campo de "observaciones" de la plataforma — un solo componente
+// reutilizado tanto en el diagnóstico general como en los campos dinámicos
+// de plantilla de tipo "Observación larga".
+function generarEditorRico(idEditor, contenidoInicial, soloLectura, atributoDataCampo){
+  const idSeguro = idEditor.replace(/'/g,"\\'");
+  const evitarPerderFoco = 'onmousedown="event.preventDefault()" ontouchstart="event.preventDefault()"';
+  return `<div class="editor-rico-toolbar" ${soloLectura?'style="display:none;"':''}>
+    <select ${evitarPerderFoco} onchange="ejecutarFormatoRico('${idSeguro}','fontName',this.value);" title="Tipo de letra">
+      <option value="Arial,sans-serif">Arial</option>
+      <option value="Georgia,serif">Georgia</option>
+      <option value="'Courier New',monospace">Courier</option>
+      <option value="Verdana,sans-serif">Verdana</option>
+    </select>
+    <select ${evitarPerderFoco} onchange="ejecutarFormatoRico('${idSeguro}','fontSize',this.value);" title="Tamaño de letra">
+      <option value="2">Pequeño</option>
+      <option value="3" selected>Normal</option>
+      <option value="5">Grande</option>
+      <option value="7">Muy grande</option>
+    </select>
+    <span class="editor-rico-separador"></span>
+    <button type="button" ${evitarPerderFoco} onclick="ejecutarFormatoRico('${idSeguro}','bold');" title="Negrita"><b>N</b></button>
+    <button type="button" ${evitarPerderFoco} onclick="ejecutarFormatoRico('${idSeguro}','italic');" title="Cursiva"><i>K</i></button>
+    <button type="button" ${evitarPerderFoco} onclick="ejecutarFormatoRico('${idSeguro}','underline');" title="Subrayado"><u>S</u></button>
+    <span class="editor-rico-separador"></span>
+    <input type="color" value="#fef08a" ${evitarPerderFoco} onchange="ejecutarFormatoRico('${idSeguro}','hiliteColor',this.value);" title="Resaltar texto">
+    <span class="editor-rico-separador"></span>
+    <button type="button" ${evitarPerderFoco} onclick="ejecutarFormatoRico('${idSeguro}','insertUnorderedList');" title="Viñetas"><i class="fas fa-list-ul"></i></button>
+    <button type="button" ${evitarPerderFoco} onclick="ejecutarFormatoRico('${idSeguro}','removeFormat');" title="Quitar formato"><i class="fas fa-eraser"></i></button>
+  </div>
+  <div class="editor-rico-area" id="${idEditor}" ${atributoDataCampo?`data-campo="${atributoDataCampo}"`:''} contenteditable="${soloLectura?'false':'true'}" data-placeholder="Escribe aquí...">${contenidoInicial||''}</div>`;
+}
 /* =========================================================
    UBICACIÓN GPS — botón reutilizable para cualquier campo de
    dirección de la plataforma. Usa el GPS del dispositivo y
@@ -390,6 +480,10 @@ function aplicarConfiguracionVisual(){
   document.body.classList.remove('letra-pequena','letra-grande');
   if(db.config.tamanoLetra==='sm') document.body.classList.add('letra-pequena');
   if(db.config.tamanoLetra==='lg') document.body.classList.add('letra-grande');
+  const mapaTamanoBotones = { sm:{padding:'6px 12px',fontSize:'12px'}, md:{padding:'8px 16px',fontSize:'13px'}, lg:{padding:'11px 22px',fontSize:'15px'} };
+  const tb = mapaTamanoBotones[db.config.formTamanoBotones] || mapaTamanoBotones.md;
+  document.documentElement.style.setProperty('--form-btn-padding', tb.padding);
+  document.documentElement.style.setProperty('--form-btn-font-size', tb.fontSize);
   const logoImg = document.getElementById('sidebarLogo');
   const iconoDefault = document.getElementById('sidebarIconoDefault');
   if(db.config.logo){ logoImg.src = db.config.logo; logoImg.style.display='block'; iconoDefault.style.display='none'; }

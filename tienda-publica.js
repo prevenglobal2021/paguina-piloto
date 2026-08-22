@@ -12,6 +12,15 @@ let intervaloBannerPublico = null;
 
 function iniciarTiendaPublica(slug){
   tiendaPublicaSlug = slug;
+  // Antes, el panel administrativo completo (barra lateral, "Control de
+  // Órdenes Operativas", KPIs, etc.) se quedaba en la página por detrás de
+  // la tienda pública, sin ocultarse — visible para cualquier visitante,
+  // aunque sin datos reales cargados (ya que la tienda pública nunca inicia
+  // sesión). Ahora se oculta ese panel por completo, dejando solo la tienda.
+  const panelAdmin = document.getElementById('main-wrapper');
+  if(panelAdmin) panelAdmin.style.display = 'none';
+  const skeleton = document.getElementById('skeletonBoot');
+  if(skeleton) skeleton.style.display = 'none';
   document.getElementById('tiendaPublicaWrapper').style.display = 'block';
   fetch('/api/tienda/' + encodeURIComponent(slug))
     .then(r=>{ if(!r.ok) throw new Error('no encontrada'); return r.json(); })
@@ -31,6 +40,7 @@ function iniciarTiendaPublica(slug){
       }
       document.getElementById('tpNombreTienda').innerText = '🛒 ' + (data.nombre || 'Tienda Virtual');
       document.documentElement.style.setProperty('--tienda-accent', data.color || '#0088ff');
+      document.documentElement.style.setProperty('--tienda-bg', data.colorFondo || '#f1f5f9');
       document.documentElement.style.setProperty('--tienda-img-fit', data.imgEstilo || 'cover');
       document.documentElement.style.setProperty('--tienda-card-min', (data.tamanoTarjeta || 230) + 'px');
 
