@@ -30,6 +30,21 @@ function enfocarYColocarCursor(idEditor){
 function ejecutarFormatoRico(idEditor, comando, valor){
   const el = enfocarYColocarCursor(idEditor);
   if(!el) return;
+  // Tipo y tamaño de letra necesitan texto SELECCIONADO para verse — con
+  // solo el cursor parpadeando (sin nada resaltado), el navegador no muestra
+  // ningún cambio, aunque el comando "funcione" por dentro. Si no hay nada
+  // seleccionado, se selecciona todo lo ya escrito, para que el cambio se
+  // vea de inmediato en todo el texto.
+  if(comando==='fontName' || comando==='fontSize'){
+    const seleccion = window.getSelection();
+    const haySeleccionConTexto = seleccion.rangeCount > 0 && !seleccion.getRangeAt(0).collapsed;
+    if(!haySeleccionConTexto && el.textContent.trim()){
+      const rango = document.createRange();
+      rango.selectNodeContents(el);
+      seleccion.removeAllRanges();
+      seleccion.addRange(rango);
+    }
+  }
   let exito = false;
   try{ exito = document.execCommand(comando, false, valor===undefined?null:valor); }catch(e){ exito = false; }
   if(!exito && comando==='hiliteColor'){
