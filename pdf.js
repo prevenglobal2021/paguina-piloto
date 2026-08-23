@@ -87,6 +87,7 @@ function verPDF(ordenId){
         <tr><td><strong>Técnico</strong></td><td>${tecnico?tecnico.nombre:'—'}</td></tr>
         ${o.fechaProgramada ? `<tr><td><strong>Fecha programada</strong></td><td>${o.fechaProgramada}${o.horaProgramada?' · '+o.horaProgramada:''}</td></tr>` : ''}
       </table>
+      ${o.notas ? `<div style="margin-top:10px;padding:10px;background:#eff6ff;border-left:3px solid #2563eb;border-radius:4px;"><strong style="font-size:11px;color:#2563eb;text-transform:uppercase;">Notas del servicio</strong><p style="margin:3px 0 0;font-size:12px;color:#1e3a5f;">${o.notas}</p></div>` : ''}
     </div>
 
     <div class="pdf-box"><h4>Cliente, Sede y Equipo</h4>

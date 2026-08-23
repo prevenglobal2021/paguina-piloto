@@ -83,6 +83,8 @@ function verDetalleOrden(ordenId){
   const finalizada = o.estado === 'Finalizado' && !ordenDetalleEsEdicionForzada;
 
   document.getElementById('lblNumeroOrdenDetalle').innerText = `📋 ${o.numero} · ${nombreClienteOrden(o)}${finalizada ? ' — Finalizada' : (ordenDetalleEsEdicionForzada ? ' — Editando orden finalizada' : '')}`;
+  document.getElementById('detNotasIniciales').style.display = o.notas ? 'block' : 'none';
+  if(o.notas) document.getElementById('detNotasInicialesTexto').innerText = o.notas;
 
   const selCliente = document.getElementById('detCliente');
   selCliente.innerHTML = db.clientes.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
