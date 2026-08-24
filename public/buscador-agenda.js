@@ -309,6 +309,7 @@ function abrirModalNuevaOrden(){
   document.getElementById('ordClienteNuevo').checked = false;
   document.getElementById('ordClienteNuevoNombre').value = '';
   document.getElementById('ordClienteNuevoDireccion').value = '';
+  document.getElementById('ordNotas').value = '';
   cerrarListaClientesOrden();
   const selTec = document.getElementById('ordTecnico');
   selTec.innerHTML = db.tecnicos.filter(t=>t.activo!==false).map(t=>`<option value="${t.id}">${t.nombre}</option>`).join('') || '<option value="">Sin técnicos activos</option>';
@@ -430,6 +431,7 @@ async function guardarNuevaOrden(){
   const fechaProgramada = document.getElementById('ordFecha').value || null;
   const horaProgramada = document.getElementById('ordHora').value || null;
   const sinEquipo = document.getElementById('ordSinEquipo').checked;
+  const notas = document.getElementById('ordNotas').value.trim() || null;
 
   if(sinEquipo){
     const plantillaId = document.getElementById('ordPlantillaGeneral').value ? parseInt(document.getElementById('ordPlantillaGeneral').value) : null;
@@ -438,7 +440,7 @@ async function guardarNuevaOrden(){
       id: Date.now(), numero: `OS-2026-${String(consecutivo).padStart(4,'0')}`,
       clienteId, sedeId: null, equipoId: null, tecnicoId: tecnicoId||null,
       esClienteNuevo, clienteNuevoNombre, clienteNuevoDireccion,
-      tipo, prioridad, plantillaId,
+      tipo, prioridad, plantillaId, notas,
       estado: 'Programado', fechaProgramada, horaProgramada, cierre: null
     };
     db.ordenes.push(nueva);
@@ -475,7 +477,7 @@ async function guardarNuevaOrden(){
     const nueva = {
       id: Date.now() + consecutivo, numero: `OS-2026-${String(consecutivo).padStart(4,'0')}`,
       clienteId, sedeId, equipoId, tecnicoId: tecnicoId||null,
-      tipo: tipoEquipo, prioridad, plantillaId,
+      tipo: tipoEquipo, prioridad, plantillaId, notas,
       estado: 'Programado', fechaProgramada, horaProgramada, cierre: null
     };
     db.ordenes.push(nueva);
