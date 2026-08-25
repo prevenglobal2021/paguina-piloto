@@ -10,14 +10,21 @@ function abrirModalBodega(){
   document.getElementById('bodNombre').value='';
   abrirModal('modalBodega');
 }
-function guardarBodega(){
+async function guardarBodega(){
   const nombre = document.getElementById('bodNombre').value.trim();
   const tipo = document.getElementById('bodTipo').value;
   if(!nombre){ mostrarToast('Escribe el nombre de la bodega.'); return; }
   const b = { id:Date.now(), nombre, tipo };
   db.bodegas.push(b);
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.bodegas.pop();
+    mostrarToast('⚠️ No se pudo guardar la bodega: ' + err.message, 'error');
+    return;
+  }
   registrarLog('Crear', 'Bodega', nombre);
+  mostrarToast('✅ Bodega creada.', 'exito');
   cerrarModal('modalBodega');
   renderizarInventario();
 }
@@ -59,7 +66,7 @@ function manejarFotoInventario(event){
 function renderizarFotosInventarioPreview(){
   renderizarGaleriaFotos('previewFotosInventario', fotosInventarioTemp, 'inventario');
 }
-function guardarItemInventario(){
+async function guardarItemInventario(){
   const id = document.getElementById('invItemId').value;
   const nombre = document.getElementById('invNombre').value.trim();
   const categoria = document.getElementById('invCategoria').value.trim();
@@ -71,25 +78,43 @@ function guardarItemInventario(){
   const descripcionTienda = document.getElementById('invDescripcionTienda').value.trim();
   if(!nombre){ mostrarToast('Escribe el nombre del ítem.'); return; }
   if(!bodegaId){ mostrarToast('Selecciona o crea una bodega primero.'); return; }
+  let respaldo = null, esNuevo = false;
   if(id){
     const it = buscarItemInventario(parseInt(id));
+    respaldo = Object.assign({}, it);
     Object.assign(it, { nombre, categoria, bodegaId, stockActual, stockMinimo, fotos: fotosInventarioTemp.slice(), publicarEnTienda, precio, descripcionTienda });
-    registrarLog('Editar', 'Inventario', nombre);
   } else {
+    esNuevo = true;
     db.inventario.push({ id:Date.now(), nombre, categoria, bodegaId, stockActual, stockMinimo, fotos: fotosInventarioTemp.slice(), qrId: 'ITEM-'+Date.now(), publicarEnTienda, precio, descripcionTienda });
-    registrarLog('Crear', 'Inventario', nombre);
   }
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    if(id && respaldo){ Object.assign(buscarItemInventario(parseInt(id)), respaldo); }
+    else if(esNuevo){ db.inventario.pop(); }
+    mostrarToast('⚠️ No se pudo guardar el ítem: ' + err.message, 'error');
+    return;
+  }
+  registrarLog(id?'Editar':'Crear', 'Inventario', nombre);
+  mostrarToast(id ? `✅ ${nombre} actualizado.` : `✅ ${nombre} agregado al inventario.`, 'exito');
   cerrarModal('modalItemInventario');
   renderizarInventario();
 }
-function eliminarItemInventario(id){
+async function eliminarItemInventario(id){
   if(!confirm('¿Eliminar este ítem de inventario?')) return;
   const it = buscarItemInventario(id);
+  const respaldo = db.inventario.slice();
   db.inventario = db.inventario.filter(i=>i.id!==id);
   registrarEliminacion('inventario', id);
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.inventario = respaldo;
+    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
+    return;
+  }
   if(it) registrarLog('Eliminar', 'Inventario', it.nombre);
+  mostrarToast('Ítem eliminado.', 'exito');
   renderizarInventario();
 }
 function renderizarInventario(){

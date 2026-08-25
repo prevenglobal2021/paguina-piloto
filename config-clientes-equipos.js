@@ -52,10 +52,17 @@ function cambiarTabConfig(tab, evt){
   if(tab==='whatsapp') document.getElementById('cfgPlantillaWhatsApp').value = db.config.plantillaWhatsApp;
   if(tab==='auditoria') renderizarAuditoria();
 }
-function guardarPlantillaWhatsApp(){
+async function guardarPlantillaWhatsApp(){
+  const anterior = db.config.plantillaWhatsApp;
   db.config.plantillaWhatsApp = document.getElementById('cfgPlantillaWhatsApp').value;
-  dbGuardar();
-  mostrarToast('Plantilla de WhatsApp actualizada.');
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.config.plantillaWhatsApp = anterior;
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
+  mostrarToast('✅ Plantilla de WhatsApp actualizada.', 'exito');
 }
 function renderizarAuditoria(){
   const tbody = document.getElementById('tablaAuditoria');
@@ -163,7 +170,7 @@ function abrirUbicacionCliente(id){
     abrirEnGoogleMaps(c.direccion);
   }
 }
-function guardarClienteConfig(){
+async function guardarClienteConfig(){
   const id = document.getElementById('cfgCliId').value;
   const nombre = document.getElementById('cfgCliNombre').value;
   const tipoDoc = document.getElementById('cfgCliTipoDoc').value;
@@ -173,16 +180,27 @@ function guardarClienteConfig(){
   const lat = document.getElementById('cfgCliLat').value.trim();
   const lng = document.getElementById('cfgCliLng').value.trim();
   if(!nombre){ mostrarToast('El nombre del cliente es obligatorio'); return; }
+  let respaldo = null, esNuevo = false;
   if(id){
     const c = buscarCliente(parseInt(id));
+    respaldo = Object.assign({}, c);
     c.nombre=nombre; c.tipoDocumento=tipoDoc; c.numeroDocumento=numDoc; c.telefono=telefono; c.direccion=direccion; c.lat=lat||null; c.lng=lng||null;
     if(imagenesClienteModificado) c.imagenesReferencia = imagenesClienteTemp.slice();
     delete c.imagenReferencia;
   } else {
+    esNuevo = true;
     db.clientes.push({ id:Date.now(), nombre, tipoDocumento:tipoDoc, numeroDocumento:numDoc, telefono, direccion, lat:lat||null, lng:lng||null, imagenesReferencia: imagenesClienteTemp.slice(), sedes:[] });
   }
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    if(id && respaldo){ Object.assign(buscarCliente(parseInt(id)), respaldo); }
+    else if(esNuevo){ db.clientes.pop(); }
+    mostrarToast('⚠️ No se pudo guardar el cliente: ' + err.message, 'error');
+    return;
+  }
   registrarLog(id?'Editar':'Crear', 'Cliente', nombre);
+  mostrarToast(id ? `✅ ${nombre} actualizado correctamente.` : `✅ ${nombre} agregado correctamente.`, 'exito');
   document.getElementById('cfgCliId').value=''; document.getElementById('cfgCliNombre').value=''; document.getElementById('cfgCliTipoDoc').value='NIT'; document.getElementById('cfgCliNumDoc').value=''; document.getElementById('cfgCliTelefono').value=''; document.getElementById('cfgCliDireccion').value='';
   document.getElementById('cfgCliLat').value=''; document.getElementById('cfgCliLng').value='';
   imagenesClienteTemp = []; imagenesClienteModificado = false;
@@ -231,13 +249,21 @@ function editarClienteConfig(id){
   imagenesClienteModificado = false;
   renderizarImagenesClientePreview();
 }
-function eliminarClienteConfig(id){
+async function eliminarClienteConfig(id){
   if(!confirm('¿Eliminar este cliente y todas sus sedes/equipos?')) return;
   const c = buscarCliente(id);
+  const respaldo = db.clientes.slice();
   db.clientes = db.clientes.filter(c=>c.id!==id);
   registrarEliminacion('clientes', id);
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.clientes = respaldo;
+    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
+    return;
+  }
   if(c) registrarLog('Eliminar', 'Cliente', c.nombre);
+  mostrarToast('Cliente eliminado.', 'exito');
   renderizarClientesConfig();
   document.getElementById('cfgSeccionSedes').style.display='none';
   document.getElementById('cfgSeccionEquipos').style.display='none';
@@ -250,13 +276,20 @@ function seleccionarClienteConfig(id){
   document.getElementById('cfgTituloSedes').innerText = `Sedes de: ${c.nombre}`;
   renderizarSedesConfig();
 }
-function agregarSedeConfig(){
+async function agregarSedeConfig(){
   const nombre = document.getElementById('cfgSedeNombre').value;
   const direccion = document.getElementById('cfgSedeDireccion').value;
   if(!nombre){ mostrarToast('Escribe el nombre de la sede'); return; }
   const c = buscarCliente(clienteActivoId);
   c.sedes.push({ id:Date.now(), nombre, direccion, equipos:[] });
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    c.sedes.pop();
+    mostrarToast('⚠️ No se pudo guardar la sede: ' + err.message, 'error');
+    return;
+  }
+  mostrarToast('✅ Sede agregada.', 'exito');
   document.getElementById('cfgSedeNombre').value=''; document.getElementById('cfgSedeDireccion').value='';
   renderizarSedesConfig();
 }
@@ -271,11 +304,19 @@ function renderizarSedesConfig(){
       <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarSedeConfig(${s.id})">X</button></td></tr>`;
   });
 }
-function eliminarSedeConfig(id){
+async function eliminarSedeConfig(id){
   if(!confirm('¿Eliminar esta sede y sus equipos?')) return;
   const c = buscarCliente(clienteActivoId);
+  const respaldo = c.sedes.slice();
   c.sedes = c.sedes.filter(s=>s.id!==id);
-  dbGuardar(); renderizarSedesConfig();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    c.sedes = respaldo;
+    mostrarToast('⚠️ No se pudo eliminar la sede: ' + err.message, 'error');
+    return;
+  }
+  renderizarSedesConfig();
   document.getElementById('cfgSeccionEquipos').style.display='none';
 }
 function seleccionarSedeConfig(id){
@@ -335,7 +376,7 @@ function manejarFotoEquipoModal(event){
 function renderizarFotosEquipoModalPreview(){
   renderizarGaleriaFotos('previewFotosEquipoModal', fotosEquipoModalTemp, 'equipoModal');
 }
-function guardarEquipoModal(){
+async function guardarEquipoModal(){
   const idRaw = document.getElementById('eqModalId').value;
   const clienteId = parseInt(document.getElementById('eqModalCliente').value);
   const sedeIdRaw = document.getElementById('eqModalSede').value;
@@ -362,6 +403,10 @@ function guardarEquipoModal(){
     fichaTecnica: document.getElementById('eqModalFichaTecnica').value,
     fotos: fotosEquipoModalTemp.slice()
   };
+  // El equipo puede terminar moviéndose de sede o de cliente — para poder
+  // deshacer el cambio completo si el guardado falla, se respalda toda la
+  // lista de clientes tal como estaba antes de tocar nada.
+  const respaldoClientes = JSON.parse(JSON.stringify(db.clientes));
   if(idRaw){
     const equipoId = parseInt(idRaw);
     const infoActual = ubicarEquipoPorId(equipoId);
@@ -386,7 +431,14 @@ function guardarEquipoModal(){
     else equiposSinSedeDe(clienteDestino).push(nuevoEquipo);
     registrarLog('Crear', 'Equipo', `${nombre} (${clienteDestino.nombre} · ${destinoTexto})`);
   }
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.clientes = respaldoClientes;
+    mostrarToast('⚠️ No se pudo guardar el equipo: ' + err.message, 'error');
+    return;
+  }
+  mostrarToast(idRaw ? `✅ ${nombre} actualizado correctamente.` : `✅ ${nombre} registrado correctamente.`, 'exito');
   cerrarModal('modalEquipo');
   renderizarEquiposGlobal('');
   if(clienteActivoId){ renderizarSedesConfig(); if(sedeActivaId) renderizarEquiposConfig(); }
@@ -404,13 +456,21 @@ function renderizarEquiposConfig(){
       <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarEquipoConfig(${e.id})">X</button></td></tr>`;
   });
 }
-function eliminarEquipoConfig(id){
+async function eliminarEquipoConfig(id){
   const c = buscarCliente(clienteActivoId);
   const s = c.sedes.find(x=>x.id===sedeActivaId);
   const eq = s.equipos.find(e=>e.id===id);
+  const respaldo = s.equipos.slice();
   s.equipos = s.equipos.filter(e=>e.id!==id);
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    s.equipos = respaldo;
+    mostrarToast('⚠️ No se pudo eliminar el equipo: ' + err.message, 'error');
+    return;
+  }
   if(eq) registrarLog('Eliminar', 'Equipo', eq.nombre);
+  mostrarToast('Equipo eliminado.', 'exito');
   renderizarEquiposConfig(); renderizarSedesConfig();
 }
 
@@ -420,7 +480,7 @@ function eliminarEquipoConfig(id){
 function verEtiquetaQR(equipoId){
   const info = ubicarEquipoPorId(equipoId);
   if(!info) return;
-  if(!info.equipo.qrId){ info.equipo.qrId = 'EQ-'+equipoId; dbGuardar(); }
+  if(!info.equipo.qrId){ info.equipo.qrId = 'EQ-'+equipoId; dbGuardarInmediato().catch(()=>{ /* se reintentará solo en el próximo guardado real */ }); }
   const urlEquipo = `${location.origin}${location.pathname}?equipo=${equipoId}`;
   const wrap = document.getElementById('etiquetaQRWrap');
   wrap.innerHTML = '';

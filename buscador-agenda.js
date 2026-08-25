@@ -215,13 +215,21 @@ function renderizarAgenda(){
   aplicarRBACaUI();
 }
 
-function eliminarOrden(id){
+async function eliminarOrden(id){
   if(!confirm('¿Eliminar esta orden de servicio?')) return;
   const o = db.ordenes.find(x=>x.id===id);
+  const respaldo = db.ordenes.slice();
   db.ordenes = db.ordenes.filter(o=>o.id!==id);
   registrarEliminacion('ordenes', id);
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.ordenes = respaldo;
+    mostrarToast('⚠️ No se pudo eliminar la orden: ' + err.message, 'error');
+    return;
+  }
   if(o) registrarLog('Eliminar', 'OrdenServicio', o.numero);
+  mostrarToast('Orden eliminada.', 'exito');
   renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
 }
 
@@ -235,14 +243,22 @@ function abrirReprogramar(ordenId){
   document.getElementById('reprogEstado').value = o.estado;
   abrirModal('modalReprogramar');
 }
-function guardarReprogramacion(){
+async function guardarReprogramacion(){
   const o = db.ordenes.find(x=>x.id===ordenReprogramarId);
   if(!o) return;
+  const respaldo = { fechaProgramada:o.fechaProgramada, horaProgramada:o.horaProgramada, estado:o.estado };
   o.fechaProgramada = document.getElementById('reprogFecha').value || null;
   o.horaProgramada = document.getElementById('reprogHora').value || null;
   o.estado = document.getElementById('reprogEstado').value;
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    Object.assign(o, respaldo);
+    mostrarToast('⚠️ No se pudo reprogramar: ' + err.message, 'error');
+    return;
+  }
   registrarLog('Reprogramar', 'OrdenServicio', `${o.numero} -> ${o.fechaProgramada||'sin fecha'} (${o.estado})`);
+  mostrarToast('✅ Orden reprogramada.', 'exito');
   cerrarModal('modalReprogramar');
   renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
 }
@@ -287,7 +303,7 @@ function renderizarCalendario(){
 }
 let ordenArrastradaId = null;
 function dragOrdenStart(event, ordenId){ ordenArrastradaId = ordenId; event.dataTransfer.effectAllowed = 'move'; }
-function dropOrdenEnDia(event, fechaStr){
+async function dropOrdenEnDia(event, fechaStr){
   event.preventDefault();
   if(!ordenArrastradaId) return;
   const o = db.ordenes.find(x=>x.id===ordenArrastradaId);
@@ -296,8 +312,17 @@ function dropOrdenEnDia(event, fechaStr){
     const conflicto = db.ordenes.find(x=>x.id!==o.id && x.tecnicoId===o.tecnicoId && x.fechaProgramada===fechaStr);
     if(conflicto && !confirm(`El técnico ya tiene la orden ${conflicto.numero} programada ese día. ¿Reprogramar de todos modos?`)) { ordenArrastradaId=null; return; }
   }
+  const fechaAnterior = o.fechaProgramada;
   o.fechaProgramada = fechaStr;
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    o.fechaProgramada = fechaAnterior;
+    mostrarToast('⚠️ No se pudo reprogramar: ' + err.message, 'error');
+    ordenArrastradaId = null;
+    renderizarCalendario();
+    return;
+  }
   registrarLog('Reprogramar (drag & drop)', 'OrdenServicio', `${o.numero} movida a ${fechaStr}`);
   ordenArrastradaId = null;
   renderizarCalendario(); renderizarAgenda();

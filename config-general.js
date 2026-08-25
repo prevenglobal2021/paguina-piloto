@@ -119,20 +119,35 @@ async function guardarAjustesGenerales(){
     mostrarToast('⚠️ No se guardó: ' + err.message, 'error');
   }
 }
-function guardarPasswordAdmin(){
+async function guardarPasswordAdmin(){
   const usuario = document.getElementById('cfgAdminUsuario').value.trim();
   const nueva = document.getElementById('cfgAdminPasswordNueva').value;
+  if(!usuario && !nueva) return;
+  const respaldo = { adminUsuario: db.config.adminUsuario, adminPassword: db.config.adminPassword };
   if(usuario) db.config.adminUsuario = usuario;
   if(nueva) db.config.adminPassword = nueva;
-  if(!usuario && !nueva) return;
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    Object.assign(db.config, respaldo);
+    mostrarToast('⚠️ No se pudo guardar el acceso de administrador: ' + err.message, 'error');
+    return;
+  }
   document.getElementById('cfgAdminPasswordNueva').value = '';
   registrarLog('Actualizar acceso', 'Administrador', usuario || '—');
-  mostrarToast('Acceso de administrador actualizado.');
+  mostrarToast('✅ Acceso de administrador actualizado.', 'exito');
 }
-function guardarInterruptorLogin(){
+async function guardarInterruptorLogin(){
+  const anterior = db.config.loginRequerido;
   db.config.loginRequerido = document.getElementById('cfgLoginRequerido').checked;
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.config.loginRequerido = anterior;
+    document.getElementById('cfgLoginRequerido').checked = anterior;
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
   registrarLog('Actualizar acceso', 'Pantalla de login', db.config.loginRequerido ? 'Activada' : 'Desactivada');
 }
 
@@ -197,16 +212,18 @@ async function guardarApariencia(){
     mostrarToast('⚠️ No se guardó: ' + err.message, 'error');
   }
 }
-function restablecerColorTexto(){
-  const tema = TEMAS_CLAROS[temaClaroSeleccionadoIdx] || TEMAS_CLAROS[0];
+async function restablecerColorTexto(){
   db.config.colorTexto = null;
+  const tema = TEMAS_CLAROS[temaClaroSeleccionadoIdx] || TEMAS_CLAROS[0];
   document.getElementById('cfgColorTexto').value = tema.texto;
-  dbGuardar(); aplicarConfiguracionVisual();
+  try{ await dbGuardarInmediato(); }catch(err){ mostrarToast('⚠️ No se pudo restablecer: ' + err.message, 'error'); return; }
+  aplicarConfiguracionVisual();
 }
-function restablecerBordeFormulario(){
+async function restablecerBordeFormulario(){
   db.config.formBorderColor = null;
   document.getElementById('cfgFormBorderColor').value = '#cbd5e1';
-  dbGuardar(); aplicarConfiguracionVisual();
+  try{ await dbGuardarInmediato(); }catch(err){ mostrarToast('⚠️ No se pudo restablecer: ' + err.message, 'error'); return; }
+  aplicarConfiguracionVisual();
 }
 
 /* =========================================================
@@ -223,20 +240,33 @@ function renderizarEtiquetas(){
     <tr><td>${p}</td><td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarEtiqueta('prioridades',${idx})">X</button></td></tr>
   `).join('') || '<tr><td colspan="2" class="empty-state">Sin etiquetas</td></tr>';
 }
-function agregarEtiqueta(lista, inputId){
+async function agregarEtiqueta(lista, inputId){
   const valor = document.getElementById(inputId).value.trim();
   if(!valor){ mostrarToast('Escribe una etiqueta.'); return; }
   if(db.config[lista].includes(valor)){ mostrarToast('Esa etiqueta ya existe.'); return; }
   db.config[lista].push(valor);
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.config[lista].pop();
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
   document.getElementById(inputId).value = '';
   renderizarEtiquetas();
 }
-function eliminarEtiqueta(lista, idx){
+async function eliminarEtiqueta(lista, idx){
   if(db.config[lista].length<=1){ mostrarToast('Debe quedar al menos una etiqueta en la lista.'); return; }
   if(!confirm('¿Eliminar esta etiqueta? Las órdenes que ya la usan conservarán el texto guardado.')) return;
+  const respaldo = db.config[lista].slice();
   db.config[lista].splice(idx,1);
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.config[lista] = respaldo;
+    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
+    return;
+  }
   renderizarEtiquetas();
 }
 
@@ -254,7 +284,7 @@ function importarClientesEquipos(event){
   const file = event.target.files[0];
   if(!file) return;
   const reader = new FileReader();
-  reader.onload = e=>{
+  reader.onload = async e=>{
     try{
       const data = JSON.parse(e.target.result);
       if(!data.clientesNuevos || !Array.isArray(data.clientesNuevos)){
@@ -263,6 +293,7 @@ function importarClientesEquipos(event){
       }
       const nombresExistentes = new Set(db.clientes.map(c=>c.nombre.trim().toLowerCase()));
       let agregados = 0, omitidosDuplicados = 0, equiposAgregados = 0;
+      const respaldo = db.clientes.slice();
       data.clientesNuevos.forEach(cNuevo=>{
         const clave = (cNuevo.nombre||'').trim().toLowerCase();
         if(!clave || nombresExistentes.has(clave)){ omitidosDuplicados++; return; }
@@ -277,9 +308,15 @@ function importarClientesEquipos(event){
         nombresExistentes.add(clave);
         agregados++;
       });
-      dbGuardar();
+      try{
+        await dbGuardarInmediato();
+      }catch(err){
+        db.clientes = respaldo;
+        mostrarToast('⚠️ No se pudo guardar la importación: ' + err.message, 'error');
+        return;
+      }
       registrarLog('Importar', 'Clientes/Equipos', `${agregados} clientes, ${equiposAgregados} equipos`);
-      mostrarToast(`Importación completa: ${agregados} clientes nuevos agregados (${equiposAgregados} equipos). ${omitidosDuplicados} se omitieron por ya existir con ese nombre.`);
+      mostrarToast(`✅ Importación completa: ${agregados} clientes nuevos agregados (${equiposAgregados} equipos). ${omitidosDuplicados} se omitieron por ya existir con ese nombre.`, 'exito');
       renderizarClientesConfig();
     }catch(err){ mostrarToast('Error al leer el archivo: ' + err.message); }
   };
@@ -289,12 +326,20 @@ function importarBaseDatosJSON(event){
   const file = event.target.files[0];
   if(!file) return;
   const reader = new FileReader();
-  reader.onload = e=>{
+  reader.onload = async e=>{
     try{
       const data = JSON.parse(e.target.result);
       if(data.clientes && data.plantillas && data.ordenes){
-        db = data; dbGuardar();
-        mostrarToast('Base de datos importada con éxito.');
+        const respaldo = db;
+        db = data;
+        try{
+          await dbGuardarInmediato();
+        }catch(err){
+          db = respaldo;
+          mostrarToast('⚠️ No se pudo guardar la base de datos importada: ' + err.message, 'error');
+          return;
+        }
+        mostrarToast('✅ Base de datos importada con éxito.', 'exito');
         location.reload();
       } else { mostrarToast('El archivo no tiene el formato esperado.'); }
     }catch(err){ mostrarToast('Error al leer el archivo JSON.'); }

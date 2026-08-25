@@ -162,13 +162,14 @@ function abrirModalKardex(){
 function toggleKardexDestino(){
   document.getElementById('wrapperKdxDestino').style.display = document.getElementById('kdxTipo').value==='transferencia' ? 'block' : 'none';
 }
-function guardarMovimientoKardex(){
+async function guardarMovimientoKardex(){
   const itemId = parseInt(document.getElementById('kdxItem').value);
   const tipo = document.getElementById('kdxTipo').value;
   const cantidad = parseInt(document.getElementById('kdxCantidad').value) || 0;
   const it = buscarItemInventario(itemId);
   if(!it || cantidad<=0){ mostrarToast('Selecciona un ítem y una cantidad válida.'); return; }
   const mov = { id:Date.now(), itemId, tipo, cantidad, usuario:nombreUsuarioActual(), fecha:new Date().toISOString(), bodegaOrigenId: it.bodegaId, bodegaDestinoId:null };
+  const respaldoStock = it.stockActual, respaldoBodegaId = it.bodegaId;
   if(tipo==='entrada'){ it.stockActual += cantidad; }
   else if(tipo==='salida'){
     if(cantidad > it.stockActual){ mostrarToast('No hay stock suficiente para esta salida.'); return; }
@@ -181,8 +182,16 @@ function guardarMovimientoKardex(){
     mov.bodegaDestinoId = destinoId;
   }
   db.kardex.push(mov); // el Kardex es de solo-inserción: nunca se edita ni se borra un movimiento ya registrado
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    it.stockActual = respaldoStock; it.bodegaId = respaldoBodegaId;
+    db.kardex.pop();
+    mostrarToast('⚠️ No se pudo guardar el movimiento: ' + err.message, 'error');
+    return;
+  }
   registrarLog('Movimiento Kardex', 'Inventario', `${it.nombre}: ${tipo} x${cantidad}`);
+  mostrarToast('✅ Movimiento registrado.', 'exito');
   cerrarModal('modalKardex');
   renderizarInventario();
 }

@@ -162,7 +162,9 @@ function iniciarRotacionTestimonios(testimonios){
 function verDetalleProductoTienda(itemId){
   const it = buscarItemInventario(itemId);
   if(!it) return;
-  const fotos = (it.fotos||[]).map(f=>`<img src="${srcDeFoto(f)}" style="width:100%;border-radius:10px;margin-bottom:8px;">`).join('') || `<div class="tienda-card-img-placeholder" style="border-radius:10px;"><i class="fas fa-box-open"></i></div>`;
+  const fotos = (it.fotos||[]).length
+    ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:10px;">${it.fotos.map(f=>`<img src="${srcDeFoto(f)}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;">`).join('')}</div>`
+    : `<div class="tienda-card-img-placeholder" style="border-radius:10px;"><i class="fas fa-box-open"></i></div>`;
   const agotado = it.stockActual <= 0;
   document.getElementById('detalleProductoTienda').innerHTML = `
     ${fotos}
@@ -253,7 +255,7 @@ function mostrarFormCheckout(){
   document.getElementById('btnIrACheckout').style.display = 'none';
   document.getElementById('btnConfirmarPedido').style.display = 'inline-block';
 }
-function confirmarPedidoTienda(){
+async function confirmarPedidoTienda(){
   const nombre = document.getElementById('checkoutNombre').value.trim();
   const telefono = document.getElementById('checkoutTelefono').value.trim();
   const email = document.getElementById('checkoutEmail').value.trim();
@@ -271,11 +273,17 @@ function confirmarPedidoTienda(){
     estadoPago: 'Pendiente (pasarela de pago no configurada aún)', estado: 'Recibido'
   };
   db.pedidosTienda.push(pedido);
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.pedidosTienda.pop();
+    mostrarToast('⚠️ No se pudo registrar el pedido: ' + err.message, 'error');
+    return;
+  }
   registrarLog('Crear', 'PedidoTienda', `${pedido.numero} · ${nombre} · ${formatoCOP(total)}`);
   carritoTienda = [];
   cerrarModal('modalCarrito');
-  mostrarToast(`¡Pedido ${pedido.numero} registrado! Un asesor te contactará al ${telefono} para coordinar el pago y la entrega.`);
+  mostrarToast(`✅ ¡Pedido ${pedido.numero} registrado! Un asesor te contactará al ${telefono} para coordinar el pago y la entrega.`, 'exito');
   renderizarTienda();
 }
 

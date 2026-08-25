@@ -682,23 +682,38 @@ function renderizarCuadroMandoAnual(){
     <td>${metaAnual?(totalAprobada/metaAnual*100).toFixed(1):0}%</td><td>${metaAnual?(totalGeneral/metaAnual*100).toFixed(1):0}%</td></tr>`;
   document.getElementById('tablaCuadroMandoAnual').innerHTML = filas + filaTotal;
 }
-function cambiarPasswordTecnico(id){
+async function cambiarPasswordTecnico(id){
   const t = buscarTecnico(id);
   if(!t) return;
   const nueva = prompt(`Nueva contraseña para ${t.nombre}:`);
   if(!nueva) return;
+  const anterior = t.password;
   t.password = nueva;
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    t.password = anterior;
+    mostrarToast('⚠️ No se pudo cambiar la contraseña: ' + err.message, 'error');
+    return;
+  }
   registrarLog('Cambiar contraseña', 'Técnico', t.nombre);
-  mostrarToast('Contraseña actualizada.');
+  mostrarToast('✅ Contraseña actualizada.', 'exito');
 }
-function eliminarTecnicoConfig(id){
+async function eliminarTecnicoConfig(id){
   if(!confirm('¿Eliminar este técnico?')) return;
   const t = buscarTecnico(id);
+  const respaldo = db.tecnicos.slice();
   db.tecnicos = db.tecnicos.filter(t=>t.id!==id);
   registrarEliminacion('tecnicos', id);
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.tecnicos = respaldo;
+    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
+    return;
+  }
   if(t) registrarLog('Eliminar', 'Técnico', t.nombre);
+  mostrarToast('Técnico eliminado.', 'exito');
   if(document.getElementById('cfgTecId').value == id) cancelarEdicionTecnico();
   renderizarTecnicosConfig();
 }
