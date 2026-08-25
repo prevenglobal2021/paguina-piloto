@@ -162,7 +162,9 @@ function iniciarRotacionTestimonios(testimonios){
 function verDetalleProductoTienda(itemId){
   const it = buscarItemInventario(itemId);
   if(!it) return;
-  const fotos = (it.fotos||[]).map(f=>`<img src="${srcDeFoto(f)}" style="width:100%;border-radius:10px;margin-bottom:8px;">`).join('') || `<div class="tienda-card-img-placeholder" style="border-radius:10px;"><i class="fas fa-box-open"></i></div>`;
+  const fotos = (it.fotos||[]).length
+    ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:10px;">${it.fotos.map(f=>`<img src="${srcDeFoto(f)}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;">`).join('')}</div>`
+    : `<div class="tienda-card-img-placeholder" style="border-radius:10px;"><i class="fas fa-box-open"></i></div>`;
   const agotado = it.stockActual <= 0;
   document.getElementById('detalleProductoTienda').innerHTML = `
     ${fotos}
@@ -253,7 +255,7 @@ function mostrarFormCheckout(){
   document.getElementById('btnIrACheckout').style.display = 'none';
   document.getElementById('btnConfirmarPedido').style.display = 'inline-block';
 }
-function confirmarPedidoTienda(){
+async function confirmarPedidoTienda(){
   const nombre = document.getElementById('checkoutNombre').value.trim();
   const telefono = document.getElementById('checkoutTelefono').value.trim();
   const email = document.getElementById('checkoutEmail').value.trim();
@@ -271,11 +273,17 @@ function confirmarPedidoTienda(){
     estadoPago: 'Pendiente (pasarela de pago no configurada aún)', estado: 'Recibido'
   };
   db.pedidosTienda.push(pedido);
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.pedidosTienda.pop();
+    mostrarToast('⚠️ No se pudo registrar el pedido: ' + err.message, 'error');
+    return;
+  }
   registrarLog('Crear', 'PedidoTienda', `${pedido.numero} · ${nombre} · ${formatoCOP(total)}`);
   carritoTienda = [];
   cerrarModal('modalCarrito');
-  mostrarToast(`¡Pedido ${pedido.numero} registrado! Un asesor te contactará al ${telefono} para coordinar el pago y la entrega.`);
+  mostrarToast(`✅ ¡Pedido ${pedido.numero} registrado! Un asesor te contactará al ${telefono} para coordinar el pago y la entrega.`, 'exito');
   renderizarTienda();
 }
 
@@ -324,62 +332,110 @@ function renderizarPreviewGaleria(){
       <input type="text" class="galeria-foto-desc" value="${(item.nota||'').replace(/"/g,'&quot;')}" placeholder="Nota breve..." onchange="guardarNotaGaleria(${i}, this.value)">
     </div>`).join('');
 }
-function guardarNotaGaleria(i, valor){
+async function guardarNotaGaleria(i, valor){
   if(!db.config.tiendaGaleria[i]) return;
+  const anterior = db.config.tiendaGaleria[i].nota;
   db.config.tiendaGaleria[i].nota = valor;
-  dbGuardarInmediato();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.config.tiendaGaleria[i].nota = anterior;
+    mostrarToast('⚠️ No se pudo guardar la nota: ' + err.message, 'error');
+  }
 }
 function subirLogoTienda(event){
   const file = event.target.files[0];
   if(!file) return;
-  comprimirImagen(file).then(dataUrl=>{
+  comprimirImagen(file).then(async dataUrl=>{
+    const anterior = db.config.tiendaLogo;
     db.config.tiendaLogo = dataUrl;
-    dbGuardarInmediato();
+    try{
+      await dbGuardarInmediato();
+    }catch(err){
+      db.config.tiendaLogo = anterior;
+      mostrarToast('⚠️ No se pudo guardar el logo: ' + err.message, 'error');
+      return;
+    }
     cargarTabTiendaConfig();
   });
   event.target.value = '';
 }
-function quitarLogoTienda(){
+async function quitarLogoTienda(){
+  const anterior = db.config.tiendaLogo;
   db.config.tiendaLogo = null;
-  dbGuardarInmediato();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.config.tiendaLogo = anterior;
+    mostrarToast('⚠️ No se pudo quitar el logo: ' + err.message, 'error');
+    return;
+  }
   cargarTabTiendaConfig();
 }
 function subirBannerTienda(event){
   const files = Array.from(event.target.files);
   if(!files.length) return;
   db.config.tiendaBanner = db.config.tiendaBanner || [];
-  Promise.allSettled(files.map(f=>comprimirImagen(f))).then(resultados=>{
+  Promise.allSettled(files.map(f=>comprimirImagen(f))).then(async resultados=>{
     const exitosas = resultados.filter(r=>r.status==='fulfilled').map(r=>r.value);
     const fallidas = resultados.length - exitosas.length;
+    const respaldo = db.config.tiendaBanner.slice();
     if(exitosas.length) db.config.tiendaBanner.push(...exitosas);
-    dbGuardarInmediato();
+    try{
+      await dbGuardarInmediato();
+    }catch(err){
+      db.config.tiendaBanner = respaldo;
+      mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+      return;
+    }
     cargarTabTiendaConfig();
     if(fallidas) mostrarToast(`Se subieron ${exitosas.length} imagen(es). ${fallidas} no se pudieron procesar — revisa que sean archivos de imagen válidos.`);
   });
   event.target.value = '';
 }
-function quitarBannerTienda(i){
+async function quitarBannerTienda(i){
+  const respaldo = db.config.tiendaBanner.slice();
   db.config.tiendaBanner.splice(i,1);
-  dbGuardarInmediato();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.config.tiendaBanner = respaldo;
+    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
+    return;
+  }
   cargarTabTiendaConfig();
 }
 function subirGaleriaTienda(event){
   const files = Array.from(event.target.files);
   if(!files.length) return;
   normalizarGaleriaTienda();
-  Promise.allSettled(files.map(f=>comprimirImagen(f))).then(resultados=>{
+  Promise.allSettled(files.map(f=>comprimirImagen(f))).then(async resultados=>{
     const exitosas = resultados.filter(r=>r.status==='fulfilled').map(r=>({ img:r.value, nota:'' }));
     const fallidas = resultados.length - exitosas.length;
+    const respaldo = db.config.tiendaGaleria.slice();
     if(exitosas.length) db.config.tiendaGaleria.push(...exitosas);
-    dbGuardarInmediato();
+    try{
+      await dbGuardarInmediato();
+    }catch(err){
+      db.config.tiendaGaleria = respaldo;
+      mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+      return;
+    }
     renderizarPreviewGaleria();
     if(fallidas) mostrarToast(`Se subieron ${exitosas.length} imagen(es). ${fallidas} no se pudieron procesar — revisa que sean archivos de imagen válidos.`);
   });
   event.target.value = '';
 }
-function quitarGaleriaTienda(i){
+async function quitarGaleriaTienda(i){
+  const respaldo = db.config.tiendaGaleria.slice();
   db.config.tiendaGaleria.splice(i,1);
-  dbGuardarInmediato();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.config.tiendaGaleria = respaldo;
+    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
+    return;
+  }
   renderizarPreviewGaleria();
 }
 function secTiendaData(){
@@ -395,24 +451,38 @@ function agregarItemSeccionTienda(){
   const fileInput = document.getElementById('secTiendaImagen');
   const file = fileInput.files[0];
   if(!titulo){ mostrarToast('Escribe al menos el título (nombre, servicio, proyecto o cliente).'); return; }
-  const guardar = (imagen)=>{
-    lista.push({ id: Date.now(), imagen: imagen||null, titulo, subtitulo });
-    dbGuardarInmediato();
+  const guardar = async (imagen)=>{
+    const nuevoItem = { id: Date.now(), imagen: imagen||null, titulo, subtitulo };
+    lista.push(nuevoItem);
+    try{
+      await dbGuardarInmediato();
+    }catch(err){
+      lista.pop();
+      mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+      return;
+    }
     document.getElementById('secTiendaTitulo').value=''; document.getElementById('secTiendaSubtitulo').value=''; fileInput.value='';
     renderizarListaSeccionTienda();
   };
   if(file) comprimirImagen(file).then(guardar);
   else guardar(null);
 }
-function eliminarItemSeccionTienda(tipo, id){
+async function eliminarItemSeccionTienda(tipo, id){
+  const respaldo = db.config.tiendaSecciones[tipo].slice();
   db.config.tiendaSecciones[tipo] = db.config.tiendaSecciones[tipo].filter(i=>i.id!==id);
-  dbGuardarInmediato();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.config.tiendaSecciones[tipo] = respaldo;
+    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
+    return;
+  }
   renderizarListaSeccionTienda();
 }
 function renderizarListaSeccionTienda(){
   const { tipo, lista } = secTiendaData();
   document.getElementById('listaSeccionTienda').innerHTML = lista.map(item=>`
-    <div style="width:110px;text-align:center;background:rgba(0,0,0,.2);border-radius:8px;padding:8px;position:relative;">
+    <div style="width:110px;text-align:center;background:#f8fafc;border:1px solid #e2e8f0;color:#1e293b;border-radius:8px;padding:8px;position:relative;">
       <button onclick="eliminarItemSeccionTienda('${tipo}',${item.id})" style="position:absolute;top:2px;right:2px;background:var(--red-alert);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer;">✖</button>
       ${item.imagen ? `<img src="${item.imagen}" style="width:100%;height:70px;object-fit:cover;border-radius:6px;">` : '<div style="height:70px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);"><i class="fas fa-image"></i></div>'}
       <strong style="display:block;font-size:11px;margin-top:4px;">${item.titulo}</strong>
@@ -458,31 +528,54 @@ function generarTestimoniosAutomaticos(){
     const estrellas = (i % 9 === 0) ? 4 : 5; // mayoría 5 estrellas, algunas 4 -> promedio alto tipo 4.7-4.8
     testimonios.push({ id: Date.now() + i, nombre, comentario, estrellas });
   }
+  const testimoniosAnteriores = db.config.tiendaTestimonios;
   db.config.tiendaTestimonios = testimonios;
-  dbGuardarInmediato();
-  renderizarListaTestimoniosTienda();
-  mostrarToast('Se generaron 98 testimonios de ejemplo. Puedes editarlos o borrar los que no quieras desde aquí.');
+  (async ()=>{
+    try{
+      await dbGuardarInmediato();
+    }catch(err){
+      db.config.tiendaTestimonios = testimoniosAnteriores;
+      mostrarToast('⚠️ No se pudieron guardar los testimonios: ' + err.message, 'error');
+      return;
+    }
+    renderizarListaTestimoniosTienda();
+    mostrarToast('✅ Se generaron 98 testimonios de ejemplo. Puedes editarlos o borrar los que no quieras desde aquí.', 'exito');
+  })();
 }
-function agregarTestimonioTienda(){
+async function agregarTestimonioTienda(){
   const nombre = document.getElementById('testNombre').value.trim();
   const comentario = document.getElementById('testComentario').value.trim();
   const estrellas = parseInt(document.getElementById('testEstrellas').value);
   if(!nombre || !comentario){ mostrarToast('Escribe el nombre del cliente y su comentario.'); return; }
   db.config.tiendaTestimonios = db.config.tiendaTestimonios || [];
   db.config.tiendaTestimonios.push({ id: Date.now(), nombre, comentario, estrellas });
-  dbGuardarInmediato();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.config.tiendaTestimonios.pop();
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
   document.getElementById('testNombre').value=''; document.getElementById('testComentario').value='';
+  mostrarToast('✅ Testimonio agregado.', 'exito');
   renderizarListaTestimoniosTienda();
 }
-function eliminarTestimonioTienda(id){
+async function eliminarTestimonioTienda(id){
+  const respaldo = db.config.tiendaTestimonios.slice();
   db.config.tiendaTestimonios = db.config.tiendaTestimonios.filter(t=>t.id!==id);
-  dbGuardarInmediato();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.config.tiendaTestimonios = respaldo;
+    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
+    return;
+  }
   renderizarListaTestimoniosTienda();
 }
 function renderizarListaTestimoniosTienda(){
   const lista = db.config.tiendaTestimonios || [];
   document.getElementById('listaTestimoniosTienda').innerHTML = lista.map(t=>`
-    <div style="width:220px;background:rgba(0,0,0,.2);border-radius:8px;padding:10px;position:relative;">
+    <div style="width:220px;background:#f8fafc;border:1px solid #e2e8f0;color:#1e293b;border-radius:8px;padding:10px;position:relative;">
       <button onclick="eliminarTestimonioTienda(${t.id})" style="position:absolute;top:4px;right:4px;background:var(--red-alert);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer;">✖</button>
       <div style="color:#f59e0b;font-size:12px;">${'⭐'.repeat(t.estrellas)}</div>
       <p style="font-size:11px;font-style:italic;margin:6px 0;">"${t.comentario}"</p>
@@ -496,13 +589,20 @@ function copiarLinkTiendaPublica(){
     mostrarToast('Enlace copiado — ya lo puedes compartir con tus clientes.');
   }).catch(()=>{ document.execCommand('copy'); mostrarToast('Enlace copiado.'); });
 }
-function guardarContactoTienda(){
+async function guardarContactoTienda(){
+  const respaldo = { tiendaTelefono: db.config.tiendaTelefono, tiendaWhatsapp: db.config.tiendaWhatsapp, tiendaFacebook: db.config.tiendaFacebook, tiendaInstagram: db.config.tiendaInstagram };
   db.config.tiendaTelefono = document.getElementById('cfgTiendaTelefono').value.trim();
   db.config.tiendaWhatsapp = document.getElementById('cfgTiendaWhatsapp').value.trim();
   db.config.tiendaFacebook = document.getElementById('cfgTiendaFacebook').value.trim();
   db.config.tiendaInstagram = document.getElementById('cfgTiendaInstagram').value.trim();
-  dbGuardarInmediato();
-  mostrarToast('Datos de contacto de la tienda guardados.');
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    Object.assign(db.config, respaldo);
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
+  mostrarToast('✅ Datos de contacto de la tienda guardados.', 'exito');
   renderizarTienda();
 }
 async function guardarAparienciaTienda(){

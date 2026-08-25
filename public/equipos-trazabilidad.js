@@ -44,7 +44,7 @@ function renderizarEquiposGlobal(filtro){
   aplicarRBACaUI();
 }
 
-function eliminarEquipoGlobal(equipoId){
+async function eliminarEquipoGlobal(equipoId){
   const info = ubicarEquipoPorId(equipoId);
   if(!info) return;
   const numServicios = db.ordenes.filter(o=>o.equipoId===equipoId).length;
@@ -53,14 +53,23 @@ function eliminarEquipoGlobal(equipoId){
     : '¿Eliminar este equipo?';
   if(!confirm(mensaje)) return;
 
+  const respaldoSede = info.sede ? info.sede.equipos.slice() : null;
+  const respaldoSinSede = !info.sede ? equiposSinSedeDe(info.cliente).slice() : null;
   if(info.sede){
     info.sede.equipos = info.sede.equipos.filter(e=>e.id!==equipoId);
   } else {
     info.cliente.equiposSinSede = equiposSinSedeDe(info.cliente).filter(e=>e.id!==equipoId);
   }
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    if(info.sede) info.sede.equipos = respaldoSede;
+    else info.cliente.equiposSinSede = respaldoSinSede;
+    mostrarToast('⚠️ No se pudo eliminar el equipo: ' + err.message, 'error');
+    return;
+  }
   registrarLog('Eliminar', 'Equipo', info.equipo.nombre);
-  mostrarToast(`Equipo "${info.equipo.nombre}" eliminado.`);
+  mostrarToast(`✅ Equipo "${info.equipo.nombre}" eliminado.`, 'exito');
   renderizarEquiposGlobal('');
   actualizarKPIs();
 }
@@ -122,7 +131,7 @@ function renderizarTrazabilidad(equipoIdStr){
   if(!equipoId){ ficha.innerHTML=''; timeline.innerHTML=''; return; }
   const info = ubicarEquipoPorId(equipoId);
   if(!info) return;
-  ficha.innerHTML = `<div class="panel" style="margin:0;background:rgba(0,0,0,.15);">
+  ficha.innerHTML = `<div class="panel" style="margin:0;background:#f8fafc;border:1px solid #e2e8f0;color:#1e293b;">
     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:flex-start;">
       <div>
         <strong>${info.equipo.nombre}</strong> — ${info.cliente.nombre} · ${info.sede ? info.sede.nombre : 'Sin sede'}<br>

@@ -448,6 +448,7 @@ async function eliminarIngreso(id){
     mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
     return;
   }
+  mostrarToast('✅ Ingreso eliminado.', 'exito');
   renderizarContabilidad();
 }
 async function agregarGasto(){
@@ -485,6 +486,7 @@ async function eliminarGasto(id){
     mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
     return;
   }
+  mostrarToast('✅ Gasto eliminado.', 'exito');
   renderizarContabilidad();
 }
 function renderizarContabilidad(){
@@ -497,6 +499,13 @@ function renderizarContabilidad(){
   const gastosDelMes = db.gastos.filter(g=>g.fecha && g.fecha.startsWith(mes));
   const pedidosDelMes = db.pedidosTienda.filter(p=>p.fecha && p.fecha.startsWith(mes));
   const ingresosDelMes = db.ingresos.filter(i=>i.fecha && i.fecha.startsWith(mes));
+  const textoBusqueda = (document.getElementById('contaBuscarTexto')?.value || '').trim().toLowerCase();
+  const ingresosFiltrados = !textoBusqueda ? ingresosDelMes : ingresosDelMes.filter(i=>{
+    const nombreCli = i.esClienteEsporadico ? i.clienteEsporadicoNombre : (i.clienteId ? (buscarCliente(i.clienteId)?.nombre||'') : '');
+    return (i.concepto||'').toLowerCase().includes(textoBusqueda) || (nombreCli||'').toLowerCase().includes(textoBusqueda);
+  });
+  const gastosFiltrados = !textoBusqueda ? gastosDelMes : gastosDelMes.filter(g=>
+    (g.descripcion||'').toLowerCase().includes(textoBusqueda) || (g.categoria||'').toLowerCase().includes(textoBusqueda));
 
   const totalNomina = nominaDelMes.reduce((a,l)=>a+l.totalNeto,0);
   const totalGastos = gastosDelMes.reduce((a,g)=>a+g.monto,0);
@@ -517,17 +526,17 @@ function renderizarContabilidad(){
   selIngresoCliente.innerHTML = '<option value="">(Ninguno / general)</option>' + db.clientes.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
   selIngresoCliente.value = valorSelActual;
 
-  document.getElementById('tablaIngresos').innerHTML = ingresosDelMes.slice().reverse().map(i=>{
+  document.getElementById('tablaIngresos').innerHTML = ingresosFiltrados.slice().reverse().map(i=>{
     const nombreCliente = i.esClienteEsporadico
       ? `${i.clienteEsporadicoNombre||'—'} <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;">ESPORÁDICO</span>`
       : (i.clienteId ? (buscarCliente(i.clienteId)?.nombre || '—') : '<span style="color:var(--text-muted);">General</span>');
     return `<tr><td>${i.fecha}</td><td>${nombreCliente}</td><td>${i.concepto}</td><td>${formatoCOP(i.monto)}</td>
       <td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarIngreso(${i.id})">X</button></td></tr>`;
-  }).join('') || '<tr><td colspan="5" class="empty-state">Sin ingresos manuales registrados este mes.</td></tr>';
+  }).join('') || `<tr><td colspan="5" class="empty-state">${textoBusqueda ? 'Sin ingresos que coincidan con "'+document.getElementById('contaBuscarTexto').value+'".' : 'Sin ingresos manuales registrados este mes.'}</td></tr>`;
 
-  document.getElementById('tablaGastos').innerHTML = gastosDelMes.map(g=>`
+  document.getElementById('tablaGastos').innerHTML = gastosFiltrados.map(g=>`
     <tr><td>${g.fecha}</td><td>${g.categoria}</td><td>${g.descripcion}</td><td>${formatoCOP(g.monto)}</td>
-      <td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarGasto(${g.id})">X</button></td></tr>`).join('') || '<tr><td colspan="5" class="empty-state">Sin gastos registrados este mes.</td></tr>';
+      <td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarGasto(${g.id})">X</button></td></tr>`).join('') || `<tr><td colspan="5" class="empty-state">${textoBusqueda ? 'Sin gastos que coincidan con "'+document.getElementById('contaBuscarTexto').value+'".' : 'Sin gastos registrados este mes.'}</td></tr>`;
 
   document.getElementById('tablaPedidosTiendaConta').innerHTML = pedidosDelMes.map(p=>`
     <tr><td>${p.numero}</td><td>${new Date(p.fecha).toLocaleDateString('es-CO')}</td><td>${p.nombre}</td><td>${formatoCOP(p.total)}</td><td><small>${p.estadoPago}</small></td></tr>`).join('') || '<tr><td colspan="5" class="empty-state">Sin pedidos de la tienda este mes.</td></tr>';
@@ -540,12 +549,19 @@ function renderizarContabilidad(){
   renderizarControlOperativo();
   renderizarCuadroMandoAnual();
 }
-function guardarParametrosCotizador(){
+async function guardarParametrosCotizador(){
+  const respaldo = { recargoMateriales: db.config.recargoMateriales, porcentajePagoTercero: db.config.porcentajePagoTercero, metaMensualUtilidad: db.config.metaMensualUtilidad };
   db.config.recargoMateriales = parseFloat(document.getElementById('cfgRecargoMateriales').value) || 1.3;
   db.config.porcentajePagoTercero = parseFloat(document.getElementById('cfgPorcentajeTercero').value) || 0;
   db.config.metaMensualUtilidad = parseFloat(document.getElementById('cfgMetaMensual').value) || 0;
-  dbGuardarInmediato();
-  mostrarToast('Parámetros del cotizador guardados.');
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    Object.assign(db.config, respaldo);
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
+  mostrarToast('✅ Parámetros del cotizador guardados.', 'exito');
   renderizarCuadroMandoAnual();
 }
 function calcularManoDeObra(horas, comp, valorHora){
@@ -625,18 +641,32 @@ async function agregarControlOperativo(){
   renderizarContabilidad();
   mostrarToast(`✅ Servicio agregado: ${servicioCliente} — ${formatoCOP(precioCliente)}`, 'exito');
 }
-function eliminarControlOperativo(id){
+async function eliminarControlOperativo(id){
   if(!confirm('¿Eliminar este registro del control operativo?')) return;
+  const respaldo = db.controlOperativo.slice();
   db.controlOperativo = db.controlOperativo.filter(r=>r.id!==id);
-  dbGuardarInmediato();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.controlOperativo = respaldo;
+    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
+    return;
+  }
   renderizarControlOperativo();
   renderizarCuadroMandoAnual();
 }
-function cambiarEstadoControlOperativo(id, campo, valor){
+async function cambiarEstadoControlOperativo(id, campo, valor){
   const r = (db.controlOperativo||[]).find(x=>x.id===id);
   if(!r) return;
+  const anterior = r[campo];
   r[campo] = valor;
-  dbGuardarInmediato();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    r[campo] = anterior;
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
   renderizarCuadroMandoAnual();
 }
 function renderizarControlOperativo(){
@@ -682,23 +712,38 @@ function renderizarCuadroMandoAnual(){
     <td>${metaAnual?(totalAprobada/metaAnual*100).toFixed(1):0}%</td><td>${metaAnual?(totalGeneral/metaAnual*100).toFixed(1):0}%</td></tr>`;
   document.getElementById('tablaCuadroMandoAnual').innerHTML = filas + filaTotal;
 }
-function cambiarPasswordTecnico(id){
+async function cambiarPasswordTecnico(id){
   const t = buscarTecnico(id);
   if(!t) return;
   const nueva = prompt(`Nueva contraseña para ${t.nombre}:`);
   if(!nueva) return;
+  const anterior = t.password;
   t.password = nueva;
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    t.password = anterior;
+    mostrarToast('⚠️ No se pudo cambiar la contraseña: ' + err.message, 'error');
+    return;
+  }
   registrarLog('Cambiar contraseña', 'Técnico', t.nombre);
-  mostrarToast('Contraseña actualizada.');
+  mostrarToast('✅ Contraseña actualizada.', 'exito');
 }
-function eliminarTecnicoConfig(id){
+async function eliminarTecnicoConfig(id){
   if(!confirm('¿Eliminar este técnico?')) return;
   const t = buscarTecnico(id);
+  const respaldo = db.tecnicos.slice();
   db.tecnicos = db.tecnicos.filter(t=>t.id!==id);
   registrarEliminacion('tecnicos', id);
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.tecnicos = respaldo;
+    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
+    return;
+  }
   if(t) registrarLog('Eliminar', 'Técnico', t.nombre);
+  mostrarToast('Técnico eliminado.', 'exito');
   if(document.getElementById('cfgTecId').value == id) cancelarEdicionTecnico();
   renderizarTecnicosConfig();
 }

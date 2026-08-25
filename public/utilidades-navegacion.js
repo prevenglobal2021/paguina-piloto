@@ -3,6 +3,22 @@
    UTILIDADES DE CONSULTA
 ========================================================= */
 function buscarCliente(id){ return db.clientes.find(c=>c.id===id); }
+// Deshabilita el botón y muestra "Guardando..." mientras dura la acción, y lo
+// restaura automáticamente al terminar (haya funcionado o no) — así el
+// usuario nunca duda si su toque se registró, ni puede tocar dos veces por
+// accidente mientras se está guardando en una conexión lenta.
+async function conIndicadorCarga(boton, accionAsync){
+  if(!boton) return accionAsync();
+  const textoOriginal = boton.innerHTML;
+  boton.disabled = true;
+  boton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+  try{
+    await accionAsync();
+  } finally {
+    boton.disabled = false;
+    boton.innerHTML = textoOriginal;
+  }
+}
 // Antes de aplicar negrita/viñetas/etc., el área de texto necesita tener un
 // cursor o selección activa DENTRO de ella — con solo .focus() no basta si
 // el usuario nunca tocó el texto primero. Esto coloca el cursor al final

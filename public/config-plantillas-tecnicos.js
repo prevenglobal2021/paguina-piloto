@@ -315,11 +315,18 @@ function renderizarTecnicosConfig(){
       <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarTecnicoConfig(${t.id})">X</button></td></tr>`;
   });
 }
-function toggleActivoTecnico(id){
+async function toggleActivoTecnico(id){
   const t = buscarTecnico(id);
   if(!t) return;
+  const anterior = t.activo;
   t.activo = t.activo === false ? true : false;
-  dbGuardarInmediato();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    t.activo = anterior;
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
   registrarLog(t.activo ? 'Activar' : 'Desactivar', 'Técnico', t.nombre);
   renderizarTecnicosConfig();
 }

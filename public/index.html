@@ -863,7 +863,8 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div class="panel seccion" id="seccion-contabilidad" style="display:none;">
       <div class="panel-title">
         <span>💼 Negocio / Contabilidad</span>
-        <div style="display:flex;align-items:center;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <input type="text" id="contaBuscarTexto" placeholder="🔍 Buscar ingreso o gasto..." oninput="renderizarContabilidad()" style="width:200px;margin:0;">
           <label style="margin:0;font-size:12px;">Mes:</label>
           <input type="month" id="contaMesFiltro" onchange="renderizarContabilidad()" style="width:auto;margin:0;">
         </div>
@@ -881,7 +882,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <div class="panel-title"><span>🧾 Nómina</span></div>
           <button class="btn-custom" onclick="abrirModalLiquidacionNomina()"><i class="fas fa-file-invoice-dollar m-r-10"></i>Nueva liquidación de nómina</button>
           <div class="field-row" style="margin-top:12px;">
-            <div><input type="text" id="nomBuscarTexto" placeholder="Buscar por nombre o N.º de comprobante..." onkeydown="if(event.key==='Enter')renderizarHistorialNomina()"></div>
+            <div><input type="text" id="nomBuscarTexto" placeholder="Buscar por nombre o N.º de comprobante..." oninput="renderizarHistorialNomina()"></div>
             <div><label style="font-size:11px;">Técnico:</label><select id="nomFiltroTecnico" onchange="renderizarHistorialNomina()"><option value="">Todos</option></select></div>
             <div><label style="font-size:11px;">Desde:</label><input type="date" id="nomFiltroDesde" onchange="renderizarHistorialNomina()"></div>
             <div><label style="font-size:11px;">Hasta:</label><input type="date" id="nomFiltroHasta" onchange="renderizarHistorialNomina()"></div>
@@ -907,7 +908,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
             <div><input type="number" id="ingresoMonto" placeholder="Monto (COP)"></div>
             <div><input type="date" id="ingresoFecha"></div>
           </div>
-          <button class="btn-custom" onclick="agregarIngreso()">+ Registrar ingreso</button>
+          <button class="btn-custom" onclick="conIndicadorCarga(this, agregarIngreso)">+ Registrar ingreso</button>
           <table class="data-table" style="margin-top:12px;">
             <thead><tr><th>Fecha</th><th>Cliente</th><th>Concepto</th><th>Monto</th><th></th></tr></thead>
             <tbody id="tablaIngresos"></tbody>
@@ -926,7 +927,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
             <div><input type="number" id="gastoMonto" placeholder="Monto (COP)"></div>
             <div><input type="date" id="gastoFecha"></div>
           </div>
-          <button class="btn-custom" onclick="agregarGasto()">+ Registrar gasto</button>
+          <button class="btn-custom" onclick="conIndicadorCarga(this, agregarGasto)">+ Registrar gasto</button>
           <table class="data-table" style="margin-top:12px;">
             <thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Monto</th><th></th></tr></thead>
             <tbody id="tablaGastos"></tbody>
@@ -1191,7 +1192,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     </div>
     <label>Descripción para la tienda:</label>
     <textarea id="invDescripcionTienda" rows="2" placeholder="Descripción atractiva para el cliente, características, garantía, etc."></textarea>
-    <button class="btn-custom" style="margin-top:12px;" onclick="guardarItemInventario()">Guardar Ítem</button>
+    <button class="btn-custom" style="margin-top:12px;" onclick="conIndicadorCarga(this, guardarItemInventario)">Guardar Ítem</button>
   </div>
 </div>
 
@@ -1202,7 +1203,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <h3>🏬 Nueva Bodega / Unidad Móvil</h3>
     <label>Nombre:</label><input type="text" id="bodNombre" placeholder="Ej. Camioneta Técnico 1">
     <label>Tipo:</label><select id="bodTipo"><option value="fija">Fija</option><option value="movil">Móvil</option></select>
-    <button class="btn-custom" style="margin-top:12px;" onclick="guardarBodega()">Guardar Bodega</button>
+    <button class="btn-custom" style="margin-top:12px;" onclick="conIndicadorCarga(this, guardarBodega)">Guardar Bodega</button>
   </div>
 </div>
 
@@ -1306,7 +1307,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 
     <div style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalNuevaOrden')">Cancelar</button>
-      <button class="btn-custom" onclick="guardarNuevaOrden()">Crear Orden</button>
+      <button class="btn-custom" onclick="conIndicadorCarga(this, guardarNuevaOrden)">Crear Orden</button>
     </div>
   </div>
 </div>
@@ -1420,8 +1421,8 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div id="detAccionesEdicion" style="margin-top:15px;display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;">
       <span style="font-size:11px;color:var(--text-muted);margin-right:auto;">No hace falta llenarlo todo — puedes guardar el avance y continuar después.</span>
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalDetalleOrden')">Cancelar</button>
-      <button class="btn-custom" onclick="guardarDetalleOrden(false)"><i class="fas fa-floppy-disk"></i> Guardar Avance</button>
-      <button class="btn-custom btn-success-custom" onclick="confirmarFinalizarOrden()">✅ Finalizar Orden</button>
+      <button class="btn-custom" onclick="conIndicadorCarga(this, ()=>guardarDetalleOrden(false))"><i class="fas fa-floppy-disk"></i> Guardar Avance</button>
+      <button class="btn-custom btn-success-custom" onclick="conIndicadorCarga(this, confirmarFinalizarOrden)">✅ Finalizar Orden</button>
     </div>
     <div id="detAccionesSoloLectura" style="margin-top:15px;text-align:right;display:none;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalDetalleOrden')">Cerrar</button>
@@ -1474,7 +1475,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div class="galeria-fotos" id="previewFotosEquipoModal"></div>
     <div style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalEquipo')">Cancelar</button>
-      <button class="btn-custom" onclick="guardarEquipoModal()">Guardar Equipo</button>
+      <button class="btn-custom" onclick="conIndicadorCarga(this, guardarEquipoModal)">Guardar Equipo</button>
     </div>
   </div>
 </div>
@@ -1642,7 +1643,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <label style="margin-top:12px;">Imágenes de referencia (fachada, entrada, punto de acceso):</label>
           <input type="file" id="cfgCliImagenInput" accept="image/*" multiple onchange="manejarImagenClienteUpload(event)">
           <div class="galeria-fotos" id="previewImagenesCliente"></div>
-          <button class="btn-custom" style="margin-top:12px;" onclick="guardarClienteConfig()">Guardar Cliente</button>
+          <button class="btn-custom" style="margin-top:12px;" onclick="conIndicadorCarga(this, guardarClienteConfig)">Guardar Cliente</button>
         </div>
         <div>
           <h4 style="margin-top:0;font-size:13px;">📋 Directorio de Clientes</h4>
@@ -1678,7 +1679,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <input type="hidden" id="cfgPlantId" value="">
           <label>Nombre de la plantilla:</label>
           <input type="text" id="cfgPlantNombre" placeholder="Ej. Mantenimiento Preventivo Cámaras">
-          <button class="btn-custom" style="margin-top:12px;" onclick="guardarPlantillaConfig()">Guardar Plantilla</button>
+          <button class="btn-custom" style="margin-top:12px;" onclick="conIndicadorCarga(this, guardarPlantillaConfig)">Guardar Plantilla</button>
         </div>
         <div>
           <h4 style="margin-top:0;font-size:13px;">📋 Plantillas Disponibles</h4>
@@ -1701,7 +1702,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
               <option value="foto">Foto específica del campo</option>
             </select>
           </div>
-          <button class="btn-custom" id="btnGuardarCampo" onclick="guardarCampoConfig()">+ Agregar Campo</button>
+          <button class="btn-custom" id="btnGuardarCampo" onclick="conIndicadorCarga(this, guardarCampoConfig)">+ Agregar Campo</button>
           <button class="btn-custom btn-secondary-custom" id="btnCancelarEdicionCampo" style="display:none;" onclick="cancelarEdicionCampo()">Cancelar edición</button>
         </div>
         <div id="wrapperCampoItems" style="display:none;">
@@ -1749,7 +1750,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <div id="checklistPermisosPersonal" style="max-height:240px;overflow-y:auto;border:1px solid var(--card-border);border-radius:8px;padding:10px;margin-top:4px;"></div>
       </div>
       <div class="field-row" style="margin-top:12px;">
-        <button class="btn-custom" id="btnGuardarTecnico" onclick="guardarTecnicoConfig()">+ Añadir Personal</button>
+        <button class="btn-custom" id="btnGuardarTecnico" onclick="conIndicadorCarga(this, guardarTecnicoConfig)">+ Añadir Personal</button>
         <button class="btn-custom btn-secondary-custom" id="btnCancelarEdicionTecnico" style="display:none;" onclick="cancelarEdicionTecnico()">Cancelar</button>
       </div>
       <table class="data-table"><thead><tr><th>Nombre</th><th>Rol</th><th>Teléfono</th><th>Usuario</th><th>Contraseña</th><th>Acción</th></tr></thead><tbody id="tablaConfigTecnicosBody"></tbody></table>
@@ -2094,19 +2095,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=52"></script>
-<script src="utilidades-navegacion.js?v=52"></script>
-<script src="buscador-agenda.js?v=52"></script>
-<script src="ordenes.js?v=52"></script>
-<script src="equipos-trazabilidad.js?v=52"></script>
-<script src="pdf.js?v=52"></script>
-<script src="config-clientes-equipos.js?v=52"></script>
-<script src="config-plantillas-tecnicos.js?v=52"></script>
-<script src="cotizador.js?v=52"></script>
-<script src="config-general.js?v=52"></script>
-<script src="inventario.js?v=52"></script>
-<script src="tienda-admin.js?v=52"></script>
-<script src="tienda-publica.js?v=52"></script>
-<script src="kpi.js?v=52"></script>
+<script src="core.js?v=55"></script>
+<script src="utilidades-navegacion.js?v=55"></script>
+<script src="buscador-agenda.js?v=55"></script>
+<script src="ordenes.js?v=55"></script>
+<script src="equipos-trazabilidad.js?v=55"></script>
+<script src="pdf.js?v=55"></script>
+<script src="config-clientes-equipos.js?v=55"></script>
+<script src="config-plantillas-tecnicos.js?v=55"></script>
+<script src="cotizador.js?v=55"></script>
+<script src="config-general.js?v=55"></script>
+<script src="inventario.js?v=55"></script>
+<script src="tienda-admin.js?v=55"></script>
+<script src="tienda-publica.js?v=55"></script>
+<script src="kpi.js?v=55"></script>
 </body>
 </html>

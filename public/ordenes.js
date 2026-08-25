@@ -318,8 +318,8 @@ async function guardarDetalleOrden(finalizar){
   mostrarToast((finalizar && !esEdicionForzada) ? '✅ Informe guardado y orden finalizada correctamente.' : '✅ Avance guardado — puedes cerrar y continuar cuando quieras.', 'exito');
   renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
 }
-function confirmarFinalizarOrden(){
+async function confirmarFinalizarOrden(){
   if(!confirm('¿Finalizar esta orden? Una vez finalizada no podrás editar el técnico, los datos del formulario, las fotos ni las firmas.')) return;
-  guardarDetalleOrden(true);
+  await guardarDetalleOrden(true);
 }
 
