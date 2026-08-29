@@ -574,8 +574,9 @@ function mostrarToast(mensaje, tipo){
   el.className = 'toast ' + tipo;
   el.innerHTML = `<span class="toast-icono">${icono}</span><span class="toast-texto">${mensaje}</span><span class="toast-cerrar" onclick="this.parentElement.remove()">✖</span>`;
   cont.appendChild(el);
+  const duracion = tipo==='error' ? 9000 : 7000;
   setTimeout(()=>{
     el.classList.add('saliendo');
     setTimeout(()=>el.remove(), 250);
-  }, 4200);
+  }, duracion);
 }

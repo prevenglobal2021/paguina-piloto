@@ -489,6 +489,16 @@ async function eliminarGasto(id){
   mostrarToast('✅ Gasto eliminado.', 'exito');
   renderizarContabilidad();
 }
+// Cambia entre las 4 pestañas del módulo de Negocio/Contabilidad. Todo el
+// contenido de cada pestaña ya existe en la página (nunca se destruye ni se
+// vuelve a crear al cambiar) — esto solo cambia cuál está visible, por eso
+// el cambio es instantáneo y ningún dato ni función se ve afectada.
+function cambiarTabContabilidad(event, nombre){
+  document.querySelectorAll('.conta-tab-content').forEach(el=>el.classList.remove('activo'));
+  document.querySelectorAll('.conta-tab-btn').forEach(el=>el.classList.remove('activo'));
+  document.getElementById('contaTab'+nombre).classList.add('activo');
+  event.currentTarget.classList.add('activo');
+}
 function renderizarContabilidad(){
   db.liquidacionesNomina = db.liquidacionesNomina || []; db.gastos = db.gastos || []; db.pedidosTienda = db.pedidosTienda || []; db.ingresos = db.ingresos || [];
   const filtroMes = document.getElementById('contaMesFiltro');
