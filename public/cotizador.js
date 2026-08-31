@@ -266,31 +266,68 @@ function renderizarHistorialNomina(){
   // se crearon — ya no depende del orden en que casualmente quedaron guardadas.
   lista = lista.sort((a,b)=> b.fecha.localeCompare(a.fecha) || b.id - a.id);
 
-  document.getElementById('tablaNomina').innerHTML = lista.map(l=>{
-    const nombreMostrado = l.esOcasional
-      ? `${l.personalOcasionalNombre||'—'} <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;">OCASIONAL</span>`
-      : (buscarTecnico(l.tecnicoId)?.nombre || '—');
-    const infoEstadoPago = infoEstadoPagoNomina(l.estadoPago);
-    const estadoPagoHtml = `<span style="font-size:10px;font-weight:700;background:${infoEstadoPago.fondo};color:${infoEstadoPago.texto};padding:3px 10px;border-radius:12px;white-space:nowrap;" title="${l.montoAbonado ? 'Abonado: '+formatoCOP(l.montoAbonado)+' de '+formatoCOP(l.totalNeto) : ''}"><i class="fas ${infoEstadoPago.icono}"></i> ${infoEstadoPago.etiqueta}</span>`;
-    return `<tr>
-      <td>${l.numero}</td><td>${nombreMostrado}</td><td>${l.periodoDesde} a ${l.periodoHasta}</td>
-      <td>${formatoCOP(l.totalNeto)}</td>
-      <td>${estadoPagoHtml}</td>
-      <td>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verComprobanteNomina(${l.id})"><i class="fas fa-file-invoice"></i> Ver comprobante</button>
-        <button class="btn-custom btn-success-custom btn-sm-custom solo-admin" data-permiso="nomina_editar" onclick="cambiarEstadoPagoNomina(${l.id})"><i class="fas fa-hand-holding-dollar"></i> Estado de pago</button>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="nomina_editar" onclick="editarLiquidacionNomina(${l.id})"><i class="fas fa-pen"></i> Editar</button>
-        <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" data-permiso="nomina_eliminar" onclick="eliminarLiquidacionNomina(${l.id})"><i class="fas fa-trash"></i> Eliminar</button>
+  // Una paleta fija de colores para distinguir cada período/corte a simple
+  // vista — se asigna siempre en el mismo orden según la fecha del período,
+  // así el mismo corte se ve siempre del mismo color entre sesiones.
+  const PALETA_PERIODOS_NOMINA = [
+    { fondo:'#eff6ff', borde:'#bfdbfe', texto:'#1e3a5f', barra:'#3b82f6' },
+    { fondo:'#f0fdf4', borde:'#bbf7d0', texto:'#166534', barra:'#22c55e' },
+    { fondo:'#fef3c7', borde:'#fde68a', texto:'#92400e', barra:'#f59e0b' },
+    { fondo:'#fae8ff', borde:'#f5d0fe', texto:'#86198f', barra:'#d946ef' },
+    { fondo:'#ecfeff', borde:'#a5f3fc', texto:'#155e75', barra:'#06b6d4' },
+    { fondo:'#fff1f2', borde:'#fecdd3', texto:'#9f1239', barra:'#f43f5e' },
+  ];
+  // Agrupa las liquidaciones ya filtradas/ordenadas por su período exacto
+  // (mismo "Desde" y "Hasta"), conservando el orden (más reciente primero).
+  const gruposPorPeriodo = [];
+  const indicePorClave = {};
+  lista.forEach(l=>{
+    const clave = `${l.periodoDesde}|${l.periodoHasta}`;
+    if(!(clave in indicePorClave)){
+      indicePorClave[clave] = gruposPorPeriodo.length;
+      gruposPorPeriodo.push({ periodoDesde:l.periodoDesde, periodoHasta:l.periodoHasta, registros:[] });
+    }
+    gruposPorPeriodo[indicePorClave[clave]].registros.push(l);
+  });
+
+  document.getElementById('tablaNomina').innerHTML = gruposPorPeriodo.map((grupo, idx)=>{
+    const color = PALETA_PERIODOS_NOMINA[idx % PALETA_PERIODOS_NOMINA.length];
+    const totalPeriodo = grupo.registros.reduce((s,l)=>s+l.totalNeto, 0);
+    const filaEncabezado = `<tr style="background:${color.fondo};">
+      <td colspan="6" style="border-left:4px solid ${color.barra};color:${color.texto};font-weight:700;padding:8px 12px;">
+        📅 Período: ${grupo.periodoDesde} a ${grupo.periodoHasta}
+        <span style="float:right;">${grupo.registros.length} persona${grupo.registros.length===1?'':'s'} — Total del período: ${formatoCOP(totalPeriodo)}</span>
       </td>
     </tr>`;
+    const filas = grupo.registros.map(l=>{
+      const nombreMostrado = l.esOcasional
+        ? `${l.personalOcasionalNombre||'—'} <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;">OCASIONAL</span>`
+        : (buscarTecnico(l.tecnicoId)?.nombre || '—');
+      const infoEstadoPago = infoEstadoPagoNomina(l.estadoPago);
+      const estadoPagoHtml = `<span style="font-size:10px;font-weight:700;background:${infoEstadoPago.fondo};color:${infoEstadoPago.texto};padding:3px 10px;border-radius:12px;white-space:nowrap;" title="${l.montoAbonado ? 'Abonado: '+formatoCOP(l.montoAbonado)+' de '+formatoCOP(l.totalNeto) : ''}"><i class="fas ${infoEstadoPago.icono}"></i> ${infoEstadoPago.etiqueta}</span>`;
+      return `<tr style="border-left:4px solid ${color.borde};">
+        <td>${l.numero}</td><td>${nombreMostrado}</td><td>${l.periodoDesde} a ${l.periodoHasta}</td>
+        <td>${formatoCOP(l.totalNeto)}</td>
+        <td>${estadoPagoHtml}</td>
+        <td>
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verComprobanteNomina(${l.id})"><i class="fas fa-file-invoice"></i> Ver comprobante</button>
+          <button class="btn-custom btn-success-custom btn-sm-custom solo-admin" data-permiso="nomina_editar" onclick="cambiarEstadoPagoNomina(${l.id})"><i class="fas fa-hand-holding-dollar"></i> Estado de pago</button>
+          <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="nomina_editar" onclick="editarLiquidacionNomina(${l.id})"><i class="fas fa-pen"></i> Editar</button>
+          <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" data-permiso="nomina_eliminar" onclick="eliminarLiquidacionNomina(${l.id})"><i class="fas fa-trash"></i> Eliminar</button>
+        </td>
+      </tr>`;
+    }).join('');
+    return filaEncabezado + filas;
   }).join('') || '<tr><td colspan="6" class="empty-state">Sin liquidaciones que coincidan con la búsqueda.</td></tr>';
 
-  // Total general de justo lo que está filtrado/visible en la tabla en este momento.
+  // Total general de TODOS los períodos juntos — separado y con menor
+  // protagonismo que los totales individuales de cada período, que ya se
+  // ven arriba en su propio encabezado de color.
   const totalGeneral = lista.reduce((suma,l)=>suma + l.totalNeto, 0);
   const pieTabla = document.getElementById('pieTotalNomina');
   if(pieTabla){
     pieTabla.innerHTML = lista.length
-      ? `<tr style="font-weight:700;background:#eff6ff;color:#1e3a5f;border-top:2px solid #bfdbfe;"><td colspan="3" style="text-align:right;">Total (${lista.length} comprobante${lista.length===1?'':'s'}):</td><td colspan="3">${formatoCOP(totalGeneral)}</td></tr>`
+      ? `<tr style="font-weight:700;background:#f1f5f9;color:#334155;border-top:2px solid #cbd5e1;"><td colspan="3" style="text-align:right;">Suma general de los ${gruposPorPeriodo.length} período${gruposPorPeriodo.length===1?'':'s'} (${lista.length} comprobante${lista.length===1?'':'s'}):</td><td colspan="3">${formatoCOP(totalGeneral)}</td></tr>`
       : '';
   }
   aplicarRBACaUI();
