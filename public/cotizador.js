@@ -512,14 +512,30 @@ async function agregarGasto(){
   mostrarToast(`✅ Gasto registrado: ${categoria} — ${formatoCOP(monto)}`, 'exito');
 }
 async function eliminarGasto(id){
-  if(!confirm('¿Eliminar este gasto?')) return;
+  const gasto = db.gastos.find(g=>g.id===id);
+  const mensaje = gasto && gasto.origenNominaId
+    ? '⚠️ Este gasto se generó automáticamente desde una liquidación de Nómina. Si lo eliminas aquí, la nómina seguirá marcada como pagada, pero ya no quedará reflejada en Gastos. ¿Eliminar de todas formas?'
+    : '¿Eliminar este gasto?';
+  if(!confirm(mensaje)) return;
   const listaAnterior = db.gastos.slice();
   db.gastos = db.gastos.filter(g=>g.id!==id);
+  // Si el gasto venía de una nómina, se ajusta el rastreo de esa nómina para
+  // que, si más adelante se vuelve a tocar su estado de pago, no se pierda
+  // la cuenta de lo que ya se había reflejado en Gastos.
+  let liquidacionAfectada = null, montoAnteriorLiquidacion = null;
+  if(gasto && gasto.origenNominaId){
+    liquidacionAfectada = (db.liquidacionesNomina||[]).find(l=>l.id===gasto.origenNominaId);
+    if(liquidacionAfectada){
+      montoAnteriorLiquidacion = liquidacionAfectada.montoRegistradoComoGasto;
+      liquidacionAfectada.montoRegistradoComoGasto = Math.max(0, (liquidacionAfectada.montoRegistradoComoGasto||0) - gasto.monto);
+    }
+  }
   registrarEliminacion('gastos', id);
   try{
     await dbGuardarInmediato();
   }catch(err){
     db.gastos = listaAnterior;
+    if(liquidacionAfectada) liquidacionAfectada.montoRegistradoComoGasto = montoAnteriorLiquidacion;
     mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
     return;
   }
@@ -581,9 +597,11 @@ function renderizarContabilidad(){
       <td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarIngreso(${i.id})">X</button></td></tr>`;
   }).join('') || `<tr><td colspan="5" class="empty-state">${textoBusqueda ? 'Sin ingresos que coincidan con "'+document.getElementById('contaBuscarTexto').value+'".' : 'Sin ingresos manuales registrados este mes.'}</td></tr>`;
 
-  document.getElementById('tablaGastos').innerHTML = gastosFiltrados.map(g=>`
-    <tr><td>${g.fecha}</td><td>${g.categoria}</td><td>${g.descripcion}</td><td>${formatoCOP(g.monto)}</td>
-      <td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarGasto(${g.id})">X</button></td></tr>`).join('') || `<tr><td colspan="5" class="empty-state">${textoBusqueda ? 'Sin gastos que coincidan con "'+document.getElementById('contaBuscarTexto').value+'".' : 'Sin gastos registrados este mes.'}</td></tr>`;
+  document.getElementById('tablaGastos').innerHTML = gastosFiltrados.map(g=>{
+    const etiquetaCategoria = g.origenNominaId ? `${g.categoria} <span title="Este gasto se generó automáticamente al marcar una nómina como pagada" style="font-size:9px;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:8px;"><i class="fas fa-link"></i> Automático</span>` : g.categoria;
+    return `<tr><td>${g.fecha}</td><td>${etiquetaCategoria}</td><td>${g.descripcion}</td><td>${formatoCOP(g.monto)}</td>
+      <td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarGasto(${g.id})">X</button></td></tr>`;
+  }).join('') || `<tr><td colspan="5" class="empty-state">${textoBusqueda ? 'Sin gastos que coincidan con "'+document.getElementById('contaBuscarTexto').value+'".' : 'Sin gastos registrados este mes.'}</td></tr>`;
 
   document.getElementById('tablaPedidosTiendaConta').innerHTML = pedidosDelMes.map(p=>`
     <tr><td>${p.numero}</td><td>${new Date(p.fecha).toLocaleDateString('es-CO')}</td><td>${p.nombre}</td><td>${formatoCOP(p.total)}</td><td><small>${p.estadoPago}</small></td></tr>`).join('') || '<tr><td colspan="5" class="empty-state">Sin pedidos de la tienda este mes.</td></tr>';
@@ -923,6 +941,52 @@ function toggleMontoAbonadoNomina(){
   const estado = document.getElementById('selEstadoPagoNomina').value;
   document.getElementById('wrapperMontoAbonadoNomina').style.display = (estado==='parcial' || estado==='abonado') ? 'block' : 'none';
 }
+// Mantiene sincronizado el Registro de Gastos con el estado de pago real de
+// cada nómina — sin importar cuántas veces se cambie el estado (marcar,
+// desmarcar, abonar más, completar después), nunca queda un gasto duplicado
+// ni de más: siempre se ajusta a la diferencia exacta desde el último cambio.
+function sincronizarGastoDesdeNomina(l){
+  const yaRegistrado = l.montoRegistradoComoGasto || 0;
+  const debeEstarPagado = l.estadoPago==='pagado' ? l.totalNeto : (l.estadoPago==='parcial'||l.estadoPago==='abonado') ? (l.montoAbonado||0) : 0;
+  if(debeEstarPagado === yaRegistrado) return; // nada cambió realmente, no hay nada que sincronizar
+
+  const nombrePersona = l.esOcasional ? (l.personalOcasionalNombre||'—') : (buscarTecnico(l.tecnicoId)?.nombre||'—');
+  db.gastos = db.gastos || [];
+
+  if(debeEstarPagado === 0){
+    // Se volvió a marcar como "Pendiente" — se retira por completo el/los
+    // gasto(s) que se habían generado para esta nómina, para que no quede
+    // reflejado un pago que en realidad no se hizo (o ya no está confirmado).
+    db.gastos = db.gastos.filter(g=>g.origenNominaId !== l.id);
+  } else if(debeEstarPagado > yaRegistrado){
+    // Aumentó lo pagado (primer pago, o un abono adicional, o se completó
+    // después de un abono) — se agrega SOLO la diferencia como un gasto
+    // nuevo, nunca el total de nuevo.
+    const diferencia = debeEstarPagado - yaRegistrado;
+    db.gastos.push({
+      id: Date.now() + Math.floor(Math.random()*1000),
+      categoria: 'Nómina',
+      descripcion: `Pago de nómina — ${nombrePersona} — periodo ${l.periodoDesde} a ${l.periodoHasta} (${l.numero})`,
+      monto: diferencia,
+      fecha: l.fechaPago || new Date().toISOString().slice(0,10),
+      origenNominaId: l.id
+    });
+  } else {
+    // Disminuyó lo pagado (por ejemplo, se corrigió un abono hacia abajo) —
+    // se retiran los gastos previos de esta nómina y se registra uno solo
+    // con el monto correcto y actualizado, para no dejar cifras de más.
+    db.gastos = db.gastos.filter(g=>g.origenNominaId !== l.id);
+    db.gastos.push({
+      id: Date.now() + Math.floor(Math.random()*1000),
+      categoria: 'Nómina',
+      descripcion: `Pago de nómina — ${nombrePersona} — periodo ${l.periodoDesde} a ${l.periodoHasta} (${l.numero})`,
+      monto: debeEstarPagado,
+      fecha: l.fechaPago || new Date().toISOString().slice(0,10),
+      origenNominaId: l.id
+    });
+  }
+  l.montoRegistradoComoGasto = debeEstarPagado;
+}
 async function guardarEstadoPagoNomina(){
   const l = (db.liquidacionesNomina||[]).find(x=>x.id===nominaEstadoPagoActualId);
   if(!l) return;
@@ -934,14 +998,17 @@ async function guardarEstadoPagoNomina(){
     if(!montoAbonado || montoAbonado<=0){ mostrarToast('Escribe el monto abonado hasta ahora.'); return; }
     if(montoAbonado >= l.totalNeto){ mostrarToast('El monto abonado no puede ser igual o mayor al total — para eso usa "Pagada completa".'); return; }
   }
-  const respaldo = { estadoPago: l.estadoPago, fechaPago: l.fechaPago, montoAbonado: l.montoAbonado };
+  const respaldo = { estadoPago: l.estadoPago, fechaPago: l.fechaPago, montoAbonado: l.montoAbonado, montoRegistradoComoGasto: l.montoRegistradoComoGasto };
+  const gastosRespaldo = (db.gastos||[]).slice();
   l.estadoPago = nuevoEstado;
   l.fechaPago = nuevoEstado==='pendiente' ? null : new Date().toISOString().slice(0,10);
   l.montoAbonado = montoAbonado;
+  sincronizarGastoDesdeNomina(l);
   try{
     await dbGuardarInmediato();
   }catch(err){
     Object.assign(l, respaldo);
+    db.gastos = gastosRespaldo;
     mostrarToast('⚠️ No se pudo actualizar el estado de pago: ' + err.message, 'error');
     return;
   }
