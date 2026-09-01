@@ -225,20 +225,33 @@ async function fusionarConServidorAntesDeGuardar(){
   }catch(e){ /* sin conexión o muy lenta: seguimos con la copia local, ya sin fusionar — no debe demorar el guardado real */ }
 }
 
-async function enviarEstadoAlServidor(){
+async function enviarEstadoAlServidor(confirmarSobrescritura){
   await fusionarConServidorAntesDeGuardar();
+  const cuerpoAEnviar = confirmarSobrescritura ? Object.assign({}, db, { confirmarSobrescritura: true }) : db;
   const resp = await fetchConLimite(API_BASE + '/api/state', {
     method: 'PUT',
     headers: headersAutenticados({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify(db)
+    body: JSON.stringify(cuerpoAEnviar)
   }, 70);
   if(!resp.ok){
     // Antes esto no se verificaba: un 413 (payload muy grande, típico con fotos sin
     // comprimir de celular) o un 500 pasaban como "enviado" sin serlo, en silencio.
     // Ahora también se lee el detalle real que devuelve el servidor (antes se
     // ignoraba, y solo se mostraba un código genérico sin explicar qué pasó).
-    let detalle = '';
-    try{ const cuerpo = await resp.json(); if(cuerpo && cuerpo.error) detalle = cuerpo.error; }catch(e){ /* la respuesta no traía detalle en JSON */ }
+    let detalle = '', cuerpo = null;
+    try{ cuerpo = await resp.json(); if(cuerpo && cuerpo.error) detalle = cuerpo.error; }catch(e){ /* la respuesta no traía detalle en JSON */ }
+    // Protección contra pérdida masiva de datos: el servidor bloqueó este
+    // guardado porque tiene muchos menos registros que la versión ya
+    // guardada — probablemente una copia vieja/incompleta a punto de
+    // sobrescribir información real. Se explica con claridad y, si el
+    // usuario confirma que de verdad quiere continuar, se reintenta una vez.
+    if(resp.status === 409 && cuerpo && cuerpo.posiblePerdidaDatos && !confirmarSobrescritura){
+      const mensaje = `⚠️ ADVERTENCIA: este guardado tiene muchos menos registros de los que ya había en el servidor.\n\nAntes: ${cuerpo.conteoAnterior.total} registros (${cuerpo.conteoAnterior.clientes} clientes, ${cuerpo.conteoAnterior.ordenes} órdenes, ${cuerpo.conteoAnterior.inventario} ítems, ${cuerpo.conteoAnterior.nomina} nóminas).\nAhora: ${cuerpo.conteoNuevo.total} registros.\n\nEsto suele pasar cuando el dispositivo tiene una copia vieja o incompleta. ¿Estás SEGURO de que quieres continuar y sobrescribir con esta versión más pequeña?`;
+      if(confirm(mensaje)){
+        return enviarEstadoAlServidor(true);
+      }
+      throw new Error('Guardado cancelado — se detectó una posible pérdida de información y decidiste no continuar. Recarga la página para traer la versión real del servidor.');
+    }
     if(!detalle){
       if(resp.status === 413) detalle = 'La información es demasiado pesada (posiblemente una foto sin comprimir).';
       else if(resp.status === 401) detalle = 'Tu sesión expiró, vuelve a iniciar sesión.';

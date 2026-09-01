@@ -276,12 +276,30 @@ async function eliminarEtiqueta(lista, idx){
 /* =========================================================
    BACKUP / RESET / EXPORT
 ========================================================= */
-function exportarBaseDatosJSON(){
-  const blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `Prevenglobal_Backup_${new Date().toISOString().slice(0,10)}.json`;
-  link.click();
+async function exportarBaseDatosJSON(){
+  // Antes esto exportaba la copia local del navegador, que podría estar
+  // desactualizada o incompleta (el mismo riesgo que causó la pérdida de
+  // información). Ahora se pide directo al servidor la versión real y
+  // confirmada — así el respaldo siempre refleja lo que de verdad hay guardado.
+  try{
+    const resp = await fetchConLimite(API_BASE + '/api/backup', { headers: headersAutenticados() }, 20);
+    if(!resp.ok) throw new Error('El servidor no pudo generar el respaldo (código ' + resp.status + ').');
+    const blob = await resp.blob();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Prevenglobal_Backup_${new Date().toISOString().slice(0,10)}.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    mostrarToast('✅ Respaldo descargado — es la versión real y confirmada del servidor.', 'exito');
+  }catch(err){
+    mostrarToast('⚠️ No se pudo descargar el respaldo del servidor: ' + err.message + ' — se descargará la copia local como alternativa.', 'error');
+    const blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Prevenglobal_Backup_LOCAL_${new Date().toISOString().slice(0,10)}.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
 }
 function importarClientesEquipos(event){
   const file = event.target.files[0];
