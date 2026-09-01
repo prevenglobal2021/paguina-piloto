@@ -465,7 +465,23 @@ app.post('/api/auth/confirmar-reset', limiteLogin, async (req, res) => {
 --------------------------------------------------------- */
 // Endpoint liviano: solo dice CUÁNDO fue el último cambio guardado (unos
 // bytes), sin bajar toda la información. Se usa para revisar frecuentemente
-// "¿cambió algo?" sin gastar ancho de banda — solo si la respuesta indica
+// Respaldo manual bajo demanda — descarga el estado completo actual como un
+// archivo JSON, para que el usuario pueda guardarlo a mano antes de un
+// cambio grande, o simplemente como copia de seguridad extra.
+app.get('/api/backup', requireAuth, async (req, res) => {
+  try{
+    const estado = await leerEstadoEmpresa(req.slug);
+    if(!estado) return res.status(404).json({ error: 'Empresa no encontrada.' });
+    const fecha = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    res.setHeader('Content-Disposition', `attachment; filename="respaldo-${req.slug}-${fecha}.json"`);
+    res.setHeader('Content-Type', 'application/json');
+    res.send(JSON.stringify(estado, null, 2));
+  }catch(err){
+    console.error('[backup] Error:', err);
+    res.status(500).json({ error: err.message || 'Error al generar el respaldo.' });
+  }
+});
+// \"¿cambió algo?\" sin gastar ancho de banda — solo si la respuesta indica
 // que sí cambió, el frontend pide entonces el estado completo con /api/state.
 app.get('/api/state/meta', requireAuth, async (req, res) => {
   try{
@@ -486,6 +502,18 @@ app.get('/api/state', requireAuth, async (req, res) => {
   res.json(Object.assign({}, data, { tecnicos, config }));
 });
 
+// Cuenta los registros de las entidades más importantes del negocio, para
+// poder detectar si un guardado está a punto de borrar información masiva
+// por accidente (por ejemplo, un dispositivo con una copia vieja/incompleta
+// que sobrescribe la versión completa que ya había en el servidor).
+function contarEntidadesClave(estado) {
+  const clientes = (estado.clientes || []).length;
+  const ordenes = (estado.ordenes || []).length;
+  const inventario = (estado.inventario || []).length;
+  const plantillas = (estado.plantillas || []).length;
+  const nomina = (estado.liquidacionesNomina || []).length;
+  return { clientes, ordenes, inventario, plantillas, nomina, total: clientes + ordenes + inventario + plantillas + nomina };
+}
 app.put('/api/state', requireAuth, async (req, res) => {
   // --- Registro temporal de diagnóstico: se puede quitar más adelante,
   // pero por ahora ayuda a ver EXACTAMENTE qué está pasando con cada
@@ -498,6 +526,26 @@ app.put('/api/state', requireAuth, async (req, res) => {
     const pesoKB = Math.round(JSON.stringify(nuevo).length / 1024);
     const cantidadOrdenes = (nuevo.ordenes || []).length;
     console.log(`[guardar-state] recibido: ${pesoKB} KB, ${cantidadOrdenes} órdenes, empresa=${req.slug}`);
+
+    // --- Protección contra pérdida masiva de datos (blindaje agregado tras
+    // el incidente del 30 de agosto de 2026) ---
+    // Si el guardado que llega tiene MUCHOS menos registros que lo que ya
+    // había guardado, probablemente viene de un dispositivo con una copia
+    // vieja/incompleta — se rechaza en vez de sobrescribir a ciegas, salvo
+    // que el usuario confirme explícitamente que sí quiere hacerlo.
+    const conteoAnterior = contarEntidadesClave(anterior);
+    const conteoNuevo = contarEntidadesClave(nuevo);
+    const UMBRAL_MINIMO_PARA_VIGILAR = 5; // cuentas casi vacías no valen la pena vigilar
+    const perdidaSevera = conteoAnterior.total >= UMBRAL_MINIMO_PARA_VIGILAR && conteoNuevo.total < conteoAnterior.total * 0.5;
+    if (perdidaSevera && !nuevo.confirmarSobrescritura) {
+      console.warn(`[guardar-state] BLOQUEADO por posible pérdida de datos — empresa=${req.slug}: antes=${JSON.stringify(conteoAnterior)} ahora=${JSON.stringify(conteoNuevo)}`);
+      return res.status(409).json({
+        ok: false,
+        posiblePerdidaDatos: true,
+        error: `Este guardado tiene muchos menos registros de los que ya había (antes: ${conteoAnterior.total} en total, ahora: ${conteoNuevo.total}). Para evitar borrar información por accidente, no se guardó todavía.`,
+        conteoAnterior, conteoNuevo
+      });
+    }
 
     const tecnicosFusionados = (nuevo.tecnicos || []).map(t => {
       const previo = (anterior.tecnicos || []).find(x => x.id === t.id);
@@ -518,6 +566,7 @@ app.put('/api/state', requireAuth, async (req, res) => {
     delete configNuevo.adminPassword;
 
     const estadoFinal = Object.assign({}, nuevo, { tecnicos: tecnicosFusionados, config: configNuevo });
+    delete estadoFinal.confirmarSobrescritura;
     const actualizadoEn = await guardarEstadoEmpresa(req.slug, estadoFinal);
     console.log(`[guardar-state] OK en ${Date.now()-inicio}ms — empresa=${req.slug}`);
     res.json({ ok: true, actualizadoEn });
