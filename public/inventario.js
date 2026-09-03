@@ -1,4 +1,4 @@
-// ===== inventario.js — Inventario, Bodegas, Kardex y QR =====
+// ===== inventario.js — Módulo de Inventario, Bodegas, Kardex, QR y Visor de Fotos =====
 /* =========================================================
    INVENTARIO, BODEGAS, KARDEX Y QR
 ========================================================= */
@@ -9,7 +9,42 @@ function buscarItemInventario(id){ return (db.inventario || []).find(i=>i.id===i
 function buscarBodega(id){ return (db.bodegas || []).find(b=>b.id===id); }
 
 /* ---------------------------------------------------------
-   BODEGAS (Crear, Editar y Listar)
+   VISOR DE FOTOS EN ALTA RESOLUCIÓN (MODAL AUTÓNOMO)
+--------------------------------------------------------- */
+function verFotoInventarioGrande(src, nombreItem){
+  let modal = document.getElementById('modalVisorFotoGrande');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'modalVisorFotoGrande';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,.88);z-index:999999;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;backdrop-filter:blur(5px);cursor:zoom-out;';
+    modal.onclick = cerrarVisorFoto;
+    modal.innerHTML = `
+      <div style="position:relative;max-width:92%;max-height:88%;text-align:center;" onclick="event.stopPropagation();">
+        <button type="button" onclick="cerrarVisorFoto()" style="position:absolute;top:-15px;right:-15px;background:#ef4444;color:#ffffff;border:2px solid #ffffff;width:34px;height:34px;border-radius:50%;font-size:16px;font-weight:bold;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.5);line-height:1;display:flex;align-items:center;justify-content:center;">✕</button>
+        <img id="imgVisorFotoGrande" src="" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px;border:3px solid #ffffff;box-shadow:0 12px 35px rgba(0,0,0,.6);background:#000;">
+        <p id="lblVisorFotoGrande" style="color:#ffffff;margin-top:12px;font-size:15px;font-weight:600;letter-spacing:.02em;text-shadow:0 2px 5px rgba(0,0,0,.9);"></p>
+      </div>`;
+    document.body.appendChild(modal);
+
+    document.addEventListener('keydown', (e) => {
+      if(e.key === 'Escape') cerrarVisorFoto();
+    });
+  }
+  
+  const imgEl = document.getElementById('imgVisorFotoGrande');
+  const lblEl = document.getElementById('lblVisorFotoGrande');
+  if(imgEl) imgEl.src = src;
+  if(lblEl) lblEl.innerText = nombreItem || 'Fotografía de producto';
+  modal.style.display = 'flex';
+}
+
+function cerrarVisorFoto(){
+  const modal = document.getElementById('modalVisorFotoGrande');
+  if(modal) modal.style.display = 'none';
+}
+
+/* ---------------------------------------------------------
+   GESTIÓN Y EDICIÓN DE BODEGAS
 --------------------------------------------------------- */
 function abrirModalBodega(bodegaId){
   bodegaEdicionId = bodegaId || null;
@@ -242,7 +277,7 @@ function verFichaQR(itemId){
 }
 
 /* ---------------------------------------------------------
-   RENDERIZADO DE TABLAS
+   RENDERIZADO DE TABLAS CON CLICK EN FOTO GRANDE
 --------------------------------------------------------- */
 function renderizarInventario(){
   const tbody = document.getElementById('tablaInventario');
@@ -262,12 +297,17 @@ function renderizarInventario(){
     tbody.innerHTML = itemsFiltrados.map(it=>{
       const bodega = buscarBodega(it.bodegaId);
       const bajoStock = it.stockActual <= it.stockMinimo;
-      const fotosHtml = (it.fotos||[]).map(f=>`<img src="${srcDeFoto(f)}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;margin-right:3px;">`).join('');
+      
+      const fotosHtml = (it.fotos||[]).map(f=>{
+        const src = srcDeFoto(f);
+        return `<img src="${src}" onclick="verFotoInventarioGrande('${src}', '${(it.nombre||'').replace(/'/g, "\\'")}')" style="width:34px;height:34px;object-fit:cover;border-radius:4px;margin-right:4px;cursor:zoom-in;border:1px solid #cbd5e1;" title="Clic para ampliar foto">`;
+      }).join('');
+
       return `<tr>
         <td><strong>${it.nombre}</strong><br><small style="color:var(--text-muted);">${it.categoria||''}</small></td>
         <td>
           ${bodega ? bodega.nombre : '—'}
-          <button class="btn-custom btn-secondary-custom btn-sm-custom" style="padding:1px 5px;font-size:10px;margin-left:5px;" onclick="abrirModalBodega(${it.bodegaId})" title="Editar nombre de esta bodega"><i class="fas fa-pen"></i></button>
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" style="padding:1px 5px;font-size:10px;margin-left:5px;" onclick="abrirModalBodega(${it.bodegaId})" title="Editar nombre de bodega"><i class="fas fa-pen"></i></button>
         </td>
         <td>${it.stockActual} <span class="${bajoStock?'badge-stock-bajo':'badge-stock-ok'}">${bajoStock?'BAJO':'OK'}</span><br><small style="color:var(--text-muted);">mín: ${it.stockMinimo}</small></td>
         <td>${fotosHtml||'—'}</td>
