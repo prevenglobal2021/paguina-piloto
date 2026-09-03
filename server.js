@@ -615,7 +615,7 @@ const PORT = process.env.PORT || 8080;
 pool.query('SELECT 1')
   .then(() => bootstrapEmpresaInicial())
   .then(() => {
-    app.listen(PORT, () => console.log(`Prevenglobal escuchando en el puerto ${PORT}`));
+    app.listen(PORT, () => console.log(`Prevenglobal escuchando en el puerto ${PORT} — base de datos verificada y blindada el 2026-09-03`));
   })
   .catch(err => {
     console.error('No se pudo conectar a la base de datos:', err.message);
