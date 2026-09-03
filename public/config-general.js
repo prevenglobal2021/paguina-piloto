@@ -1,4 +1,4 @@
-// ===== config-general.js — Configuración General, Empresa y Selector de Temas =====
+// ===== config-general.js — Configuración General y Perfil =====
 /* =========================================================
    CONFIGURACIÓN GENERAL
 ========================================================= */
@@ -68,76 +68,14 @@ function manejarLogoUpload(event){
   });
 }
 
-/* =========================================================
-   SELECTOR VISUAL DE TEMAS METALIZADOS
-========================================================= */
-function renderizarTemasClaros(){
-  const cont = document.getElementById('temasClarosGrid');
-  if(!cont) return;
-
-  const cfg = db.config || {};
-  const temaActual = cfg.temaMetalizado || 'titanio';
-
-  cont.innerHTML = TEMAS_CLAROS_METALIZADOS.map(t => {
-    const seleccionado = (temaActual === t.clave) ? 'seleccionado' : '';
-    return `
-      <div class="tema-claro-opcion ${seleccionado}" onclick="aplicarTemaMetalizado('${t.clave}')" style="cursor:pointer;">
-        <div class="tema-claro-preview" style="background:linear-gradient(135deg, ${t.sidebar1}, ${t.sidebar2});box-shadow:inset 0 0 10px rgba(255,255,255,.6);">
-          <div style="width:32%;height:100%;background:linear-gradient(180deg, ${t.sidebar1}, ${t.sidebar2});border-right:1px solid ${t.borde};"></div>
-          <div style="flex:1;height:100%;display:flex;flex-direction:column;">
-            <div style="height:35%;background:linear-gradient(90deg, ${t.topbar1}, ${t.topbar2});border-bottom:1px solid ${t.borde};"></div>
-            <div style="flex:1;background:${t.fondo};padding:3px;display:flex;align-items:center;justify-content:center;">
-              <div style="width:80%;height:70%;background:${t.panel1};border:1px solid ${t.borde};border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.08);"></div>
-            </div>
-          </div>
-        </div>
-        <span style="font-size:11px;margin-top:5px;display:block;"><strong>${t.nombre}</strong></span>
-      </div>
-    `;
-  }).join('');
-}
-
-async function aplicarTemaMetalizado(clave){
-  const t = TEMAS_CLAROS_METALIZADOS.find(x => x.clave === clave);
-  if(!t) return;
-
-  db.config = db.config || {};
-  db.config.temaMetalizado = t.clave;
-  db.config.colorAcento = t.acento;
-  db.config.colorFondo = t.fondo;
-  db.config.colorSidebar1 = t.sidebar1;
-  db.config.colorSidebar2 = t.sidebar2;
-  db.config.colorTopbar1 = t.topbar1;
-  db.config.colorTopbar2 = t.topbar2;
-  db.config.colorPanel1 = t.panel1;
-  db.config.colorPanel2 = t.panel2;
-  db.config.cardBorder = t.borde;
-  db.config.colorTexto = t.texto;
-  db.config.modoClaro = true;
-
-  aplicarConfiguracionVisual();
-  renderizarTemasClaros();
-
-  // Guardado inmediato en base de datos para evitar que el refresco de fondo lo borre
-  try {
-    await dbGuardarInmediato();
-    mostrarToast(`✨ Tema ${t.nombre} guardado y fijado permanentemente.`, 'exito');
-  } catch(e) {
-    mostrarToast('⚠️ Tema aplicado localmente (pendiente de sincronización).', 'info');
-  }
-}
-
 function renderizarConfigApariencia(){
   const cfg = db.config || {};
-  
   if(document.getElementById('cfgTamanoLetra')) document.getElementById('cfgTamanoLetra').value = cfg.tamanoLetra || 'md';
   if(document.getElementById('cfgColorTexto')) document.getElementById('cfgColorTexto').value = cfg.colorTexto || '#0f172a';
   if(document.getElementById('cfgFormRadius')) document.getElementById('cfgFormRadius').value = cfg.formRadius !== undefined ? cfg.formRadius : '6';
   if(document.getElementById('cfgFormBorderColor')) document.getElementById('cfgFormBorderColor').value = cfg.formBorderColor || '#cbd5e1';
   if(document.getElementById('cfgFormTamanoBotones')) document.getElementById('cfgFormTamanoBotones').value = cfg.formTamanoBotones || 'md';
   if(document.getElementById('cfgTipoLetra')) document.getElementById('cfgTipoLetra').value = cfg.fontFamily || "'Segoe UI',Tahoma,Geneva,Verdana,sans-serif";
-
-  renderizarTemasClaros();
 }
 
 async function guardarApariencia(){
