@@ -1,6 +1,6 @@
-// ===== config-general.js — Configuración General, Empresa y Apariencia Metalizada =====
+// ===== config-general.js — Configuración General, Empresa y Temas Metalizados Persistentes =====
 /* =========================================================
-   CONFIGURACIÓN GENERAL Y APARIENCIA (TEMAS METALIZADOS RESTAURADOS)
+   CONFIGURACIÓN GENERAL
 ========================================================= */
 
 function renderizarConfigGeneral(){
@@ -44,8 +44,8 @@ async function guardarAjustesGenerales(){
   db.config.mision = getVal('cfgEmpresaMision');
   db.config.vision = getVal('cfgEmpresaVision');
   db.config.nombreRepresentante = getVal('cfgNombreRepresentante');
-  if(logoTempBase64 !== undefined) db.config.logo = logoTempBase64;
-  if(firmaTempBase64 !== undefined) db.config.firmaRepresentante = firmaTempBase64;
+  if(typeof logoTempBase64 !== 'undefined' && logoTempBase64 !== null) db.config.logo = logoTempBase64;
+  if(typeof firmaTempBase64 !== 'undefined' && firmaTempBase64 !== null) db.config.firmaRepresentante = firmaTempBase64;
 
   try{
     await dbGuardarInmediato();
@@ -70,7 +70,7 @@ function manejarLogoUpload(event){
 }
 
 /* =========================================================
-   TEMAS METALIZADOS CLAROS MARCADOS (ORIGINALES)
+   CATÁLOGO EXTENDIDO DE TEMAS METALIZADOS CLAROS MARCADOS
 ========================================================= */
 const TEMAS_CLAROS_METALIZADOS = [
   {
@@ -94,24 +94,24 @@ const TEMAS_CLAROS_METALIZADOS = [
     borde: '#64748b', texto: '#0f172a'
   },
   {
-    nombre: 'Aluminio Azul Marcado',
+    nombre: 'Aluminio Azul Eléctrico',
     clave: 'aluminio',
     acento: '#0055ff',
     fondo: '#e0f2fe',
     sidebar1: '#bae6fd', sidebar2: '#7dd3fc',
     topbar1: '#f0f9ff', topbar2: '#bae6fd',
     panel1: '#ffffff', panel2: '#f0f9ff',
-    borde: '#38bdf8', texto: '#082f49'
+    borde: '#0284c7', texto: '#082f49'
   },
   {
-    nombre: 'Níquel Dorado Marcado',
+    nombre: 'Níquel Ámbar Marcado',
     clave: 'niquel',
     acento: '#d97706',
     fondo: '#fef3c7',
     sidebar1: '#fde68a', sidebar2: '#fcd34d',
     topbar1: '#fffbeb', topbar2: '#fde68a',
     panel1: '#ffffff', panel2: '#fffbeb',
-    borde: '#fbbf24', texto: '#451a03'
+    borde: '#b45309', texto: '#451a03'
   },
   {
     nombre: 'Cromo Blanco Puro',
@@ -121,30 +121,58 @@ const TEMAS_CLAROS_METALIZADOS = [
     sidebar1: '#f8fafc', sidebar2: '#e2e8f0',
     topbar1: '#ffffff', topbar2: '#f1f5f9',
     panel1: '#ffffff', panel2: '#ffffff',
-    borde: '#cbd5e1', texto: '#1e293b'
+    borde: '#cbd5e1', texto: '#0f172a'
   },
   {
-    nombre: 'Zinc Glacial Marcado',
+    nombre: 'Zinc Glacial Esmeralda',
     clave: 'zinc',
     acento: '#059669',
     fondo: '#ecfdf5',
     sidebar1: '#a7f3d0', sidebar2: '#6ee7b7',
     topbar1: '#f0fdf4', topbar2: '#a7f3d0',
     panel1: '#ffffff', panel2: '#f0fdf4',
-    borde: '#34d399', texto: '#064e3b'
+    borde: '#047857', texto: '#064e3b'
+  },
+  {
+    nombre: 'Cobre Bronce Industrial',
+    clave: 'cobre',
+    acento: '#ea580c',
+    fondo: '#ffedd5',
+    sidebar1: '#fed7aa', sidebar2: '#fdba74',
+    topbar1: '#fff7ed', topbar2: '#fed7aa',
+    panel1: '#ffffff', panel2: '#fff7ed',
+    borde: '#c2410c', texto: '#431407'
+  },
+  {
+    nombre: 'Platino Amatista Marcado',
+    clave: 'amatista',
+    acento: '#7c3aed',
+    fondo: '#f3e8ff',
+    sidebar1: '#e9d5ff', sidebar2: '#d8b4fe',
+    topbar1: '#faf5ff', topbar2: '#e9d5ff',
+    panel1: '#ffffff', panel2: '#faf5ff',
+    borde: '#6d28d9', texto: '#3b0764'
+  },
+  {
+    nombre: 'Rojo Carmesí Metalizado',
+    clave: 'carmesi',
+    acento: '#dc2626',
+    fondo: '#fee2e2',
+    sidebar1: '#fecaca', sidebar2: '#fca5a5',
+    topbar1: '#fef2f2', topbar2: '#fecaca',
+    panel1: '#ffffff', panel2: '#fef2f2',
+    borde: '#b91c1c', texto: '#450a0a'
+  },
+  {
+    nombre: 'Acero Grafito Suave',
+    clave: 'grafito',
+    acento: '#475569',
+    fondo: '#f8fafc',
+    sidebar1: '#e2e8f0', sidebar2: '#94a3b8',
+    topbar1: '#f1f5f9', topbar2: '#cbd5e1',
+    panel1: '#ffffff', panel2: '#f8fafc',
+    borde: '#475569', texto: '#0f172a'
   }
-];
-
-// Colores de acento vivos complementarios para seleccionar rápido
-const COLORES_MARCADOS_EXTRA = [
-  { nombre: 'Azul Eléctrico Cobalto', hex: '#0055ff' },
-  { nombre: 'Rojo Fuego Operativo', hex: '#dc2626' },
-  { nombre: 'Naranja Mecánico Marcado', hex: '#ea580c' },
-  { nombre: 'Verde Esmeralda Fuerte', hex: '#059669' },
-  { nombre: 'Violeta Eléctrico Intenso', hex: '#7c3aed' },
-  { nombre: 'Ámbar Alerta Fuerte', hex: '#d97706' },
-  { nombre: 'Cian Neón', hex: '#06b6d4' },
-  { nombre: 'Grafito Oscuro Mate', hex: '#1e293b' }
 ];
 
 function renderizarTemasClaros(){
@@ -157,7 +185,7 @@ function renderizarTemasClaros(){
   cont.innerHTML = TEMAS_CLAROS_METALIZADOS.map(t => {
     const seleccionado = (temaActual === t.clave) ? 'seleccionado' : '';
     return `
-      <div class="tema-claro-opcion ${seleccionado}" onclick="aplicarTemaMetalizado('${t.clave}')">
+      <div class="tema-claro-opcion ${seleccionado}" onclick="aplicarTemaMetalizado('${t.clave}')" style="cursor:pointer;">
         <div class="tema-claro-preview" style="background:linear-gradient(135deg, ${t.sidebar1}, ${t.sidebar2});box-shadow:inset 0 0 10px rgba(255,255,255,.6);">
           <div style="width:32%;height:100%;background:linear-gradient(180deg, ${t.sidebar1}, ${t.sidebar2});border-right:1px solid ${t.borde};"></div>
           <div style="flex:1;height:100%;display:flex;flex-direction:column;">
@@ -167,16 +195,17 @@ function renderizarTemasClaros(){
             </div>
           </div>
         </div>
-        <span><strong>${t.nombre}</strong></span>
+        <span style="font-size:11px;margin-top:5px;display:block;"><strong>${t.nombre}</strong></span>
       </div>
     `;
   }).join('');
 }
 
-function aplicarTemaMetalizado(clave){
+async function aplicarTemaMetalizado(clave){
   const t = TEMAS_CLAROS_METALIZADOS.find(x => x.clave === clave);
   if(!t) return;
 
+  db.config = db.config || {};
   db.config.temaMetalizado = t.clave;
   db.config.colorAcento = t.acento;
   db.config.colorFondo = t.fondo;
@@ -192,7 +221,14 @@ function aplicarTemaMetalizado(clave){
 
   aplicarEstilosMetalizadosEnDOM(t);
   renderizarTemasClaros();
-  mostrarToast(`✨ Tema ${t.nombre} aplicado. Guarda para confirmar cambios.`, 'info');
+
+  // Guardado inmediato en base de datos para evitar que el refresco de fondo lo borre
+  try {
+    await dbGuardarInmediato();
+    mostrarToast(`✨ Tema ${t.nombre} guardado y fijado permanentemente.`, 'exito');
+  } catch(e) {
+    mostrarToast('⚠️ Tema aplicado localmente (pendiente de sincronización).', 'info');
+  }
 }
 
 function aplicarEstilosMetalizadosEnDOM(t){
@@ -221,41 +257,8 @@ function renderizarConfigApariencia(){
   if(document.getElementById('cfgFormTamanoBotones')) document.getElementById('cfgFormTamanoBotones').value = cfg.formTamanoBotones || 'md';
   if(document.getElementById('cfgTipoLetra')) document.getElementById('cfgTipoLetra').value = cfg.fontFamily || "'Segoe UI',Tahoma,Geneva,Verdana,sans-serif";
 
-  // Dibuja los 6 temas metalizados claros originales
   renderizarTemasClaros();
-
-  // Inyectar el selector de colores de acento complementarios
-  const contTemas = document.getElementById('temasClarosGrid');
-  if(contTemas && !document.getElementById('paletaColoresMarcados')){
-    const cont = document.createElement('div');
-    cont.id = 'paletaColoresMarcados';
-    cont.style.cssText = 'margin-top:16px;padding-top:12px;border-top:1px dashed #cbd5e1;';
-    cont.innerHTML = `
-      <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">
-        Colores de acento complementarios (vivos / alto contraste):
-      </label>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        ${COLORES_MARCADOS_EXTRA.map(c=>`
-          <button type="button" onclick="aplicarColorAcentoMarcado('${c.hex}')" 
-            title="${c.nombre} (${c.hex})" 
-            style="width:32px;height:32px;border-radius:6px;background:${c.hex};border:2px solid #ffffff;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer;transition:transform .12s ease;"
-            onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">
-          </button>
-        `).join('')}
-      </div>
-    `;
-    contTemas.parentNode.appendChild(cont);
-  }
-
-  // Si existe previsualización del login
   if(typeof actualizarPreviewLoginMini === 'function') actualizarPreviewLoginMini();
-}
-
-function aplicarColorAcentoMarcado(hex){
-  db.config.colorAcento = hex;
-  document.documentElement.style.setProperty('--blue-accent', hex);
-  document.documentElement.style.setProperty('--primary-color', hex);
-  mostrarToast(`Acento cambiado a ${hex}. Guarda para confirmar.`, 'info');
 }
 
 async function guardarApariencia(){
@@ -295,3 +298,4 @@ function actualizarPreviewLoginMini(){
     pMini.style.setProperty('--preview-login-color-2', c2);
   }
 }
+
