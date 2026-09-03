@@ -1,8 +1,7 @@
-// ===== config-general.js — Configuración General, Empresa y Temas Metalizados Persistentes =====
+// ===== config-general.js — Configuración General, Empresa y Selector de Temas =====
 /* =========================================================
    CONFIGURACIÓN GENERAL
 ========================================================= */
-
 function renderizarConfigGeneral(){
   const cfg = db.config || {};
   const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val || ''; };
@@ -49,7 +48,7 @@ async function guardarAjustesGenerales(){
 
   try{
     await dbGuardarInmediato();
-    mostrarToast('✅ Perfil y datos de la empresa guardados.', 'exito');
+    mostrarToast('✅ Perfil y datos guardados.', 'exito');
     aplicarConfiguracionVisual();
   }catch(err){
     mostrarToast('⚠️ Error al guardar: ' + err.message, 'error');
@@ -70,111 +69,8 @@ function manejarLogoUpload(event){
 }
 
 /* =========================================================
-   CATÁLOGO EXTENDIDO DE TEMAS METALIZADOS CLAROS MARCADOS
+   SELECTOR VISUAL DE TEMAS METALIZADOS
 ========================================================= */
-const TEMAS_CLAROS_METALIZADOS = [
-  {
-    nombre: 'Titanio Plateado',
-    clave: 'titanio',
-    acento: '#0284c7',
-    fondo: '#f1f5f9',
-    sidebar1: '#e2e8f0', sidebar2: '#cbd5e1',
-    topbar1: '#f8fafc', topbar2: '#e2e8f0',
-    panel1: '#ffffff', panel2: '#f8fafc',
-    borde: '#94a3b8', texto: '#0f172a'
-  },
-  {
-    nombre: 'Acero Platino',
-    clave: 'platino',
-    acento: '#2563eb',
-    fondo: '#e2e8f0',
-    sidebar1: '#cbd5e1', sidebar2: '#94a3b8',
-    topbar1: '#f1f5f9', topbar2: '#cbd5e1',
-    panel1: '#ffffff', panel2: '#f1f5f9',
-    borde: '#64748b', texto: '#0f172a'
-  },
-  {
-    nombre: 'Aluminio Azul Eléctrico',
-    clave: 'aluminio',
-    acento: '#0055ff',
-    fondo: '#e0f2fe',
-    sidebar1: '#bae6fd', sidebar2: '#7dd3fc',
-    topbar1: '#f0f9ff', topbar2: '#bae6fd',
-    panel1: '#ffffff', panel2: '#f0f9ff',
-    borde: '#0284c7', texto: '#082f49'
-  },
-  {
-    nombre: 'Níquel Ámbar Marcado',
-    clave: 'niquel',
-    acento: '#d97706',
-    fondo: '#fef3c7',
-    sidebar1: '#fde68a', sidebar2: '#fcd34d',
-    topbar1: '#fffbeb', topbar2: '#fde68a',
-    panel1: '#ffffff', panel2: '#fffbeb',
-    borde: '#b45309', texto: '#451a03'
-  },
-  {
-    nombre: 'Cromo Blanco Puro',
-    clave: 'cromo',
-    acento: '#0ea5e9',
-    fondo: '#ffffff',
-    sidebar1: '#f8fafc', sidebar2: '#e2e8f0',
-    topbar1: '#ffffff', topbar2: '#f1f5f9',
-    panel1: '#ffffff', panel2: '#ffffff',
-    borde: '#cbd5e1', texto: '#0f172a'
-  },
-  {
-    nombre: 'Zinc Glacial Esmeralda',
-    clave: 'zinc',
-    acento: '#059669',
-    fondo: '#ecfdf5',
-    sidebar1: '#a7f3d0', sidebar2: '#6ee7b7',
-    topbar1: '#f0fdf4', topbar2: '#a7f3d0',
-    panel1: '#ffffff', panel2: '#f0fdf4',
-    borde: '#047857', texto: '#064e3b'
-  },
-  {
-    nombre: 'Cobre Bronce Industrial',
-    clave: 'cobre',
-    acento: '#ea580c',
-    fondo: '#ffedd5',
-    sidebar1: '#fed7aa', sidebar2: '#fdba74',
-    topbar1: '#fff7ed', topbar2: '#fed7aa',
-    panel1: '#ffffff', panel2: '#fff7ed',
-    borde: '#c2410c', texto: '#431407'
-  },
-  {
-    nombre: 'Platino Amatista Marcado',
-    clave: 'amatista',
-    acento: '#7c3aed',
-    fondo: '#f3e8ff',
-    sidebar1: '#e9d5ff', sidebar2: '#d8b4fe',
-    topbar1: '#faf5ff', topbar2: '#e9d5ff',
-    panel1: '#ffffff', panel2: '#faf5ff',
-    borde: '#6d28d9', texto: '#3b0764'
-  },
-  {
-    nombre: 'Rojo Carmesí Metalizado',
-    clave: 'carmesi',
-    acento: '#dc2626',
-    fondo: '#fee2e2',
-    sidebar1: '#fecaca', sidebar2: '#fca5a5',
-    topbar1: '#fef2f2', topbar2: '#fecaca',
-    panel1: '#ffffff', panel2: '#fef2f2',
-    borde: '#b91c1c', texto: '#450a0a'
-  },
-  {
-    nombre: 'Acero Grafito Suave',
-    clave: 'grafito',
-    acento: '#475569',
-    fondo: '#f8fafc',
-    sidebar1: '#e2e8f0', sidebar2: '#94a3b8',
-    topbar1: '#f1f5f9', topbar2: '#cbd5e1',
-    panel1: '#ffffff', panel2: '#f8fafc',
-    borde: '#475569', texto: '#0f172a'
-  }
-];
-
 function renderizarTemasClaros(){
   const cont = document.getElementById('temasClarosGrid');
   if(!cont) return;
@@ -219,7 +115,7 @@ async function aplicarTemaMetalizado(clave){
   db.config.colorTexto = t.texto;
   db.config.modoClaro = true;
 
-  aplicarEstilosMetalizadosEnDOM(t);
+  aplicarConfiguracionVisual();
   renderizarTemasClaros();
 
   // Guardado inmediato en base de datos para evitar que el refresco de fondo lo borre
@@ -229,22 +125,6 @@ async function aplicarTemaMetalizado(clave){
   } catch(e) {
     mostrarToast('⚠️ Tema aplicado localmente (pendiente de sincronización).', 'info');
   }
-}
-
-function aplicarEstilosMetalizadosEnDOM(t){
-  const root = document.documentElement.style;
-  root.setProperty('--blue-accent', t.acento);
-  root.setProperty('--primary-color', t.acento);
-  root.setProperty('--bg-dark', t.fondo);
-  root.setProperty('--sidebar-bg-1', t.sidebar1);
-  root.setProperty('--sidebar-bg-2', t.sidebar2);
-  root.setProperty('--topbar-bg-1', t.topbar1);
-  root.setProperty('--topbar-bg-2', t.topbar2);
-  root.setProperty('--panel-bg-1', t.panel1);
-  root.setProperty('--panel-bg-2', t.panel2);
-  root.setProperty('--card-border', t.borde);
-  root.setProperty('--text-main', t.texto);
-  document.body.classList.add('modo-claro');
 }
 
 function renderizarConfigApariencia(){
@@ -258,7 +138,6 @@ function renderizarConfigApariencia(){
   if(document.getElementById('cfgTipoLetra')) document.getElementById('cfgTipoLetra').value = cfg.fontFamily || "'Segoe UI',Tahoma,Geneva,Verdana,sans-serif";
 
   renderizarTemasClaros();
-  if(typeof actualizarPreviewLoginMini === 'function') actualizarPreviewLoginMini();
 }
 
 async function guardarApariencia(){
@@ -273,9 +152,9 @@ async function guardarApariencia(){
   try{
     await dbGuardarInmediato();
     aplicarConfiguracionVisual();
-    mostrarToast('✅ Configuración de apariencia guardada con éxito.', 'exito');
+    mostrarToast('✅ Apariencia guardada correctamente.', 'exito');
   }catch(err){
-    mostrarToast('⚠️ No se pudo guardar la apariencia: ' + err.message, 'error');
+    mostrarToast('⚠️ Error al guardar: ' + err.message, 'error');
   }
 }
 
