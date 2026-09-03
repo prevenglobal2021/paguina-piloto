@@ -1,17 +1,8 @@
 /* =========================================================
    PREVENGLOBAL — BACKEND (Node.js + Express + PostgreSQL)
    ---------------------------------------------------------
-   Mismo comportamiento que el backend original (multiempresa,
-   estado completo por empresa, contraseña maestra opcional),
-   pero guardando cada empresa como una fila en Postgres en vez
-   de un archivo data/<slug>.json — así los datos sobreviven a
-   cada redespliegue en Railway sin necesitar volumen aparte.
-
-   Sincronización con el front-end (sin cambios respecto a antes):
-   GET  /api/state  -> devuelve el estado completo de la empresa
-                        autenticada (sin contraseñas ni hashes).
-   PUT  /api/state  -> guarda el estado completo con transacción
-                        atómica y bloqueo FOR UPDATE anti-concurrencia.
+   Sincronización con el front-end y motor de recordatorios
+   automáticos por correo para técnicos.
 ========================================================= */
 require('dotenv').config();
 const express = require('express');
@@ -28,7 +19,6 @@ let compression;
 try {
   compression = require('compression');
 } catch (e) {
-  // Si no se ha ejecutado npm install compression, continúa sin fallar
   compression = null;
 }
 
@@ -36,16 +26,15 @@ const app = express();
 
 app.set('trust proxy', 1);
 process.on('unhandledRejection', (err) => {
-  console.error('[ERROR NO CONTROLADO — el servidor puede reiniciarse por esto]:', err);
+  console.error('[ERROR NO CONTROLADO]:', err);
 });
 
-// Compresión HTTP para reducir el tamaño de transferencia del JSONB masivo
 if (compression) {
   app.use(compression());
 }
 
 app.use(cors());
-app.use(express.json({ limit: '80mb' })); // las fotos van como base64 y pueden pesar
+app.use(express.json({ limit: '80mb' }));
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res) => { res.setHeader('Cache-Control', 'no-cache'); }
 }));
@@ -74,7 +63,7 @@ const limitePublico = rateLimit({
 });
 
 /* ---------------------------------------------------------
-   Utilidades de contraseñas (hash con sal, sin dependencias)
+   Utilidades de contraseñas
 --------------------------------------------------------- */
 function hashPassword(password) {
   const sal = crypto.randomBytes(16).toString('hex');
@@ -145,7 +134,7 @@ function estadoSemilla(nombreEmpresa, adminUsuario, adminPasswordHash) {
 }
 
 /* ---------------------------------------------------------
-   Sesiones en memoria con recolección de basura automática
+   Sesiones en memoria
 --------------------------------------------------------- */
 const sesiones = new Map();
 function crearSesion(slug, rol, tecnicoId) {
@@ -154,7 +143,6 @@ function crearSesion(slug, rol, tecnicoId) {
   return token;
 }
 
-// Limpieza periódica cada hora para evitar consumo innecesario de RAM
 setInterval(() => {
   const ahora = Date.now();
   for (const [token, sesion] of sesiones.entries()) {
@@ -212,7 +200,7 @@ app.post('/api/empresas', limiteLogin, async (req, res) => {
 });
 
 /* ---------------------------------------------------------
-   API — Tienda pública (sin sesión)
+   API — Tienda pública
 --------------------------------------------------------- */
 app.get('/api/tienda/:slug', limitePublico, async (req, res) => {
   const slug = req.params.slug.toLowerCase();
@@ -239,10 +227,9 @@ app.post('/api/tienda/:slug/pedido', limitePublico, async (req, res) => {
   const slug = req.params.slug.toLowerCase();
   const { nombre, telefono, email, notas, items } = req.body || {};
   if (!nombre || !telefono || !Array.isArray(items) || !items.length) {
-    return res.status(400).json({ error: 'Faltan datos del pedido (nombre, teléfono e ítems).' });
+    return res.status(400).json({ error: 'Faltan datos del pedido.' });
   }
 
-  // Transacción con bloqueo FOR UPDATE para asegurar correlativo y stock de pedidos
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -263,7 +250,7 @@ app.post('/api/tienda/:slug/pedido', limitePublico, async (req, res) => {
 
     if (!itemsValidados.length) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Ninguno de los productos del pedido está disponible.' });
+      return res.status(400).json({ error: 'Ninguno de los productos está disponible.' });
     }
 
     const total = itemsValidados.reduce((a, i) => a + (i.precio * i.cantidad), 0);
@@ -273,7 +260,7 @@ app.post('/api/tienda/:slug/pedido', limitePublico, async (req, res) => {
       nombre: String(nombre).slice(0, 120), telefono: String(telefono).slice(0, 40),
       email: String(email || '').slice(0, 120), notas: String(notas || '').slice(0, 500),
       items: itemsValidados, total,
-      estadoPago: 'Pendiente (pasarela de pago no configurada aún)', estado: 'Recibido'
+      estadoPago: 'Pendiente', estado: 'Recibido'
     };
     data.pedidosTienda.push(pedido);
 
@@ -285,22 +272,17 @@ app.post('/api/tienda/:slug/pedido', limitePublico, async (req, res) => {
     res.json({ ok: true, numero: pedido.numero });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('[tienda-pedido] Error:', err);
-    res.status(500).json({ error: 'Error al procesar el pedido.' });
+    res.status(500).json({ error: 'Error al procesar pedido.' });
   } finally {
     client.release();
   }
 });
 
 /* ---------------------------------------------------------
-   Procesamiento de imágenes (fondo del login)
+   Procesamiento de imágenes
 --------------------------------------------------------- */
 async function recortarParaLogin(buffer){
-  return sharp(buffer, {
-    failOnError: false,
-    limitInputPixels: 400000000,
-    animated: false,
-  })
+  return sharp(buffer, { failOnError: false, limitInputPixels: 400000000, animated: false })
     .rotate()
     .resize(1080, 1920, { fit: 'cover', position: 'centre' })
     .jpeg({ quality: 88 })
@@ -309,20 +291,13 @@ async function recortarParaLogin(buffer){
 
 app.post('/api/imagenes/login-fondo', requireAuth, async (req, res) => {
   const { imagenBase64 } = req.body || {};
-  if (!imagenBase64) return res.status(400).json({ error: 'No llegó ninguna imagen. Intenta seleccionarla de nuevo.' });
+  if (!imagenBase64) return res.status(400).json({ error: 'No llegó ninguna imagen.' });
   const coincide = /^data:(image\/[\w.+-]+);base64,(.+)$/.exec(imagenBase64);
-  if (!coincide) return res.status(400).json({ error: 'Ese archivo no se reconoce como una imagen válida.' });
+  if (!coincide) return res.status(400).json({ error: 'Archivo no válido.' });
 
   let buffer;
-  try {
-    buffer = Buffer.from(coincide[2], 'base64');
-  } catch {
-    return res.status(400).json({ error: 'El archivo llegó dañado durante la subida. Intenta de nuevo.' });
-  }
-  if (!buffer.length) return res.status(400).json({ error: 'El archivo llegó vacío. Intenta seleccionarlo de nuevo.' });
-  if (buffer.length > 10 * 1024 * 1024) {
-    return res.status(400).json({ error: 'La imagen pesa más de 10MB. Usa una más liviana.' });
-  }
+  try { buffer = Buffer.from(coincide[2], 'base64'); } catch { return res.status(400).json({ error: 'Archivo dañado.' }); }
+  if (!buffer.length || buffer.length > 10 * 1024 * 1024) return res.status(400).json({ error: 'Imagen no válida o supera los 10MB.' });
 
   try {
     const procesada = await recortarParaLogin(buffer);
@@ -333,22 +308,13 @@ app.post('/api/imagenes/login-fondo', requireAuth, async (req, res) => {
       const procesada = await recortarParaLogin(Buffer.from(jpegIntermedio));
       return res.json({ ok: true, imagen: `data:image/jpeg;base64,${procesada.toString('base64')}` });
     } catch (errHeic) {
-      console.error('[login-fondo] sharp:', errSharp.message, '| heic-convert:', errHeic.message);
-      let mensaje;
-      if (/premature|truncat|unexpected end/i.test(errSharp.message) || /premature|truncat/i.test(errHeic.message)) {
-        mensaje = 'El archivo parece estar incompleto o dañado (se cortó al subirlo). Intenta seleccionarlo de nuevo.';
-      } else if (/unsupported|no decode|codec|input format/i.test(errSharp.message)) {
-        mensaje = 'Ese formato de imagen no es compatible. Prueba con una foto en JPG o PNG.';
-      } else {
-        mensaje = 'No se pudo procesar esa imagen. Prueba con otra foto en JPG o PNG.';
-      }
-      return res.status(422).json({ error: mensaje });
+      return res.status(422).json({ error: 'No se pudo procesar la imagen.' });
     }
   }
 });
 
 /* ---------------------------------------------------------
-   API — Autenticación
+   Autenticación y recuperación de clave
 --------------------------------------------------------- */
 app.post('/api/auth/logout', requireAuth, (req, res) => {
   const auth = req.headers['authorization'] || '';
@@ -374,19 +340,14 @@ app.post('/api/auth/login', limiteLogin, async (req, res) => {
 
   if (tipo === 'tecnico') {
     const t = (data.tecnicos || []).find(x => x.id === tecnicoId);
-    if (!t || !verificarPassword(password, t.passwordHash)) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+    if (!t || !verificarPassword(password, t.passwordHash)) return res.status(401).json({ error: 'Credenciales incorrectas.' });
     return res.json({ token: crearSesion(slug, 'tecnico', t.id), rol: 'tecnico', tecnicoId: t.id, nombreEmpresa: data.config.nombre });
   }
 
   const usuarioOk = usuario && data.config.adminUsuario && usuario.trim().toLowerCase() === data.config.adminUsuario.trim().toLowerCase();
-  if (!usuarioOk || !verificarPassword(password, data.config.adminPasswordHash)) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+  if (!usuarioOk || !verificarPassword(password, data.config.adminPasswordHash)) return res.status(401).json({ error: 'Credenciales incorrectas.' });
   res.json({ token: crearSesion(slug, 'admin', null), rol: 'admin', tecnicoId: null, nombreEmpresa: data.config.nombre });
 });
-
-/* ---------------------------------------------------------
-   Recuperación de contraseña por correo
---------------------------------------------------------- */
-const tokensReset = new Map();
 
 let transportadorCorreo;
 function obtenerTransportadorCorreo() {
@@ -399,32 +360,28 @@ function obtenerTransportadorCorreo() {
   return transportadorCorreo;
 }
 
+const tokensReset = new Map();
 async function enviarCorreoReset(slug, tipo, tecnicoId, email, nombreEmpresa) {
   const token = crypto.randomBytes(32).toString('hex');
   tokensReset.set(token, { slug, tipo, tecnicoId, exp: Date.now() + 60 * 60 * 1000, usado: false });
   const transportador = obtenerTransportadorCorreo();
   const enlace = `${process.env.APP_URL || ''}/?resetToken=${token}`;
-  if (!transportador) {
-    console.log(`[reset] Gmail no configurado todavía. Enlace de prueba para ${email}: ${enlace}`);
-    return;
-  }
+  if (!transportador) return;
   try {
     await transportador.sendMail({
       from: `"${nombreEmpresa || 'Prevenglobal'}" <${process.env.GMAIL_USER}>`,
       to: email,
-      subject: `Restablecer tu contraseña — ${nombreEmpresa || 'Prevenglobal'}`,
-      html: `<p>Recibimos una solicitud para restablecer tu contraseña en ${nombreEmpresa || 'Prevenglobal'}.</p>
-             <p><a href="${enlace}">Haz clic aquí para crear una nueva contraseña</a></p>
-             <p>Este enlace vence en 1 hora. Si no lo solicitaste, ignora este correo.</p>`,
+      subject: `Restablecer contraseña — ${nombreEmpresa || 'Prevenglobal'}`,
+      html: `<p>Solicitud para restablecer tu contraseña en ${nombreEmpresa || 'Prevenglobal'}.</p><p><a href="${enlace}">Crear nueva contraseña</a></p>`,
     });
   } catch (err) {
-    console.error('[reset] No se pudo enviar el correo:', err.message);
+    console.error('[reset] Error enviando correo:', err.message);
   }
 }
 
 app.post('/api/auth/solicitar-reset', limiteLogin, async (req, res) => {
   const correo = ((req.body || {}).email || '').trim().toLowerCase();
-  const respuesta = { ok: true, mensaje: 'Si ese correo está registrado, te enviamos un enlace para restablecer tu contraseña.' };
+  const respuesta = { ok: true, mensaje: 'Si el correo está registrado, te enviamos un enlace.' };
   if (!correo) return res.json(respuesta);
   try {
     const empresas = await leerEmpresas();
@@ -442,7 +399,7 @@ app.post('/api/auth/solicitar-reset', limiteLogin, async (req, res) => {
       }
     }
   } catch (err) {
-    console.error('[reset] Error buscando el correo:', err.message);
+    console.error('[reset] Error:', err.message);
   }
   res.json(respuesta);
 });
@@ -450,11 +407,8 @@ app.post('/api/auth/solicitar-reset', limiteLogin, async (req, res) => {
 app.post('/api/auth/confirmar-reset', limiteLogin, async (req, res) => {
   const { token, nuevaPassword } = req.body || {};
   if (!token || !nuevaPassword) return res.status(400).json({ error: 'Faltan datos.' });
-  if (nuevaPassword.length < 4) return res.status(400).json({ error: 'La contraseña es muy corta (mínimo 4 caracteres).' });
   const info = tokensReset.get(token);
-  if (!info) return res.status(400).json({ error: 'El enlace no es válido.' });
-  if (info.usado) return res.status(400).json({ error: 'Este enlace ya fue usado.' });
-  if (info.exp < Date.now()) { tokensReset.delete(token); return res.status(400).json({ error: 'El enlace venció.' }); }
+  if (!info || info.usado || info.exp < Date.now()) return res.status(400).json({ error: 'Enlace inválido o vencido.' });
 
   const data = await leerEstadoEmpresa(info.slug);
   if (!data) return res.status(404).json({ error: 'Empresa no encontrada.' });
@@ -473,7 +427,7 @@ app.post('/api/auth/confirmar-reset', limiteLogin, async (req, res) => {
 });
 
 /* ---------------------------------------------------------
-   API — Estado de la aplicación (protegido, por empresa)
+   API — Estado de la aplicación
 --------------------------------------------------------- */
 app.get('/api/backup', requireAuth, async (req, res) => {
   try {
@@ -484,8 +438,7 @@ app.get('/api/backup', requireAuth, async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.send(JSON.stringify(estado, null, 2));
   } catch (err) {
-    console.error('[backup] Error:', err);
-    res.status(500).json({ error: err.message || 'Error al generar el respaldo.' });
+    res.status(500).json({ error: 'Error al generar respaldo.' });
   }
 });
 
@@ -495,8 +448,7 @@ app.get('/api/state/meta', requireAuth, async (req, res) => {
     if (!r.rows[0]) return res.status(404).json({ error: 'Empresa no encontrada.' });
     res.json({ actualizadoEn: r.rows[0].actualizado_en });
   } catch (err) {
-    console.error('[state-meta] Error:', err);
-    res.status(500).json({ error: err.message || 'Error al consultar.' });
+    res.status(500).json({ error: 'Error al consultar.' });
   }
 });
 
@@ -504,7 +456,6 @@ app.get('/api/state', requireAuth, async (req, res) => {
   const data = await leerEstadoEmpresa(req.slug);
   if (!data) return res.status(404).json({ error: 'Empresa no encontrada.' });
   
-  // Sanitización estricta: nunca enviar passwordHash al navegador
   const tecnicos = (data.tecnicos || []).map(t => {
     const seguro = Object.assign({}, t, { password: null });
     delete seguro.passwordHash;
@@ -518,21 +469,20 @@ app.get('/api/state', requireAuth, async (req, res) => {
 });
 
 function contarEntidadesClave(estado) {
-  const clientes = (estado.clientes || []).length;
-  const ordenes = (estado.ordenes || []).length;
-  const inventario = (estado.inventario || []).length;
-  const plantillas = (estado.plantillas || []).length;
-  const nomina = (estado.liquidacionesNomina || []).length;
-  return { clientes, ordenes, inventario, plantillas, nomina, total: clientes + ordenes + inventario + plantillas + nomina };
+  return {
+    clientes: (estado.clientes || []).length,
+    ordenes: (estado.ordenes || []).length,
+    inventario: (estado.inventario || []).length,
+    plantillas: (estado.plantillas || []).length,
+    nomina: (estado.liquidacionesNomina || []).length,
+    total: ((estado.clientes || []).length + (estado.ordenes || []).length + (estado.inventario || []).length + (estado.plantillas || []).length + (estado.liquidacionesNomina || []).length)
+  };
 }
 
 app.put('/api/state', requireAuth, async (req, res) => {
-  const inicio = Date.now();
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-
-    // Bloqueo pesimista FOR UPDATE: garantiza consistencia en guardados concurrentes
     const rEmp = await client.query('SELECT estado_app FROM empresas WHERE slug = $1 FOR UPDATE', [req.slug]);
     if (!rEmp.rows[0]) {
       await client.query('ROLLBACK');
@@ -541,22 +491,15 @@ app.put('/api/state', requireAuth, async (req, res) => {
 
     const anterior = rEmp.rows[0].estado_app;
     const nuevo = req.body || {};
-    const pesoKB = Math.round(JSON.stringify(nuevo).length / 1024);
-    const cantidadOrdenes = (nuevo.ordenes || []).length;
-    console.log(`[guardar-state] recibido: ${pesoKB} KB, ${cantidadOrdenes} órdenes, empresa=${req.slug}`);
 
-    // Blindaje anti-sobrescritura por desincronización masiva
     const conteoAnterior = contarEntidadesClave(anterior);
     const conteoNuevo = contarEntidadesClave(nuevo);
-    const UMBRAL_MINIMO_PARA_VIGILAR = 5;
-    const perdidaSevera = conteoAnterior.total >= UMBRAL_MINIMO_PARA_VIGILAR && conteoNuevo.total < conteoAnterior.total * 0.5;
-    if (perdidaSevera && !nuevo.confirmarSobrescritura) {
+    if (conteoAnterior.total >= 5 && conteoNuevo.total < conteoAnterior.total * 0.5 && !nuevo.confirmarSobrescritura) {
       await client.query('ROLLBACK');
-      console.warn(`[guardar-state] BLOQUEADO por posible pérdida de datos — empresa=${req.slug}`);
       return res.status(409).json({
         ok: false,
         posiblePerdidaDatos: true,
-        error: `Este guardado tiene muchos menos registros de los que ya había (antes: ${conteoAnterior.total}, ahora: ${conteoNuevo.total}).`,
+        error: `El guardado tiene muchos menos registros de los esperados.`,
         conteoAnterior, conteoNuevo
       });
     }
@@ -583,20 +526,116 @@ app.put('/api/state', requireAuth, async (req, res) => {
     );
 
     await client.query('COMMIT');
-    const actualizadoEn = rUpdate.rows[0] ? rUpdate.rows[0].actualizado_en : new Date().toISOString();
-    console.log(`[guardar-state] OK en ${Date.now() - inicio}ms — empresa=${req.slug}`);
-    res.json({ ok: true, actualizadoEn });
+    res.json({ ok: true, actualizadoEn: rUpdate.rows[0].actualizado_en });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error(`[guardar-state] FALLÓ tras ${Date.now() - inicio}ms — empresa=${req.slug}:`, err);
-    res.status(500).json({ ok: false, error: err.message || 'Error desconocido al guardar.' });
+    res.status(500).json({ ok: false, error: err.message || 'Error al guardar.' });
   } finally {
     client.release();
   }
 });
 
 /* ---------------------------------------------------------
-   Arranque y Bootstrap
+   MOTOR DE RECORDATORIOS AUTOMÁTICOS POR CORREO
+   Revisa cada 3 minutos si hay órdenes a 15-35 minutos de su cita.
+--------------------------------------------------------- */
+async function procesarRecordatoriosOrdenes() {
+  try {
+    const empresas = await leerEmpresas();
+    const ahora = new Date();
+
+    for (const emp of empresas) {
+      const data = await leerEstadoEmpresa(emp.slug);
+      if (!data || !Array.isArray(data.ordenes)) continue;
+
+      let huboNotificaciones = false;
+
+      for (const o of data.ordenes) {
+        if (o.estado === 'Finalizado' || !o.tecnicoId || !o.fechaProgramada || !o.horaProgramada) continue;
+        if (o.recordatorioAutomaticoEnviado) continue;
+
+        const [horas, minutos] = o.horaProgramada.split(':').map(Number);
+        const fechaHoraCita = new Date(`${o.fechaProgramada}T00:00:00`);
+        fechaHoraCita.setHours(horas, minutos, 0, 0);
+
+        const diferenciaMs = fechaHoraCita.getTime() - ahora.getTime();
+        const minutosFaltantes = Math.round(diferenciaMs / 60000);
+
+        // Envío automático si faltan entre 15 y 35 minutos
+        if (minutosFaltantes >= 15 && minutosFaltantes <= 35) {
+          const tec = (data.tecnicos || []).find(t => t.id === o.tecnicoId);
+          if (!tec || !tec.usuario || !tec.usuario.includes('@')) continue;
+
+          const cliente = (data.clientes || []).find(c => c.id === o.clienteId);
+          const nombreCliente = o.esClienteNuevo ? (o.clienteNuevoNombre || 'Cliente nuevo') : (cliente ? cliente.nombre : 'Cliente');
+          
+          let direccion = 'Sin dirección';
+          if (o.esClienteNuevo) {
+            direccion = o.clienteNuevoDireccion || 'No especificada';
+          } else if (cliente) {
+            const sede = (cliente.sedes || []).find(s => s.id === o.sedeId);
+            direccion = (sede && sede.direccion) ? sede.direccion : (cliente.direccion || 'Sin dirección');
+          }
+
+          const transportador = obtenerTransportadorCorreo();
+          if (transportador) {
+            try {
+              await transportador.sendMail({
+                from: `"${data.config.nombre || 'Prevenglobal'}" <${process.env.GMAIL_USER}>`,
+                to: tec.usuario,
+                subject: `⏰ RECORDATORIO: Visita en ${minutosFaltantes} minutos — Orden ${o.numero}`,
+                html: `
+                  <div style="font-family:sans-serif;padding:18px;color:#1e293b;max-width:550px;border:1px solid #e2e8f0;border-radius:10px;">
+                    <h3 style="color:#0284c7;margin-top:0;">Recordatorio de Servicio Operativo</h3>
+                    <p>Hola <strong>${tec.nombre}</strong>, tu próximo servicio está programado para iniciar en aproximadamente <strong>${minutosFaltantes} minutos</strong>.</p>
+                    <table style="width:100%;border-collapse:collapse;margin:15px 0;">
+                      <tr><td style="padding:6px;border-bottom:1px solid #e2e8f0;"><strong>Orden:</strong></td><td style="padding:6px;border-bottom:1px solid #e2e8f0;">${o.numero}</td></tr>
+                      <tr><td style="padding:6px;border-bottom:1px solid #e2e8f0;"><strong>Servicio:</strong></td><td style="padding:6px;border-bottom:1px solid #e2e8f0;">${o.tipo} (${o.prioridad})</td></tr>
+                      <tr><td style="padding:6px;border-bottom:1px solid #e2e8f0;"><strong>Cliente:</strong></td><td style="padding:6px;border-bottom:1px solid #e2e8f0;">${nombreCliente}</td></tr>
+                      <tr><td style="padding:6px;border-bottom:1px solid #e2e8f0;"><strong>Dirección:</strong></td><td style="padding:6px;border-bottom:1px solid #e2e8f0;">${direccion}</td></tr>
+                      <tr><td style="padding:6px;border-bottom:1px solid #e2e8f0;"><strong>Hora pactada:</strong></td><td style="padding:6px;border-bottom:1px solid #e2e8f0;">${o.horaProgramada}</td></tr>
+                    </table>
+                    ${o.notas ? `<p style="background:#f8fafc;padding:8px;border-radius:6px;"><strong>Notas:</strong> ${o.notas}</p>` : ''}
+                    <p style="color:#64748b;font-size:12px;margin-bottom:0;">Por favor preséntate puntualmente con tus herramientas y EPP reglamentarios.</p>
+                  </div>
+                `
+              });
+              console.log(`[recordatorio-correo] Notificación enviada a ${tec.nombre} (${tec.usuario}) para orden ${o.numero}`);
+            } catch (errCorreo) {
+              console.error(`[recordatorio-correo] Error enviando a ${tec.usuario}:`, errCorreo.message);
+            }
+          }
+
+          data.logs = data.logs || [];
+          data.logs.push({
+            id: Date.now() + Math.random(),
+            usuario: 'Sistema Automático',
+            rol: 'sistema',
+            accion: 'Recordatorio Correo',
+            entidad: 'OrdenServicio',
+            detalle: `Enviado a ${tec.nombre} (${o.numero}) a ${minutosFaltantes} min de la cita`,
+            timestamp: new Date().toISOString()
+          });
+
+          o.recordatorioAutomaticoEnviado = true;
+          o.fechaHoraRecordatorioEnviado = new Date().toISOString();
+          huboNotificaciones = true;
+        }
+      }
+
+      if (huboNotificaciones) {
+        await guardarEstadoEmpresa(emp.slug, data);
+      }
+    }
+  } catch (err) {
+    console.error('[recordatorio-correo] Error en el ciclo:', err.message);
+  }
+}
+
+setInterval(procesarRecordatoriosOrdenes, 3 * 60 * 1000);
+
+/* ---------------------------------------------------------
+   Arranque y Servidor
 --------------------------------------------------------- */
 async function bootstrapEmpresaInicial() {
   const { EMPRESA_SLUG, EMPRESA_NOMBRE, ADMIN_USUARIO, ADMIN_PASSWORD } = process.env;
@@ -607,7 +646,7 @@ async function bootstrapEmpresaInicial() {
   const adminPasswordHash = hashPassword(ADMIN_PASSWORD);
   const data = estadoSemilla(EMPRESA_NOMBRE.trim(), ADMIN_USUARIO.trim(), adminPasswordHash);
   await crearEmpresa(slug, EMPRESA_NOMBRE.trim(), data);
-  console.log(`[bootstrap] Empresa "${EMPRESA_NOMBRE}" (código: ${slug}) inicializada.`);
+  console.log(`[bootstrap] Empresa "${EMPRESA_NOMBRE}" creada.`);
 }
 
 app.get('*', (req, res) => {
@@ -615,18 +654,18 @@ app.get('*', (req, res) => {
 });
 
 app.use((err, req, res, next) => {
-  console.error(`[error-no-atrapado] ${req.method} ${req.originalUrl}:`, err);
+  console.error(`[error] ${req.method} ${req.originalUrl}:`, err);
   if (res.headersSent) return next(err);
-  res.status(err.status || 500).json({ ok: false, error: err.message || 'Error inesperado en el servidor.' });
+  res.status(err.status || 500).json({ ok: false, error: err.message || 'Error inesperado.' });
 });
 
 const PORT = process.env.PORT || 8080;
 pool.query('SELECT 1')
   .then(() => bootstrapEmpresaInicial())
   .then(() => {
-    app.listen(PORT, () => console.log(`Prevenglobal escuchando en el puerto ${PORT} — blindaje y concurrencia activos`));
+    app.listen(PORT, () => console.log(`Prevenglobal escuchando en el puerto ${PORT} — recordatorios automáticos por correo activos`));
   })
   .catch(err => {
-    console.error('No se pudo conectar a la base de datos:', err.message);
+    console.error('No se pudo conectar a PostgreSQL:', err.message);
     process.exit(1);
   });
