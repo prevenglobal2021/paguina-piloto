@@ -5,7 +5,7 @@
 let lienzoFirma = null;
 let ctxFirma = null;
 let dibujandoFirma = false;
-let tipoFirmaActual = null; // 'tecnico' | 'cliente'
+let tipoFirmaActual = null;
 
 function abrirLienzoFirma(tipo){
   tipoFirmaActual = tipo;
@@ -26,7 +26,6 @@ function inicializarCanvasFirma(){
   
   ctxFirma = lienzoFirma.getContext('2d');
   
-  // Ajustar resolución interna al tamaño real mostrado
   const rect = lienzoFirma.getBoundingClientRect();
   lienzoFirma.width = rect.width * 2;
   lienzoFirma.height = rect.height * 2;
@@ -39,7 +38,6 @@ function inicializarCanvasFirma(){
 
   limpiarLienzoFirma();
 
-  // Escuchadores táctiles y de ratón
   lienzoFirma.onmousedown = empezarTrazoFirma;
   lienzoFirma.onmousemove = trazarFirma;
   window.onmouseup = terminarTrazoFirma;
@@ -95,9 +93,7 @@ function exportarArchivoFirma(){
     return;
   }
 
-  // Generar imagen en base64 con canal alfa transparente
   const dataUrl = lienzoFirma.toDataURL('image/png');
-  
   const ahora = new Date().toISOString().slice(0, 10);
   const nombreSugerido = `firma-${tipoFirmaActual || 'registro'}-${ahora}.png`;
 
