@@ -69,15 +69,15 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .panel-title{font-size:15px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--card-border);padding-bottom:10px;flex-wrap:wrap;gap:8px;}
 /* MÓDULO DE INDICADORES (KPI) */
 .kpi-cards-grid{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:110px;gap:15px;margin-bottom:20px;}
-.kpi-cards-grid .kpi-card:first-child{grid-column:span 2;background:linear-gradient(135deg, color-mix(in srgb, var(--blue-accent) 18%, var(--card-bg)), var(--card-bg));}
+.kpi-cards-grid .kpi-card:first-child{grid-column:span 2;background:linear-gradient(150deg, #eef2f7 0%, #dde4ec 50%, #eef2f7 100%);}
 .kpi-cards-grid .kpi-card{transition:transform .15s ease, box-shadow .15s ease;}
-.kpi-cards-grid .kpi-card:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(0,0,0,.3);}
-.kpi-card{background:linear-gradient(160deg, #222530, #191b20);border:1px solid var(--card-border);border-radius:10px;padding:18px;text-align:center;}
-.kpi-card-valor{font-size:26px;font-weight:700;color:var(--blue-accent);}
-.kpi-card-label{font-size:11px;color:var(--text-muted);margin-top:6px;}
+.kpi-cards-grid .kpi-card:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(15,23,42,.15);}
+.kpi-card{background:linear-gradient(155deg, #f4f6f9 0%, #e2e8f0 45%, #eef1f5 100%);border:1px solid #c9d2dc;border-radius:10px;padding:18px;text-align:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.8), 0 1px 3px rgba(15,23,42,.06);}
+.kpi-card-valor{font-size:26px;font-weight:700;color:#1d4ed8;}
+.kpi-card-label{font-size:11px;color:#64748b;margin-top:6px;}
 .kpi-charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:20px;}
-.kpi-chart-box{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:15px;}
-.kpi-chart-box h4{margin:0 0 10px 0;font-size:13px;color:var(--text-muted);}
+.kpi-chart-box{background:linear-gradient(155deg, #f4f6f9 0%, #e8edf3 100%);border:1px solid #c9d2dc;border-radius:10px;padding:15px;box-shadow:inset 0 1px 0 rgba(255,255,255,.8), 0 1px 3px rgba(15,23,42,.06);}
+.kpi-chart-box h4{margin:0 0 10px 0;font-size:13px;color:#475569;}
 .kpi-chart-box canvas{max-height:240px;}
 @media (max-width:900px){
   .kpi-cards-grid{grid-template-columns:1fr 1fr;}
@@ -2113,19 +2113,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=59"></script>
-<script src="utilidades-navegacion.js?v=59"></script>
-<script src="buscador-agenda.js?v=59"></script>
-<script src="ordenes.js?v=59"></script>
-<script src="equipos-trazabilidad.js?v=59"></script>
-<script src="pdf.js?v=59"></script>
-<script src="config-clientes-equipos.js?v=59"></script>
-<script src="config-plantillas-tecnicos.js?v=59"></script>
-<script src="cotizador.js?v=59"></script>
-<script src="config-general.js?v=59"></script>
-<script src="inventario.js?v=59"></script>
-<script src="tienda-admin.js?v=59"></script>
-<script src="tienda-publica.js?v=59"></script>
-<script src="kpi.js?v=59"></script>
+<script src="core.js?v=60"></script>
+<script src="utilidades-navegacion.js?v=60"></script>
+<script src="buscador-agenda.js?v=60"></script>
+<script src="ordenes.js?v=60"></script>
+<script src="equipos-trazabilidad.js?v=60"></script>
+<script src="pdf.js?v=60"></script>
+<script src="config-clientes-equipos.js?v=60"></script>
+<script src="config-plantillas-tecnicos.js?v=60"></script>
+<script src="cotizador.js?v=60"></script>
+<script src="config-general.js?v=60"></script>
+<script src="inventario.js?v=60"></script>
+<script src="tienda-admin.js?v=60"></script>
+<script src="tienda-publica.js?v=60"></script>
+<script src="kpi.js?v=60"></script>
 </body>
 </html>
