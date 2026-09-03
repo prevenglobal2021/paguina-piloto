@@ -298,4 +298,3 @@ function actualizarPreviewLoginMini(){
     pMini.style.setProperty('--preview-login-color-2', c2);
   }
 }
-
