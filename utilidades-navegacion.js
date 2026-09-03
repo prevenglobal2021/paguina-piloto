@@ -1,11 +1,12 @@
-// ===== utilidades-navegacion.js — Firmas Táctiles, Modales y Exportación =====
+
+// ===== utilidades-navegacion.js — Firmas Táctiles, Modales, Subida y Exportación =====
 /* =========================================================
-   COMPONENTE DE FIRMA TÁCTIL Y EXPORTACIÓN PNG
+   COMPONENTE DE FIRMA TÁCTIL, IMPORTACIÓN Y EXPORTACIÓN
 ========================================================= */
 let lienzoFirma = null;
 let ctxFirma = null;
 let dibujandoFirma = false;
-let tipoFirmaActual = null;
+let tipoFirmaActual = null; // 'tecnico' | 'cliente'
 
 function abrirLienzoFirma(tipo){
   tipoFirmaActual = tipo;
@@ -86,7 +87,7 @@ function limpiarLienzoFirma(){
   ctxFirma.clearRect(0, 0, lienzoFirma.width, lienzoFirma.height);
 }
 
-/* --- EXPORTAR ARCHIVO DE FIRMA EN FORMATO PNG TRANSPARENTE --- */
+/* --- EXPORTAR ARCHIVO DE FIRMA (PNG TRANSPARENTE) --- */
 function exportarArchivoFirma(){
   if(!lienzoFirma){
     mostrarToast('No hay ninguna firma activa para exportar.');
@@ -104,7 +105,32 @@ function exportarArchivoFirma(){
   enlaceDescarga.click();
   enlaceDescarga.remove();
 
-  mostrarToast(`✅ Archivo de firma "${nombreSugerido}" exportado con éxito.`, 'exito');
+  mostrarToast(`✅ Archivo de firma "${nombreSugerido}" exportado.`, 'exito');
+}
+
+/* --- SUBIR ARCHIVO DE FIRMA DESDE EL DISPOSITIVO --- */
+function dispararSubidaArchivoFirma(){
+  const input = document.getElementById('inputSubirArchivoFirma');
+  if(input) input.click();
+}
+
+function manejarArchivoFirmaSubido(event){
+  const file = event.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      limpiarLienzoFirma();
+      const rect = lienzoFirma.getBoundingClientRect();
+      ctxFirma.drawImage(img, 0, 0, rect.width, rect.height);
+      mostrarToast('Firma cargada al lienzo correctamente.', 'exito');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
 }
 
 function guardarFirmaLienzo(){
@@ -120,7 +146,7 @@ function guardarFirmaLienzo(){
   }
 
   cerrarModal('modalLienzoFirma');
-  mostrarToast('Firma capturada correctamente.', 'exito');
+  mostrarToast('Firma guardada correctamente.', 'exito');
 }
 
 function actualizarPreviewFirmaOrden(tipo){
@@ -141,7 +167,7 @@ function actualizarPreviewFirmaOrden(tipo){
 }
 
 /* ---------------------------------------------------------
-   INYECCIÓN DEL MODAL DE FIRMA CON BOTÓN DE EXPORTAR
+   INYECCIÓN DEL MODAL CON BOTONES DE SUBIR Y EXPORTAR
 --------------------------------------------------------- */
 function asegurarModalFirmaEnDOM(){
   if(document.getElementById('modalLienzoFirma')) return;
@@ -151,22 +177,25 @@ function asegurarModalFirmaEnDOM(){
   div.style.display = 'none';
   div.style.zIndex = '999999';
   div.innerHTML = `
-    <div class="modal-card" style="max-width:580px;width:94%;padding:18px;border-radius:14px;">
+    <div class="modal-card" style="max-width:600px;width:94%;padding:18px;border-radius:14px;">
       <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--card-border);padding-bottom:10px;margin-bottom:12px;">
         <h4 id="lblTituloModalFirma" style="margin:0;font-size:16px;">✍️ Firma Táctil</h4>
         <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="cerrarModal('modalLienzoFirma')">✕</button>
       </div>
 
-      <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px 0;">Dibuja la firma en el área blanca con el dedo o puntero táctil:</p>
+      <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px 0;">Dibuja la firma en el área blanca o carga un archivo existente:</p>
 
       <div style="background:#ffffff;border:2px dashed #94a3b8;border-radius:10px;overflow:hidden;position:relative;">
-        <canvas id="canvasFirmaTactil" style="width:100%;height:230px;display:block;touch-action:none;cursor:crosshair;"></canvas>
+        <canvas id="canvasFirmaTactil" style="width:100%;height:220px;display:block;touch-action:none;cursor:crosshair;"></canvas>
       </div>
 
+      <input type="file" id="inputSubirArchivoFirma" accept="image/png, image/jpeg" style="display:none;" onchange="manejarArchivoFirmaSubido(event)">
+
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:14px;">
-        <div style="display:flex;gap:6px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="limpiarLienzoFirma()"><i class="fas fa-eraser"></i> Limpiar</button>
-          <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" style="background:#f8fafc;border-color:#0284c7;color:#0369a1;font-weight:600;" onclick="exportarArchivoFirma()"><i class="fas fa-download"></i> Exportar Archivo de Firma</button>
+          <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" style="background:#f1f5f9;font-weight:600;" onclick="dispararSubidaArchivoFirma()"><i class="fas fa-upload"></i> Subir Archivo</button>
+          <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" style="background:#e0f2fe;color:#0369a1;border-color:#7dd3fc;font-weight:600;" onclick="exportarArchivoFirma()"><i class="fas fa-download"></i> Exportar Archivo</button>
         </div>
         <div style="display:flex;gap:8px;">
           <button type="button" class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalLienzoFirma')">Cancelar</button>
