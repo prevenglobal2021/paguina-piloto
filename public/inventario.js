@@ -1,71 +1,29 @@
-// ===== inventario.js — Inventario, Bodegas, Kardex, Trazabilidad, Visor de Fotos y QR =====
+// ===== inventario.js — Inventario, Bodegas, Kardex y QR =====
 /* =========================================================
-   INVENTARIO, BODEGAS, KARDEX Y TRAZABILIDAD
+   INVENTARIO, BODEGAS, KARDEX Y QR
 ========================================================= */
 let fotosInventarioTemp = [];
 let bodegaEdicionId = null;
-let itemMovimientoActualId = null;
 
 function buscarItemInventario(id){ return (db.inventario || []).find(i=>i.id===id); }
 function buscarBodega(id){ return (db.bodegas || []).find(b=>b.id===id); }
 
 /* ---------------------------------------------------------
-   VISOR AMPLIADO DE IMÁGENES (LIGHTBOX MODAL)
---------------------------------------------------------- */
-function verFotoInventarioGrande(src, titulo){
-  asegurarModalVisorFotoEnDOM();
-  const imgEl = document.getElementById('visorFotoImg');
-  const txtEl = document.getElementById('visorFotoTitulo');
-  if(imgEl) imgEl.src = src;
-  if(txtEl) txtEl.innerText = titulo || 'Detalle del ítem';
-  abrirModal('modalVisorFotoInventario');
-}
-
-function asegurarModalVisorFotoEnDOM(){
-  if(document.getElementById('modalVisorFotoInventario')) return;
-  const div = document.createElement('div');
-  div.id = 'modalVisorFotoInventario';
-  div.className = 'modal-overlay';
-  div.style.display = 'none';
-  div.style.zIndex = '99999';
-  div.onclick = (e) => {
-    if(e.target === div) cerrarModal('modalVisorFotoInventario');
-  };
-  div.innerHTML = `
-    <div class="modal-card" style="max-width:680px;width:92%;padding:18px;text-align:center;background:#ffffff;border-radius:14px;box-shadow:0 25px 35px -5px rgba(0,0,0,.35);position:relative;" onclick="event.stopPropagation()">
-      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0;padding-bottom:12px;margin-bottom:14px;">
-        <h4 id="visorFotoTitulo" style="margin:0;font-size:16px;font-weight:700;color:#0f172a;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;">Foto del ítem</h4>
-        <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" style="padding:4px 10px;font-size:14px;border-radius:8px;" onclick="cerrarModal('modalVisorFotoInventario')">✕</button>
-      </div>
-      <div style="width:100%;max-height:75vh;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;">
-        <img id="visorFotoImg" src="" style="max-width:100%;max-height:72vh;object-fit:contain;border-radius:8px;display:block;">
-      </div>
-      <div style="margin-top:14px;text-align:right;">
-        <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" style="border-radius:6px;" onclick="cerrarModal('modalVisorFotoInventario')">Cerrar</button>
-      </div>
-    </div>`;
-  document.body.appendChild(div);
-}
-
-/* ---------------------------------------------------------
-   BODEGAS (Crear, Editar, Eliminar)
+   BODEGAS (Crear, Editar y Listar)
 --------------------------------------------------------- */
 function abrirModalBodega(bodegaId){
   bodegaEdicionId = bodegaId || null;
   const inputNombre = document.getElementById('bodNombre');
   const selectTipo = document.getElementById('bodTipo');
-  const btnGuardar = document.querySelector('#modalBodega button[onclick="guardarBodega()"]') || document.getElementById('btnGuardarBodega');
   
   if(bodegaId){
     const b = buscarBodega(bodegaId);
     if(!b) return;
     if(inputNombre) inputNombre.value = b.nombre;
     if(selectTipo) selectTipo.value = b.tipo || 'fija';
-    if(btnGuardar) btnGuardar.innerText = 'Guardar Cambios';
   } else {
     if(inputNombre) inputNombre.value = '';
     if(selectTipo) selectTipo.value = 'fija';
-    if(btnGuardar) btnGuardar.innerText = '+ Guardar Bodega';
   }
   abrirModal('modalBodega');
 }
@@ -99,7 +57,7 @@ async function guardarBodega(){
   }
 
   registrarLog(bodegaEdicionId ? 'Editar' : 'Crear', 'Bodega', nombre);
-  mostrarToast(bodegaEdicionId ? `✅ Bodega "${nombre}" actualizada.` : `✅ Bodega "${nombre}" creada.`, 'exito');
+  mostrarToast(bodegaEdicionId ? `✅ Bodega actualizada.` : `✅ Bodega creada.`, 'exito');
   bodegaEdicionId = null;
   cerrarModal('modalBodega');
   renderizarInventario();
@@ -110,7 +68,7 @@ async function eliminarBodega(id){
   if(!b) return;
   const itemsEnBodega = (db.inventario || []).filter(i=>i.bodegaId===id);
   if(itemsEnBodega.length > 0){
-    mostrarToast(`⚠️ No se puede eliminar: tiene ${itemsEnBodega.length} ítem(s) asignado(s). Trasládalos primero.`, 'error');
+    mostrarToast(`⚠️ No se puede eliminar: tiene ${itemsEnBodega.length} ítem(s) asignado(s).`, 'error');
     return;
   }
   if(!confirm(`¿Eliminar la bodega "${b.nombre}"?`)) return;
@@ -121,10 +79,9 @@ async function eliminarBodega(id){
     await dbGuardarInmediato();
   }catch(err){
     db.bodegas = respaldo;
-    mostrarToast('⚠️ No se pudo eliminar la bodega: ' + err.message, 'error');
+    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
     return;
   }
-  registrarLog('Eliminar', 'Bodega', b.nombre);
   mostrarToast('Bodega eliminada.', 'exito');
   renderizarInventario();
 }
@@ -250,169 +207,6 @@ async function eliminarItemInventario(id){
 }
 
 /* ---------------------------------------------------------
-   KARDEX Y TRAZABILIDAD AVANZADA (SALIDAS / PRÉSTAMOS)
---------------------------------------------------------- */
-function abrirModalSalidaRapida(itemId){
-  itemMovimientoActualId = itemId;
-  const it = buscarItemInventario(itemId);
-  if(!it) return;
-
-  asegurarModalMovimientoEnDOM();
-
-  const tituloEl = document.getElementById('movItemTitulo');
-  if(tituloEl) tituloEl.innerText = `${it.nombre} (Disponibles: ${it.stockActual})`;
-
-  document.getElementById('movCantidad').value = 1;
-  document.getElementById('movCantidad').max = it.stockActual;
-  
-  const ahora = new Date();
-  ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset());
-  document.getElementById('movFechaHora').value = ahora.toISOString().slice(0, 16);
-
-  document.getElementById('movFechaEstimadaRetorno').value = '';
-  document.getElementById('movNotas').value = '';
-  document.getElementById('movPersonaExterna').value = '';
-
-  const selTec = document.getElementById('movTecnicoSelect');
-  selTec.innerHTML = '<option value="">— Ninguno / Persona externa no registrada —</option>' +
-    (db.tecnicos || []).filter(t=>t.activo!==false).map(t=>`<option value="${t.id}">${t.nombre}</option>`).join('');
-
-  actualizarCamposDinamicosMovimiento();
-  abrirModal('modalMovimientoAvanzado');
-}
-
-function actualizarCamposDinamicosMovimiento(){
-  const motivo = document.getElementById('movMotivo').value;
-  const tecnicoVal = document.getElementById('movTecnicoSelect').value;
-  
-  const wrapRetorno = document.getElementById('wrapMovRetorno');
-  const wrapExterna = document.getElementById('wrapMovExterna');
-
-  if(wrapRetorno) wrapRetorno.style.display = (motivo === 'prestamo') ? 'block' : 'none';
-  if(wrapExterna) wrapExterna.style.display = (!tecnicoVal) ? 'block' : 'none';
-}
-
-async function guardarMovimientoAvanzado(){
-  const it = buscarItemInventario(itemMovimientoActualId);
-  if(!it) return;
-
-  const tipo = document.getElementById('movTipo').value;
-  const motivo = document.getElementById('movMotivo').value;
-  const cantidad = parseInt(document.getElementById('movCantidad').value) || 0;
-  const fechaHora = document.getElementById('movFechaHora').value || new Date().toISOString();
-  const fechaRetorno = document.getElementById('movFechaEstimadaRetorno').value || null;
-  const tecnicoId = parseInt(document.getElementById('movTecnicoSelect').value) || null;
-  const notas = (document.getElementById('movNotas').value || '').trim();
-
-  let responsableNombre = '';
-  if(tecnicoId){
-    const tec = (db.tecnicos || []).find(t=>t.id===tecnicoId);
-    responsableNombre = tec ? tec.nombre : 'Técnico';
-  } else {
-    responsableNombre = (document.getElementById('movPersonaExterna').value || '').trim();
-    if(!responsableNombre && tipo === 'salida'){
-      mostrarToast('Escribe el nombre de la persona que retira la herramienta o material.');
-      return;
-    }
-    if(!responsableNombre) responsableNombre = 'Externo / General';
-  }
-
-  if(cantidad <= 0){ mostrarToast('La cantidad debe ser mayor a cero.'); return; }
-  if(tipo === 'salida' && it.stockActual < cantidad){
-    mostrarToast(`Stock insuficiente. Solo hay ${it.stockActual} unidades disponibles.`);
-    return;
-  }
-
-  const stockPrevio = it.stockActual;
-  const nuevoStock = (tipo === 'salida') ? (stockPrevio - cantidad) : (stockPrevio + cantidad);
-  it.stockActual = nuevoStock;
-
-  db.kardex = db.kardex || [];
-  const nuevoKardex = {
-    id: Date.now(),
-    itemId: it.id,
-    itemNombre: it.nombre,
-    tipo,
-    motivo,
-    cantidad,
-    stockPrevio,
-    nuevoStock,
-    fechaHora,
-    fechaEstimadaRetorno: (motivo === 'prestamo') ? fechaRetorno : null,
-    tecnicoId,
-    esExterno: !tecnicoId,
-    responsable: responsableNombre,
-    estadoPrestamo: (motivo === 'prestamo') ? 'prestado' : 'completado',
-    notas,
-    usuarioRegistro: (typeof nombreUsuarioActual === 'function') ? nombreUsuarioActual() : 'Administrador'
-  };
-
-  db.kardex.push(nuevoKardex);
-
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    it.stockActual = stockPrevio;
-    db.kardex.pop();
-    mostrarToast('⚠️ Error al registrar movimiento: ' + err.message, 'error');
-    return;
-  }
-
-  registrarLog('Inventario', tipo.toUpperCase(), `${it.nombre}: ${tipo==='salida'?'-':'+'}${cantidad} (${motivo}) a cargo de ${responsableNombre}`);
-  mostrarToast(`✅ Movimiento registrado. Stock de "${it.nombre}": ${nuevoStock}`, 'exito');
-  cerrarModal('modalMovimientoAvanzado');
-  renderizarInventario();
-}
-
-async function registrarRetornoHerramienta(kardexId){
-  const mov = (db.kardex || []).find(k=>k.id===kardexId);
-  if(!mov || mov.estadoPrestamo !== 'prestado') return;
-
-  const it = buscarItemInventario(mov.itemId);
-  if(!it){ mostrarToast('El ítem original ya no existe.'); return; }
-
-  if(!confirm(`¿Confirmar la devolución de ${mov.cantidad} unidad(es) de "${mov.itemNombre}" entregada(s) por ${mov.responsable}?`)) return;
-
-  const stockPrevio = it.stockActual;
-  it.stockActual += mov.cantidad;
-  mov.estadoPrestamo = 'devuelto';
-  mov.fechaRetornoReal = new Date().toISOString();
-
-  const retornoKardex = {
-    id: Date.now(),
-    itemId: it.id,
-    itemNombre: it.nombre,
-    tipo: 'entrada',
-    motivo: 'devolucion',
-    referenciaPrestamoId: mov.id,
-    cantidad: mov.cantidad,
-    stockPrevio,
-    nuevoStock: it.stockActual,
-    fechaHora: new Date().toISOString(),
-    responsable: mov.responsable,
-    notas: `Devolución de préstamo registrado el ${new Date(mov.fechaHora).toLocaleDateString('es-CO')}`,
-    usuarioRegistro: (typeof nombreUsuarioActual === 'function') ? nombreUsuarioActual() : 'Administrador'
-  };
-
-  db.kardex.push(retornoKardex);
-
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    it.stockActual = stockPrevio;
-    mov.estadoPrestamo = 'prestado';
-    delete mov.fechaRetornoReal;
-    db.kardex.pop();
-    mostrarToast('⚠️ Error al registrar devolución: ' + err.message, 'error');
-    return;
-  }
-
-  registrarLog('Inventario', 'DEVOLUCION', `${it.nombre}: devuelto por ${mov.responsable}`);
-  mostrarToast(`✅ Devolución guardada. Stock actual de "${it.nombre}": ${it.stockActual}`, 'exito');
-  renderizarInventario();
-}
-
-/* ---------------------------------------------------------
    QR DINÁMICO E IMPRESIÓN (5x5 CM)
 --------------------------------------------------------- */
 function verFichaQR(itemId){
@@ -448,54 +242,9 @@ function verFichaQR(itemId){
 }
 
 /* ---------------------------------------------------------
-   PANEL MODERNO DE BODEGAS
---------------------------------------------------------- */
-function renderizarPanelBodegas(){
-  const tabla = document.getElementById('tablaInventario');
-  if(!tabla) return;
-  
-  let cont = document.getElementById('panelGestionBodegas');
-  if(!cont){
-    cont = document.createElement('div');
-    cont.id = 'panelGestionBodegas';
-    cont.style.cssText = 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 16px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,0.03);display:flex;align-items:center;gap:12px;flex-wrap:wrap;';
-    tabla.parentNode.insertBefore(cont, tabla);
-  }
-
-  const bodegas = Array.isArray(db.bodegas) ? db.bodegas : [];
-  const chips = bodegas.map(b=>{
-    const cant = (db.inventario || []).filter(i=>i.bodegaId===b.id).length;
-    return `
-      <div style="display:inline-flex;align-items:center;gap:8px;background:#ffffff;border:1px solid #cbd5e1;padding:6px 12px;border-radius:8px;font-size:13px;box-shadow:0 1px 2px rgba(0,0,0,0.04);transition:all 0.15s ease;">
-        <i class="fas fa-warehouse" style="color:#64748b;font-size:12px;"></i>
-        <strong style="color:#0f172a;">${b.nombre}</strong>
-        <span style="font-size:11px;font-weight:600;color:#0284c7;background:#e0f2fe;padding:2px 7px;border-radius:12px;">${cant} ítems</span>
-        <div style="display:flex;align-items:center;gap:3px;margin-left:4px;">
-          <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" style="padding:2px 7px;font-size:11px;border-radius:6px;" onclick="abrirModalBodega(${b.id})" title="Editar Bodega"><i class="fas fa-pen"></i></button>
-          <button type="button" class="btn-custom btn-danger-custom btn-sm-custom" style="padding:2px 7px;font-size:11px;border-radius:6px;" onclick="eliminarBodega(${b.id})" title="Eliminar Bodega">✕</button>
-        </div>
-      </div>`;
-  }).join('');
-
-  cont.innerHTML = `
-    <div style="display:flex;align-items:center;gap:6px;margin-right:4px;">
-      <span style="font-size:12px;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:0.5px;">
-        <i class="fas fa-boxes-stacked" style="color:#0284c7;margin-right:3px;"></i> Bodegas:
-      </span>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;">
-      ${chips || '<span style="font-size:13px;color:#94a3b8;font-style:italic;">No hay bodegas registradas.</span>'}
-    </div>
-    <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" style="border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;" onclick="abrirModalBodega()"><i class="fas fa-plus"></i> Nueva Bodega</button>
-  `;
-}
-
-/* ---------------------------------------------------------
-   RENDERIZADO DE VISTAS (TABLA MODERNA Y KARDEX)
+   RENDERIZADO DE TABLAS
 --------------------------------------------------------- */
 function renderizarInventario(){
-  renderizarPanelBodegas();
-
   const tbody = document.getElementById('tablaInventario');
   const buscadorEl = document.getElementById('invBuscador');
   const texto = buscadorEl ? buscadorEl.value.trim().toLowerCase() : '';
@@ -513,85 +262,30 @@ function renderizarInventario(){
     tbody.innerHTML = itemsFiltrados.map(it=>{
       const bodega = buscarBodega(it.bodegaId);
       const bajoStock = it.stockActual <= it.stockMinimo;
-      
-      // Fotos ampliadas a 56x56 px con zoom interactivo
-      const nombreEscapado = (it.nombre || '').replace(/'/g, "\\'");
-      const fotosHtml = (it.fotos && it.fotos.length) 
-        ? `<div style="display:flex;align-items:center;gap:6px;">` +
-          it.fotos.map(f=>{
-            const src = srcDeFoto(f);
-            return `<img src="${src}" 
-                         style="width:56px;height:56px;object-fit:cover;border-radius:8px;cursor:zoom-in;border:1.5px solid #cbd5e1;box-shadow:0 2px 4px rgba(0,0,0,0.06);transition:transform 0.18s ease, border-color 0.18s ease;" 
-                         onmouseover="this.style.transform='scale(1.12)';this.style.borderColor='#0284c7';" 
-                         onmouseout="this.style.transform='scale(1)';this.style.borderColor='#cbd5e1';" 
-                         onclick="verFotoInventarioGrande('${src}', '${nombreEscapado}')" 
-                         title="Clic para ver foto en tamaño grande">`;
-          }).join('') + `</div>`
-        : `<div style="width:56px;height:56px;background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:11px;">Sin foto</div>`;
-
-      // Badge de stock estilizado
-      const stockBadge = bajoStock
-        ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#dc2626;background:#fee2e2;padding:3px 9px;border-radius:12px;border:1px solid #fca5a5;"><i class="fas fa-triangle-exclamation"></i> BAJO</span>`
-        : `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#166534;background:#dcfce7;padding:3px 9px;border-radius:12px;border:1px solid #86efac;"><i class="fas fa-check"></i> OK</span>`;
-
-      return `
-        <tr style="border-bottom:1px solid #e2e8f0;transition:background 0.15s ease;">
-          <td style="padding:12px 10px;vertical-align:middle;">
-            <div style="font-size:14px;font-weight:700;color:#0f172a;">${it.nombre}</div>
-            <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
-              <span style="font-size:11px;background:#f1f5f9;color:#475569;padding:2px 7px;border-radius:6px;font-weight:500;">${it.categoria || 'Sin categoría'}</span>
-              ${it.precio ? `<span style="font-size:11px;font-weight:700;color:#0284c7;">$${Number(it.precio).toLocaleString('es-CO')}</span>` : ''}
-            </div>
-          </td>
-          <td style="padding:12px 10px;vertical-align:middle;">
-            <div style="display:inline-flex;align-items:center;gap:6px;background:#f8fafc;border:1px solid #e2e8f0;padding:4px 9px;border-radius:7px;font-size:12px;color:#334155;">
-              <i class="fas fa-location-dot" style="color:#0284c7;font-size:11px;"></i>
-              <strong>${bodega ? bodega.nombre : 'Sin bodega'}</strong>
-              <button class="btn-custom btn-secondary-custom btn-sm-custom" style="padding:1px 5px;font-size:10px;border-radius:4px;margin-left:2px;" onclick="abrirModalBodega(${it.bodegaId})" title="Editar Bodega"><i class="fas fa-pen"></i></button>
-            </div>
-          </td>
-          <td style="padding:12px 10px;vertical-align:middle;">
-            <div style="display:flex;align-items:baseline;gap:6px;">
-              <span style="font-size:18px;font-weight:800;color:#0f172a;">${it.stockActual}</span>
-              ${stockBadge}
-            </div>
-            <div style="font-size:11px;color:#64748b;margin-top:2px;">Mínimo requerido: <strong>${it.stockMinimo}</strong></div>
-          </td>
-          <td style="padding:12px 10px;vertical-align:middle;">
-            ${fotosHtml}
-          </td>
-          <td style="padding:12px 10px;vertical-align:middle;text-align:center;">
-            <button class="btn-custom btn-secondary-custom btn-sm-custom" style="width:36px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;" onclick="verFichaQR(${it.id})" title="Ver e imprimir etiqueta QR">
-              <i class="fas fa-qrcode" style="font-size:15px;"></i>
-            </button>
-          </td>
-          <td style="padding:12px 10px;vertical-align:middle;">
-            <div style="display:flex;align-items:center;gap:6px;">
-              <button class="btn-custom btn-secondary-custom btn-sm-custom" style="border-radius:7px;padding:5px 10px;font-size:12px;font-weight:600;background:#f8fafc;border-color:#cbd5e1;" onclick="abrirModalSalidaRapida(${it.id})" title="Registrar Salida / Préstamo">
-                <i class="fas fa-arrow-right-from-bracket" style="color:#0284c7;margin-right:3px;"></i> Salida
-              </button>
-              <button class="btn-custom btn-secondary-custom btn-sm-custom" style="border-radius:7px;padding:5px 9px;font-size:12px;" onclick="abrirModalItemInventario(${it.id})" title="Editar datos del ítem">
-                <i class="fas fa-pen"></i>
-              </button>
-              <button class="btn-custom btn-danger-custom btn-sm-custom" style="border-radius:7px;padding:5px 9px;font-size:12px;" onclick="eliminarItemInventario(${it.id})" title="Eliminar ítem">
-                <i class="fas fa-trash"></i>
-              </button>
-            </div>
-          </td>
-        </tr>`;
-    }).join('') || `<tr><td colspan="6" class="empty-state" style="padding:30px;text-align:center;color:#64748b;">${texto ? 'Sin ítems que coincidan con "'+buscadorEl.value+'".' : 'Sin ítems registrados en el inventario. Haz clic en "+ Ítem" para añadir uno.'}</td></tr>`;
+      const fotosHtml = (it.fotos||[]).map(f=>`<img src="${srcDeFoto(f)}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;margin-right:3px;">`).join('');
+      return `<tr>
+        <td><strong>${it.nombre}</strong><br><small style="color:var(--text-muted);">${it.categoria||''}</small></td>
+        <td>
+          ${bodega ? bodega.nombre : '—'}
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" style="padding:1px 5px;font-size:10px;margin-left:5px;" onclick="abrirModalBodega(${it.bodegaId})" title="Editar nombre de esta bodega"><i class="fas fa-pen"></i></button>
+        </td>
+        <td>${it.stockActual} <span class="${bajoStock?'badge-stock-bajo':'badge-stock-ok'}">${bajoStock?'BAJO':'OK'}</span><br><small style="color:var(--text-muted);">mín: ${it.stockMinimo}</small></td>
+        <td>${fotosHtml||'—'}</td>
+        <td><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verFichaQR(${it.id})"><i class="fas fa-qrcode"></i></button></td>
+        <td>
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalItemInventario(${it.id})">Editar</button>
+          <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarItemInventario(${it.id})">X</button>
+        </td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="6" class="empty-state">${texto ? 'Sin ítems que coincidan con "'+buscadorEl.value+'".' : 'Sin ítems registrados. Crea uno con "+ Ítem".'}</td></tr>`;
   }
 
   const alertas = document.getElementById('alertasStockBajo');
   if(alertas){
     const bajos = items.filter(i=>i.stockActual<=i.stockMinimo);
     alertas.innerHTML = bajos.length ? `
-      <div class="panel" style="background:#fef2f2;border:1px solid #f87171;border-radius:10px;padding:12px 16px;margin-bottom:18px;color:#991b1b;display:flex;align-items:center;gap:10px;box-shadow:0 1px 3px rgba(0,0,0,0.03);">
-        <i class="fas fa-triangle-exclamation" style="font-size:18px;color:#dc2626;"></i>
-        <div>
-          <strong>Atención:</strong> Hay <strong>${bajos.length}</strong> ítem(s) por debajo del stock mínimo: 
-          <span style="color:#7f1d1d;">${bajos.map(b=>b.nombre).join(', ')}</span>
-        </div>
+      <div class="panel" style="background:rgba(239,68,68,.1);border-color:var(--red-alert);margin-bottom:15px;">
+        ⚠️ <strong>${bajos.length}</strong> ítem(s) por debajo del stock mínimo: ${bajos.map(b=>b.nombre).join(', ')}
       </div>` : '';
   }
 
@@ -603,121 +297,15 @@ function renderizarKardex(){
   if(!tbody) return;
   const movimientos = Array.isArray(db.kardex) ? db.kardex : [];
   
-  tbody.innerHTML = movimientos.slice().reverse().map(k=>{
-    const esSalida = k.tipo === 'salida';
-    const colorTipo = esSalida ? '#dc2626' : '#16a34a';
-    const signo = esSalida ? '−' : '+';
-
-    let badgeMotivo = `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#f1f5f9;color:#334155;text-transform:capitalize;">${k.motivo || 'Movimiento'}</span>`;
-    let accionRetorno = '';
-
-    if(k.motivo === 'prestamo'){
-      if(k.estadoPrestamo === 'prestado'){
-        badgeMotivo = `<span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;">PRESTADA</span>`;
-        accionRetorno = `<button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" style="background:#dcfce7;color:#166534;border-color:#86efac;border-radius:6px;padding:4px 8px;font-weight:600;font-size:11px;" onclick="registrarRetornoHerramienta(${k.id})"><i class="fas fa-arrow-rotate-left"></i> Marcar Devuelto</button>`;
-      } else {
-        badgeMotivo = `<span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;background:#dcfce7;color:#166534;border:1px solid #bbf7d0;">DEVUELTO</span>`;
-      }
-    }
-
-    const fechaFormat = new Date(k.fechaHora || k.fecha || k.id).toLocaleString('es-CO', { dateStyle:'short', timeStyle:'short' });
-    const avisoRetorno = k.fechaEstimadaRetorno ? `<br><small style="color:#b45309;font-weight:500;"><i class="fas fa-clock"></i> Retorno: ${new Date(k.fechaEstimadaRetorno).toLocaleString('es-CO', { dateStyle:'short', timeStyle:'short' })}</small>` : '';
-
-    return `
-      <tr style="border-bottom:1px solid #f1f5f9;">
-        <td style="padding:10px;font-size:13px;color:#475569;">${fechaFormat}</td>
-        <td style="padding:10px;">
-          <div style="font-size:13px;font-weight:700;color:#0f172a;">${k.itemNombre || k.item || '—'}</div>
-          <div style="margin-top:2px;">${badgeMotivo}${avisoRetorno}</div>
-        </td>
-        <td style="padding:10px;font-size:14px;font-weight:800;color:${colorTipo};">${signo}${k.cantidad}</td>
-        <td style="padding:10px;font-size:13px;color:#64748b;">${k.stockPrevio ?? '—'} → <strong style="color:#0f172a;">${k.nuevoStock ?? '—'}</strong></td>
-        <td style="padding:10px;">
-          <div style="font-size:13px;font-weight:600;color:#0f172a;">
-            ${k.responsable || k.destino || '—'}
-            ${k.esExterno ? '<span style="font-size:10px;background:#e0f2fe;color:#0369a1;padding:1px 6px;border-radius:4px;margin-left:4px;font-weight:700;">EXTERNO</span>' : ''}
-          </div>
-          <div style="font-size:11px;color:#64748b;margin-top:1px;">${k.notas || 'Sin notas'}</div>
-        </td>
-        <td style="padding:10px;font-size:12px;color:#64748b;">${k.usuarioRegistro || k.usuario || '—'}</td>
-        <td style="padding:10px;text-align:center;">${accionRetorno}</td>
-      </tr>`;
-  }).join('') || '<tr><td colspan="7" class="empty-state" style="padding:20px;text-align:center;color:#64748b;">Sin movimientos registrados en el kardex.</td></tr>';
-}
-
-/* ---------------------------------------------------------
-   MODAL DE SALIDA Y TRAZABILIDAD (INYECCIÓN DOM)
---------------------------------------------------------- */
-function asegurarModalMovimientoEnDOM(){
-  if(document.getElementById('modalMovimientoAvanzado')) return;
-  const div = document.createElement('div');
-  div.id = 'modalMovimientoAvanzado';
-  div.className = 'modal-overlay';
-  div.style.display = 'none';
-  div.innerHTML = `
-    <div class="modal-card" style="max-width:520px;border-radius:12px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0;padding-bottom:10px;margin-bottom:14px;">
-        <h3 style="margin:0;font-size:16px;color:#0f172a;"><i class="fas fa-dolly" style="color:#0284c7;margin-right:6px;"></i> Movimiento de Inventario / Préstamo</h3>
-        <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" style="border-radius:6px;" onclick="cerrarModal('modalMovimientoAvanzado')">✕</button>
-      </div>
-      
-      <p id="movItemTitulo" style="font-weight:700;color:#0284c7;margin-bottom:14px;font-size:14px;"></p>
-      
-      <div class="field-row">
-        <div>
-          <label style="font-size:12px;font-weight:600;color:#334155;">Tipo de Operación</label>
-          <select id="movTipo" style="border-radius:7px;">
-            <option value="salida">Salida / Retiro</option>
-            <option value="entrada">Entrada / Reingreso manual</option>
-          </select>
-        </div>
-        <div>
-          <label style="font-size:12px;font-weight:600;color:#334155;">Motivo del Retiro</label>
-          <select id="movMotivo" style="border-radius:7px;" onchange="actualizarCamposDinamicosMovimiento()">
-            <option value="prestamo">Préstamo de herramienta</option>
-            <option value="orden">Uso en Servicio / Orden</option>
-            <option value="venta">Venta / Despacho</option>
-            <option value="baja">Baja / Dañado / Desecho</option>
-            <option value="entrada_manual">Ajuste de inventario</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="field-row" style="margin-top:12px;">
-        <div>
-          <label style="font-size:12px;font-weight:600;color:#334155;">Cantidad</label>
-          <input type="number" id="movCantidad" min="1" value="1" style="border-radius:7px;">
-        </div>
-        <div>
-          <label style="font-size:12px;font-weight:600;color:#334155;">Fecha y Hora de Salida</label>
-          <input type="datetime-local" id="movFechaHora" style="border-radius:7px;">
-        </div>
-      </div>
-
-      <div style="margin-top:12px;">
-        <label style="font-size:12px;font-weight:600;color:#334155;">Técnico Registrado</label>
-        <select id="movTecnicoSelect" style="border-radius:7px;" onchange="actualizarCamposDinamicosMovimiento()"></select>
-      </div>
-
-      <div id="wrapMovExterna" style="margin-top:12px;display:none;">
-        <label style="font-size:12px;font-weight:600;color:#0369a1;">Nombre de persona externa / ajena (No registrada)</label>
-        <input type="text" id="movPersonaExterna" placeholder="Nombre completo de quien retira la herramienta/material" style="border-radius:7px;">
-      </div>
-
-      <div id="wrapMovRetorno" style="margin-top:12px;display:none;">
-        <label style="font-size:12px;font-weight:600;color:#b45309;">Fecha y Hora Estipulada de Retorno</label>
-        <input type="datetime-local" id="movFechaEstimadaRetorno" style="border-radius:7px;">
-      </div>
-
-      <div style="margin-top:12px;">
-        <label style="font-size:12px;font-weight:600;color:#334155;">Observaciones / Destino</label>
-        <input type="text" id="movNotas" placeholder="Ej: Servicio correctivo en sede central" style="border-radius:7px;">
-      </div>
-
-      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
-        <button type="button" class="btn-custom btn-secondary-custom" style="border-radius:8px;" onclick="cerrarModal('modalMovimientoAvanzado')">Cancelar</button>
-        <button type="button" class="btn-custom btn-primary-custom" style="border-radius:8px;" onclick="guardarMovimientoAvanzado()">Confirmar Movimiento</button>
-      </div>
-    </div>`;
-  document.body.appendChild(div);
+  tbody.innerHTML = movimientos.slice().reverse().map(k=>`
+    <tr>
+      <td>${new Date(k.fechaHora || k.fecha || k.id).toLocaleString('es-CO')}</td>
+      <td><strong>${k.itemNombre || k.item || '—'}</strong></td>
+      <td><span style="font-weight:700;color:${k.tipo==='salida'?'#dc2626':'#16a34a'};">${k.tipo ? k.tipo.toUpperCase() : 'MOV'}</span></td>
+      <td>${k.cantidad}</td>
+      <td>${k.origen || '—'}</td>
+      <td>${k.destino || k.responsable || '—'}</td>
+      <td>${k.usuario || k.usuarioRegistro || '—'}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="7" class="empty-state">Sin movimientos registrados en el kardex.</td></tr>';
 }
