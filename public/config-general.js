@@ -1,19 +1,26 @@
-// ===== config-general.js — extraído de prevenglobal__25_.html =====
+// ===== config-general.js — Configuración General, Empresa y Temas Metalizados =====
 /* =========================================================
-   CONFIGURACIÓN: EMPRESA Y PERFIL (logo, dirección, misión, visión)
+   CONFIGURACIÓN: EMPRESA Y PERFIL
 ========================================================= */
 function actualizarPreviewLoginMini(){
-  const c1 = document.getElementById('cfgLoginColor1').value || '#7c3aed';
-  const c2 = document.getElementById('cfgLoginColor2').value || '#4c1d95';
+  const c1 = document.getElementById('cfgLoginColor1')?.value || '#0284c7';
+  const c2 = document.getElementById('cfgLoginColor2')?.value || '#0f172a';
   const mini = document.getElementById('previewLoginMini');
+  if(!mini) return;
   mini.style.setProperty('--preview-login-color-1', c1);
   mini.style.setProperty('--preview-login-color-2', c2);
-  document.getElementById('previewLoginMiniTitulo').innerText = document.getElementById('cfgLoginTituloIzquierda').value || 'Domina el sistema';
-  document.getElementById('previewLoginMiniSubtitulo').innerText = document.getElementById('cfgLoginSubtituloIzquierda').value || 'Controla clientes, equipos, órdenes de servicio e inventario desde un solo lugar.';
-  document.getElementById('previewLoginMiniBienvenida').innerText = document.getElementById('cfgLoginBienvenidaTitulo').value || '¡Bienvenido!';
-  document.getElementById('previewLoginMiniSubBienvenida').innerText = document.getElementById('cfgLoginBienvenidaSubtitulo').value || 'Por favor inicia sesión';
-  document.getElementById('previewLoginMiniIzq').style.backgroundImage = loginImagenTempBase64 ? `url('${loginImagenTempBase64}')` : 'none';
+  const tIzq = document.getElementById('cfgLoginTituloIzquierda');
+  const sIzq = document.getElementById('cfgLoginSubtituloIzquierda');
+  const bTit = document.getElementById('cfgLoginBienvenidaTitulo');
+  const bSub = document.getElementById('cfgLoginBienvenidaSubtitulo');
+  if(tIzq) document.getElementById('previewLoginMiniTitulo').innerText = tIzq.value || 'Domina el sistema';
+  if(sIzq) document.getElementById('previewLoginMiniSubtitulo').innerText = sIzq.value || 'Controla clientes, equipos, órdenes de servicio e inventario.';
+  if(bTit) document.getElementById('previewLoginMiniBienvenida').innerText = bTit.value || '¡Bienvenido!';
+  if(bSub) document.getElementById('previewLoginMiniSubBienvenida').innerText = bSub.value || 'Por favor inicia sesión';
+  const izq = document.getElementById('previewLoginMiniIzq');
+  if(izq) izq.style.backgroundImage = loginImagenTempBase64 ? `url('${loginImagenTempBase64}')` : 'none';
 }
+
 let loginImagenTempBase64 = null;
 function manejarLoginImagenUpload(event){
   const file = event.target.files[0];
@@ -23,7 +30,7 @@ function manejarLoginImagenUpload(event){
   const cargandoEl = document.getElementById('loginImagenCargando');
   const btnGuardar = document.getElementById('btnGuardarAparienciaLogin');
   if(file.size > 10*1024*1024){
-    estadoEl.innerText = '⚠️ Esa imagen pesa más de 10MB. Elige una más liviana.';
+    estadoEl.innerText = '⚠️ La imagen supera 10MB. Selecciona una más liviana.';
     estadoEl.style.color = 'var(--red-alert)';
     event.target.value = '';
     return;
@@ -45,7 +52,7 @@ function manejarLoginImagenUpload(event){
     }).then(data=>{
       loginImagenTempBase64 = data.imagen;
       actualizarPreviewLoginMini();
-      estadoEl.innerText = '✅ Imagen lista (recortada a 1080x1920). Falta guardar los cambios.';
+      estadoEl.innerText = '✅ Imagen optimizada lista. Guarda cambios para aplicar.';
       estadoEl.style.color = 'var(--exito-verde,#22c55e)';
     }).catch(err=>{
       estadoEl.innerText = '⚠️ ' + err.message;
@@ -58,15 +65,14 @@ function manejarLoginImagenUpload(event){
     });
   };
   reader.onerror = ()=>{
-    estadoEl.innerText = '⚠️ No se pudo leer el archivo desde tu dispositivo. Intenta de nuevo.';
-    estadoEl.style.color = 'var(--red-alert)';
+    estadoEl.innerText = '⚠️ Error al leer archivo.';
     cargandoEl.style.display = 'none';
     inputEl.disabled = false;
     if(btnGuardar) btnGuardar.disabled = false;
-    inputEl.value = '';
   };
   reader.readAsDataURL(file);
 }
+
 async function guardarAparienciaLogin(){
   db.config.loginColor1 = document.getElementById('cfgLoginColor1').value;
   db.config.loginColor2 = document.getElementById('cfgLoginColor2').value;
@@ -77,12 +83,13 @@ async function guardarAparienciaLogin(){
   db.config.loginBienvenidaSubtitulo = document.getElementById('cfgLoginBienvenidaSubtitulo').value.trim();
   try{
     await dbGuardarInmediato();
-    registrarLog('Actualizar', 'Apariencia del Login', '—');
+    registrarLog('Actualizar', 'Apariencia Login', '—');
     mostrarToast('✅ Pantalla de login guardada.', 'exito');
   }catch(err){
     mostrarToast('⚠️ No se guardó: ' + err.message, 'error');
   }
 }
+
 function manejarLogoUpload(event){
   const file = event.target.files[0];
   if(!file) return;
@@ -95,11 +102,13 @@ function manejarLogoUpload(event){
   };
   reader.readAsDataURL(file);
 }
+
 function actualizarPreviewFirmaRepresentante(){
   const prev = document.getElementById('imgFirmaConfig');
   const placeholder = document.getElementById('previewFirmaConfigPlaceholder');
   if(firmaTempBase64){ prev.src = firmaTempBase64; prev.style.display='block'; placeholder.style.display='none'; }
 }
+
 async function guardarAjustesGenerales(){
   db.config.nombre = document.getElementById('cfgEmpresaNombre').value;
   db.config.subtitulo = document.getElementById('cfgEmpresaSub').value;
@@ -112,11 +121,12 @@ async function guardarAjustesGenerales(){
   try{
     await dbGuardarInmediato();
     aplicarConfiguracionVisual();
-    mostrarToast('✅ Perfil de empresa y firma guardados.', 'exito');
+    mostrarToast('✅ Configuración general guardada.', 'exito');
   }catch(err){
     mostrarToast('⚠️ No se guardó: ' + err.message, 'error');
   }
 }
+
 async function guardarPasswordAdmin(){
   const usuario = document.getElementById('cfgAdminUsuario').value.trim();
   const nueva = document.getElementById('cfgAdminPasswordNueva').value;
@@ -128,13 +138,14 @@ async function guardarPasswordAdmin(){
     await dbGuardarInmediato();
   }catch(err){
     Object.assign(db.config, respaldo);
-    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    mostrarToast('⚠️ No se pudo guardar clave de admin: ' + err.message, 'error');
     return;
   }
   document.getElementById('cfgAdminPasswordNueva').value = '';
   registrarLog('Actualizar acceso', 'Administrador', usuario || '—');
-  mostrarToast('✅ Acceso de administrador actualizado.', 'exito');
+  mostrarToast('✅ Acceso actualizado.', 'exito');
 }
+
 async function guardarInterruptorLogin(){
   const anterior = db.config.loginRequerido;
   db.config.loginRequerido = document.getElementById('cfgLoginRequerido').checked;
@@ -150,56 +161,40 @@ async function guardarInterruptorLogin(){
 }
 
 /* =========================================================
-   CONFIGURACIÓN: APARIENCIA (PALETAS EMPRESARIALES METALIZADAS)
+   TEMAS: AZUL METALIZADO CLARO & AZUL METALIZADO OSCURO
 ========================================================= */
 const TEMAS_CLAROS = [
   { 
-    nombre: 'Titanio & Azul Industrial', 
+    nombre: 'Azul Metalizado Claro (Acero & Platino)', 
+    esOscuro: false,
     acento: '#0284c7', 
-    fondo: '#f1f5f9', 
+    fondo: 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #f1f5f9 100%)', 
+    colorFondoSolido: '#e2e8f0',
     texto: '#0f172a', 
-    sidebar1: '#ffffff', 
-    sidebar2: '#e2e8f0', 
-    topbar1: '#ffffff', 
-    topbar2: '#f8fafc', 
-    panel1: '#ffffff', 
-    panel2: '#f8fafc' 
+    textoMuted: '#475569',
+    sidebar1: 'linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%)', 
+    sidebar2: '#cbd5e1', 
+    topbar1: 'linear-gradient(90deg, #ffffff 0%, #e2e8f0 100%)', 
+    topbar2: '#cbd5e1', 
+    panel1: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)', 
+    panel2: '#ffffff',
+    borde: '#94a3b8'
   },
   { 
-    nombre: 'Platino Satinado (Prevenglobal)', 
-    acento: '#0284c7', 
-    fondo: '#eef2f6', 
-    texto: '#1e293b', 
-    sidebar1: '#f8fafc', 
-    sidebar2: '#e2e8f0', 
-    topbar1: '#ffffff', 
-    topbar2: '#f1f5f9', 
-    panel1: '#ffffff', 
-    panel2: '#f8fafc' 
-  },
-  { 
-    nombre: 'Acero Frío & Esmeralda HVAC', 
-    acento: '#059669', 
-    fondo: '#f0fdf4', 
-    texto: '#064e3b', 
-    sidebar1: '#ffffff', 
-    sidebar2: '#dcfce7', 
-    topbar1: '#ffffff', 
-    topbar2: '#f0fdf4', 
-    panel1: '#ffffff', 
-    panel2: '#f8fafc' 
-  },
-  { 
-    nombre: 'Grafito Claro & Ámbar Operativo', 
-    acento: '#d97706', 
-    fondo: '#f4f4f5', 
-    texto: '#18181b', 
-    sidebar1: '#ffffff', 
-    sidebar2: '#e4e4e7', 
-    topbar1: '#ffffff', 
-    topbar2: '#fafafa', 
-    panel1: '#ffffff', 
-    panel2: '#f8fafc' 
+    nombre: 'Azul Metalizado Oscuro (Titanio Cobalto)', 
+    esOscuro: true,
+    acento: '#38bdf8', 
+    fondo: 'linear-gradient(135deg, #0b1329 0%, #111c38 50%, #1e293b 100%)', 
+    colorFondoSolido: '#0b1329',
+    texto: '#f8fafc', 
+    textoMuted: '#94a3b8',
+    sidebar1: 'linear-gradient(180deg, #0f172a 0%, #0b1329 100%)', 
+    sidebar2: '#1e293b', 
+    topbar1: 'linear-gradient(90deg, #111c38 0%, #0f172a 100%)', 
+    topbar2: '#1e293b', 
+    panel1: 'linear-gradient(180deg, #16203c 0%, #0f172a 100%)', 
+    panel2: '#16203c',
+    borde: '#334155'
   }
 ];
 
@@ -207,107 +202,185 @@ let temaClaroSeleccionadoIdx = 0;
 function renderizarTemasClaros(){
   const cont = document.getElementById('temasClarosGrid');
   if(!cont) return;
-  const idxActual = TEMAS_CLAROS.findIndex(t=>t.acento===db.config.colorAcento && t.fondo===db.config.colorFondo);
+  const idxActual = TEMAS_CLAROS.findIndex(t => t.acento === db.config.colorAcento && t.colorFondoSolido === db.config.colorFondo);
   temaClaroSeleccionadoIdx = idxActual >= 0 ? idxActual : 0;
-  cont.innerHTML = TEMAS_CLAROS.map((t,idx)=>`
-    <div class="tema-claro-opcion ${idx===temaClaroSeleccionadoIdx?'seleccionado':''}" data-idx="${idx}" onclick="seleccionarTemaClaro(${idx})">
-      <div class="tema-claro-preview" style="background:${t.fondo};">
-        <div style="background:${t.sidebar1};width:35%;height:100%;border-right:1px solid rgba(0,0,0,.08);"></div>
-        <div style="width:14px;height:14px;border-radius:50%;background:${t.acento};margin-left:10px;"></div>
+  cont.innerHTML = TEMAS_CLAROS.map((t, idx) => `
+    <div class="tema-claro-opcion ${idx === temaClaroSeleccionadoIdx ? 'seleccionado' : ''}" data-idx="${idx}" onclick="seleccionarTemaClaro(${idx})" style="cursor:pointer;border:2px solid ${idx===temaClaroSeleccionadoIdx?t.acento:'#cbd5e1'};border-radius:8px;padding:8px;margin-bottom:8px;background:${t.colorFondoSolido};">
+      <div class="tema-claro-preview" style="background:${t.fondo};height:45px;border-radius:6px;display:flex;align-items:center;border:1px solid ${t.borde};overflow:hidden;">
+        <div style="background:${t.sidebar1};width:32%;height:100%;border-right:1px solid ${t.borde};"></div>
+        <div style="width:16px;height:16px;border-radius:50%;background:${t.acento};margin-left:12px;box-shadow:0 0 6px ${t.acento};"></div>
       </div>
-      <span>${t.nombre}</span>
+      <span style="color:${t.texto};font-weight:700;font-size:13px;margin-top:6px;display:block;">${t.nombre}</span>
     </div>`).join('');
 }
+
 function seleccionarTemaClaro(idx){
   temaClaroSeleccionadoIdx = idx;
-  document.querySelectorAll('.tema-claro-opcion').forEach(el=>el.classList.toggle('seleccionado', parseInt(el.dataset.idx)===idx));
+  document.querySelectorAll('.tema-claro-opcion').forEach(el => el.classList.toggle('seleccionado', parseInt(el.dataset.idx) === idx));
 }
+
+/* =========================================================
+   INYECCIÓN VISUAL TOTAL DEL TEMA EN EL DOM
+========================================================= */
+function aplicarConfiguracionVisual(){
+  const cfg = db.config || {};
+  const tema = TEMAS_CLAROS.find(t => t.acento === cfg.colorAcento) || TEMAS_CLAROS[0];
+  const root = document.documentElement;
+
+  // Variables raíz CSS
+  root.style.setProperty('--accent-color', cfg.colorAcento || tema.acento);
+  root.style.setProperty('--bg-body', tema.colorFondoSolido);
+  root.style.setProperty('--text-main', tema.texto);
+  root.style.setProperty('--text-color', tema.texto);
+  root.style.setProperty('--text-muted', tema.textoMuted);
+  root.style.setProperty('--card-bg', tema.panel2);
+  root.style.setProperty('--panel-bg', tema.panel2);
+  root.style.setProperty('--card-border', tema.borde);
+
+  // Inyección de hoja de estilos dinámica para sobreescribir cualquier clase fija
+  let estiloTema = document.getElementById('estiloTemaMetalizadoDinamico');
+  if(!estiloTema){
+    estiloTema = document.createElement('style');
+    estiloTema.id = 'estiloTemaMetalizadoDinamico';
+    document.head.appendChild(estiloTema);
+  }
+
+  estiloTema.innerHTML = `
+    body, html {
+      background: ${tema.fondo} !important;
+      color: ${tema.texto} !important;
+      min-height: 100vh !important;
+    }
+    aside, .sidebar {
+      background: ${tema.sidebar1} !important;
+      border-right: 1px solid ${tema.borde} !important;
+      color: ${tema.texto} !important;
+    }
+    aside ul li a, .sidebar a {
+      color: ${tema.texto} !important;
+    }
+    aside ul li a:hover, aside ul li a.active {
+      background: ${tema.acento}22 !important;
+      color: ${tema.acento} !important;
+    }
+    header, .topbar {
+      background: ${tema.topbar1} !important;
+      border-bottom: 1px solid ${tema.borde} !important;
+      color: ${tema.texto} !important;
+    }
+    header h2, header p, header span {
+      color: ${tema.texto} !important;
+    }
+    .panel, .orden-card, .kpi-card, .card, .dashboard-container {
+      background: ${tema.panel1} !important;
+      border: 1px solid ${tema.borde} !important;
+      color: ${tema.texto} !important;
+      box-shadow: 0 4px 12px rgba(0,0,0, ${tema.esOscuro ? '0.35' : '0.06'}) !important;
+    }
+    .orden-card-top span, .orden-card-cliente, .orden-card-datos span {
+      color: ${tema.texto} !important;
+    }
+    table {
+      color: ${tema.texto} !important;
+    }
+    table thead th {
+      background: ${tema.sidebar2} !important;
+      color: ${tema.texto} !important;
+      border-bottom: 2px solid ${tema.borde} !important;
+    }
+    table tbody td {
+      border-bottom: 1px solid ${tema.borde} !important;
+      color: ${tema.texto} !important;
+    }
+    table tbody tr:hover {
+      background: ${tema.acento}15 !important;
+    }
+    input, select, textarea {
+      background-color: ${tema.esOscuro ? '#0b1329' : '#ffffff'} !important;
+      color: ${tema.texto} !important;
+      border: 1px solid ${tema.borde} !important;
+    }
+    .modal-card {
+      background: ${tema.panel2} !important;
+      color: ${tema.texto} !important;
+      border: 1px solid ${tema.borde} !important;
+    }
+  `;
+}
+
 async function guardarApariencia(){
   const tema = TEMAS_CLAROS[temaClaroSeleccionadoIdx] || TEMAS_CLAROS[0];
   db.config.colorAcento = tema.acento;
-  db.config.colorFondo = tema.fondo;
-  db.config.modoClaro = true;
+  db.config.colorFondo = tema.colorFondoSolido;
   db.config.colorTexto = tema.texto;
-  db.config.colorSidebar1 = tema.sidebar1;
-  db.config.colorSidebar2 = tema.sidebar2;
-  db.config.colorTopbar1 = tema.topbar1;
-  db.config.colorTopbar2 = tema.topbar2;
-  db.config.colorPanel1 = tema.panel1;
-  db.config.colorPanel2 = tema.panel2;
-  db.config.tamanoLetra = document.getElementById('cfgTamanoLetra').value;
-  db.config.formRadius = document.getElementById('cfgFormRadius').value;
-  db.config.formBorderColor = document.getElementById('cfgFormBorderColor').value;
-  db.config.fontFamily = document.getElementById('cfgTipoLetra').value;
-  db.config.formTamanoBotones = document.getElementById('cfgFormTamanoBotones').value;
+  db.config.colorSidebar1 = tema.sidebar2;
+  db.config.colorTopbar1 = tema.topbar2;
+  db.config.colorPanel1 = tema.panel2;
+  db.config.formBorderColor = tema.borde;
+
   try{
     await dbGuardarInmediato();
     aplicarConfiguracionVisual();
-    mostrarToast('✅ Apariencia guardada correctamente.', 'exito');
+    mostrarToast(`✅ Tema ${tema.nombre} aplicado correctamente.`, 'exito');
     cerrarModal('modalConfigCentro');
   }catch(err){
     mostrarToast('⚠️ No se guardó: ' + err.message, 'error');
   }
 }
+
 async function restablecerColorTexto(){
-  db.config.colorTexto = null;
   const tema = TEMAS_CLAROS[temaClaroSeleccionadoIdx] || TEMAS_CLAROS[0];
-  document.getElementById('cfgColorTexto').value = tema.texto;
-  try{ await dbGuardarInmediato(); }catch(err){ mostrarToast('⚠️ No se pudo restablecer: ' + err.message, 'error'); return; }
+  db.config.colorTexto = tema.texto;
+  try{ await dbGuardarInmediato(); }catch(err){ return; }
   aplicarConfiguracionVisual();
 }
+
 async function restablecerBordeFormulario(){
-  db.config.formBorderColor = null;
-  document.getElementById('cfgFormBorderColor').value = '#cbd5e1';
-  try{ await dbGuardarInmediato(); }catch(err){ mostrarToast('⚠️ No se pudo restablecer: ' + err.message, 'error'); return; }
+  const tema = TEMAS_CLAROS[temaClaroSeleccionadoIdx] || TEMAS_CLAROS[0];
+  db.config.formBorderColor = tema.borde;
+  try{ await dbGuardarInmediato(); }catch(err){ return; }
   aplicarConfiguracionVisual();
 }
 
 /* =========================================================
-   CONFIGURACIÓN: ETIQUETAS (Tipos de Servicio / Prioridades)
+   CONFIGURACIÓN: ETIQUETAS
 ========================================================= */
 function renderizarEtiquetas(){
   const tbodyTipo = document.getElementById('tablaEtiquetasTipo');
-  tbodyTipo.innerHTML = db.config.tiposServicio.map((t,idx)=>`
-    <tr><td>${t}</td><td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarEtiqueta('tiposServicio',${idx})">X</button></td></tr>
-  `).join('') || '<tr><td colspan="2" class="empty-state">Sin etiquetas</td></tr>';
-
+  if(tbodyTipo){
+    tbodyTipo.innerHTML = (db.config.tiposServicio||[]).map((t,idx)=>`
+      <tr><td>${t}</td><td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarEtiqueta('tiposServicio',${idx})">X</button></td></tr>
+    `).join('') || '<tr><td colspan="2" class="empty-state">Sin etiquetas</td></tr>';
+  }
   const tbodyPrioridad = document.getElementById('tablaEtiquetasPrioridad');
-  tbodyPrioridad.innerHTML = db.config.prioridades.map((p,idx)=>`
-    <tr><td>${p}</td><td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarEtiqueta('prioridades',${idx})">X</button></td></tr>
-  `).join('') || '<tr><td colspan="2" class="empty-state">Sin etiquetas</td></tr>';
+  if(tbodyPrioridad){
+    tbodyPrioridad.innerHTML = (db.config.prioridades||[]).map((p,idx)=>`
+      <tr><td>${p}</td><td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarEtiqueta('prioridades',${idx})">X</button></td></tr>
+    `).join('') || '<tr><td colspan="2" class="empty-state">Sin etiquetas</td></tr>';
+  }
 }
+
 async function agregarEtiqueta(lista, inputId){
   const valor = document.getElementById(inputId).value.trim();
   if(!valor){ mostrarToast('Escribe una etiqueta.'); return; }
+  db.config[lista] = db.config[lista] || [];
   if(db.config[lista].includes(valor)){ mostrarToast('Esa etiqueta ya existe.'); return; }
   db.config[lista].push(valor);
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    db.config[lista].pop();
-    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
-    return;
-  }
+  try{ await dbGuardarInmediato(); }catch(err){ db.config[lista].pop(); return; }
   document.getElementById(inputId).value = '';
   renderizarEtiquetas();
 }
+
 async function eliminarEtiqueta(lista, idx){
-  if(db.config[lista].length<=1){ mostrarToast('Debe quedar al menos una etiqueta en la lista.'); return; }
+  if((db.config[lista]||[]).length <= 1){ mostrarToast('Debe quedar al menos una etiqueta.'); return; }
   if(!confirm('¿Eliminar esta etiqueta?')) return;
-  const respaldo = db.config[lista].slice();
   db.config[lista].splice(idx,1);
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    db.config[lista] = respaldo;
-    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
-    return;
-  }
+  try{ await dbGuardarInmediato(); }catch(err){ return; }
   renderizarEtiquetas();
 }
 
 /* =========================================================
-   BACKUP / RESET / EXPORT
+   BACKUP Y RESTABLECIMIENTO
 ========================================================= */
 function exportarBaseDatosJSON(){
   const blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
@@ -316,71 +389,7 @@ function exportarBaseDatosJSON(){
   link.download = `Prevenglobal_Backup_${new Date().toISOString().slice(0,10)}.json`;
   link.click();
 }
-function importarClientesEquipos(event){
-  const file = event.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = async e=>{
-    try{
-      const data = JSON.parse(e.target.result);
-      if(!data.clientesNuevos || !Array.isArray(data.clientesNuevos)){
-        mostrarToast('Formato no esperado.');
-        return;
-      }
-      const nombresExistentes = new Set(db.clientes.map(c=>c.nombre.trim().toLowerCase()));
-      let agregados = 0, omitidosDuplicados = 0, equiposAgregados = 0;
-      const respaldo = db.clientes.slice();
-      data.clientesNuevos.forEach(cNuevo=>{
-        const clave = (cNuevo.nombre||'').trim().toLowerCase();
-        if(!clave || nombresExistentes.has(clave)){ omitidosDuplicados++; return; }
-        const clienteFinal = Object.assign({}, cNuevo, { id: Date.now() + agregados });
-        (clienteFinal.equiposSinSede || []).forEach((eq, i)=>{
-          eq.id = Date.now() + 1000000 + agregados*100 + i;
-          eq.qrId = 'EQ-' + eq.id;
-          equiposAgregados++;
-        });
-        db.clientes.push(clienteFinal);
-        nombresExistentes.add(clave);
-        agregados++;
-      });
-      try{
-        await dbGuardarInmediato();
-      }catch(err){
-        db.clientes = respaldo;
-        mostrarToast('⚠️ No se pudo guardar la importación: ' + err.message, 'error');
-        return;
-      }
-      registrarLog('Importar', 'Clientes/Equipos', `${agregados} clientes, ${equiposAgregados} equipos`);
-      mostrarToast(`✅ Importación completa: ${agregados} clientes agregados.`, 'exito');
-      renderizarClientesConfig();
-    }catch(err){ mostrarToast('Error al leer el archivo: ' + err.message); }
-  };
-  reader.readAsText(file);
-}
-function importarBaseDatosJSON(event){
-  const file = event.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = async e=>{
-    try{
-      const data = JSON.parse(e.target.result);
-      if(data.clientes && data.plantillas && data.ordenes){
-        const respaldo = db;
-        db = data;
-        try{
-          await dbGuardarInmediato();
-        }catch(err){
-          db = respaldo;
-          mostrarToast('⚠️ No se pudo guardar la base de datos importada: ' + err.message, 'error');
-          return;
-        }
-        mostrarToast('✅ Base de datos importada con éxito.', 'exito');
-        location.reload();
-      } else { mostrarToast('El archivo no tiene el formato esperado.'); }
-    }catch(err){ mostrarToast('Error al leer el archivo JSON.'); }
-  };
-  reader.readAsText(file);
-}
+
 function restablecerFabrica(){
   if(confirm('¿Restablecer toda la base de datos a los valores iniciales? Se perderán los cambios locales.')){
     localStorage.removeItem(DB_KEY);
