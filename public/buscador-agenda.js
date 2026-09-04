@@ -186,7 +186,20 @@ function renderizarAgenda(){
     const sede = buscarSede(o.clienteId, o.sedeId);
     const equipo = buscarEquipo(o.clienteId, o.sedeId, o.equipoId);
     const claseEstado = o.estado==='Finalizado' ? 'finalizado' : (o.estado==='En Ejecución' ? 'ejecucion' : 'programado');
-    const colorBorde = o.estado==='Finalizado' ? '#22c55e' : (o.estado==='En Ejecución' ? '#8b5cf6' : '#f59e0b');
+    // Semaforización: verde = cerrada, amarillo = en proceso, rojo = fuera de
+    // horario (ya pasó la fecha/hora programada y todavía no se finalizó) —
+    // el rojo tiene prioridad sobre los demás, porque es lo más urgente de ver.
+    const ahora = new Date();
+    const fechaHoraProgramada = o.fechaProgramada ? new Date(`${o.fechaProgramada}T${o.horaProgramada||'23:59'}`) : null;
+    const fueraDeHorario = o.estado!=='Finalizado' && fechaHoraProgramada && fechaHoraProgramada < ahora;
+    const colorBorde = o.estado==='Finalizado' ? '#22c55e' : (fueraDeHorario ? '#ef4444' : (o.estado==='En Ejecución' ? '#eab308' : '#f59e0b'));
+    const insigniaSemaforo = o.estado==='Finalizado'
+      ? `<span class="orden-card-badge" style="background:#dcfce7;color:#166534;" title="Servicio cerrado"><i class="fas fa-circle-check"></i> Cerrada</span>`
+      : fueraDeHorario
+        ? `<span class="orden-card-badge" style="background:#fee2e2;color:#b91c1c;" title="Ya pasó la fecha/hora programada"><i class="fas fa-triangle-exclamation"></i> Fuera de horario</span>`
+        : (o.estado==='En Ejecución'
+          ? `<span class="orden-card-badge" style="background:#fef9c3;color:#854d0e;" title="Servicio en proceso"><i class="fas fa-hourglass-half"></i> En proceso</span>`
+          : '');
     const lineaSedeEquipo = o.esClienteNuevo
       ? `<span><i class="fas fa-map-marker-alt"></i> ${o.clienteNuevoDireccion || '—'}</span>`
       : `<span><i class="fas fa-building"></i> ${sede?sede.nombre:'—'}</span><span><i class="fas fa-snowflake"></i> ${equipo?equipo.nombre:'—'}</span>`;
@@ -194,6 +207,7 @@ function renderizarAgenda(){
       <div class="orden-card" style="border-left-color:${colorBorde};">
         <div class="orden-card-top">
           <span class="orden-card-badge badge-${claseEstado}">${o.estado}</span>
+          ${insigniaSemaforo}
           <span class="orden-card-numero">${o.numero}</span>
         </div>
         <h5 class="orden-card-cliente">${nombreClienteOrden(o)}${etiquetaClienteNuevoHtml(o)}</h5>
@@ -215,13 +229,21 @@ function renderizarAgenda(){
   aplicarRBACaUI();
 }
 
-function eliminarOrden(id){
+async function eliminarOrden(id){
   if(!confirm('¿Eliminar esta orden de servicio?')) return;
   const o = db.ordenes.find(x=>x.id===id);
+  const respaldo = db.ordenes.slice();
   db.ordenes = db.ordenes.filter(o=>o.id!==id);
   registrarEliminacion('ordenes', id);
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.ordenes = respaldo;
+    mostrarToast('⚠️ No se pudo eliminar la orden: ' + err.message, 'error');
+    return;
+  }
   if(o) registrarLog('Eliminar', 'OrdenServicio', o.numero);
+  mostrarToast('Orden eliminada.', 'exito');
   renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
 }
 
@@ -235,14 +257,22 @@ function abrirReprogramar(ordenId){
   document.getElementById('reprogEstado').value = o.estado;
   abrirModal('modalReprogramar');
 }
-function guardarReprogramacion(){
+async function guardarReprogramacion(){
   const o = db.ordenes.find(x=>x.id===ordenReprogramarId);
   if(!o) return;
+  const respaldo = { fechaProgramada:o.fechaProgramada, horaProgramada:o.horaProgramada, estado:o.estado };
   o.fechaProgramada = document.getElementById('reprogFecha').value || null;
   o.horaProgramada = document.getElementById('reprogHora').value || null;
   o.estado = document.getElementById('reprogEstado').value;
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    Object.assign(o, respaldo);
+    mostrarToast('⚠️ No se pudo reprogramar: ' + err.message, 'error');
+    return;
+  }
   registrarLog('Reprogramar', 'OrdenServicio', `${o.numero} -> ${o.fechaProgramada||'sin fecha'} (${o.estado})`);
+  mostrarToast('✅ Orden reprogramada.', 'exito');
   cerrarModal('modalReprogramar');
   renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
 }
@@ -277,7 +307,10 @@ function renderizarCalendario(){
     const fechaStr = `${anio}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
     const ordenesDia = ordenesVisibles.filter(o=>o.fechaProgramada===fechaStr);
     let chips = ordenesDia.map(o=>{
-      const claseEstado = o.estado==='Finalizado' ? 'finalizado' : (o.estado==='En Ejecución' ? 'ejecucion' : '');
+      const ahora = new Date();
+      const fechaHoraProgramada = o.fechaProgramada ? new Date(`${o.fechaProgramada}T${o.horaProgramada||'23:59'}`) : null;
+      const fueraDeHorario = o.estado!=='Finalizado' && fechaHoraProgramada && fechaHoraProgramada < ahora;
+      const claseEstado = o.estado==='Finalizado' ? 'finalizado' : (fueraDeHorario ? 'fuera-horario' : (o.estado==='En Ejecución' ? 'ejecucion' : ''));
       const arrastrable = esAdmin() ? `draggable="true" ondragstart="dragOrdenStart(event,${o.id})"` : '';
       return `<span class="calendar-chip ${claseEstado}" ${arrastrable} title="${o.numero} - ${nombreClienteOrden(o)}${o.esClienteNuevo?' (Cliente nuevo)':''}${o.horaProgramada?' - '+o.horaProgramada:''}" onclick="verDetalleOrden(${o.id})">${o.horaProgramada?o.horaProgramada+' ':''}${o.numero}</span>`;
     }).join('');
@@ -287,7 +320,7 @@ function renderizarCalendario(){
 }
 let ordenArrastradaId = null;
 function dragOrdenStart(event, ordenId){ ordenArrastradaId = ordenId; event.dataTransfer.effectAllowed = 'move'; }
-function dropOrdenEnDia(event, fechaStr){
+async function dropOrdenEnDia(event, fechaStr){
   event.preventDefault();
   if(!ordenArrastradaId) return;
   const o = db.ordenes.find(x=>x.id===ordenArrastradaId);
@@ -296,8 +329,17 @@ function dropOrdenEnDia(event, fechaStr){
     const conflicto = db.ordenes.find(x=>x.id!==o.id && x.tecnicoId===o.tecnicoId && x.fechaProgramada===fechaStr);
     if(conflicto && !confirm(`El técnico ya tiene la orden ${conflicto.numero} programada ese día. ¿Reprogramar de todos modos?`)) { ordenArrastradaId=null; return; }
   }
+  const fechaAnterior = o.fechaProgramada;
   o.fechaProgramada = fechaStr;
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    o.fechaProgramada = fechaAnterior;
+    mostrarToast('⚠️ No se pudo reprogramar: ' + err.message, 'error');
+    ordenArrastradaId = null;
+    renderizarCalendario();
+    return;
+  }
   registrarLog('Reprogramar (drag & drop)', 'OrdenServicio', `${o.numero} movida a ${fechaStr}`);
   ordenArrastradaId = null;
   renderizarCalendario(); renderizarAgenda();

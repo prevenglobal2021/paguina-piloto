@@ -445,7 +445,8 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .calendar-day .num-dia{font-weight:700;color:var(--text-muted);margin-bottom:4px;}
 .calendar-chip{background:var(--blue-accent);color:#fff;border-radius:5px;padding:2px 5px;font-size:10px;margin-bottom:3px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;}
 .calendar-chip.finalizado{background:var(--green-success);}
-.calendar-chip.ejecucion{background:var(--purple-info);}
+.calendar-chip.ejecucion{background:#eab308;}
+.calendar-chip.fuera-horario{background:#ef4444;}
 /* FOTOS */
 .fotos-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
 .foto-thumb{position:relative;width:70px;height:70px;}
@@ -780,6 +781,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <button class="btn-custom btn-sm-custom" onclick="abrirModalItemInventario()">+ Ítem</button>
         </div>
       </div>
+      <div id="listaBodegasChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;"></div>
       <div id="alertasStockBajo"></div>
       <input type="text" id="invBuscador" placeholder="🔍 Buscar por nombre, categoría o bodega..." oninput="renderizarInventario()" style="margin-bottom:10px;">
       <table class="data-table">
@@ -1218,7 +1220,8 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 <div class="modal-overlay" id="modalBodega">
   <div class="modal-box modal-sm">
     <button class="close-modal" onclick="cerrarModal('modalBodega')">✖</button>
-    <h3>🏬 Nueva Bodega / Unidad Móvil</h3>
+    <h3 id="tituloModalBodega">🏬 Nueva Bodega / Unidad Móvil</h3>
+    <input type="hidden" id="bodId">
     <label>Nombre:</label><input type="text" id="bodNombre" placeholder="Ej. Camioneta Técnico 1">
     <label>Tipo:</label><select id="bodTipo"><option value="fija">Fija</option><option value="movil">Móvil</option></select>
     <button class="btn-custom" style="margin-top:12px;" onclick="conIndicadorCarga(this, guardarBodega)">Guardar Bodega</button>
@@ -1238,6 +1241,16 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <option value="transferencia">Transferencia entre bodegas</option>
     </select>
     <label>Cantidad:</label><input type="number" id="kdxCantidad" value="1" min="1">
+    <div id="wrapperKdxPersona" style="display:none;">
+      <label>¿Quién se la lleva? <span style="font-weight:400;color:#94a3b8;">(opcional)</span></label>
+      <select id="kdxPersonaSelect" onchange="toggleKardexPersonaLibre()">
+        <option value="">Sin especificar</option>
+        <option value="__otro__">Otra persona (no registrada)...</option>
+      </select>
+      <div id="wrapperKdxPersonaLibre" style="display:none;margin-top:6px;">
+        <input type="text" id="kdxPersonaLibre" placeholder="Nombre de la persona">
+      </div>
+    </div>
     <div id="wrapperKdxDestino" style="display:none;">
       <label>Bodega destino:</label><select id="kdxBodegaDestino"></select>
     </div>
@@ -2113,19 +2126,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=60"></script>
-<script src="utilidades-navegacion.js?v=60"></script>
-<script src="buscador-agenda.js?v=60"></script>
-<script src="ordenes.js?v=60"></script>
-<script src="equipos-trazabilidad.js?v=60"></script>
-<script src="pdf.js?v=60"></script>
-<script src="config-clientes-equipos.js?v=60"></script>
-<script src="config-plantillas-tecnicos.js?v=60"></script>
-<script src="cotizador.js?v=60"></script>
-<script src="config-general.js?v=60"></script>
-<script src="inventario.js?v=60"></script>
-<script src="tienda-admin.js?v=60"></script>
-<script src="tienda-publica.js?v=60"></script>
-<script src="kpi.js?v=60"></script>
+<script src="core.js?v=61"></script>
+<script src="utilidades-navegacion.js?v=61"></script>
+<script src="buscador-agenda.js?v=61"></script>
+<script src="ordenes.js?v=61"></script>
+<script src="equipos-trazabilidad.js?v=61"></script>
+<script src="pdf.js?v=61"></script>
+<script src="config-clientes-equipos.js?v=61"></script>
+<script src="config-plantillas-tecnicos.js?v=61"></script>
+<script src="cotizador.js?v=61"></script>
+<script src="config-general.js?v=61"></script>
+<script src="inventario.js?v=61"></script>
+<script src="tienda-admin.js?v=61"></script>
+<script src="tienda-publica.js?v=61"></script>
+<script src="kpi.js?v=61"></script>
 </body>
 </html>
