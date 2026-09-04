@@ -480,10 +480,10 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 .login-box .btn-custom.btn-secondary-custom{background:#f1f5f9;color:#334155;}
 @media (max-width: 760px){
   .login-split-izq{position:fixed;inset:0;flex:none;z-index:0;}
-  .login-split-der{position:relative;z-index:1;min-height:100vh;background:rgba(255,255,255,.97);}
+  .login-split-der{position:relative;z-index:1;min-height:100vh;background:transparent;display:flex;align-items:center;justify-content:center;padding:20px;}
   .login-split-izq-texto{display:none;}
 }
-.login-box{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:40px 35px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.35);}
+.login-box{background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:40px 35px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.35);color:#1e293b;}
 .boton-empresa-registrada{display:flex;align-items:center;justify-content:space-between;width:100%;background:rgba(0,136,255,.08);border:1px solid var(--card-border);color:var(--text-main);padding:10px 14px;border-radius:8px;margin-top:8px;cursor:pointer;font-size:13px;text-align:left;}
 .boton-empresa-registrada:hover{background:rgba(0,136,255,.18);}
 .boton-empresa-registrada small{color:var(--text-muted);}
@@ -1158,17 +1158,29 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <p id="loginBienvenidaTitulo" style="font-size:22px;font-weight:700;color:#1e293b;margin:8px 0 2px;">¡Bienvenido!</p>
       <p id="loginBienvenidaSubtitulo" style="font-size:13px;color:#64748b;margin:0 0 18px;">Por favor inicia sesión</p>
       <p id="loginEmpresaActualLbl" style="font-size:11px;color:var(--text-muted);display:none;"></p>
-      <label style="text-align:left;display:block;">Ingresar como técnico:</label>
-      <select id="loginTecnicoSelect"></select>
-      <label style="text-align:left;display:block;">Contraseña:</label>
-      <input type="password" id="loginTecnicoPassword" placeholder="Contraseña" onkeydown="if(event.key==='Enter')iniciarSesionComo('tecnico')">
+      <label style="text-align:left;display:block;">¿Cómo vas a ingresar?</label>
+      <select id="loginModoAcceso" onchange="cambiarModoAccesoLogin()">
+        <option value="tecnico">Como Técnico</option>
+        <option value="admin">Como Administrador</option>
+      </select>
+
+      <div id="loginBloqueTecnico" style="margin-top:8px;">
+        <label style="text-align:left;display:block;">Técnico:</label>
+        <select id="loginTecnicoSelect"></select>
+        <label style="text-align:left;display:block;">Contraseña:</label>
+        <input type="password" id="loginTecnicoPassword" placeholder="Contraseña" onkeydown="if(event.key==='Enter')iniciarSesionComo('tecnico')">
+        <button class="btn-custom" style="margin-top:10px;width:100%;" onclick="iniciarSesionComo('tecnico')">ENTRAR COMO TÉCNICO</button>
+      </div>
+
+      <div id="loginBloqueAdmin" style="margin-top:8px;display:none;">
+        <label style="text-align:left;display:block;">Usuario administrador (correo):</label>
+        <input type="text" id="loginAdminUsuario" placeholder="Usuario administrador (correo)">
+        <label style="text-align:left;display:block;">Contraseña:</label>
+        <input type="password" id="loginAdminPassword" placeholder="Contraseña de administrador" onkeydown="if(event.key==='Enter')iniciarSesionComo('admin')">
+        <button class="btn-custom btn-secondary-custom" style="margin-top:10px;width:100%;" onclick="iniciarSesionComo('admin')">ENTRAR COMO ADMINISTRADOR</button>
+      </div>
+
       <div id="loginError" style="color:var(--red-alert);font-size:11px;margin-top:6px;display:none;">Usuario o contraseña incorrectos.</div>
-      <button class="btn-custom" style="margin-top:10px;width:100%;" onclick="iniciarSesionComo('tecnico')">ENTRAR COMO TÉCNICO</button>
-      <div style="margin:18px 0;border-top:1px solid #e2e8f0;"></div>
-      <label style="text-align:left;display:block;">Acceso de Administrador:</label>
-      <input type="text" id="loginAdminUsuario" placeholder="Usuario administrador (correo)">
-      <input type="password" id="loginAdminPassword" placeholder="Contraseña de administrador" onkeydown="if(event.key==='Enter')iniciarSesionComo('admin')">
-      <button class="btn-custom btn-secondary-custom" style="margin-top:10px;width:100%;" onclick="iniciarSesionComo('admin')">ENTRAR COMO ADMINISTRADOR</button>
       <p style="font-size:11px;color:#94a3b8;margin-top:16px;text-align:center;">
         <a href="javascript:void(0)" onclick="mostrarAyudaContrasena()" style="color:#64748b;text-decoration:none;"><i class="fas fa-lock" style="font-size:10px;"></i> ¿Olvidó su contraseña?</a>
       </p>
@@ -2126,19 +2138,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=62"></script>
-<script src="utilidades-navegacion.js?v=62"></script>
-<script src="buscador-agenda.js?v=62"></script>
-<script src="ordenes.js?v=62"></script>
-<script src="equipos-trazabilidad.js?v=62"></script>
-<script src="pdf.js?v=62"></script>
-<script src="config-clientes-equipos.js?v=62"></script>
-<script src="config-plantillas-tecnicos.js?v=62"></script>
-<script src="cotizador.js?v=62"></script>
-<script src="config-general.js?v=62"></script>
-<script src="inventario.js?v=62"></script>
-<script src="tienda-admin.js?v=62"></script>
-<script src="tienda-publica.js?v=62"></script>
-<script src="kpi.js?v=62"></script>
+<script src="core.js?v=64"></script>
+<script src="utilidades-navegacion.js?v=64"></script>
+<script src="buscador-agenda.js?v=64"></script>
+<script src="ordenes.js?v=64"></script>
+<script src="equipos-trazabilidad.js?v=64"></script>
+<script src="pdf.js?v=64"></script>
+<script src="config-clientes-equipos.js?v=64"></script>
+<script src="config-plantillas-tecnicos.js?v=64"></script>
+<script src="cotizador.js?v=64"></script>
+<script src="config-general.js?v=64"></script>
+<script src="inventario.js?v=64"></script>
+<script src="tienda-admin.js?v=64"></script>
+<script src="tienda-publica.js?v=64"></script>
+<script src="kpi.js?v=64"></script>
 </body>
 </html>
