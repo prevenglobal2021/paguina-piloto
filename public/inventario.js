@@ -1,15 +1,16 @@
-// ===== inventario.js — Módulo de Inventario, Bodegas, Kardex, QR y Visor de Fotos =====
+// ===== inventario.js — Inventario, Bodegas, Kardex, QR y Trazabilidad Avanzada =====
 /* =========================================================
    INVENTARIO, BODEGAS, KARDEX Y QR
 ========================================================= */
 let fotosInventarioTemp = [];
 let bodegaEdicionId = null;
+let itemMovimientoActualId = null;
 
 function buscarItemInventario(id){ return (db.inventario || []).find(i=>i.id===id); }
 function buscarBodega(id){ return (db.bodegas || []).find(b=>b.id===id); }
 
 /* ---------------------------------------------------------
-   VISOR DE FOTOS EN ALTA RESOLUCIÓN (MODAL AUTÓNOMO)
+   VISOR DE FOTOS EN ALTA RESOLUCIÓN
 --------------------------------------------------------- */
 function verFotoInventarioGrande(src, nombreItem){
   let modal = document.getElementById('modalVisorFotoGrande');
@@ -277,7 +278,273 @@ function verFichaQR(itemId){
 }
 
 /* ---------------------------------------------------------
-   RENDERIZADO DE TABLAS CON CLICK EN FOTO GRANDE
+   TRAZABILIDAD DE MOVIMIENTOS: PRÉSTAMOS (TÉCNICO / NO REGISTRADO)
+--------------------------------------------------------- */
+function abrirModalSalidaInventario(itemId){
+  itemMovimientoActualId = itemId;
+  const it = buscarItemInventario(itemId);
+  if(!it) return;
+
+  asegurarModalMovimientoEnDOM();
+
+  document.getElementById('movItemTitulo').innerText = `${it.nombre} (Stock disponible: ${it.stockActual})`;
+  document.getElementById('movCantidad').value = 1;
+  document.getElementById('movCantidad').max = it.stockActual;
+  document.getElementById('movFechaSalida').value = new Date().toISOString().slice(0, 16);
+  document.getElementById('movFechaRetorno').value = '';
+  document.getElementById('movNotas').value = '';
+  document.getElementById('movPersonaNombre').value = '';
+  document.getElementById('movPersonaDocumento').value = '';
+
+  const selTec = document.getElementById('movTecnico');
+  selTec.innerHTML = '<option value="">— Seleccionar técnico registrado —</option>' +
+    (db.tecnicos||[]).filter(t=>t.activo!==false).map(t=>`<option value="${t.id}">${t.nombre}</option>`).join('');
+
+  onCambiarTipoResponsable();
+  onCambiarMotivoMovimiento();
+  abrirModal('modalMovimientoInventario');
+}
+
+function onCambiarTipoResponsable(){
+  const tipoResp = document.getElementById('movTipoResponsable').value;
+  const wrapTec = document.getElementById('wrapMovTecnicoRegistrado');
+  const wrapManual = document.getElementById('wrapMovPersonaNoRegistrada');
+  if(wrapTec) wrapTec.style.display = (tipoResp === 'tecnico') ? 'block' : 'none';
+  if(wrapManual) wrapManual.style.display = (tipoResp === 'manual') ? 'block' : 'none';
+}
+
+function onCambiarMotivoMovimiento(){
+  const motivo = document.getElementById('movMotivo').value;
+  const wrapRetorno = document.getElementById('wrapMovFechaRetorno');
+  const wrapDestinatario = document.getElementById('wrapDestinatarioGeneral');
+  
+  if(wrapRetorno) wrapRetorno.style.display = (motivo === 'prestamo') ? 'block' : 'none';
+  if(wrapDestinatario) wrapDestinatario.style.display = (motivo === 'baja') ? 'none' : 'block';
+}
+
+async function guardarMovimientoInventario(){
+  const it = buscarItemInventario(itemMovimientoActualId);
+  if(!it) return;
+
+  const tipo = document.getElementById('movTipoOperacion').value;
+  const motivo = document.getElementById('movMotivo').value;
+  const cantidad = parseInt(document.getElementById('movCantidad').value) || 0;
+  const fechaHora = document.getElementById('movFechaSalida').value || new Date().toISOString();
+  const fechaRetorno = document.getElementById('movFechaRetorno').value || null;
+  const notas = (document.getElementById('movNotas').value || '').trim();
+  const tipoResp = document.getElementById('movTipoResponsable').value;
+
+  if(cantidad <= 0){ mostrarToast('La cantidad debe ser mayor a cero.'); return; }
+  if(tipo === 'salida' && it.stockActual < cantidad){
+    mostrarToast(`Stock insuficiente. Solo hay ${it.stockActual} disponibles.`);
+    return;
+  }
+
+  let tecnicoId = null;
+  let responsableNombre = 'Sin asignar';
+  let responsableDetalle = '';
+
+  if(motivo !== 'baja'){
+    if(tipoResp === 'tecnico'){
+      tecnicoId = parseInt(document.getElementById('movTecnico').value) || null;
+      if(!tecnicoId){ mostrarToast('Selecciona el técnico responsable.'); return; }
+      const t = (db.tecnicos||[]).find(x=>x.id===tecnicoId);
+      responsableNombre = t ? t.nombre : 'Técnico';
+      responsableDetalle = 'Técnico de nómina';
+    } else {
+      const nombreManual = (document.getElementById('movPersonaNombre').value || '').trim();
+      const docManual = (document.getElementById('movPersonaDocumento').value || '').trim();
+      if(!nombreManual){ mostrarToast('Escribe el nombre de la persona que retira.'); return; }
+      responsableNombre = nombreManual;
+      responsableDetalle = docManual ? `No registrado (Doc/Tel: ${docManual})` : 'Persona no registrada';
+    }
+  } else {
+    responsableNombre = 'Baja de inventario';
+  }
+
+  const stockPrevio = it.stockActual;
+  const nuevoStock = tipo === 'salida' ? (stockPrevio - cantidad) : (stockPrevio + cantidad);
+  it.stockActual = nuevoStock;
+
+  db.kardex = db.kardex || [];
+  const movimiento = {
+    id: Date.now(),
+    itemId: it.id,
+    itemNombre: it.nombre,
+    tipo,
+    motivo,
+    cantidad,
+    stockPrevio,
+    nuevoStock,
+    fechaHora,
+    fechaEstimadaRetorno: (motivo === 'prestamo') ? fechaRetorno : null,
+    tecnicoId,
+    esNoRegistrado: (tipoResp === 'manual'),
+    responsable: responsableNombre,
+    responsableDetalle,
+    estadoPrestamo: (motivo === 'prestamo') ? 'pendiente' : 'completado',
+    notas,
+    usuarioRegistro: typeof nombreUsuarioActual === 'function' ? nombreUsuarioActual() : 'Administrador'
+  };
+
+  db.kardex.push(movimiento);
+
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    it.stockActual = stockPrevio;
+    db.kardex.pop();
+    mostrarToast('⚠️ No se pudo registrar el movimiento: ' + err.message, 'error');
+    return;
+  }
+
+  registrarLog('Inventario', tipo.toUpperCase(), `${it.nombre}: ${tipo==='salida'?'-':'+'}${cantidad} (${motivo}) a ${responsableNombre}`);
+  mostrarToast(`✅ Movimiento registrado. Stock actual de "${it.nombre}": ${nuevoStock}`, 'exito');
+  cerrarModal('modalMovimientoInventario');
+  renderizarInventario();
+}
+
+async function registrarDevolucionPrestamo(kardexId){
+  const mov = (db.kardex||[]).find(k=>k.id===kardexId);
+  if(!mov || mov.estadoPrestamo !== 'pendiente') return;
+
+  const it = buscarItemInventario(mov.itemId);
+  if(!it){ mostrarToast('El producto original ya no existe.'); return; }
+
+  if(!confirm(`¿Registrar el reingreso de ${mov.cantidad} unidad(es) de "${mov.itemNombre}" devuelta(s) por ${mov.responsable}?`)) return;
+
+  const stockPrevio = it.stockActual;
+  it.stockActual += mov.cantidad;
+  mov.estadoPrestamo = 'devuelto';
+  mov.fechaDevolucionReal = new Date().toISOString();
+
+  const retornoKardex = {
+    id: Date.now(),
+    itemId: it.id,
+    itemNombre: it.nombre,
+    tipo: 'entrada',
+    motivo: 'retorno_prestamo',
+    referenciaPrestamoId: mov.id,
+    cantidad: mov.cantidad,
+    stockPrevio,
+    nuevoStock: it.stockActual,
+    fechaHora: new Date().toISOString(),
+    responsable: mov.responsable,
+    responsableDetalle: mov.responsableDetalle,
+    notas: `Devolución de herramienta prestada el ${new Date(mov.fechaHora).toLocaleDateString('es-CO')}`,
+    usuarioRegistro: typeof nombreUsuarioActual === 'function' ? nombreUsuarioActual() : 'Administrador'
+  };
+  db.kardex.push(retornoKardex);
+
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    it.stockActual = stockPrevio;
+    mov.estadoPrestamo = 'pendiente';
+    delete mov.fechaDevolucionReal;
+    db.kardex.pop();
+    mostrarToast('⚠️ No se pudo registrar el retorno: ' + err.message, 'error');
+    return;
+  }
+
+  registrarLog('Inventario', 'RETORNO', `${it.nombre}: Devuelto por ${mov.responsable}`);
+  mostrarToast(`✅ Herramienta devuelta y sumada a bodega. Stock: ${it.stockActual}`, 'exito');
+  renderizarInventario();
+}
+
+/* ---------------------------------------------------------
+   INYECCIÓN AUTÓNOMA DEL MODAL DE MOVIMIENTOS
+--------------------------------------------------------- */
+function asegurarModalMovimientoEnDOM(){
+  if(document.getElementById('modalMovimientoInventario')) return;
+  const div = document.createElement('div');
+  div.id = 'modalMovimientoInventario';
+  div.className = 'modal-overlay';
+  div.style.display = 'none';
+  div.innerHTML = `
+    <div class="modal-card" style="max-width:560px;width:95%;">
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--card-border);padding-bottom:10px;margin-bottom:15px;">
+        <h3 style="margin:0;"><i class="fas fa-boxes-stacked"></i> Salida o Préstamo de Herramientas</h3>
+        <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="cerrarModal('modalMovimientoInventario')">✕</button>
+      </div>
+      <p id="movItemTitulo" style="font-weight:700;color:var(--accent-color);margin-bottom:12px;"></p>
+      
+      <div class="field-row">
+        <div>
+          <label style="font-size:12px;font-weight:600;">Tipo de Operación</label>
+          <select id="movTipoOperacion">
+            <option value="salida">Salida / Retiro de Bodega</option>
+            <option value="entrada">Entrada / Reingreso Manual</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;">Motivo del Movimiento</label>
+          <select id="movMotivo" onchange="onCambiarMotivoMovimiento()">
+            <option value="prestamo">Préstamo de Herramienta / Equipo</option>
+            <option value="orden">Uso en Servicio u Orden</option>
+            <option value="venta">Venta / Despacho a Cliente</option>
+            <option value="baja">Baja / Desecho / Daño definitivo</option>
+            <option value="traslado">Traslado a otra Bodega</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row" style="margin-top:10px;">
+        <div>
+          <label style="font-size:12px;font-weight:600;">Cantidad</label>
+          <input type="number" id="movCantidad" min="1" value="1">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;">Fecha y Hora de Salida</label>
+          <input type="datetime-local" id="movFechaSalida">
+        </div>
+      </div>
+
+      <div id="wrapDestinatarioGeneral" style="margin-top:10px;">
+        <label style="font-size:12px;font-weight:600;">¿A quién se le entrega?</label>
+        <select id="movTipoResponsable" onchange="onCambiarTipoResponsable()">
+          <option value="tecnico">Técnico Registrado en Plataforma</option>
+          <option value="manual">Tercero / Persona No Registrada</option>
+        </select>
+
+        <div id="wrapMovTecnicoRegistrado" style="margin-top:8px;">
+          <select id="movTecnico"></select>
+        </div>
+
+        <div id="wrapMovPersonaNoRegistrada" style="margin-top:8px;display:none;background:rgba(0,0,0,.04);padding:10px;border-radius:6px;border:1px dashed var(--card-border);">
+          <div class="field-row">
+            <div>
+              <label style="font-size:11px;">Nombre y Apellido de quien retira</label>
+              <input type="text" id="movPersonaNombre" placeholder="Ej: Juan Pérez">
+            </div>
+            <div>
+              <label style="font-size:11px;">Cédula / Teléfono de Contacto</label>
+              <input type="text" id="movPersonaDocumento" placeholder="Ej: 3001234567">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="wrapMovFechaRetorno" style="margin-top:10px;display:none;">
+        <label style="font-size:12px;font-weight:600;color:#b45309;">Fecha y Hora Estipulada de Retorno</label>
+        <input type="datetime-local" id="movFechaRetorno">
+      </div>
+
+      <div style="margin-top:10px;">
+        <label style="font-size:12px;font-weight:600;">Observaciones / Motivo detallado</label>
+        <input type="text" id="movNotas" placeholder="Ej: Se presta para instalación en sede norte">
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;">
+        <button type="button" class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalMovimientoInventario')">Cancelar</button>
+        <button type="button" class="btn-custom btn-primary-custom" onclick="guardarMovimientoInventario()">Confirmar Salida</button>
+      </div>
+    </div>`;
+  document.body.appendChild(div);
+}
+
+/* ---------------------------------------------------------
+   RENDERIZADO DE TABLAS
 --------------------------------------------------------- */
 function renderizarInventario(){
   const tbody = document.getElementById('tablaInventario');
@@ -313,6 +580,7 @@ function renderizarInventario(){
         <td>${fotosHtml||'—'}</td>
         <td><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verFichaQR(${it.id})"><i class="fas fa-qrcode"></i></button></td>
         <td>
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalSalidaInventario(${it.id})" title="Registrar préstamo o salida"><i class="fas fa-arrow-right-from-bracket"></i> Salida</button>
           <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalItemInventario(${it.id})">Editar</button>
           <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarItemInventario(${it.id})">X</button>
         </td>
@@ -335,17 +603,36 @@ function renderizarInventario(){
 function renderizarKardex(){
   const tbody = document.querySelector('#kardexMovimientos tbody') || document.getElementById('tablaKardex');
   if(!tbody) return;
-  const movimientos = Array.isArray(db.kardex) ? db.kardex : [];
-  
-  tbody.innerHTML = movimientos.slice().reverse().map(k=>`
-    <tr>
-      <td>${new Date(k.fechaHora || k.fecha || k.id).toLocaleString('es-CO')}</td>
-      <td><strong>${k.itemNombre || k.item || '—'}</strong></td>
-      <td><span style="font-weight:700;color:${k.tipo==='salida'?'#dc2626':'#16a34a'};">${k.tipo ? k.tipo.toUpperCase() : 'MOV'}</span></td>
-      <td>${k.cantidad}</td>
-      <td>${k.origen || '—'}</td>
-      <td>${k.destino || k.responsable || '—'}</td>
-      <td>${k.usuario || k.usuarioRegistro || '—'}</td>
-    </tr>
-  `).join('') || '<tr><td colspan="7" class="empty-state">Sin movimientos registrados en el kardex.</td></tr>';
+  const movimientos = (Array.isArray(db.kardex) ? db.kardex : []).slice().sort((a,b)=> new Date(b.fechaHora||b.id) - new Date(a.fechaHora||a.id));
+
+  tbody.innerHTML = movimientos.map(k=>{
+    const esSalida = k.tipo === 'salida';
+    const colorTipo = esSalida ? '#dc2626' : '#16a34a';
+    const signo = esSalida ? '−' : '+';
+
+    let badgeEstado = '';
+    let botonDevolver = '';
+
+    if(k.motivo === 'prestamo'){
+      if(k.estadoPrestamo === 'pendiente'){
+        badgeEstado = `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#fef3c7;color:#92400e;font-weight:700;">PRESTADA</span>`;
+        botonDevolver = `<button class="btn-custom btn-secondary-custom btn-sm-custom" style="margin-top:4px;background:#dcfce7;color:#166534;border-color:#86efac;padding:2px 8px;font-size:11px;" onclick="registrarDevolucionPrestamo(${k.id})"><i class="fas fa-arrow-rotate-left"></i> Marcar Devuelto</button>`;
+      } else {
+        badgeEstado = `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#dcfce7;color:#166534;">DEVUELTA</span>`;
+      }
+    }
+
+    const fechaSalidaFormat = new Date(k.fechaHora || k.fecha || k.id).toLocaleString('es-CO', { dateStyle:'short', timeStyle:'short' });
+    const fechaRetornoFormat = k.fechaEstimadaRetorno ? `<br><small style="color:#b45309;font-weight:600;">Retorno estimado: ${new Date(k.fechaEstimadaRetorno).toLocaleString('es-CO', { dateStyle:'short', timeStyle:'short' })}</small>` : '';
+    const detallePersona = k.responsableDetalle ? `<br><small style="color:var(--text-muted);">${k.responsableDetalle}</small>` : '';
+
+    return `<tr>
+      <td>${fechaSalidaFormat}</td>
+      <td><strong>${k.itemNombre || k.item || '—'}</strong><br>${badgeEstado}${fechaRetornoFormat}</td>
+      <td style="font-weight:700;color:${colorTipo};">${signo}${k.cantidad}</td>
+      <td>${k.stockPrevio ?? '—'} → <strong>${k.nuevoStock ?? '—'}</strong></td>
+      <td><strong>${k.responsable || '—'}</strong>${detallePersona}<br><small style="color:var(--text-muted);">${k.notas || 'Sin observaciones'}</small></td>
+      <td>${botonDevolver || '<small style="color:var(--text-muted);">Completado</small>'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" class="empty-state">Sin movimientos registrados en el kardex.</td></tr>';
 }
