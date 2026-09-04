@@ -1,4 +1,4 @@
-// ===== config-general.js — Configuración General, Empresa, Logo y Temas Metalizados =====
+// ===== config-general.js — Configuración General, Empresa, Logo Adaptable y Temas Metalizados =====
 /* =========================================================
    CONFIGURACIÓN: EMPRESA Y PERFIL
 ========================================================= */
@@ -100,6 +100,9 @@ function manejarLogoUpload(event){
     if(prev) { prev.src = logoTempBase64; prev.style.display='inline-block'; }
     const ph = document.getElementById('previewLogoConfigPlaceholder');
     if(ph) ph.style.display='none';
+    
+    // Vista previa inmediata en la barra lateral en tiempo real antes de guardar
+    actualizarLogoEnBarraLateral(logoTempBase64);
   };
   reader.readAsDataURL(file);
 }
@@ -122,7 +125,7 @@ async function guardarAjustesGenerales(){
   try{
     await dbGuardarInmediato();
     aplicarConfiguracionVisual();
-    mostrarToast('✅ Configuración general y logo guardados.', 'exito');
+    mostrarToast('✅ Logo y configuración general guardados correctamente.', 'exito');
   }catch(err){
     mostrarToast('⚠️ No se guardó: ' + err.message, 'error');
   }
@@ -162,7 +165,7 @@ async function guardarInterruptorLogin(){
 }
 
 /* =========================================================
-   CATÁLOGO DE TEMAS EMPRESARIALES (6 PALETAS DIVERSAS)
+   TEMAS EMPRESARIALES METALIZADOS
 ========================================================= */
 const TEMAS_CLAROS = [
   { 
@@ -285,7 +288,39 @@ function seleccionarTemaClaro(idx){
 }
 
 /* =========================================================
-   INYECCIÓN VISUAL TOTAL + LOGO CORPORATIVO DESTACADO (10x10 CM)
+   ACTUALIZACIÓN AUTOMÁTICA DEL LOGO EN TODA LA BARRA LATERAL
+========================================================= */
+function actualizarLogoEnBarraLateral(logoSrc){
+  const src = logoSrc || db.config?.logo;
+  const sidebarHeader = document.querySelector('aside > div:first-child') || document.querySelector('.sidebar-header');
+  if(!sidebarHeader) return;
+
+  let logoContenedor = sidebarHeader.querySelector('.contenedor-logo-encuadrado');
+  if(!logoContenedor){
+    sidebarHeader.innerHTML = '';
+    logoContenedor = document.createElement('div');
+    logoContenedor.className = 'contenedor-logo-encuadrado';
+    sidebarHeader.appendChild(logoContenedor);
+  }
+
+  if(src){
+    logoContenedor.innerHTML = `
+      <div class="marco-logo-encuadrado">
+        <img src="${src}" class="img-logo-barra-lateral" alt="${db.config?.nombre || 'Prevenglobal'}">
+      </div>
+      <span class="txt-nombre-empresa-barra">${db.config?.nombre || 'Prevenglobal'}</span>
+    `;
+    logoContenedor.style.display = 'flex';
+  } else {
+    logoContenedor.innerHTML = `
+      <div class="icono-reemplazo-logo"><i class="fas fa-snowflake"></i></div>
+      <span class="txt-nombre-empresa-barra">${db.config?.nombre || 'Prevenglobal'}</span>
+    `;
+  }
+}
+
+/* =========================================================
+   INYECCIÓN VISUAL TOTAL EN EL DOM
 ========================================================= */
 function aplicarConfiguracionVisual(){
   const cfg = db.config || {};
@@ -300,23 +335,6 @@ function aplicarConfiguracionVisual(){
   root.style.setProperty('--card-bg', tema.panel2);
   root.style.setProperty('--panel-bg', tema.panel2);
   root.style.setProperty('--card-border', tema.borde);
-
-  // Asegurar y actualizar dinámicamente el logo corporativo en la barra superior izquierda
-  const sidebarHeader = document.querySelector('aside > div:first-child') || document.querySelector('.sidebar-header');
-  if(sidebarHeader){
-    let logoImg = sidebarHeader.querySelector('img.logo-sidebar-destacado');
-    if(!logoImg){
-      logoImg = sidebarHeader.querySelector('img') || document.createElement('img');
-      logoImg.classList.add('logo-sidebar-destacado');
-      sidebarHeader.prepend(logoImg);
-    }
-    if(cfg.logo){
-      logoImg.src = cfg.logo;
-      logoImg.style.display = 'block';
-    } else {
-      logoImg.style.display = 'none';
-    }
-  }
 
   let estiloTema = document.getElementById('estiloTemaMetalizadoDinamico');
   if(!estiloTema){
@@ -335,37 +353,66 @@ function aplicarConfiguracionVisual(){
       background: ${tema.sidebar1} !important;
       border-right: 1px solid ${tema.borde} !important;
       color: ${tema.texto} !important;
-      width: 260px !important;
+      width: 270px !important;
     }
-    
-    /* LOGO DESTACADO EN LA ESQUINA SUPERIOR IZQUIERDA */
+
+    /* ENCUADRE TOTAL DEL LOGO EN LA BARRA LATERAL IZQUIERDA */
     aside > div:first-child, .sidebar-header {
+      padding: 12px 14px 14px 14px !important;
+      border-bottom: 2px solid ${tema.borde} !important;
+      background: ${tema.sidebar2}22 !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
+    .contenedor-logo-encuadrado {
       display: flex !important;
       flex-direction: column !important;
       align-items: center !important;
       justify-content: center !important;
-      padding: 16px 12px !important;
-      border-bottom: 1px solid ${tema.borde} !important;
+      width: 100% !important;
+      gap: 10px !important;
+    }
+
+    .marco-logo-encuadrado {
+      width: 100% !important;
+      height: 170px !important; /* Altura optimizada para encuadre 10x10 cm en pantalla */
+      background: ${tema.esOscuro ? '#090d16' : '#ffffff'} !important;
+      border: 2px solid ${tema.borde} !important;
+      border-radius: 12px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 10px !important;
+      box-sizing: border-box !important;
+      box-shadow: 0 4px 14px rgba(0,0,0, ${tema.esOscuro ? '0.5' : '0.12'}) !important;
+      overflow: hidden !important;
+    }
+
+    .img-logo-barra-lateral {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: contain !important; /* Mantiene la proporción perfecta del logo sin cortarlo ni deformarlo */
+      display: block !important;
+    }
+
+    .txt-nombre-empresa-barra {
+      font-size: 15px !important;
+      font-weight: 800 !important;
+      letter-spacing: .03em !important;
+      color: ${tema.texto} !important;
+      text-transform: uppercase !important;
       text-align: center !important;
     }
-    aside img.logo-sidebar-destacado, aside > div:first-child img {
-      width: 110px !important;
-      height: 110px !important;
-      min-width: 110px !important;
-      min-height: 110px !important;
-      object-fit: contain !important;
-      border-radius: 12px !important;
-      padding: 6px !important;
-      background: ${tema.esOscuro ? '#0f172a' : '#ffffff'} !important;
-      border: 2px solid ${tema.borde} !important;
-      box-shadow: 0 6px 18px rgba(0,0,0, ${tema.esOscuro ? '0.5' : '0.12'}) !important;
-      margin-bottom: 10px !important;
-    }
-    aside > div:first-child span {
-      font-size: 15px !important;
-      font-weight: 700 !important;
-      letter-spacing: .02em !important;
-      color: ${tema.texto} !important;
+
+    .icono-reemplazo-logo {
+      width: 100% !important;
+      height: 120px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-size: 48px !important;
+      color: ${tema.acento} !important;
     }
 
     aside ul li a, .sidebar a {
@@ -418,6 +465,9 @@ function aplicarConfiguracionVisual(){
       border: 1px solid ${tema.borde} !important;
     }
   `;
+
+  // Renderizar o actualizar el logo encuadrado de inmediato
+  actualizarLogoEnBarraLateral();
 }
 
 async function guardarApariencia(){
