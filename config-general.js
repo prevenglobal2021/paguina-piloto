@@ -1,4 +1,5 @@
-// ===== config-general.js — Configuración General, Empresa y Catálogo Metalizado SaaS =====
+
+// ===== config-general.js — Configuración General, Empresa, Logo y Temas Metalizados =====
 /* =========================================================
    CONFIGURACIÓN: EMPRESA Y PERFIL
 ========================================================= */
@@ -97,8 +98,9 @@ function manejarLogoUpload(event){
   reader.onload = e=>{
     logoTempBase64 = e.target.result;
     const prev = document.getElementById('previewLogoConfig');
-    prev.src = logoTempBase64; prev.style.display='inline-block';
-    document.getElementById('previewLogoConfigPlaceholder').style.display='none';
+    if(prev) { prev.src = logoTempBase64; prev.style.display='inline-block'; }
+    const ph = document.getElementById('previewLogoConfigPlaceholder');
+    if(ph) ph.style.display='none';
   };
   reader.readAsDataURL(file);
 }
@@ -121,7 +123,7 @@ async function guardarAjustesGenerales(){
   try{
     await dbGuardarInmediato();
     aplicarConfiguracionVisual();
-    mostrarToast('✅ Configuración general guardada.', 'exito');
+    mostrarToast('✅ Configuración general y logo guardados.', 'exito');
   }catch(err){
     mostrarToast('⚠️ No se guardó: ' + err.message, 'error');
   }
@@ -284,7 +286,7 @@ function seleccionarTemaClaro(idx){
 }
 
 /* =========================================================
-   INYECCIÓN VISUAL TOTAL EN EL DOM
+   INYECCIÓN VISUAL TOTAL + LOGO CORPORATIVO DESTACADO (10x10 CM)
 ========================================================= */
 function aplicarConfiguracionVisual(){
   const cfg = db.config || {};
@@ -299,6 +301,23 @@ function aplicarConfiguracionVisual(){
   root.style.setProperty('--card-bg', tema.panel2);
   root.style.setProperty('--panel-bg', tema.panel2);
   root.style.setProperty('--card-border', tema.borde);
+
+  // Asegurar y actualizar dinámicamente el logo corporativo en la barra superior izquierda
+  const sidebarHeader = document.querySelector('aside > div:first-child') || document.querySelector('.sidebar-header');
+  if(sidebarHeader){
+    let logoImg = sidebarHeader.querySelector('img.logo-sidebar-destacado');
+    if(!logoImg){
+      logoImg = sidebarHeader.querySelector('img') || document.createElement('img');
+      logoImg.classList.add('logo-sidebar-destacado');
+      sidebarHeader.prepend(logoImg);
+    }
+    if(cfg.logo){
+      logoImg.src = cfg.logo;
+      logoImg.style.display = 'block';
+    } else {
+      logoImg.style.display = 'none';
+    }
+  }
 
   let estiloTema = document.getElementById('estiloTemaMetalizadoDinamico');
   if(!estiloTema){
@@ -317,7 +336,39 @@ function aplicarConfiguracionVisual(){
       background: ${tema.sidebar1} !important;
       border-right: 1px solid ${tema.borde} !important;
       color: ${tema.texto} !important;
+      width: 260px !important;
     }
+    
+    /* LOGO DESTACADO EN LA ESQUINA SUPERIOR IZQUIERDA */
+    aside > div:first-child, .sidebar-header {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 16px 12px !important;
+      border-bottom: 1px solid ${tema.borde} !important;
+      text-align: center !important;
+    }
+    aside img.logo-sidebar-destacado, aside > div:first-child img {
+      width: 110px !important;
+      height: 110px !important;
+      min-width: 110px !important;
+      min-height: 110px !important;
+      object-fit: contain !important;
+      border-radius: 12px !important;
+      padding: 6px !important;
+      background: ${tema.esOscuro ? '#0f172a' : '#ffffff'} !important;
+      border: 2px solid ${tema.borde} !important;
+      box-shadow: 0 6px 18px rgba(0,0,0, ${tema.esOscuro ? '0.5' : '0.12'}) !important;
+      margin-bottom: 10px !important;
+    }
+    aside > div:first-child span {
+      font-size: 15px !important;
+      font-weight: 700 !important;
+      letter-spacing: .02em !important;
+      color: ${tema.texto} !important;
+    }
+
     aside ul li a, .sidebar a {
       color: ${tema.texto} !important;
     }
@@ -383,7 +434,7 @@ async function guardarApariencia(){
   try{
     await dbGuardarInmediato();
     aplicarConfiguracionVisual();
-    mostrarToast(`✅ Tema ${tema.nombre} aplicado correctamente.`, 'exito');
+    mostrarToast(`✅ Tema ${tema.nombre} aplicado.`, 'exito');
     cerrarModal('modalConfigCentro');
   }catch(err){
     mostrarToast('⚠️ No se guardó: ' + err.message, 'error');
