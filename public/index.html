@@ -114,7 +114,7 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 /* Vista previa en miniatura de la pantalla de login (fiel al real: dos columnas) */
 .preview-login-mini{display:flex;width:100%;max-width:230px;height:280px;border-radius:10px;overflow:hidden;border:1px solid var(--card-border);margin:8px auto;box-shadow:0 4px 14px rgba(0,0,0,.2);}
 .preview-login-mini-izq{flex:0 0 38%;position:relative;background-size:cover;background-position:center;background-color:#e2e8f0;display:flex;flex-direction:column;justify-content:flex-end;padding:8px;}
-.preview-login-mini-izq::before{content:'';position:absolute;inset:0;background:linear-gradient(160deg, var(--preview-login-color-1,#7c3aed), var(--preview-login-color-2,#4c1d95));opacity:.85;}
+.preview-login-mini-izq::before{content:'';position:absolute;inset:0;background:linear-gradient(160deg, var(--preview-login-color-1,#2563eb), var(--preview-login-color-2,#1e3a8a));opacity:.85;}
 .preview-login-mini-texto{position:relative;z-index:1;color:#fff;}
 .preview-login-mini-texto strong{display:block;font-size:9px;line-height:1.25;font-weight:800;}
 .preview-login-mini-texto small{display:block;font-size:6px;line-height:1.35;opacity:.92;margin-top:3px;}
@@ -123,7 +123,7 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .preview-login-mini-der strong{font-size:10px;color:#1e293b;display:block;}
 .preview-login-mini-der small{font-size:7px;color:#64748b;display:block;margin-top:2px;margin-bottom:8px;}
 .preview-login-mini-input{width:85%;height:9px;background:#fff;border:1px solid #cbd5e1;border-radius:3px;margin-top:5px;}
-.preview-login-mini-boton{width:85%;height:14px;border-radius:12px;background:linear-gradient(120deg, var(--preview-login-color-1,#7c3aed), var(--preview-login-color-2,#4c1d95));margin-top:8px;color:#fff;font-size:6px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:.5px;}
+.preview-login-mini-boton{width:85%;height:14px;border-radius:12px;background:linear-gradient(120deg, var(--preview-login-color-1,#2563eb), var(--preview-login-color-2,#1e3a8a));margin-top:8px;color:#fff;font-size:6px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:.5px;}
 .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);display:none;justify-content:center;align-items:center;z-index:1000;padding:15px;}
 .modal-box{background:color-mix(in srgb, var(--card-bg) 88%, transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--card-border);width:100%;max-width:980px;max-height:90vh;overflow-y:auto;border-radius:12px;padding:25px;position:relative;color:var(--text-main);box-shadow:0 20px 60px rgba(0,0,0,.4);animation:apareceModal .2s ease;}
 @keyframes apareceModal{from{opacity:0;transform:translateY(8px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
@@ -467,8 +467,8 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 /* LOGIN */
 #loginOverlay{position:fixed;inset:0;background:#fff;display:none;z-index:2000;overflow-y:auto;}
 .login-split{display:flex;min-height:100vh;width:100%;}
-.login-split-izq{flex:0 0 40%;position:relative;min-height:100vh;background:linear-gradient(160deg, var(--login-color-1,#7c3aed), var(--login-color-2,#4c1d95));background-size:cover;background-position:center;display:flex;flex-direction:column;justify-content:flex-end;padding:40px;color:#fff;}
-.login-split-izq.tiene-imagen::before{content:'';position:absolute;inset:0;background:linear-gradient(160deg, var(--login-color-1,#7c3aed) 0%, var(--login-color-2,#4c1d95) 100%);opacity:.78;}
+.login-split-izq{flex:0 0 40%;position:relative;min-height:100vh;background:linear-gradient(160deg, var(--login-color-1,#2563eb), var(--login-color-2,#1e3a8a));background-size:cover;background-position:center;display:flex;flex-direction:column;justify-content:flex-end;padding:40px;color:#fff;}
+.login-split-izq.tiene-imagen::before{content:'';position:absolute;inset:0;background:linear-gradient(160deg, var(--login-color-1,#2563eb) 0%, var(--login-color-2,#1e3a8a) 100%);opacity:.35;}
 .login-split-izq-texto{position:relative;z-index:1;}
 .login-split-izq-texto h2{font-size:26px;margin:0 0 8px 0;font-weight:800;}
 .login-split-izq-texto p{font-size:13px;opacity:.92;margin:0;max-width:320px;line-height:1.5;}
@@ -476,7 +476,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 .login-box{background:#fff;border:none;border-radius:16px;padding:20px 10px;width:100%;max-width:400px;max-height:none;overflow:visible;text-align:center;box-shadow:none;color:#1e293b;}
 .login-box label{color:#334155;}
 .login-box input,.login-box select{background:#fff;color:#1e293b;border:1px solid #cbd5e1;}
-.login-box .btn-custom{background:linear-gradient(120deg, var(--login-color-1,#7c3aed), var(--login-color-2,#4c1d95));border:none;}
+.login-box .btn-custom{background:linear-gradient(120deg, var(--login-color-1,#2563eb), var(--login-color-2,#1e3a8a));border:none;}
 .login-box .btn-custom.btn-secondary-custom{background:#f1f5f9;color:#334155;}
 @media (max-width: 760px){
   .login-split-izq{position:fixed;inset:0;flex:none;z-index:0;}
@@ -1097,7 +1097,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 
 <div id="resetPasswordOverlay" style="display:none;position:fixed;inset:0;background:#fff;z-index:3000;align-items:center;justify-content:center;">
   <div class="login-box" style="max-width:380px;">
-    <h2 style="font-size:20px;color:#1e293b;"><i class="fas fa-key" style="color:#7c3aed;"></i> Crear nueva contraseña</h2>
+    <h2 style="font-size:20px;color:#1e293b;"><i class="fas fa-key" style="color:#2563eb;"></i> Crear nueva contraseña</h2>
     <p style="font-size:12px;color:#64748b;">Escribe tu nueva contraseña. Este enlace deja de funcionar después de usarlo, o si pasó más de 1 hora desde que lo pediste.</p>
     <label>Nueva contraseña:</label>
     <input type="password" id="resetNuevaPassword" placeholder="Mínimo 4 caracteres">
@@ -1120,7 +1120,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   <div class="login-split-der">
   <div class="login-box">
     <div id="loginLogoWrap" style="display:none;width:84px;height:84px;background:#fff;border-radius:50%;align-items:center;justify-content:center;overflow:hidden;margin:0 auto 16px;box-shadow:0 6px 20px rgba(0,0,0,.12);"><img id="loginLogo" style="max-width:78%;max-height:78%;object-fit:contain;"></div>
-    <h2 id="loginTituloEmpresa" style="font-size:20px;color:#1e293b;margin-bottom:2px;"><i id="loginIconoDefault" class="fas fa-snowflake" style="color:var(--login-color-1,#7c3aed);"></i> Prevenglobal</h2>
+    <h2 id="loginTituloEmpresa" style="font-size:20px;color:#1e293b;margin-bottom:2px;"><i id="loginIconoDefault" class="fas fa-snowflake" style="color:var(--login-color-1,#2563eb);"></i> Prevenglobal</h2>
 
     <!-- PASO 1: Empresa (multiempresa) — oculto por defecto, esta plataforma es de empresa única -->
     <div id="loginPasoEmpresa" style="display:none;">
@@ -2126,19 +2126,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=61"></script>
-<script src="utilidades-navegacion.js?v=61"></script>
-<script src="buscador-agenda.js?v=61"></script>
-<script src="ordenes.js?v=61"></script>
-<script src="equipos-trazabilidad.js?v=61"></script>
-<script src="pdf.js?v=61"></script>
-<script src="config-clientes-equipos.js?v=61"></script>
-<script src="config-plantillas-tecnicos.js?v=61"></script>
-<script src="cotizador.js?v=61"></script>
-<script src="config-general.js?v=61"></script>
-<script src="inventario.js?v=61"></script>
-<script src="tienda-admin.js?v=61"></script>
-<script src="tienda-publica.js?v=61"></script>
-<script src="kpi.js?v=61"></script>
+<script src="core.js?v=62"></script>
+<script src="utilidades-navegacion.js?v=62"></script>
+<script src="buscador-agenda.js?v=62"></script>
+<script src="ordenes.js?v=62"></script>
+<script src="equipos-trazabilidad.js?v=62"></script>
+<script src="pdf.js?v=62"></script>
+<script src="config-clientes-equipos.js?v=62"></script>
+<script src="config-plantillas-tecnicos.js?v=62"></script>
+<script src="cotizador.js?v=62"></script>
+<script src="config-general.js?v=62"></script>
+<script src="inventario.js?v=62"></script>
+<script src="tienda-admin.js?v=62"></script>
+<script src="tienda-publica.js?v=62"></script>
+<script src="kpi.js?v=62"></script>
 </body>
 </html>

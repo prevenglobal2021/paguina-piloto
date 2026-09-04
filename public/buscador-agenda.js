@@ -189,25 +189,24 @@ function renderizarAgenda(){
     // Semaforización: verde = cerrada, amarillo = en proceso, rojo = fuera de
     // horario (ya pasó la fecha/hora programada y todavía no se finalizó) —
     // el rojo tiene prioridad sobre los demás, porque es lo más urgente de ver.
+    // Una sola etiqueta (no dos), que cambia de texto y color según el caso.
     const ahora = new Date();
     const fechaHoraProgramada = o.fechaProgramada ? new Date(`${o.fechaProgramada}T${o.horaProgramada||'23:59'}`) : null;
     const fueraDeHorario = o.estado!=='Finalizado' && fechaHoraProgramada && fechaHoraProgramada < ahora;
     const colorBorde = o.estado==='Finalizado' ? '#22c55e' : (fueraDeHorario ? '#ef4444' : (o.estado==='En Ejecución' ? '#eab308' : '#f59e0b'));
-    const insigniaSemaforo = o.estado==='Finalizado'
-      ? `<span class="orden-card-badge" style="background:#dcfce7;color:#166534;" title="Servicio cerrado"><i class="fas fa-circle-check"></i> Cerrada</span>`
-      : fueraDeHorario
-        ? `<span class="orden-card-badge" style="background:#fee2e2;color:#b91c1c;" title="Ya pasó la fecha/hora programada"><i class="fas fa-triangle-exclamation"></i> Fuera de horario</span>`
-        : (o.estado==='En Ejecución'
-          ? `<span class="orden-card-badge" style="background:#fef9c3;color:#854d0e;" title="Servicio en proceso"><i class="fas fa-hourglass-half"></i> En proceso</span>`
-          : '');
+    const textoBadge = fueraDeHorario ? 'Fuera de horario' : o.estado;
+    const estiloBadge = o.estado==='Finalizado' ? 'background:#dcfce7;color:#166534;'
+      : fueraDeHorario ? 'background:#fee2e2;color:#b91c1c;'
+      : o.estado==='En Ejecución' ? 'background:#fef9c3;color:#854d0e;'
+      : 'background:#fef3c7;color:#92400e;';
+    const iconoBadge = o.estado==='Finalizado' ? 'fa-circle-check' : fueraDeHorario ? 'fa-triangle-exclamation' : (o.estado==='En Ejecución' ? 'fa-hourglass-half' : 'fa-clock');
     const lineaSedeEquipo = o.esClienteNuevo
       ? `<span><i class="fas fa-map-marker-alt"></i> ${o.clienteNuevoDireccion || '—'}</span>`
       : `<span><i class="fas fa-building"></i> ${sede?sede.nombre:'—'}</span><span><i class="fas fa-snowflake"></i> ${equipo?equipo.nombre:'—'}</span>`;
     cont.innerHTML += `
       <div class="orden-card" style="border-left-color:${colorBorde};">
         <div class="orden-card-top">
-          <span class="orden-card-badge badge-${claseEstado}">${o.estado}</span>
-          ${insigniaSemaforo}
+          <span class="orden-card-badge" style="${estiloBadge}"><i class="fas ${iconoBadge}"></i> ${textoBadge}</span>
           <span class="orden-card-numero">${o.numero}</span>
         </div>
         <h5 class="orden-card-cliente">${nombreClienteOrden(o)}${etiquetaClienteNuevoHtml(o)}</h5>
