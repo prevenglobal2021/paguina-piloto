@@ -1,4 +1,4 @@
-// ===== config-general.js — Configuración General, Empresa y Temas Metalizados =====
+// ===== config-general.js — Configuración General, Empresa y Catálogo Metalizado SaaS =====
 /* =========================================================
    CONFIGURACIÓN: EMPRESA Y PERFIL
 ========================================================= */
@@ -161,7 +161,7 @@ async function guardarInterruptorLogin(){
 }
 
 /* =========================================================
-   TEMAS: AZUL METALIZADO CLARO & AZUL METALIZADO OSCURO
+   CATÁLOGO DE TEMAS EMPRESARIALES (6 PALETAS DIVERSAS)
 ========================================================= */
 const TEMAS_CLAROS = [
   { 
@@ -181,7 +181,7 @@ const TEMAS_CLAROS = [
     borde: '#94a3b8'
   },
   { 
-    nombre: 'Azul Metalizado Oscuro (Titanio Cobalto)', 
+    nombre: 'Titanio Cobalto (Azul Metalizado Oscuro)', 
     esOscuro: true,
     acento: '#38bdf8', 
     fondo: 'linear-gradient(135deg, #0b1329 0%, #111c38 50%, #1e293b 100%)', 
@@ -195,6 +195,70 @@ const TEMAS_CLAROS = [
     panel1: 'linear-gradient(180deg, #16203c 0%, #0f172a 100%)', 
     panel2: '#16203c',
     borde: '#334155'
+  },
+  { 
+    nombre: 'Platino Satinado Puro (Prevenglobal Clean)', 
+    esOscuro: false,
+    acento: '#2563eb', 
+    fondo: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', 
+    colorFondoSolido: '#f1f5f9',
+    texto: '#0f172a', 
+    textoMuted: '#64748b',
+    sidebar1: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)', 
+    sidebar2: '#e2e8f0', 
+    topbar1: '#ffffff', 
+    topbar2: '#f1f5f9', 
+    panel1: '#ffffff', 
+    panel2: '#ffffff',
+    borde: '#cbd5e1'
+  },
+  { 
+    nombre: 'Acero Esmeralda HVAC (Ingeniería)', 
+    esOscuro: false,
+    acento: '#059669', 
+    fondo: 'linear-gradient(135deg, #e6f4ea 0%, #dcfce7 50%, #f0fdf4 100%)', 
+    colorFondoSolido: '#e6f4ea',
+    texto: '#064e3b', 
+    textoMuted: '#047857',
+    sidebar1: 'linear-gradient(180deg, #ffffff 0%, #dcfce7 100%)', 
+    sidebar2: '#bbf7d0', 
+    topbar1: 'linear-gradient(90deg, #ffffff 0%, #f0fdf4 100%)', 
+    topbar2: '#dcfce7', 
+    panel1: '#ffffff', 
+    panel2: '#ffffff',
+    borde: '#86efac'
+  },
+  { 
+    nombre: 'Grafito & Cobre Industrial', 
+    esOscuro: true,
+    acento: '#f59e0b', 
+    fondo: 'linear-gradient(135deg, #18181b 0%, #27272a 50%, #3f3f46 100%)', 
+    colorFondoSolido: '#18181b',
+    texto: '#fafafa', 
+    textoMuted: '#a1a1aa',
+    sidebar1: 'linear-gradient(180deg, #27272a 0%, #18181b 100%)', 
+    sidebar2: '#3f3f46', 
+    topbar1: 'linear-gradient(90deg, #27272a 0%, #18181b 100%)', 
+    topbar2: '#3f3f46', 
+    panel1: 'linear-gradient(180deg, #27272a 0%, #1f1f23 100%)', 
+    panel2: '#27272a',
+    borde: '#52525b'
+  },
+  { 
+    nombre: 'Azul Marino Ejecutivo Profundo', 
+    esOscuro: true,
+    acento: '#60a5fa', 
+    fondo: 'linear-gradient(135deg, #020617 0%, #0f172a 50%, #1e293b 100%)', 
+    colorFondoSolido: '#020617',
+    texto: '#f8fafc', 
+    textoMuted: '#94a3b8',
+    sidebar1: 'linear-gradient(180deg, #0f172a 0%, #020617 100%)', 
+    sidebar2: '#1e293b', 
+    topbar1: 'linear-gradient(90deg, #0f172a 0%, #020617 100%)', 
+    topbar2: '#1e293b', 
+    panel1: 'linear-gradient(180deg, #0f172a 0%, #090d16 100%)', 
+    panel2: '#0f172a',
+    borde: '#1e293b'
   }
 ];
 
@@ -210,7 +274,7 @@ function renderizarTemasClaros(){
         <div style="background:${t.sidebar1};width:32%;height:100%;border-right:1px solid ${t.borde};"></div>
         <div style="width:16px;height:16px;border-radius:50%;background:${t.acento};margin-left:12px;box-shadow:0 0 6px ${t.acento};"></div>
       </div>
-      <span style="color:${t.texto};font-weight:700;font-size:13px;margin-top:6px;display:block;">${t.nombre}</span>
+      <span style="color:${t.texto};font-weight:700;font-size:12.5px;margin-top:6px;display:block;">${t.nombre}</span>
     </div>`).join('');
 }
 
@@ -220,14 +284,13 @@ function seleccionarTemaClaro(idx){
 }
 
 /* =========================================================
-   INYECCIÓN VISUAL TOTAL DEL TEMA EN EL DOM
+   INYECCIÓN VISUAL TOTAL EN EL DOM
 ========================================================= */
 function aplicarConfiguracionVisual(){
   const cfg = db.config || {};
-  const tema = TEMAS_CLAROS.find(t => t.acento === cfg.colorAcento) || TEMAS_CLAROS[0];
+  const tema = TEMAS_CLAROS.find(t => t.acento === cfg.colorAcento && t.colorFondoSolido === cfg.colorFondo) || TEMAS_CLAROS[0];
   const root = document.documentElement;
 
-  // Variables raíz CSS
   root.style.setProperty('--accent-color', cfg.colorAcento || tema.acento);
   root.style.setProperty('--bg-body', tema.colorFondoSolido);
   root.style.setProperty('--text-main', tema.texto);
@@ -237,7 +300,6 @@ function aplicarConfiguracionVisual(){
   root.style.setProperty('--panel-bg', tema.panel2);
   root.style.setProperty('--card-border', tema.borde);
 
-  // Inyección de hoja de estilos dinámica para sobreescribir cualquier clase fija
   let estiloTema = document.getElementById('estiloTemaMetalizadoDinamico');
   if(!estiloTema){
     estiloTema = document.createElement('style');
@@ -260,7 +322,7 @@ function aplicarConfiguracionVisual(){
       color: ${tema.texto} !important;
     }
     aside ul li a:hover, aside ul li a.active {
-      background: ${tema.acento}22 !important;
+      background: ${tema.acento}25 !important;
       color: ${tema.acento} !important;
     }
     header, .topbar {
@@ -275,7 +337,7 @@ function aplicarConfiguracionVisual(){
       background: ${tema.panel1} !important;
       border: 1px solid ${tema.borde} !important;
       color: ${tema.texto} !important;
-      box-shadow: 0 4px 12px rgba(0,0,0, ${tema.esOscuro ? '0.35' : '0.06'}) !important;
+      box-shadow: 0 4px 14px rgba(0,0,0, ${tema.esOscuro ? '0.40' : '0.06'}) !important;
     }
     .orden-card-top span, .orden-card-cliente, .orden-card-datos span {
       color: ${tema.texto} !important;
@@ -296,7 +358,7 @@ function aplicarConfiguracionVisual(){
       background: ${tema.acento}15 !important;
     }
     input, select, textarea {
-      background-color: ${tema.esOscuro ? '#0b1329' : '#ffffff'} !important;
+      background-color: ${tema.esOscuro ? '#090d16' : '#ffffff'} !important;
       color: ${tema.texto} !important;
       border: 1px solid ${tema.borde} !important;
     }
