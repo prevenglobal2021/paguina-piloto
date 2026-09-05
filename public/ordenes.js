@@ -66,6 +66,122 @@ function normalizarFotosEvidencia(fotos){
 let ordenDetalleId = null;
 let fotosDetalleTemp = [];
 let fotosCamposDetalleTemp = {};
+let fotosDetalleTempPorEquipo = {};
+let fotosCamposDetalleTempPorEquipo = {};
+
+function renderizarBloquesEquiposDetalle(o){
+  const cont = document.getElementById('detBloquesEquipos');
+  fotosDetalleTempPorEquipo = {};
+  fotosCamposDetalleTempPorEquipo = {};
+  const cierrePorEquipo = (o.cierre && o.cierre.porEquipo) || {};
+  cont.innerHTML = o.equiposIds.map(equipoId=>{
+    const info = ubicarEquipoPorId(equipoId);
+    const datosCierre = cierrePorEquipo[equipoId] || {};
+    return `<div class="form-seccion" style="margin-top:14px;">
+      <div class="form-seccion-titulo"><i class="fas fa-snowflake" style="color:#0ea5e9;"></i> ${info ? info.equipo.nombre : 'Equipo #'+equipoId}${info && info.equipo.serie ? ' — '+info.equipo.serie : ''}</div>
+      <label style="font-size:11px;">Diagnóstico / Informe de este equipo:</label>
+      ${generarEditorRico('detDiagnostico_'+equipoId, datosCierre.diagnostico || '', false)}
+      <label style="font-size:11px;margin-top:10px;">Fotos de este equipo:</label>
+      <input type="file" accept="image/*" multiple onchange="manejarFotosDetalleEquipo(event,${equipoId})">
+      <div class="galeria-fotos" id="detPreviewFotos_${equipoId}"></div>
+      <div id="detCamposDinamicos_${equipoId}" style="margin-top:8px;"></div>
+    </div>`;
+  }).join('');
+  o.equiposIds.forEach(equipoId=>{
+    const datosEquipo = (o.equiposDatos||[]).find(d=>d.equipoId===equipoId) || {};
+    const datosCierre = cierrePorEquipo[equipoId] || {};
+    fotosDetalleTempPorEquipo[equipoId] = normalizarFotosEvidencia(datosCierre.fotos);
+    renderizarFotosDetallePreviewEquipo(equipoId);
+    renderizarFormularioDinamicoDetalleEquipo(equipoId, datosEquipo.plantillaId, datosCierre.respuestas || {}, datosCierre.fotosPorCampo || {});
+  });
+}
+function manejarFotosDetalleEquipo(event, equipoId){
+  const files = Array.from(event.target.files);
+  if(!fotosDetalleTempPorEquipo[equipoId]) fotosDetalleTempPorEquipo[equipoId] = [];
+  files.forEach(file=>{ comprimirImagen(file, 1000, 0.62).then(dataUrl=>{ fotosDetalleTempPorEquipo[equipoId].push({ src:dataUrl, desc:'' }); renderizarFotosDetallePreviewEquipo(equipoId); }); });
+  event.target.value='';
+}
+function renderizarFotosDetallePreviewEquipo(equipoId){
+  renderizarGaleriaFotos('detPreviewFotos_'+equipoId, fotosDetalleTempPorEquipo[equipoId], 'ordenEquipo_'+equipoId);
+}
+function renderizarFormularioDinamicoDetalleEquipo(equipoId, plantillaId, respuestasExistentes, fotosPorCampoExistentes){
+  const cont = document.getElementById('detCamposDinamicos_'+equipoId);
+  cont.innerHTML = '';
+  fotosCamposDetalleTempPorEquipo[equipoId] = JSON.parse(JSON.stringify(fotosPorCampoExistentes||{}));
+  const plantilla = buscarPlantilla(parseInt(plantillaId));
+  if(!plantilla || plantilla.campos.length===0){ cont.innerHTML = '<p style="font-size:11px;color:var(--text-muted);">Este equipo no tiene plantilla de formulario asignada.</p>'; return; }
+  plantilla.campos.forEach(campo=>{
+    if(campo.tipo==='checklist'){
+      const respCampo = respuestasExistentes[campo.id] || {};
+      const itemsHtml = (campo.items||[]).map(item=>`
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+          <input type="checkbox" data-campo-eq="${equipoId}_${campo.id}" data-item="${item.id}" style="width:auto;margin:0;" ${respCampo[item.id]?'checked':''}>
+          <span style="font-size:12px;">${item.texto}</span>
+        </div>`).join('');
+      cont.innerHTML += `<div style="margin-top:10px;border-top:1px dashed var(--card-border);padding-top:8px;"><label>${campo.label}:</label>${itemsHtml}</div>`;
+    } else if(campo.tipo==='foto'){
+      if(!fotosCamposDetalleTempPorEquipo[equipoId][campo.id]) fotosCamposDetalleTempPorEquipo[equipoId][campo.id] = [];
+      cont.innerHTML += `<div style="margin-top:10px;border-top:1px dashed var(--card-border);padding-top:8px;">
+        <label>${campo.label}:</label>
+        <input type="file" accept="image/*" multiple onchange="manejarFotoCampoDetalleEquipo(event,${equipoId},${campo.id})">
+        <div class="galeria-fotos" id="detPreviewFotoCampo_${equipoId}_${campo.id}"></div>
+      </div>`;
+      renderizarFotoCampoDetallePreviewEquipo(equipoId, campo.id);
+    } else {
+      const valorExistente = respuestasExistentes[campo.id] || '';
+      let inputHtml;
+      if(campo.tipo==='textarea') inputHtml = generarEditorRico('detCampoEq'+equipoId+'_'+campo.id, valorExistente, false, campo.id);
+      else if(campo.tipo==='checkbox') inputHtml = `<select data-campo-eq="${equipoId}_${campo.id}"><option value="Sí" ${valorExistente==='Sí'?'selected':''}>Sí</option><option value="No" ${valorExistente==='No'?'selected':''}>No</option></select>`;
+      else inputHtml = `<input type="${campo.tipo}" data-campo-eq="${equipoId}_${campo.id}" value="${valorExistente}">`;
+      cont.innerHTML += `<div style="margin-top:8px;"><label>${campo.label}:</label>${inputHtml}</div>`;
+    }
+  });
+}
+function manejarFotoCampoDetalleEquipo(event, equipoId, campoId){
+  const files = Array.from(event.target.files);
+  if(!fotosCamposDetalleTempPorEquipo[equipoId]) fotosCamposDetalleTempPorEquipo[equipoId] = {};
+  if(!fotosCamposDetalleTempPorEquipo[equipoId][campoId]) fotosCamposDetalleTempPorEquipo[equipoId][campoId] = [];
+  files.forEach(file=>{ comprimirImagen(file, 1000, 0.62).then(dataUrl=>{ fotosCamposDetalleTempPorEquipo[equipoId][campoId].push({ src:dataUrl, desc:'' }); renderizarFotoCampoDetallePreviewEquipo(equipoId, campoId); }); });
+  event.target.value='';
+}
+function renderizarFotoCampoDetallePreviewEquipo(equipoId, campoId){
+  const o = db.ordenes.find(x=>x.id===ordenDetalleId);
+  const datosEquipo = o ? (o.equiposDatos||[]).find(d=>d.equipoId===equipoId) : null;
+  const plantilla = datosEquipo ? buscarPlantilla(datosEquipo.plantillaId) : null;
+  const campo = plantilla ? plantilla.campos.find(c=>c.id===campoId) : null;
+  renderizarGaleriaFotos('detPreviewFotoCampo_'+equipoId+'_'+campoId, fotosCamposDetalleTempPorEquipo[equipoId][campoId], 'ordenEquipoCampo_'+equipoId, campoId, campo ? campo.bloqueImagenes : null);
+}
+function recolectarCierrePorEquipo(o){
+  const porEquipo = {};
+  o.equiposIds.forEach(equipoId=>{
+    const datosEquipo = (o.equiposDatos||[]).find(d=>d.equipoId===equipoId) || {};
+    const plantilla = buscarPlantilla(datosEquipo.plantillaId);
+    const respuestas = {};
+    if(plantilla){
+      plantilla.campos.forEach(campo=>{
+        if(campo.tipo==='checklist'){
+          const resp = {};
+          (campo.items||[]).forEach(item=>{
+            const chk = document.querySelector(`[data-campo-eq="${equipoId}_${campo.id}"][data-item="${item.id}"]`);
+            if(chk) resp[item.id] = chk.checked;
+          });
+          respuestas[campo.id] = resp;
+        } else if(campo.tipo!=='foto'){
+          const el = document.querySelector(`[data-campo-eq="${equipoId}_${campo.id}"]`) || document.getElementById('detCampoEq'+equipoId+'_'+campo.id);
+          if(el) respuestas[campo.id] = el.tagName==='DIV' ? el.innerHTML : el.value;
+        }
+      });
+    }
+    const editorDiag = document.getElementById('detDiagnostico_'+equipoId);
+    porEquipo[equipoId] = {
+      diagnostico: editorDiag ? editorDiag.innerHTML : '',
+      fotos: fotosDetalleTempPorEquipo[equipoId] || [],
+      respuestas,
+      fotosPorCampo: fotosCamposDetalleTempPorEquipo[equipoId] || {}
+    };
+  });
+  return porEquipo;
+}
 
 let solicitudEdicionForzada = false; // bandera de un solo uso: la activa editarOrdenFinalizada()
 let ordenDetalleEsEdicionForzada = false; // vigente mientras el modal de detalle está abierto en ese modo
@@ -112,10 +228,22 @@ function verDetalleOrden(ordenId){
   selPlant.innerHTML = '<option value="">Sin plantilla</option>' + db.plantillas.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('');
   selPlant.value = o.plantillaId || '';
 
-  document.getElementById('detDiagnostico').innerHTML = (o.cierre && o.cierre.diagnostico) || '';
-  fotosDetalleTemp = normalizarFotosEvidencia(o.cierre && o.cierre.fotos);
-  renderizarFotosDetallePreview();
-  renderizarFormularioDinamicoDetalle(o.plantillaId, (o.cierre && o.cierre.respuestas) || {}, (o.cierre && o.cierre.fotosPorCampo) || {});
+  // Cuando la orden tiene varios equipos, cada uno se muestra como un bloque
+  // completamente independiente (su propio diagnóstico, fotos y actividades)
+  // — el bloque único de siempre se usa solo si es un único equipo.
+  const esMultiEquipo = o.equiposIds && o.equiposIds.length > 1;
+  document.getElementById('detBloqueUnEquipo').style.display = esMultiEquipo ? 'none' : 'block';
+  document.getElementById('detBloquesEquipos').style.display = esMultiEquipo ? 'block' : 'none';
+  document.getElementById('detEquipoMultiAviso').style.display = esMultiEquipo ? 'block' : 'none';
+  if(esMultiEquipo) document.getElementById('detEquipo').disabled = true;
+  if(esMultiEquipo){
+    renderizarBloquesEquiposDetalle(o);
+  } else {
+    document.getElementById('detDiagnostico').innerHTML = (o.cierre && o.cierre.diagnostico) || '';
+    fotosDetalleTemp = normalizarFotosEvidencia(o.cierre && o.cierre.fotos);
+    renderizarFotosDetallePreview();
+    renderizarFormularioDinamicoDetalle(o.plantillaId, (o.cierre && o.cierre.respuestas) || {}, (o.cierre && o.cierre.fotosPorCampo) || {});
+  }
 
   // Los datos de la orden (cliente, equipo, técnico asignado, tipo, plantilla, etc.)
   // solo los puede cambiar quien tenga permiso de "Editar orden completa" — pero
@@ -236,8 +364,13 @@ async function guardarDetalleOrden(finalizar){
   if(!o) return;
   const esEdicionForzada = o.estado==='Finalizado' && ordenDetalleEsEdicionForzada && esAdmin();
   if(o.estado==='Finalizado' && !esEdicionForzada){ mostrarToast('Esta orden está finalizada y no se puede editar.'); return; }
+  const esMultiEquipo = o.equiposIds && o.equiposIds.length > 1;
   let clienteId, equipoId, sedeId;
-  if(o.esClienteNuevo){
+  if(esMultiEquipo){
+    // Con varios equipos, el cliente/equipos quedan fijos desde la creación
+    // de la orden — no se reasignan aquí (cada equipo ya es su propio bloque).
+    clienteId = o.clienteId; equipoId = o.equipoId; sedeId = o.sedeId;
+  } else if(o.esClienteNuevo){
     // El cliente/equipo de una orden de cliente nuevo no se puede reasignar desde
     // aquí — se conservan tal cual quedaron al crear la orden.
     clienteId = o.clienteId; equipoId = o.equipoId; sedeId = o.sedeId;
@@ -261,16 +394,18 @@ async function guardarDetalleOrden(finalizar){
   const plantillaIdRaw = document.getElementById('detPlantilla').value;
 
   const respuestas = {};
-  document.querySelectorAll('#detCamposDinamicos [data-campo]').forEach(el=>{
-    if(el.dataset.item){
-      if(!respuestas[el.dataset.campo]) respuestas[el.dataset.campo] = {};
-      respuestas[el.dataset.campo][el.dataset.item] = el.checked;
-    } else if(el.hasAttribute('contenteditable')){
-      respuestas[el.dataset.campo] = el.innerHTML;
-    } else {
-      respuestas[el.dataset.campo] = el.value;
-    }
-  });
+  if(!esMultiEquipo){
+    document.querySelectorAll('#detCamposDinamicos [data-campo]').forEach(el=>{
+      if(el.dataset.item){
+        if(!respuestas[el.dataset.campo]) respuestas[el.dataset.campo] = {};
+        respuestas[el.dataset.campo][el.dataset.item] = el.checked;
+      } else if(el.hasAttribute('contenteditable')){
+        respuestas[el.dataset.campo] = el.innerHTML;
+      } else {
+        respuestas[el.dataset.campo] = el.value;
+      }
+    });
+  }
   // Respaldo del estado anterior de la orden, por si el guardado en el servidor
   // falla — así se puede restaurar sin perder lo que ya tenía guardado antes,
   // en vez de dejar la orden a medias con datos que nunca llegaron a guardarse.
@@ -282,16 +417,27 @@ async function guardarDetalleOrden(finalizar){
   o.prioridad = document.getElementById('detPrioridad').value;
   o.fechaProgramada = document.getElementById('detFecha').value || null;
   o.horaProgramada = document.getElementById('detHora').value || null;
-  o.plantillaId = plantillaIdRaw ? parseInt(plantillaIdRaw) : null;
-  o.cierre = {
-    fecha: (o.cierre && o.cierre.fecha) || new Date().toISOString().slice(0,10),
-    diagnostico: document.getElementById('detDiagnostico').innerHTML,
-    respuestas,
-    fotos: fotosDetalleTemp.slice(),
-    fotosPorCampo: JSON.parse(JSON.stringify(fotosCamposDetalleTemp)),
-    firmaTecnico: firmaTecnicoTemp || null,
-    firmaCliente: firmaClienteTemp || null
-  };
+  o.plantillaId = esMultiEquipo ? null : (plantillaIdRaw ? parseInt(plantillaIdRaw) : null);
+  if(esMultiEquipo){
+    // Cada equipo de esta orden guarda su propio diagnóstico, fotos y
+    // actividades por separado — nunca se mezclan entre sí.
+    o.cierre = {
+      fecha: (o.cierre && o.cierre.fecha) || new Date().toISOString().slice(0,10),
+      porEquipo: recolectarCierrePorEquipo(o),
+      firmaTecnico: firmaTecnicoTemp || null,
+      firmaCliente: firmaClienteTemp || null
+    };
+  } else {
+    o.cierre = {
+      fecha: (o.cierre && o.cierre.fecha) || new Date().toISOString().slice(0,10),
+      diagnostico: document.getElementById('detDiagnostico').innerHTML,
+      respuestas,
+      fotos: fotosDetalleTemp.slice(),
+      fotosPorCampo: JSON.parse(JSON.stringify(fotosCamposDetalleTemp)),
+      firmaTecnico: firmaTecnicoTemp || null,
+      firmaCliente: firmaClienteTemp || null
+    };
+  }
   o.estado = (finalizar || esEdicionForzada) ? 'Finalizado' : document.getElementById('detEstado').value;
 
   // Mientras se confirma el guardado real, se bloquean los botones — así el

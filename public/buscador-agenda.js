@@ -381,6 +381,12 @@ function toggleOrdenClienteNuevo(){
 // cualquiera de sus equipos — así, si te acuerdas del equipo pero no del
 // cliente, igual lo encuentras. Sin escribir nada, muestra todos (como el
 // selector de antes).
+function resaltarCoincidencia(texto, busqueda){
+  if(!busqueda) return texto;
+  const idx = texto.toLowerCase().indexOf(busqueda.toLowerCase());
+  if(idx===-1) return texto;
+  return texto.slice(0,idx) + '<mark>' + texto.slice(idx,idx+busqueda.length) + '</mark>' + texto.slice(idx+busqueda.length);
+}
 function filtrarClientesOrden(){
   const texto = document.getElementById('ordClienteBuscador').value.trim().toLowerCase();
   const cont = document.getElementById('ordClienteResultados');
@@ -399,15 +405,18 @@ function filtrarClientesOrden(){
     if(equipoCoincide) resultados.push({ cliente:c, motivo:equipoCoincide.nombre });
   });
   if(!resultados.length){
-    cont.innerHTML = '<div class="autocomplete-item" style="cursor:default;color:var(--text-muted);">Sin resultados</div>';
+    cont.innerHTML = '<div class="autocomplete-item" style="cursor:default;color:#94a3b8;">Sin resultados para esa búsqueda</div>';
   } else {
     cont.innerHTML = resultados.slice(0,30).map(r=>`
       <div class="autocomplete-item" onmousedown="seleccionarClienteOrden(${r.cliente.id})">
-        ${r.cliente.nombre}
-        ${r.motivo ? `<small>Coincide por el equipo: ${r.motivo}</small>` : ''}
+        <span class="autocomplete-item-avatar">${(r.cliente.nombre||'?').trim().charAt(0).toUpperCase()}</span>
+        <span style="flex:1;min-width:0;">
+          ${resaltarCoincidencia(r.cliente.nombre, texto)}
+          ${r.motivo ? `<small>Coincide por el equipo: ${resaltarCoincidencia(r.motivo, texto)}</small>` : ''}
+        </span>
       </div>`).join('');
   }
-  cont.style.display = 'block';
+  cont.classList.add('abierto');
 }
 function seleccionarClienteOrden(clienteId){
   const c = buscarCliente(clienteId);
@@ -418,7 +427,7 @@ function seleccionarClienteOrden(clienteId){
   poblarEquiposOrden();
 }
 function cerrarListaClientesOrden(){
-  document.getElementById('ordClienteResultados').style.display = 'none';
+  document.getElementById('ordClienteResultados').classList.remove('abierto');
 }
 function toggleOrdenSinEquipo(){
   const sinEquipo = document.getElementById('ordSinEquipo').checked;
@@ -503,10 +512,8 @@ async function guardarNuevaOrden(){
 
   const filasSeleccionadas = Array.from(document.querySelectorAll('#listaEquiposOrden .chk-equipo-orden:checked'));
   if(filasSeleccionadas.length===0){ mostrarToast('Selecciona al menos un equipo, o marca la opción de servicio general sin equipo.'); return; }
-  let consecutivo = db.ordenes.length;
-  const numerosCreados = [];
-  const nuevasCreadas = [];
-  filasSeleccionadas.forEach(chk=>{
+
+  const datosEquipos = filasSeleccionadas.map(chk=>{
     const equipoId = parseInt(chk.dataset.equipo);
     // La sede viene directamente de la fila (ya filtrada por este Cliente al construir
     // la lista), en vez de volver a buscarla de forma global por ID — así se evita que
@@ -516,28 +523,45 @@ async function guardarNuevaOrden(){
     const plantillaId = selPlant && selPlant.value ? parseInt(selPlant.value) : null;
     const selTipo = document.querySelector(`#listaEquiposOrden .sel-tipo-equipo[data-equipo="${equipoId}"]`);
     const tipoEquipo = selTipo && selTipo.value ? selTipo.value : tipo;
-    consecutivo++;
-    const nueva = {
-      id: Date.now() + consecutivo, numero: `OS-2026-${String(consecutivo).padStart(4,'0')}`,
-      clienteId, sedeId, equipoId, tecnicoId: tecnicoId||null,
-      tipo: tipoEquipo, prioridad, plantillaId, notas,
+    return { equipoId, sedeId, plantillaId, tipo: tipoEquipo };
+  });
+
+  const consecutivo = db.ordenes.length + 1;
+  let nueva;
+  if(datosEquipos.length === 1){
+    // Un solo equipo: exactamente el mismo comportamiento de siempre.
+    const d = datosEquipos[0];
+    nueva = {
+      id: Date.now(), numero: `OS-2026-${String(consecutivo).padStart(4,'0')}`,
+      clienteId, sedeId: d.sedeId, equipoId: d.equipoId, tecnicoId: tecnicoId||null,
+      tipo: d.tipo, prioridad, plantillaId: d.plantillaId, notas,
       estado: 'Programado', fechaProgramada, horaProgramada, cierre: null
     };
-    db.ordenes.push(nueva);
-    nuevasCreadas.push(nueva);
-    numerosCreados.push(nueva.numero);
-    registrarLog('Crear', 'OrdenServicio', nueva.numero);
-  });
+  } else {
+    // Varios equipos marcados: UNA sola orden, donde cada equipo queda como
+    // un bloque independiente (su propio tipo/plantilla desde la creación, y
+    // más adelante sus propias fotos/informe/actividades al cerrar la orden)
+    // — antes esto creaba una orden separada por cada equipo marcado.
+    nueva = {
+      id: Date.now(), numero: `OS-2026-${String(consecutivo).padStart(4,'0')}`,
+      clienteId, sedeId: datosEquipos[0].sedeId, equipoId: null,
+      equiposIds: datosEquipos.map(d=>d.equipoId), equiposDatos: datosEquipos,
+      tecnicoId: tecnicoId||null,
+      tipo, prioridad, plantillaId: null, notas,
+      estado: 'Programado', fechaProgramada, horaProgramada, cierre: null
+    };
+  }
+  db.ordenes.push(nueva);
+  registrarLog('Crear', 'OrdenServicio', datosEquipos.length>1 ? `${nueva.numero} (${datosEquipos.length} equipos)` : nueva.numero);
   try{
     await dbGuardarInmediato();
   }catch(err){
-    nuevasCreadas.forEach(n=>{ const i = db.ordenes.indexOf(n); if(i>-1) db.ordenes.splice(i,1); });
-    mostrarToast('⚠️ No se pudieron crear las órdenes: ' + err.message, 'error');
+    db.ordenes.pop();
+    mostrarToast('⚠️ No se pudo crear la orden: ' + err.message, 'error');
     return;
   }
   cerrarModal('modalNuevaOrden');
   renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
-  if(numerosCreados.length > 1) mostrarToast(`Se crearon ${numerosCreados.length} órdenes de servicio: ${numerosCreados.join(', ')}`);
-  else mostrarToast(`Orden ${numerosCreados[0]} creada.`);
+  mostrarToast(datosEquipos.length>1 ? `✅ Orden ${nueva.numero} creada con ${datosEquipos.length} equipos.` : `✅ Orden ${nueva.numero} creada.`, 'exito');
 }
 

@@ -321,12 +321,16 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .timeline-fotos img{width:50px;height:50px;object-fit:cover;border-radius:6px;border:1px solid var(--card-border);}
 .field-row{display:flex;gap:8px;align-items:flex-end;margin-bottom:8px;flex-wrap:wrap;}
 .autocomplete-wrapper{position:relative;}
-.autocomplete-resultados{position:absolute;top:100%;left:0;right:0;z-index:50;max-height:260px;overflow-y:auto;
-  background:var(--panel-bg-1,#212429);border:1px solid var(--card-border);border-top:none;border-radius:0 0 8px 8px;box-shadow:0 8px 20px rgba(0,0,0,.35);}
-.autocomplete-item{padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--card-border);}
+.autocomplete-resultados{position:absolute;top:100%;left:0;right:0;z-index:50;max-height:280px;overflow-y:auto;
+  background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 12px 28px rgba(15,23,42,.16);
+  margin-top:6px;opacity:0;transform:translateY(-6px);pointer-events:none;transition:opacity .16s ease,transform .16s ease;}
+.autocomplete-resultados.abierto{opacity:1;transform:translateY(0);pointer-events:auto;}
+.autocomplete-item{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;font-size:13px;color:#1e293b;border-bottom:1px solid #f1f5f9;transition:background .1s ease;}
 .autocomplete-item:last-child{border-bottom:none;}
-.autocomplete-item:hover, .autocomplete-item.resaltado{background:rgba(0,136,255,.15);}
-.autocomplete-item small{display:block;color:var(--text-muted);font-size:11px;margin-top:2px;}
+.autocomplete-item:hover, .autocomplete-item.resaltado{background:#eff6ff;}
+.autocomplete-item small{display:block;color:#64748b;font-size:11px;margin-top:2px;}
+.autocomplete-item mark{background:#dbeafe;color:#1d4ed8;border-radius:3px;padding:0 2px;font-weight:700;}
+.autocomplete-item-avatar{flex-shrink:0;width:32px;height:32px;border-radius:50%;background:#eff6ff;color:#2563eb;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;}
 /* Tarjeta de Orden de Servicio — Control de Órdenes Operativa */
 .orden-card{background:#fff;border:1px solid #e2e8f0;border-left:4px solid #f59e0b;border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.05);transition:box-shadow .15s ease;}
 .orden-card:hover{box-shadow:0 4px 14px rgba(0,0,0,.09);}
@@ -1327,7 +1331,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <input type="text" id="ordClienteBuscador" placeholder="Escribe el nombre del cliente, o el nombre/serie de un equipo suyo..." autocomplete="off"
           oninput="filtrarClientesOrden()" onfocus="filtrarClientesOrden()" onblur="setTimeout(cerrarListaClientesOrden, 150)">
         <input type="hidden" id="ordCliente">
-        <div id="ordClienteResultados" class="autocomplete-resultados" style="display:none;"></div>
+        <div id="ordClienteResultados" class="autocomplete-resultados"></div>
       </div>
       </div>
     </div>
@@ -1426,7 +1430,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div id="detWrapperClienteExistente"><label>Cliente:</label><select id="detCliente" onchange="poblarEquiposDetalleOrden()"></select></div>
-      <div id="detWrapperEquipoExistente"><label>Equipo:</label><select id="detEquipo"></select></div>
+      <div id="detWrapperEquipoExistente"><label>Equipo:</label><select id="detEquipo"></select><small id="detEquipoMultiAviso" style="display:none;color:var(--text-muted);">Esta orden tiene varios equipos — cada uno se edita en su propio bloque más abajo.</small></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div><label>Técnico asignado:</label><select id="detTecnico"></select></div>
@@ -1441,6 +1445,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <div><label>Hora programada:</label><input type="time" id="detHora"></div>
       <div><label>Estado:</label><select id="detEstado"><option>Programado</option><option>En Ejecución</option></select></div>
     </div>
+    <div id="detBloqueUnEquipo">
     <label>Diagnóstico / observaciones generales:</label>
     <div class="editor-rico-toolbar">
       <div class="editor-rico-grupo-tamano">
@@ -1472,6 +1477,8 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <label>Fotos de evidencia:</label>
     <input type="file" id="detInputFotos" accept="image/*" multiple onchange="manejarFotosDetalle(event)">
     <div class="galeria-fotos" id="detPreviewFotos"></div>
+    </div>
+    <div id="detBloquesEquipos" style="display:none;"></div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:10px;">
       <div>
@@ -2175,19 +2182,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=67"></script>
-<script src="utilidades-navegacion.js?v=67"></script>
-<script src="buscador-agenda.js?v=67"></script>
-<script src="ordenes.js?v=67"></script>
-<script src="equipos-trazabilidad.js?v=67"></script>
-<script src="pdf.js?v=67"></script>
-<script src="config-clientes-equipos.js?v=67"></script>
-<script src="config-plantillas-tecnicos.js?v=67"></script>
-<script src="cotizador.js?v=67"></script>
-<script src="config-general.js?v=67"></script>
-<script src="inventario.js?v=67"></script>
-<script src="tienda-admin.js?v=67"></script>
-<script src="tienda-publica.js?v=67"></script>
-<script src="kpi.js?v=67"></script>
+<script src="core.js?v=68"></script>
+<script src="utilidades-navegacion.js?v=68"></script>
+<script src="buscador-agenda.js?v=68"></script>
+<script src="ordenes.js?v=68"></script>
+<script src="equipos-trazabilidad.js?v=68"></script>
+<script src="pdf.js?v=68"></script>
+<script src="config-clientes-equipos.js?v=68"></script>
+<script src="config-plantillas-tecnicos.js?v=68"></script>
+<script src="cotizador.js?v=68"></script>
+<script src="config-general.js?v=68"></script>
+<script src="inventario.js?v=68"></script>
+<script src="tienda-admin.js?v=68"></script>
+<script src="tienda-publica.js?v=68"></script>
+<script src="kpi.js?v=68"></script>
 </body>
 </html>
