@@ -438,12 +438,17 @@ table.data-table th{background:rgba(0,0,0,.3);}
 /* CALENDARIO */
 .calendar-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
 .calendar-nav h4{margin:0;font-size:14px;}
-.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
-.calendar-dow{font-size:10px;text-transform:uppercase;color:var(--text-muted);text-align:center;font-weight:700;padding-bottom:4px;}
-.calendar-day{background:rgba(0,0,0,.15);border:1px solid var(--card-border);border-radius:8px;min-height:80px;padding:6px;font-size:11px;}
-.calendar-day.otro-mes{opacity:.35;}
-.calendar-day .num-dia{font-weight:700;color:var(--text-muted);margin-bottom:4px;}
-.calendar-chip{background:var(--blue-accent);color:#fff;border-radius:5px;padding:2px 5px;font-size:10px;margin-bottom:3px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;}
+.calendar-dow{font-size:10px;text-transform:uppercase;color:#475569;text-align:center;font-weight:700;letter-spacing:.4px;padding:6px 0;background:#f1f5f9;border-radius:6px;}
+.calendar-day{background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;min-height:80px;padding:6px;font-size:11px;transition:box-shadow .15s ease, border-color .15s ease, transform .1s ease;}
+.calendar-day:not(.otro-mes):hover{box-shadow:0 4px 12px rgba(15,23,42,.08);border-color:#93c5fd;transform:translateY(-1px);}
+.calendar-day.otro-mes{opacity:.4;background:#f8fafc;}
+.calendar-day.es-hoy{background:#eff6ff;border:1.5px solid #2563eb;}
+.calendar-day .num-dia{font-weight:700;color:#475569;margin-bottom:4px;display:flex;align-items:center;gap:5px;}
+.calendar-day.es-hoy .num-dia{color:#1d4ed8;}
+.etiqueta-hoy{background:#2563eb;color:#fff;font-size:8px;font-weight:700;padding:1px 5px;border-radius:6px;letter-spacing:.3px;}
+.calendar-chip{background:var(--blue-accent);color:#fff;border-radius:5px;padding:3px 6px;font-size:10px;margin-bottom:3px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;box-shadow:0 1px 2px rgba(0,0,0,.12);transition:filter .12s ease;}
+.calendar-chip:hover{filter:brightness(1.1);}
 .calendar-chip.finalizado{background:var(--green-success);}
 .calendar-chip.ejecucion{background:#eab308;}
 .calendar-chip.fuera-horario{background:#ef4444;}
@@ -462,7 +467,6 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .paleta-opcion.selected{border-color:#fff;}
 /* MODO CLARO */
 body.modo-claro{--card-bg:#ffffff;--card-border:#e2e8f0;--text-main:#0f172a;--text-muted:#64748b;}
-body.modo-claro .calendar-day{background:#f8fafc;}
 body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background:#f1f5f9;color:#0f172a;}
 /* LOGIN */
 #loginOverlay{position:fixed;inset:0;background:#fff;display:none;z-index:2000;overflow-y:auto;}
@@ -2138,19 +2142,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=65"></script>
-<script src="utilidades-navegacion.js?v=65"></script>
-<script src="buscador-agenda.js?v=65"></script>
-<script src="ordenes.js?v=65"></script>
-<script src="equipos-trazabilidad.js?v=65"></script>
-<script src="pdf.js?v=65"></script>
-<script src="config-clientes-equipos.js?v=65"></script>
-<script src="config-plantillas-tecnicos.js?v=65"></script>
-<script src="cotizador.js?v=65"></script>
-<script src="config-general.js?v=65"></script>
-<script src="inventario.js?v=65"></script>
-<script src="tienda-admin.js?v=65"></script>
-<script src="tienda-publica.js?v=65"></script>
-<script src="kpi.js?v=65"></script>
+<script src="core.js?v=66"></script>
+<script src="utilidades-navegacion.js?v=66"></script>
+<script src="buscador-agenda.js?v=66"></script>
+<script src="ordenes.js?v=66"></script>
+<script src="equipos-trazabilidad.js?v=66"></script>
+<script src="pdf.js?v=66"></script>
+<script src="config-clientes-equipos.js?v=66"></script>
+<script src="config-plantillas-tecnicos.js?v=66"></script>
+<script src="cotizador.js?v=66"></script>
+<script src="config-general.js?v=66"></script>
+<script src="inventario.js?v=66"></script>
+<script src="tienda-admin.js?v=66"></script>
+<script src="tienda-publica.js?v=66"></script>
+<script src="kpi.js?v=66"></script>
 </body>
 </html>

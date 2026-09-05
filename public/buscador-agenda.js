@@ -302,6 +302,7 @@ function renderizarCalendario(){
   for(let i=0;i<diaSemanaInicio;i++){ grid.innerHTML += `<div class="calendar-day otro-mes"></div>`; }
 
   const ordenesVisibles = ordenesVisiblesParaSesion();
+  const hoyStr = new Date().toISOString().slice(0,10);
   for(let dia=1; dia<=diasEnMes; dia++){
     const fechaStr = `${anio}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
     const ordenesDia = ordenesVisibles.filter(o=>o.fechaProgramada===fechaStr);
@@ -314,7 +315,8 @@ function renderizarCalendario(){
       return `<span class="calendar-chip ${claseEstado}" ${arrastrable} title="${o.numero} - ${nombreClienteOrden(o)}${o.esClienteNuevo?' (Cliente nuevo)':''}${o.horaProgramada?' - '+o.horaProgramada:''}" onclick="verDetalleOrden(${o.id})">${o.horaProgramada?o.horaProgramada+' ':''}${o.numero}</span>`;
     }).join('');
     const soltable = esAdmin() ? `ondragover="event.preventDefault()" ondrop="dropOrdenEnDia(event,'${fechaStr}')"` : '';
-    grid.innerHTML += `<div class="calendar-day" ${soltable}><div class="num-dia">${dia}</div>${chips}</div>`;
+    const claseHoy = fechaStr===hoyStr ? ' es-hoy' : '';
+    grid.innerHTML += `<div class="calendar-day${claseHoy}" ${soltable}><div class="num-dia">${dia}${fechaStr===hoyStr?' <span class=\"etiqueta-hoy\">HOY</span>':''}</div>${chips}</div>`;
   }
 }
 let ordenArrastradaId = null;
