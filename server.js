@@ -223,6 +223,7 @@ app.get('/api/tienda/:slug', limitePublico, async (req, res) => {
     tamanoTarjeta: cfg.tiendaTamanoTarjeta || 230,
     telefono: cfg.tiendaTelefono || '', whatsapp: cfg.tiendaWhatsapp || '',
     secciones: cfg.tiendaSecciones || { equipo: [], servicios: [], proyectos: [], clientes: [], certificaciones: [] },
+    carruselImagenes: cfg.carruselImagenes || [],
     testimonios: cfg.tiendaTestimonios || [],
     productos: (data.inventario || []).filter(it => it.publicarEnTienda).map(it => ({
       id: it.id, nombre: it.nombre, categoria: it.categoria || '',
@@ -623,3 +624,4 @@ pool.query('SELECT 1')
     console.error('No se pudo conectar a la base de datos:', err.message);
     process.exit(1);
   });
+
