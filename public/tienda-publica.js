@@ -88,7 +88,8 @@ function iniciarTiendaPublica(slug){
         const btnIg = document.getElementById('tpBotonInstagram');
         btnIg.href = data.instagram; btnIg.style.display = 'inline-block'; redesWrap.style.display = 'flex';
       }
-      document.getElementById('tpSecciones').innerHTML = htmlSeccionesTienda(data.secciones, data.testimonios);
+      document.getElementById('tpSecciones').innerHTML = htmlSeccionesTienda(data.secciones, data.testimonios, data.carruselImagenes);
+      iniciarAutoRotacionCarrusel('galeria'); iniciarAutoRotacionCarrusel('proyectos');
       iniciarRotacionTestimonios(data.testimonios);
       const contPolitica = document.getElementById('tpTextoPoliticaDatos');
       if(contPolitica) contPolitica.innerHTML = textoPoliticaDatosPorDefecto(data.nombre || 'esta empresa');
@@ -132,7 +133,9 @@ function renderizarTiendaPublica(){
 function verDetalleProductoPublico(itemId){
   const it = tiendaPublicaData.productos.find(p=>p.id===itemId);
   if(!it) return;
-  const fotos = (it.fotos||[]).map(f=>`<img src="${srcDeFoto(f)}" style="width:100%;border-radius:10px;margin-bottom:8px;">`).join('') || `<div class="tienda-card-img-placeholder" style="border-radius:10px;"><i class="fas fa-box-open"></i></div>`;
+  const fotos = (it.fotos||[]).length
+    ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:10px;">${it.fotos.map(f=>`<img src="${srcDeFoto(f)}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;">`).join('')}</div>`
+    : `<div class="tienda-card-img-placeholder" style="border-radius:10px;"><i class="fas fa-box-open"></i></div>`;
   const agotado = it.stockActual <= 0;
   document.getElementById('detalleProductoTienda').innerHTML = `
     ${fotos}

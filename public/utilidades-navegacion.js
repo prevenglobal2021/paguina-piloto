@@ -2,7 +2,68 @@
 /* =========================================================
    UTILIDADES DE CONSULTA
 ========================================================= */
+// Genera una imagen de referencia/temporal propia (SVG), sin depender de
+// ningún banco de imágenes externo — así nunca se rompe por un enlace caído.
+// Sirve para precargar contenido de ejemplo mientras se sube contenido real.
+function generarImagenReferenciaSVG(emoji, texto, colorDe, colorA){
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="${colorDe}"/><stop offset="100%" stop-color="${colorA}"/>
+    </linearGradient></defs>
+    <rect width="800" height="500" fill="url(#g)"/>
+    <text x="400" y="220" font-size="120" text-anchor="middle" dominant-baseline="middle">${emoji}</text>
+    <text x="400" y="330" font-size="30" font-family="Arial,sans-serif" font-weight="700" fill="#ffffff" text-anchor="middle" opacity="0.92">${texto}</text>
+    <text x="400" y="365" font-size="16" font-family="Arial,sans-serif" fill="#ffffff" text-anchor="middle" opacity="0.65">Imagen de referencia — reemplaza por una foto real</text>
+  </svg>`;
+  return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+}
 function buscarCliente(id){ return db.clientes.find(c=>c.id===id); }
+/* =========================================================
+   CARRUSEL REUTILIZABLE (Tienda Virtual) — un solo componente
+   para el carrusel de imágenes y el de proyectos, con flechas,
+   puntos de navegación, y rotación automática opcional.
+========================================================= */
+function generarCarruselHTML(idCarrusel, slidesHtml, autoRotarMs){
+  if(!slidesHtml || !slidesHtml.length) return '<p class="empty-state">Aún no hay contenido en este carrusel.</p>';
+  const puntos = slidesHtml.map((_,i)=>`<button class="carrusel-punto ${i===0?'activo':''}" onclick="irADiapositivaCarrusel('${idCarrusel}',${i})" aria-label="Ir a la diapositiva ${i+1}"></button>`).join('');
+  return `<div class="carrusel-wrap" id="carrusel-${idCarrusel}" data-indice="0" data-total="${slidesHtml.length}" data-auto="${autoRotarMs||0}">
+    <div class="carrusel-track">${slidesHtml.map(s=>`<div class="carrusel-slide">${s}</div>`).join('')}</div>
+    ${slidesHtml.length>1 ? `
+      <button class="carrusel-flecha izq" onclick="moverCarrusel('${idCarrusel}',-1)" aria-label="Anterior"><i class="fas fa-chevron-left"></i></button>
+      <button class="carrusel-flecha der" onclick="moverCarrusel('${idCarrusel}',1)" aria-label="Siguiente"><i class="fas fa-chevron-right"></i></button>
+      <div class="carrusel-puntos">${puntos}</div>
+    ` : ''}
+  </div>`;
+}
+function moverCarrusel(idCarrusel, delta){
+  const wrap = document.getElementById('carrusel-'+idCarrusel);
+  if(!wrap) return;
+  const total = parseInt(wrap.dataset.total);
+  const indice = ((parseInt(wrap.dataset.indice) + delta) % total + total) % total;
+  irADiapositivaCarrusel(idCarrusel, indice);
+}
+function irADiapositivaCarrusel(idCarrusel, indice){
+  const wrap = document.getElementById('carrusel-'+idCarrusel);
+  if(!wrap) return;
+  wrap.dataset.indice = indice;
+  wrap.querySelector('.carrusel-track').style.transform = `translateX(-${indice*100}%)`;
+  wrap.querySelectorAll('.carrusel-punto').forEach((p,i)=>p.classList.toggle('activo', i===indice));
+}
+// Inicia (o reinicia) la rotación automática de un carrusel — se llama
+// después de insertarlo en la página, ya que antes el elemento no existe
+// todavía. Se detiene sola si el carrusel ya no está en la página.
+function iniciarAutoRotacionCarrusel(idCarrusel){
+  const wrap = document.getElementById('carrusel-'+idCarrusel);
+  if(!wrap) return;
+  const ms = parseInt(wrap.dataset.auto);
+  if(!ms || parseInt(wrap.dataset.total) <= 1) return;
+  const clave = '__intervaloCarrusel_'+idCarrusel;
+  if(window[clave]) clearInterval(window[clave]);
+  window[clave] = setInterval(()=>{
+    if(!document.getElementById('carrusel-'+idCarrusel)){ clearInterval(window[clave]); return; }
+    moverCarrusel(idCarrusel, 1);
+  }, ms);
+}
 // Visor de imagen ampliada (lightbox) — reutilizable en toda la plataforma:
 // cualquier <img> puede llamar a esto con su src para verse en grande.
 function verImagenAmpliada(src){

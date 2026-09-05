@@ -196,6 +196,33 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .tienda-servicio-card img{width:100%;height:130px;object-fit:cover;border-radius:10px;margin-bottom:14px;}
 .tienda-servicio-card h5{margin:0 0 8px 0;font-size:15px;}
 .tienda-servicio-card p{margin:0;font-size:12px;color:var(--text-muted);line-height:1.5;}
+/* CARRUSEL (Tienda Virtual) */
+.carrusel-wrap{position:relative;border-radius:14px;overflow:hidden;background:#f1f5f9;}
+.carrusel-track{display:flex;transition:transform .5s cubic-bezier(.4,0,.2,1);}
+.carrusel-slide{flex:0 0 100%;min-width:100%;}
+.carrusel-flecha{position:absolute;top:50%;transform:translateY(-50%);background:rgba(15,23,42,.5);color:#fff;border:none;width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:15px;z-index:2;transition:background .15s ease;}
+.carrusel-flecha:hover{background:rgba(15,23,42,.8);}
+.carrusel-flecha.izq{left:12px;}
+.carrusel-flecha.der{right:12px;}
+.carrusel-puntos{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:2;}
+.carrusel-punto{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.55);border:none;cursor:pointer;padding:0;transition:background .15s ease,width .15s ease;}
+.carrusel-punto.activo{background:#fff;width:20px;border-radius:4px;}
+.carrusel-slide-imagen{position:relative;width:100%;aspect-ratio:16/8;overflow:hidden;}
+.carrusel-slide-imagen img{width:100%;height:100%;object-fit:cover;display:block;}
+.carrusel-slide-imagen .carrusel-desc{position:absolute;left:0;right:0;bottom:0;padding:20px 60px 16px 20px;background:linear-gradient(to top, rgba(15,23,42,.75), transparent);color:#fff;font-size:14px;}
+.carrusel-slide-proyecto{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;}
+.carrusel-slide-proyecto img{width:100%;height:100%;object-fit:cover;display:block;}
+.carrusel-slide-proyecto .carrusel-proyecto-info{position:absolute;left:0;right:0;bottom:0;padding:24px 60px 20px 24px;background:linear-gradient(to top, rgba(15,23,42,.82) 20%, transparent);color:#fff;}
+.carrusel-slide-proyecto h4{margin:0 0 4px;font-size:17px;font-weight:700;}
+.carrusel-slide-proyecto p{margin:0;font-size:13px;color:#e2e8f0;}
+.badge-referencia-temporal{display:inline-block;font-size:9px;font-weight:700;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:8px;letter-spacing:.3px;text-transform:uppercase;}
+@media (max-width:600px){
+  .carrusel-slide-imagen{aspect-ratio:4/3;}
+  .carrusel-slide-proyecto{aspect-ratio:4/3;}
+  .carrusel-flecha{width:30px;height:30px;font-size:11px;}
+  .carrusel-slide-imagen .carrusel-desc,.carrusel-slide-proyecto .carrusel-proyecto-info{padding:14px 44px 12px 14px;font-size:12px;}
+  .carrusel-slide-proyecto h4{font-size:14px;}
+}
 .tienda-proyecto-card{position:relative;border-radius:14px;overflow:hidden;height:200px;}
 .tienda-proyecto-card img{width:100%;height:100%;object-fit:cover;}
 .tienda-proyecto-card .capa{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.85),transparent 60%);display:flex;align-items:flex-end;padding:16px;}
@@ -2038,9 +2065,15 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <small style="display:block;margin-top:4px;color:var(--text-muted);">📐 Medida recomendada: <strong>1600 × 500 px</strong> (panorámica), formato JPG. Puedes seleccionar varias imágenes a la vez.</small>
           <div class="galeria-fotos" id="previewBannerTienda"></div>
 
-          <h4 style="font-size:13px;">🖼️ Pasarela de imágenes (galería/carrusel)</h4>
-          <p style="font-size:11px;color:var(--text-muted);">Imágenes adicionales para mostrar en un carrusel dentro de la tienda (proyectos, instalaciones, marcas que manejas, etc.).</p>
+          <h4 style="font-size:13px;">🖼️ Tira de fotos (desplazamiento horizontal)</h4>
+          <p style="font-size:11px;color:var(--text-muted);">Imágenes adicionales en una tira que se desliza horizontalmente (marcas, instalaciones, etc.).</p>
           <input type="file" id="inputGaleriaTienda" accept="image/*" multiple onchange="subirGaleriaTienda(event)">
+
+          <h4 style="font-size:13px;">🎠 Carrusel de Imágenes (con flechas y puntos de navegación)</h4>
+          <p style="font-size:11px;color:var(--text-muted);">Se muestra al inicio de la tienda, con transición suave, controles de navegación y rotación automática. Puedes agregar una descripción breve a cada imagen y reordenarlas.</p>
+          <input type="file" id="inputCarruselImagenes" accept="image/*" multiple onchange="subirImagenesCarrusel(event)">
+          <small style="display:block;margin:4px 0 10px;color:var(--text-muted);">📐 Medida recomendada: <strong>1600 × 1000 px</strong> (panorámica), formato JPG. Puedes seleccionar varias a la vez.</small>
+          <div id="adminCarruselImagenes"></div>
           <small style="display:block;margin-top:4px;color:var(--text-muted);">📐 Medida recomendada: <strong>800 × 600 px</strong>, formato JPG. Puedes seleccionar varias imágenes a la vez.</small>
           <div class="galeria-fotos" id="previewGaleriaTienda"></div>
         </div>
@@ -2142,19 +2175,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=66"></script>
-<script src="utilidades-navegacion.js?v=66"></script>
-<script src="buscador-agenda.js?v=66"></script>
-<script src="ordenes.js?v=66"></script>
-<script src="equipos-trazabilidad.js?v=66"></script>
-<script src="pdf.js?v=66"></script>
-<script src="config-clientes-equipos.js?v=66"></script>
-<script src="config-plantillas-tecnicos.js?v=66"></script>
-<script src="cotizador.js?v=66"></script>
-<script src="config-general.js?v=66"></script>
-<script src="inventario.js?v=66"></script>
-<script src="tienda-admin.js?v=66"></script>
-<script src="tienda-publica.js?v=66"></script>
-<script src="kpi.js?v=66"></script>
+<script src="core.js?v=67"></script>
+<script src="utilidades-navegacion.js?v=67"></script>
+<script src="buscador-agenda.js?v=67"></script>
+<script src="ordenes.js?v=67"></script>
+<script src="equipos-trazabilidad.js?v=67"></script>
+<script src="pdf.js?v=67"></script>
+<script src="config-clientes-equipos.js?v=67"></script>
+<script src="config-plantillas-tecnicos.js?v=67"></script>
+<script src="cotizador.js?v=67"></script>
+<script src="config-general.js?v=67"></script>
+<script src="inventario.js?v=67"></script>
+<script src="tienda-admin.js?v=67"></script>
+<script src="tienda-publica.js?v=67"></script>
+<script src="kpi.js?v=67"></script>
 </body>
 </html>
