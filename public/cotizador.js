@@ -1304,6 +1304,14 @@ function siguienteNumeroFactura(){ return `FACT-2026-${String((db.facturas||[]).
 
 // --- Abrir modales ---
 function abrirModalCotizacion(cotizacionId){
+  // Por seguridad: si por cualquier motivo quedó abierto el modal del ítem o
+  // del PDF de una sesión anterior (por ejemplo, si algo falló a mitad de
+  // camino), se cierran aquí — así nunca bloquean el formulario nuevo.
+  cerrarModal('modalItemComercial');
+  cerrarModal('modalPDF');
+  const cajaCot = document.getElementById('cajaModalCotizacion');
+  if(cajaCot) cajaCot.classList.remove('ampliado');
+  document.getElementById('cotClienteResultados').classList.remove('abierto');
   itemsCotTemp = [];
   document.getElementById('cotId').value = cotizacionId || '';
   document.getElementById('cotClienteEsNuevo').checked = false;
@@ -1346,6 +1354,11 @@ function abrirModalCotizacion(cotizacionId){
   abrirModal('modalCotizacion');
 }
 function abrirModalFactura(facturaId, cotizacionOrigen){
+  cerrarModal('modalItemComercial');
+  cerrarModal('modalPDF');
+  const cajaFac = document.getElementById('cajaModalFactura');
+  if(cajaFac) cajaFac.classList.remove('ampliado');
+  document.getElementById('facClienteResultados').classList.remove('abierto');
   itemsFacTemp = [];
   document.getElementById('facId').value = facturaId || '';
   document.getElementById('facCotizacionOrigenId').value = '';

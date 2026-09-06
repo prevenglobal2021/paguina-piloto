@@ -180,7 +180,8 @@ function generarFilasItemsComercial(items){
   return items.map(it=>`<tr><td>${it.descripcion}${it.descripcionExtra?`<br><small style="color:#64748b;font-weight:400;">${it.descripcionExtra}</small>`:''}</td><td style="text-align:center;">${it.cantidad}</td><td style="text-align:right;">${formatoCOP(it.precioUnitario)}</td><td style="text-align:center;">${it.descuentoPorcentaje?it.descuentoPorcentaje+'%':'—'}</td><td style="text-align:right;">${formatoCOP(it.subtotal)}</td></tr>`).join('');
 }
 function generarBloqueTotalesComercial(subtotal, descuentosTotales, impuestoPorcentaje, impuestoValor, total){
-  return `<div style="display:flex;justify-content:flex-end;margin-top:10px;">
+  return `<div style="break-inside:avoid;page-break-inside:avoid;">
+  <div style="display:flex;justify-content:flex-end;margin-top:10px;">
     <table style="width:280px;font-size:13px;">
       <tr><td style="text-align:right;padding:4px 0;color:#475569;">Subtotal</td><td style="text-align:right;width:130px;padding:4px 0;">${formatoCOP(subtotal)}</td></tr>
       ${descuentosTotales ? `<tr><td style="text-align:right;padding:4px 0;color:#b91c1c;">Descuentos</td><td style="text-align:right;padding:4px 0;color:#b91c1c;">− ${formatoCOP(descuentosTotales)}</td></tr>` : ''}
@@ -192,6 +193,7 @@ function generarBloqueTotalesComercial(subtotal, descuentosTotales, impuestoPorc
       <span style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Total</span>
       <span style="font-size:19px;font-weight:700;">${formatoCOP(total)}</span>
     </div>
+  </div>
   </div>`;
 }
 function verPDFCotizacion(id){
@@ -210,7 +212,7 @@ function verPDFCotizacion(id){
       <div>${logoHtml}<h2 style="color:#0088ff;margin:0;">${db.config.nombre}</h2><small>${db.config.subtitulo||''}</small>${db.config.direccion?`<br><small>${db.config.direccion}</small>`:''}</div>
       <div style="text-align:right;"><strong style="font-size:15px;">Cotización</strong><br><small>N.º ${c.numero}</small><br><small>Fecha: ${new Date(c.fecha+'T00:00:00').toLocaleDateString('es-CO')}</small></div>
     </div>
-    <div style="background:${colorEstado};color:#fff;padding:8px 15px;border-radius:6px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;">
+    <div style="background:${colorEstado};color:#fff;padding:8px 15px;border-radius:6px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;break-inside:avoid;page-break-inside:avoid;">
       <span style="font-weight:700;font-size:13px;">Estado: ${c.estado}</span>
       <span style="font-size:11px;opacity:.9;">${c.numero}</span>
     </div>
@@ -252,7 +254,7 @@ function verPDFFactura(id){
       <div>${logoHtml}<h2 style="color:#0088ff;margin:0;">${db.config.nombre}</h2><small>${db.config.subtitulo||''}</small>${db.config.direccion?`<br><small>${db.config.direccion}</small>`:''}</div>
       <div style="text-align:right;"><strong style="font-size:15px;">Factura de Venta</strong><br><small>N.º ${f.numero}</small><br><small>Fecha: ${new Date(f.fecha+'T00:00:00').toLocaleDateString('es-CO')}</small></div>
     </div>
-    <div style="background:${pagada?'#16a34a':'#d97706'};color:#fff;padding:8px 15px;border-radius:6px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;">
+    <div style="background:${pagada?'#16a34a':'#d97706'};color:#fff;padding:8px 15px;border-radius:6px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;break-inside:avoid;page-break-inside:avoid;">
       <span style="font-weight:700;font-size:13px;"><i class="fas ${pagada?'fa-circle-check':'fa-clock'}"></i> ${pagada ? 'Pagada el '+new Date(f.fechaPago+'T00:00:00').toLocaleDateString('es-CO') : 'Pendiente por pagar'}</span>
       <span style="font-size:11px;opacity:.9;">${f.numero}</span>
     </div>
