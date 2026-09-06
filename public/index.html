@@ -1468,8 +1468,9 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <strong style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#2563eb;margin-bottom:3px;"><i class="fas fa-note-sticky"></i> Notas del servicio</strong>
       <span id="detNotasInicialesTexto"></span>
     </div>
-    <div id="detAvisoFinalizada" style="display:none;background:rgba(34,197,94,.12);border:1px solid var(--green-success);color:var(--green-success);padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px;">
-      🔒 Esta orden está Finalizada. Los datos quedan en modo solo lectura para proteger la trazabilidad.
+    <div id="detAvisoFinalizada" style="display:none;background:rgba(34,197,94,.12);border:1px solid var(--green-success);color:var(--green-success);padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <span>🔒 Esta orden está Finalizada. Los datos quedan en modo solo lectura para proteger la trazabilidad.</span>
+      <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" onclick="editarOrdenFinalizada(ordenDetalleId)" style="white-space:nowrap;"><i class="fas fa-unlock"></i> Editar diagnóstico/fotos (admin)</button>
     </div>
     <div id="detAvisoEdicionForzada" style="display:none;background:rgba(245,158,11,.12);border:1px solid var(--orange-warning);color:var(--orange-warning);padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px;">
       ✏️ Estás editando una orden ya Finalizada (acceso de administrador). Al guardar, la orden permanece Finalizada y el documento/PDF reflejará los cambios.
@@ -2362,19 +2363,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=75"></script>
-<script src="utilidades-navegacion.js?v=75"></script>
-<script src="buscador-agenda.js?v=75"></script>
-<script src="ordenes.js?v=75"></script>
-<script src="equipos-trazabilidad.js?v=75"></script>
-<script src="pdf.js?v=75"></script>
-<script src="config-clientes-equipos.js?v=75"></script>
-<script src="config-plantillas-tecnicos.js?v=75"></script>
-<script src="cotizador.js?v=75"></script>
-<script src="config-general.js?v=75"></script>
-<script src="inventario.js?v=75"></script>
-<script src="tienda-admin.js?v=75"></script>
-<script src="tienda-publica.js?v=75"></script>
-<script src="kpi.js?v=75"></script>
+<script src="core.js?v=76"></script>
+<script src="utilidades-navegacion.js?v=76"></script>
+<script src="buscador-agenda.js?v=76"></script>
+<script src="ordenes.js?v=76"></script>
+<script src="equipos-trazabilidad.js?v=76"></script>
+<script src="pdf.js?v=76"></script>
+<script src="config-clientes-equipos.js?v=76"></script>
+<script src="config-plantillas-tecnicos.js?v=76"></script>
+<script src="cotizador.js?v=76"></script>
+<script src="config-general.js?v=76"></script>
+<script src="inventario.js?v=76"></script>
+<script src="tienda-admin.js?v=76"></script>
+<script src="tienda-publica.js?v=76"></script>
+<script src="kpi.js?v=76"></script>
 </body>
 </html>
