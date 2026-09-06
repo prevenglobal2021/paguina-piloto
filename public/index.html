@@ -129,6 +129,13 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .btn-modal-control{background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:13px;transition:background .12s ease;}
 .btn-modal-control:hover{background:#e2e8f0;}
 .modal-box.ampliado{max-width:96vw!important;width:96vw;max-height:96vh!important;height:96vh;}
+/* El modal de "Agregar/Editar Ítem" se abre ENCIMA de Cotización/Factura,
+   que sigue abierta detrás. Antes usaba el mismo fondo oscuro de pantalla
+   completa que cualquier otro modal — al cubrir toda la pantalla, daba la
+   sensación de que la factura se había cerrado. Con un fondo más liviano y
+   mayor z-index, se ve claramente como una ventana flotando ENCIMA, con la
+   factura todavía visible (atenuada) detrás. */
+#modalItemComercial{background:rgba(15,23,42,.25);z-index:1100;}
 @keyframes apareceModal{from{opacity:0;transform:translateY(8px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
 
 /* TOASTS (notificaciones modernas, reemplazan las ventanas mostrarToast() del navegador) */
@@ -1738,7 +1745,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <h3 id="tituloModalItemComercial">📦 Agregar Ítem</h3>
     <input type="hidden" id="itemComPrefijo">
     <input type="hidden" id="itemComIndice">
-    <label>Producto del inventario (opcional):</label>
+    <label>Producto del inventario (o déjalo en blanco para un ítem esporádico, solo de este documento):</label>
     <select id="itemComInventarioSelect" onchange="autocompletarItemComercialDesdeInventario()"></select>
     <label>Nombre:</label><input type="text" id="itemComNombre" placeholder="Nombre del producto/servicio">
     <label>Descripción:</label><textarea id="itemComDescripcion" rows="2" placeholder="Detalles, especificaciones (opcional)"></textarea>
@@ -2381,19 +2388,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=82"></script>
-<script src="utilidades-navegacion.js?v=82"></script>
-<script src="buscador-agenda.js?v=82"></script>
-<script src="ordenes.js?v=82"></script>
-<script src="equipos-trazabilidad.js?v=82"></script>
-<script src="pdf.js?v=82"></script>
-<script src="config-clientes-equipos.js?v=82"></script>
-<script src="config-plantillas-tecnicos.js?v=82"></script>
-<script src="cotizador.js?v=82"></script>
-<script src="config-general.js?v=82"></script>
-<script src="inventario.js?v=82"></script>
-<script src="tienda-admin.js?v=82"></script>
-<script src="tienda-publica.js?v=82"></script>
-<script src="kpi.js?v=82"></script>
+<script src="core.js?v=83"></script>
+<script src="utilidades-navegacion.js?v=83"></script>
+<script src="buscador-agenda.js?v=83"></script>
+<script src="ordenes.js?v=83"></script>
+<script src="equipos-trazabilidad.js?v=83"></script>
+<script src="pdf.js?v=83"></script>
+<script src="config-clientes-equipos.js?v=83"></script>
+<script src="config-plantillas-tecnicos.js?v=83"></script>
+<script src="cotizador.js?v=83"></script>
+<script src="config-general.js?v=83"></script>
+<script src="inventario.js?v=83"></script>
+<script src="tienda-admin.js?v=83"></script>
+<script src="tienda-publica.js?v=83"></script>
+<script src="kpi.js?v=83"></script>
 </body>
 </html>

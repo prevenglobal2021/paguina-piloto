@@ -1121,7 +1121,7 @@ function seleccionarClienteFactura(clienteId){
 
 // --- Ítems (productos/servicios del inventario, o líneas libres) ---
 function poblarSelectItemsComercial(selectId){
-  document.getElementById(selectId).innerHTML = '<option value="">Selecciona un producto/servicio del inventario...</option>' +
+  document.getElementById(selectId).innerHTML = '<option value="">-- Ítem esporádico: escribir manualmente (no se guarda en el catálogo) --</option>' +
     db.inventario.map(it=>`<option value="${it.id}">${it.nombre} (${formatoCOP(it.precio||0)})</option>`).join('');
 }
 function calcularSubtotalItem(cantidad, precioUnitario, descuentoPorcentaje){
@@ -1135,7 +1135,6 @@ function abrirModalItemComercial(prefijo, indice){
   document.getElementById('itemComPrefijo').value = prefijo;
   document.getElementById('itemComIndice').value = (indice===undefined || indice===null) ? '' : indice;
   poblarSelectItemsComercial('itemComInventarioSelect');
-  document.getElementById('itemComInventarioSelect').insertAdjacentHTML('afterbegin', '<option value="">-- Escribir manualmente --</option>');
   document.getElementById('itemComInventarioSelect').value = '';
 
   if(indice!==undefined && indice!==null){
