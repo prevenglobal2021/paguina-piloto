@@ -25,7 +25,7 @@ function generarBloqueInformeEquipoPDF(datosCierre, plantilla){
       } else if(campo.tipo==='foto'){
         const fotosCampo = normalizarFotosEvidencia((datosCierre.fotosPorCampo && datosCierre.fotosPorCampo[campo.id]) || []);
         if(fotosCampo.length){
-          const figura = f => f.desc ? `<figure><img src="${f.src}"><figcaption>${f.desc}</figcaption></figure>` : `<img src="${f.src}">`;
+          const figura = f => f.desc ? `<figure><img src="${f.src}" onclick="verImagenAmpliada('${f.src}')"><figcaption>${f.desc}</figcaption></figure>` : `<img src="${f.src}" onclick="verImagenAmpliada('${f.src}')">`;
           let contenidoFotos;
           if(campo.bloqueImagenes){
             let bloques = '';
@@ -48,7 +48,7 @@ function generarBloqueInformeEquipoPDF(datosCierre, plantilla){
   }
   const camposSimplesBox = camposSimplesHtml ? `<div class="pdf-box"><h4>Actividades realizadas y datos técnicos encontrados en sitio</h4><table class="pdf-tabla-datos" cellpadding="4">${camposSimplesHtml}</table></div>` : '';
   const fotosGenerales = normalizarFotosEvidencia(datosCierre.fotos);
-  const fotosHtml = fotosGenerales.length ? `<div class="pdf-box"><h4>Soporte fotográfico</h4><div class="pdf-fotos">${fotosGenerales.map(f=>f.desc ? `<figure><img src="${f.src}"><figcaption>${f.desc}</figcaption></figure>` : `<img src="${f.src}">`).join('')}</div></div>` : '';
+  const fotosHtml = fotosGenerales.length ? `<div class="pdf-box"><h4>Soporte fotográfico</h4><div class="pdf-fotos">${fotosGenerales.map(f=>f.desc ? `<figure><img src="${f.src}" onclick="verImagenAmpliada('${f.src}')"><figcaption>${f.desc}</figcaption></figure>` : `<img src="${f.src}" onclick="verImagenAmpliada('${f.src}')">`).join('')}</div></div>` : '';
   const diagnosticoTexto = (datosCierre.diagnostico || '').trim();
   const diagnosticoHtml = diagnosticoTexto ? `<div class="pdf-box"><h4>Diagnóstico técnico y observaciones</h4>
       <p style="font-size:12px;color:#333;margin:0;">${diagnosticoTexto}</p>
