@@ -67,6 +67,20 @@ let ordenDetalleId = null;
 let fotosDetalleTemp = [];
 let fotosCamposDetalleTemp = {};
 let fotosDetalleTempPorEquipo = {};
+// Rastrea TODAS las fotos que en este momento se están comprimiendo en segundo
+// plano (de cualquiera de los 4 lugares donde se puede subir una foto en el
+// detalle de la orden). Antes, guardar la orden no esperaba a que esto
+// terminara — si el usuario guardaba justo después de elegir una foto, esa
+// foto se perdía porque el guardado salía disparado antes de que la
+// compresión (que toma un momento, sobre todo en celular) alcanzara a
+// agregarla a la lista. Ahora el guardado siempre espera a que termine.
+let promesasFotosPendientesDetalle = [];
+function registrarFotoPendienteDetalle(promesa){ promesasFotosPendientesDetalle.push(promesa); }
+async function esperarFotosPendientesDetalle(){
+  if(!promesasFotosPendientesDetalle.length) return;
+  await Promise.allSettled(promesasFotosPendientesDetalle);
+  promesasFotosPendientesDetalle = [];
+}
 let fotosCamposDetalleTempPorEquipo = {};
 
 function renderizarBloquesEquiposDetalle(o){
@@ -98,7 +112,7 @@ function renderizarBloquesEquiposDetalle(o){
 function manejarFotosDetalleEquipo(event, equipoId){
   const files = Array.from(event.target.files);
   if(!fotosDetalleTempPorEquipo[equipoId]) fotosDetalleTempPorEquipo[equipoId] = [];
-  files.forEach(file=>{ comprimirImagen(file, 1000, 0.62).then(dataUrl=>{ fotosDetalleTempPorEquipo[equipoId].push({ src:dataUrl, desc:'' }); renderizarFotosDetallePreviewEquipo(equipoId); }); });
+  files.forEach(file=>{ registrarFotoPendienteDetalle(comprimirImagen(file, 1000, 0.62).then(dataUrl=>{ fotosDetalleTempPorEquipo[equipoId].push({ src:dataUrl, desc:'' }); renderizarFotosDetallePreviewEquipo(equipoId); })); });
   event.target.value='';
 }
 function renderizarFotosDetallePreviewEquipo(equipoId){
@@ -141,7 +155,7 @@ function manejarFotoCampoDetalleEquipo(event, equipoId, campoId){
   const files = Array.from(event.target.files);
   if(!fotosCamposDetalleTempPorEquipo[equipoId]) fotosCamposDetalleTempPorEquipo[equipoId] = {};
   if(!fotosCamposDetalleTempPorEquipo[equipoId][campoId]) fotosCamposDetalleTempPorEquipo[equipoId][campoId] = [];
-  files.forEach(file=>{ comprimirImagen(file, 1000, 0.62).then(dataUrl=>{ fotosCamposDetalleTempPorEquipo[equipoId][campoId].push({ src:dataUrl, desc:'' }); renderizarFotoCampoDetallePreviewEquipo(equipoId, campoId); }); });
+  files.forEach(file=>{ registrarFotoPendienteDetalle(comprimirImagen(file, 1000, 0.62).then(dataUrl=>{ fotosCamposDetalleTempPorEquipo[equipoId][campoId].push({ src:dataUrl, desc:'' }); renderizarFotoCampoDetallePreviewEquipo(equipoId, campoId); })); });
   event.target.value='';
 }
 function renderizarFotoCampoDetallePreviewEquipo(equipoId, campoId){
@@ -192,6 +206,7 @@ function editarOrdenFinalizada(ordenId){
 }
 function verDetalleOrden(ordenId){
   ordenDetalleId = ordenId;
+  promesasFotosPendientesDetalle = [];
   const o = db.ordenes.find(x=>x.id===ordenId);
   if(!o) return;
   ordenDetalleEsEdicionForzada = solicitudEdicionForzada;
@@ -338,7 +353,7 @@ function renderizarFormularioDinamicoDetalle(plantillaId, respuestasExistentes, 
 function manejarFotoCampoDetalle(event, campoId){
   const files = Array.from(event.target.files);
   if(!fotosCamposDetalleTemp[campoId]) fotosCamposDetalleTemp[campoId] = [];
-  files.forEach(file=>{ comprimirImagen(file, 1000, 0.62).then(dataUrl=>{ fotosCamposDetalleTemp[campoId].push({ src:dataUrl, desc:'' }); renderizarFotoCampoDetallePreview(campoId); }); });
+  files.forEach(file=>{ registrarFotoPendienteDetalle(comprimirImagen(file, 1000, 0.62).then(dataUrl=>{ fotosCamposDetalleTemp[campoId].push({ src:dataUrl, desc:'' }); renderizarFotoCampoDetallePreview(campoId); })); });
   event.target.value='';
 }
 function renderizarFotoCampoDetallePreview(campoId){
@@ -353,7 +368,7 @@ function renderizarFotoCampoDetallePreview(campoId){
 }
 function manejarFotosDetalle(event){
   const files = Array.from(event.target.files);
-  files.forEach(file=>{ comprimirImagen(file, 1000, 0.62).then(dataUrl=>{ fotosDetalleTemp.push({ src:dataUrl, desc:'' }); renderizarFotosDetallePreview(); }); });
+  files.forEach(file=>{ registrarFotoPendienteDetalle(comprimirImagen(file, 1000, 0.62).then(dataUrl=>{ fotosDetalleTemp.push({ src:dataUrl, desc:'' }); renderizarFotosDetallePreview(); })); });
   event.target.value='';
 }
 function renderizarFotosDetallePreview(){
@@ -364,6 +379,14 @@ async function guardarDetalleOrden(finalizar){
   if(!o) return;
   const esEdicionForzada = o.estado==='Finalizado' && ordenDetalleEsEdicionForzada && esAdmin();
   if(o.estado==='Finalizado' && !esEdicionForzada){ mostrarToast('Esta orden está finalizada y no se puede editar.'); return; }
+  // Si el usuario acaba de elegir una foto y guarda de inmediato, se espera a
+  // que termine de comprimirse antes de seguir — así nunca se guarda la orden
+  // sin ella. En celular esto puede tomar un instante; se avisa para que no
+  // parezca que el botón no respondió.
+  if(promesasFotosPendientesDetalle.length){
+    mostrarToast('Terminando de procesar las fotos antes de guardar...');
+    await esperarFotosPendientesDetalle();
+  }
   const esMultiEquipo = o.equiposIds && o.equiposIds.length > 1;
   let clienteId, equipoId, sedeId;
   if(esMultiEquipo){
