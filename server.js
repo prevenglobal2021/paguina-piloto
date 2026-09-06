@@ -519,7 +519,8 @@ function contarEntidadesClave(estado) {
   const inventario = (estado.inventario || []).length;
   const plantillas = (estado.plantillas || []).length;
   const nomina = (estado.liquidacionesNomina || []).length;
-  return { clientes, ordenes, inventario, plantillas, nomina, total: clientes + ordenes + inventario + plantillas + nomina };
+  const asistencias = (estado.asistencias || []).length;
+  return { clientes, ordenes, inventario, plantillas, nomina, asistencias, total: clientes + ordenes + inventario + plantillas + nomina + asistencias };
 }
 
 app.put('/api/state', requireAuth, async (req, res) => {
@@ -624,4 +625,3 @@ pool.query('SELECT 1')
     console.error('No se pudo conectar a la base de datos:', err.message);
     process.exit(1);
   });
-
