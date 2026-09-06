@@ -83,7 +83,7 @@ async function esperarFotosPendientesDetalle(){
 }
 let fotosCamposDetalleTempPorEquipo = {};
 
-function renderizarBloquesEquiposDetalle(o){
+function renderizarBloquesEquiposDetalle(o, finalizada){
   const cont = document.getElementById('detBloquesEquipos');
   fotosDetalleTempPorEquipo = {};
   fotosCamposDetalleTempPorEquipo = {};
@@ -94,9 +94,9 @@ function renderizarBloquesEquiposDetalle(o){
     return `<div class="form-seccion" style="margin-top:14px;">
       <div class="form-seccion-titulo"><i class="fas fa-snowflake" style="color:#0ea5e9;"></i> ${info ? info.equipo.nombre : 'Equipo #'+equipoId}${info && info.equipo.serie ? ' — '+info.equipo.serie : ''}</div>
       <label style="font-size:11px;">Diagnóstico / Informe de este equipo:</label>
-      ${generarEditorRico('detDiagnostico_'+equipoId, datosCierre.diagnostico || '', false)}
+      ${generarEditorRico('detDiagnostico_'+equipoId, datosCierre.diagnostico || '', finalizada)}
       <label style="font-size:11px;margin-top:10px;">Fotos de este equipo:</label>
-      <input type="file" accept="image/*" multiple onchange="manejarFotosDetalleEquipo(event,${equipoId})">
+      <input type="file" accept="image/*" multiple onchange="manejarFotosDetalleEquipo(event,${equipoId})" ${finalizada?'disabled':''}>
       <div class="galeria-fotos" id="detPreviewFotos_${equipoId}"></div>
       <div id="detCamposDinamicos_${equipoId}" style="margin-top:8px;"></div>
     </div>`;
@@ -106,8 +106,12 @@ function renderizarBloquesEquiposDetalle(o){
     const datosCierre = cierrePorEquipo[equipoId] || {};
     fotosDetalleTempPorEquipo[equipoId] = normalizarFotosEvidencia(datosCierre.fotos);
     renderizarFotosDetallePreviewEquipo(equipoId);
-    renderizarFormularioDinamicoDetalleEquipo(equipoId, datosEquipo.plantillaId, datosCierre.respuestas || {}, datosCierre.fotosPorCampo || {});
+    renderizarFormularioDinamicoDetalleEquipo(equipoId, datosEquipo.plantillaId, datosCierre.respuestas || {}, datosCierre.fotosPorCampo || {}, finalizada);
   });
+  // Los botones de eliminar foto de la galería general por equipo no quedaban
+  // cubiertos por ningún selector existente (el de siempre solo buscaba el id
+  // exacto "detPreviewFotos", no "detPreviewFotos_10") — se ocultan aquí.
+  document.querySelectorAll('[id^="detPreviewFotos_"] button').forEach(b=>b.style.display = finalizada ? 'none' : '');
 }
 function manejarFotosDetalleEquipo(event, equipoId){
   const files = Array.from(event.target.files);
@@ -118,7 +122,7 @@ function manejarFotosDetalleEquipo(event, equipoId){
 function renderizarFotosDetallePreviewEquipo(equipoId){
   renderizarGaleriaFotos('detPreviewFotos_'+equipoId, fotosDetalleTempPorEquipo[equipoId], 'ordenEquipo_'+equipoId);
 }
-function renderizarFormularioDinamicoDetalleEquipo(equipoId, plantillaId, respuestasExistentes, fotosPorCampoExistentes){
+function renderizarFormularioDinamicoDetalleEquipo(equipoId, plantillaId, respuestasExistentes, fotosPorCampoExistentes, finalizada){
   const cont = document.getElementById('detCamposDinamicos_'+equipoId);
   cont.innerHTML = '';
   fotosCamposDetalleTempPorEquipo[equipoId] = JSON.parse(JSON.stringify(fotosPorCampoExistentes||{}));
@@ -129,7 +133,7 @@ function renderizarFormularioDinamicoDetalleEquipo(equipoId, plantillaId, respue
       const respCampo = respuestasExistentes[campo.id] || {};
       const itemsHtml = (campo.items||[]).map(item=>`
         <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
-          <input type="checkbox" data-campo-eq="${equipoId}_${campo.id}" data-item="${item.id}" style="width:auto;margin:0;" ${respCampo[item.id]?'checked':''}>
+          <input type="checkbox" data-campo-eq="${equipoId}_${campo.id}" data-item="${item.id}" style="width:auto;margin:0;" ${respCampo[item.id]?'checked':''} ${finalizada?'disabled':''}>
           <span style="font-size:12px;">${item.texto}</span>
         </div>`).join('');
       cont.innerHTML += `<div style="margin-top:10px;border-top:1px dashed var(--card-border);padding-top:8px;"><label>${campo.label}:</label>${itemsHtml}</div>`;
@@ -137,16 +141,16 @@ function renderizarFormularioDinamicoDetalleEquipo(equipoId, plantillaId, respue
       if(!fotosCamposDetalleTempPorEquipo[equipoId][campo.id]) fotosCamposDetalleTempPorEquipo[equipoId][campo.id] = [];
       cont.innerHTML += `<div style="margin-top:10px;border-top:1px dashed var(--card-border);padding-top:8px;">
         <label>${campo.label}:</label>
-        <input type="file" accept="image/*" multiple onchange="manejarFotoCampoDetalleEquipo(event,${equipoId},${campo.id})">
+        <input type="file" accept="image/*" multiple onchange="manejarFotoCampoDetalleEquipo(event,${equipoId},${campo.id})" ${finalizada?'disabled':''}>
         <div class="galeria-fotos" id="detPreviewFotoCampo_${equipoId}_${campo.id}"></div>
       </div>`;
       renderizarFotoCampoDetallePreviewEquipo(equipoId, campo.id);
     } else {
       const valorExistente = respuestasExistentes[campo.id] || '';
       let inputHtml;
-      if(campo.tipo==='textarea') inputHtml = generarEditorRico('detCampoEq'+equipoId+'_'+campo.id, valorExistente, false, campo.id);
-      else if(campo.tipo==='checkbox') inputHtml = `<select data-campo-eq="${equipoId}_${campo.id}"><option value="Sí" ${valorExistente==='Sí'?'selected':''}>Sí</option><option value="No" ${valorExistente==='No'?'selected':''}>No</option></select>`;
-      else inputHtml = `<input type="${campo.tipo}" data-campo-eq="${equipoId}_${campo.id}" value="${valorExistente}">`;
+      if(campo.tipo==='textarea') inputHtml = generarEditorRico('detCampoEq'+equipoId+'_'+campo.id, valorExistente, finalizada, campo.id);
+      else if(campo.tipo==='checkbox') inputHtml = `<select data-campo-eq="${equipoId}_${campo.id}" ${finalizada?'disabled':''}><option value="Sí" ${valorExistente==='Sí'?'selected':''}>Sí</option><option value="No" ${valorExistente==='No'?'selected':''}>No</option></select>`;
+      else inputHtml = `<input type="${campo.tipo}" data-campo-eq="${equipoId}_${campo.id}" value="${valorExistente}" ${finalizada?'disabled':''}>`;
       cont.innerHTML += `<div style="margin-top:8px;"><label>${campo.label}:</label>${inputHtml}</div>`;
     }
   });
@@ -252,7 +256,7 @@ function verDetalleOrden(ordenId){
   document.getElementById('detEquipoMultiAviso').style.display = esMultiEquipo ? 'block' : 'none';
   if(esMultiEquipo) document.getElementById('detEquipo').disabled = true;
   if(esMultiEquipo){
-    renderizarBloquesEquiposDetalle(o);
+    renderizarBloquesEquiposDetalle(o, finalizada);
   } else {
     document.getElementById('detDiagnostico').innerHTML = (o.cierre && o.cierre.diagnostico) || '';
     fotosDetalleTemp = normalizarFotosEvidencia(o.cierre && o.cierre.fotos);
