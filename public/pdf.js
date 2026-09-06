@@ -3,6 +3,17 @@
    PDF
 ========================================================= */
 let ordenPdfActualId = null;
+// El botón "Enviar por WhatsApp" del modal es UNO SOLO, compartido entre
+// Orden de Servicio, Cotización y Factura — este estado recuerda cuál de
+// los tres se está viendo en este momento, para que ese botón llame a la
+// función correcta en cada caso.
+let pdfDocumentoActualTipo = 'orden'; // 'orden' | 'cotizacion' | 'factura'
+let pdfDocumentoActualId = null;
+function enviarDocumentoActualPorWhatsApp(){
+  if(pdfDocumentoActualTipo === 'cotizacion') enviarPorWhatsAppCotizacion(pdfDocumentoActualId);
+  else if(pdfDocumentoActualTipo === 'factura') enviarPorWhatsAppFactura(pdfDocumentoActualId);
+  else enviarPorWhatsApp(pdfDocumentoActualId);
+}
 
 // Arma las fotos en FILAS explícitas de a 4 (cada fila es su propio <div>).
 // Antes se usaba una sola cuadrícula (CSS Grid) para todas las fotos juntas
@@ -54,7 +65,7 @@ function generarBloqueInformeEquipoPDF(datosCierre, plantilla){
           } else {
             contenidoFotos = generarFilasFotosPDF(fotosCampo, 4);
           }
-          camposEspecialesHtml += `<div class="pdf-box"><h4>${campo.label}</h4>${contenidoFotos}</div>`;
+          camposEspecialesHtml += `<div class="pdf-box-flexible"><h4>${campo.label}</h4>${contenidoFotos}</div>`;
         }
       } else {
         const vacio = respuesta===undefined || respuesta===null || String(respuesta).trim()==='';
@@ -64,7 +75,7 @@ function generarBloqueInformeEquipoPDF(datosCierre, plantilla){
   }
   const camposSimplesBox = camposSimplesHtml ? `<div class="pdf-box"><h4>Actividades realizadas y datos técnicos encontrados en sitio</h4><table class="pdf-tabla-datos" cellpadding="4">${camposSimplesHtml}</table></div>` : '';
   const fotosGenerales = normalizarFotosEvidencia(datosCierre.fotos);
-  const fotosHtml = fotosGenerales.length ? `<div class="pdf-box"><h4>Soporte fotográfico</h4>${generarFilasFotosPDF(fotosGenerales, 4)}</div>` : '';
+  const fotosHtml = fotosGenerales.length ? `<div class="pdf-box-flexible"><h4>Soporte fotográfico</h4>${generarFilasFotosPDF(fotosGenerales, 4)}</div>` : '';
   const diagnosticoTexto = (datosCierre.diagnostico || '').trim();
   const diagnosticoHtml = diagnosticoTexto ? `<div class="pdf-box"><h4>Diagnóstico técnico y observaciones</h4>
       <p style="font-size:12px;color:#333;margin:0;">${diagnosticoTexto}</p>
@@ -74,6 +85,7 @@ function generarBloqueInformeEquipoPDF(datosCierre, plantilla){
 
 function verPDF(ordenId){
   ordenPdfActualId = ordenId;
+  pdfDocumentoActualTipo = 'orden'; pdfDocumentoActualId = ordenId;
   const o = db.ordenes.find(x=>x.id===ordenId);
   const cliente = buscarCliente(o.clienteId), sede = buscarSede(o.clienteId,o.sedeId), tecnico = buscarTecnico(o.tecnicoId);
   const nombreClientePdf = nombreClienteOrden(o);
@@ -168,24 +180,38 @@ function generarFilasItemsComercial(items){
   return items.map(it=>`<tr><td>${it.descripcion}</td><td style="text-align:center;">${it.cantidad}</td><td style="text-align:right;">${formatoCOP(it.precioUnitario)}</td><td style="text-align:right;">${formatoCOP(it.subtotal)}</td></tr>`).join('');
 }
 function generarBloqueTotalesComercial(subtotal, impuestoPorcentaje, impuestoValor, total){
-  return `<table style="width:100%;font-size:13px;margin-top:6px;">
-    <tr><td style="text-align:right;padding:3px 0;">Subtotal:</td><td style="text-align:right;width:140px;padding:3px 0;">${formatoCOP(subtotal)}</td></tr>
-    ${impuestoPorcentaje ? `<tr><td style="text-align:right;padding:3px 0;">Impuesto (${impuestoPorcentaje}%):</td><td style="text-align:right;padding:3px 0;">${formatoCOP(impuestoValor)}</td></tr>` : ''}
-    <tr style="font-size:16px;font-weight:700;color:#0f172a;border-top:2px solid #cbd5e1;"><td style="text-align:right;padding-top:6px;">TOTAL:</td><td style="text-align:right;padding-top:6px;">${formatoCOP(total)}</td></tr>
-  </table>`;
+  return `<div style="display:flex;justify-content:flex-end;margin-top:10px;">
+    <table style="width:280px;font-size:13px;">
+      <tr><td style="text-align:right;padding:4px 0;color:#475569;">Subtotal</td><td style="text-align:right;width:130px;padding:4px 0;">${formatoCOP(subtotal)}</td></tr>
+      ${impuestoPorcentaje ? `<tr><td style="text-align:right;padding:4px 0;color:#475569;">Impuesto (${impuestoPorcentaje}%)</td><td style="text-align:right;padding:4px 0;">${formatoCOP(impuestoValor)}</td></tr>` : ''}
+    </table>
+  </div>
+  <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+    <div style="background:#0088ff;color:#fff;border-radius:8px;padding:10px 18px;width:280px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Total</span>
+      <span style="font-size:19px;font-weight:700;">${formatoCOP(total)}</span>
+    </div>
+  </div>`;
 }
 function verPDFCotizacion(id){
   const c = db.cotizaciones.find(x=>x.id===id);
   if(!c) return;
   ordenPdfActualId = null;
+  pdfDocumentoActualTipo = 'cotizacion'; pdfDocumentoActualId = id;
   const nombreCliente = c.clienteId ? (buscarCliente(c.clienteId)?.nombre||'—') : (c.clienteManual?.nombre||'—');
   const documentoCliente = c.clienteId ? buscarCliente(c.clienteId)?.numeroDocumento : c.clienteManual?.documento;
   const telefonoCliente = c.clienteId ? buscarCliente(c.clienteId)?.telefono : c.clienteManual?.telefono;
   const logoHtml = db.config.logo ? `<img src="${db.config.logo}">` : '';
+  const coloresEstado = { 'Enviada':'#2563eb','Vista':'#4338ca','Aprobada':'#16a34a','Rechazada':'#dc2626','Vencida':'#64748b' };
+  const colorEstado = coloresEstado[c.estado] || '#2563eb';
   document.getElementById('pdfContenido').innerHTML = `
     <div class="pdf-header">
       <div>${logoHtml}<h2 style="color:#0088ff;margin:0;">${db.config.nombre}</h2><small>${db.config.subtitulo||''}</small>${db.config.direccion?`<br><small>${db.config.direccion}</small>`:''}</div>
-      <div style="text-align:right;"><strong>Cotización</strong><br><small>N.º ${c.numero}</small><br><small>Fecha: ${new Date(c.fecha+'T00:00:00').toLocaleDateString('es-CO')}</small></div>
+      <div style="text-align:right;"><strong style="font-size:15px;">Cotización</strong><br><small>N.º ${c.numero}</small><br><small>Fecha: ${new Date(c.fecha+'T00:00:00').toLocaleDateString('es-CO')}</small></div>
+    </div>
+    <div style="background:${colorEstado};color:#fff;padding:8px 15px;border-radius:6px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-weight:700;font-size:13px;">Estado: ${c.estado}</span>
+      <span style="font-size:11px;opacity:.9;">${c.numero}</span>
     </div>
     <div class="pdf-box"><h4>Cliente</h4>
       <table class="pdf-tabla-datos" cellpadding="4">
@@ -194,7 +220,7 @@ function verPDFCotizacion(id){
         ${telefonoCliente ? `<tr><td><strong>Teléfono</strong></td><td>${telefonoCliente}</td></tr>` : ''}
       </table>
     </div>
-    <div class="pdf-box"><h4>Detalle</h4>
+    <div class="pdf-box-flexible"><h4>Detalle</h4>
       <table class="pdf-tabla-datos" cellpadding="4">
         <thead><tr><th>Ítem</th><th style="text-align:center;">Cant.</th><th style="text-align:right;">Precio Unit.</th><th style="text-align:right;">Subtotal</th></tr></thead>
         <tbody>${generarFilasItemsComercial(c.items)}</tbody>
@@ -202,25 +228,31 @@ function verPDFCotizacion(id){
       ${generarBloqueTotalesComercial(c.subtotal, c.impuestoPorcentaje, c.impuestoValor, c.total)}
     </div>
     ${c.notas ? `<div class="pdf-box"><h4>Notas</h4><p style="font-size:12px;margin:0;">${c.notas}</p></div>` : ''}
-    <p style="font-size:10px;color:#94a3b8;text-align:center;margin-top:20px;">Esta cotización tiene una validez de 15 días a partir de la fecha de emisión, salvo que se indique lo contrario.</p>`;
+    <p style="font-size:10px;color:#94a3b8;text-align:center;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:10px;">Esta cotización tiene una validez de 15 días a partir de la fecha de emisión, salvo que se indique lo contrario. — ${db.config.nombre}</p>`;
   abrirModal('modalPDF');
 }
 function verPDFFactura(id){
   const f = db.facturas.find(x=>x.id===id);
   if(!f) return;
   ordenPdfActualId = null;
+  pdfDocumentoActualTipo = 'factura'; pdfDocumentoActualId = id;
   const nombreCliente = f.clienteId ? (buscarCliente(f.clienteId)?.nombre||'—') : (f.clienteManual?.nombre||'—');
   const documentoCliente = f.clienteId ? buscarCliente(f.clienteId)?.numeroDocumento : f.clienteManual?.documento;
   const telefonoCliente = f.clienteId ? buscarCliente(f.clienteId)?.telefono : f.clienteManual?.telefono;
   const logoHtml = db.config.logo ? `<img src="${db.config.logo}">` : '';
+  const pagada = f.estadoPago === 'pagado';
   // Misma marca de agua que ya se usa en los comprobantes de nómina, para que
   // se vea consistente en toda la plataforma.
-  const marcaAgua = f.estadoPago==='pagado' ? { texto:'PAGADO', color:'22,163,74' } : null;
+  const marcaAgua = pagada ? { texto:'PAGADO', color:'22,163,74' } : null;
   document.getElementById('pdfContenido').innerHTML = `
     ${marcaAgua ? `<div style="position:absolute;top:42%;left:50%;transform:translate(-50%,-50%) rotate(-22deg);font-size:52px;font-weight:900;color:rgba(${marcaAgua.color},.28);border:6px solid rgba(${marcaAgua.color},.28);padding:4px 26px;border-radius:14px;pointer-events:none;z-index:5;letter-spacing:4px;white-space:nowrap;">${marcaAgua.texto}</div>` : ''}
     <div class="pdf-header">
       <div>${logoHtml}<h2 style="color:#0088ff;margin:0;">${db.config.nombre}</h2><small>${db.config.subtitulo||''}</small>${db.config.direccion?`<br><small>${db.config.direccion}</small>`:''}</div>
-      <div style="text-align:right;"><strong>Factura de Venta</strong><br><small>N.º ${f.numero}</small><br><small>Fecha: ${new Date(f.fecha+'T00:00:00').toLocaleDateString('es-CO')}</small></div>
+      <div style="text-align:right;"><strong style="font-size:15px;">Factura de Venta</strong><br><small>N.º ${f.numero}</small><br><small>Fecha: ${new Date(f.fecha+'T00:00:00').toLocaleDateString('es-CO')}</small></div>
+    </div>
+    <div style="background:${pagada?'#16a34a':'#d97706'};color:#fff;padding:8px 15px;border-radius:6px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-weight:700;font-size:13px;"><i class="fas ${pagada?'fa-circle-check':'fa-clock'}"></i> ${pagada ? 'Pagada el '+new Date(f.fechaPago+'T00:00:00').toLocaleDateString('es-CO') : 'Pendiente por pagar'}</span>
+      <span style="font-size:11px;opacity:.9;">${f.numero}</span>
     </div>
     <div class="pdf-box"><h4>Cliente</h4>
       <table class="pdf-tabla-datos" cellpadding="4">
@@ -229,7 +261,7 @@ function verPDFFactura(id){
         ${telefonoCliente ? `<tr><td><strong>Teléfono</strong></td><td>${telefonoCliente}</td></tr>` : ''}
       </table>
     </div>
-    <div class="pdf-box"><h4>Detalle</h4>
+    <div class="pdf-box-flexible"><h4>Detalle</h4>
       <table class="pdf-tabla-datos" cellpadding="4">
         <thead><tr><th>Ítem</th><th style="text-align:center;">Cant.</th><th style="text-align:right;">Precio Unit.</th><th style="text-align:right;">Subtotal</th></tr></thead>
         <tbody>${generarFilasItemsComercial(f.items)}</tbody>
@@ -237,6 +269,6 @@ function verPDFFactura(id){
       ${generarBloqueTotalesComercial(f.subtotal, f.impuestoPorcentaje, f.impuestoValor, f.total)}
     </div>
     ${f.notas ? `<div class="pdf-box"><h4>Notas</h4><p style="font-size:12px;margin:0;">${f.notas}</p></div>` : ''}
-    <p style="font-size:11px;color:${f.estadoPago==='pagado'?'#166534':'#92400e'};text-align:center;margin-top:16px;font-weight:700;">${f.estadoPago==='pagado' ? '✅ Pagada el '+new Date(f.fechaPago+'T00:00:00').toLocaleDateString('es-CO') : '⏳ Pendiente por pagar'}</p>`;
+    <p style="font-size:10px;color:#94a3b8;text-align:center;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:10px;">Gracias por confiar en ${db.config.nombre}.</p>`;
   abrirModal('modalPDF');
 }

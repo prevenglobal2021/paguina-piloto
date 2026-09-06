@@ -453,6 +453,23 @@ table.data-table th{background:rgba(0,0,0,.3);}
 /* 3.1 Subtítulos de sección del reporte: negrita y tamaño mayor al texto de cuerpo, para jerarquía visual */
 .pdf-box h4{margin-top:0;color:#1e293b;border-bottom:1px solid #cbd5e1;padding-bottom:6px;margin-bottom:10px;font-size:15px;font-weight:700;}
 .pdf-fotos-fila{display:flex;gap:6px;margin-top:6px;break-inside:avoid;page-break-inside:avoid;}
+/* Estas protecciones de "no partir a la mitad" tienen que estar disponibles
+   SIEMPRE (no solo dentro de @media print) — la herramienta que genera el
+   PDF para WhatsApp/descarga no activa el modo de impresión del navegador,
+   así que cualquier regla que solo viviera ahí adentro, ella nunca la veía.
+   Antes .pdf-box y table estaban solo ahí — por eso las fotos (que sí
+   tenían su propia regla aparte) se veían bien, pero la tabla de ítems de
+   Cotización/Factura seguía cortándose. Además, se protege la FILA (tr),
+   no la tabla completa — así una tabla con muchos ítems sí puede repartirse
+   en varias páginas, sin cortar ninguna fila a la mitad. */
+.pdf-box{break-inside:avoid;page-break-inside:avoid;}
+/* Misma caja visualmente, pero SIN "no partir" a nivel de caja completa —
+   para contenido que puede ser largo (como la tabla de ítems de una
+   Cotización/Factura con muchos productos), que sí necesita poder
+   repartirse en varias páginas. Sus filas igual quedan protegidas una por
+   una con la regla de abajo. */
+.pdf-box-flexible{background:#f8fafc;border:1px solid #e2e8f0;padding:15px;border-radius:8px;margin-bottom:18px;}
+.pdf-tabla-datos tr{break-inside:avoid;page-break-inside:avoid;}
 /* Antes todas las fotos vivían juntas en una sola cuadrícula (CSS Grid) --
    la herramienta que arma el PDF no siempre distingue bien dónde termina
    una fila ahí dentro, y a veces cortaba una foto a la mitad entre dos
@@ -469,6 +486,13 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .pdf-tabla-datos{width:100%;font-size:12px;border-collapse:collapse;}
 .pdf-tabla-datos td{padding:6px 4px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#1e293b;}
 .pdf-tabla-datos tr:last-child td{border-bottom:none;}
+/* Encabezado con color y filas alternadas — para la tabla de ítems de
+   Cotización/Factura, donde puede haber muchas filas y conviene que se
+   lean fácil de un vistazo, en vez del estilo "etiqueta en negrita" que
+   usan las tablas cortas de datos (Cliente, Orden, etc.). */
+.pdf-tabla-datos thead th{background:#0088ff;color:#fff;padding:9px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;text-align:left;font-weight:700;}
+.pdf-tabla-datos tbody td{font-weight:400;}
+.pdf-tabla-datos tbody tr:nth-child(even){background:#f8fafc;}
 .empty-state{text-align:center;color:var(--text-muted);font-size:12px;padding:30px 10px;}
 .m-r-10{margin-right:10px;}
 /* CALENDARIO */
@@ -589,10 +613,10 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   #modalPDF .close-modal, #modalPDF #pdfBotonera, #modalVistaPreviaFormulario .close-modal, #modalVistaPreviaFormulario #vpBotonera, #modalComprobanteNomina .close-modal, #modalComprobanteNomina #comprobanteNominaBotonera{ display:none !important; }
   .pdf-preview{ padding:0 !important; }
 
-  /* Continuidad de hojas: la ficha técnica del equipo + presentación de la empresa
-     va SOLO en la primera hoja. De ahí en adelante (hoja 2, 3...) sigue directo el
-     informe/diagnóstico, sin repetir logo ni datos del equipo — para no perder espacio. */
-  .pdf-box, .pdf-fotos-fila, table{ break-inside:avoid; page-break-inside:avoid; }
+  /* La protección de "no partir a la mitad" (.pdf-box, filas de tablas, fotos)
+     ahora vive fuera de este bloque, disponible siempre — ver más arriba en
+     el CSS. Antes solo estaba aquí y la herramienta de generar el PDF para
+     WhatsApp/descarga no la veía. */
 }
 </style>
 </head>
@@ -1545,7 +1569,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div id="pdfBotonera" style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalPDF')">Cerrar</button>
       <button class="btn-custom" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
-      <button class="btn-custom btn-success-custom solo-admin" data-permiso="enviar_whatsapp" onclick="enviarPorWhatsApp(ordenPdfActualId)"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
+      <button class="btn-custom btn-success-custom solo-admin" data-permiso="enviar_whatsapp" onclick="enviarDocumentoActualPorWhatsApp()"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
     </div>
   </div>
 </div>
@@ -2332,19 +2356,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=73"></script>
-<script src="utilidades-navegacion.js?v=73"></script>
-<script src="buscador-agenda.js?v=73"></script>
-<script src="ordenes.js?v=73"></script>
-<script src="equipos-trazabilidad.js?v=73"></script>
-<script src="pdf.js?v=73"></script>
-<script src="config-clientes-equipos.js?v=73"></script>
-<script src="config-plantillas-tecnicos.js?v=73"></script>
-<script src="cotizador.js?v=73"></script>
-<script src="config-general.js?v=73"></script>
-<script src="inventario.js?v=73"></script>
-<script src="tienda-admin.js?v=73"></script>
-<script src="tienda-publica.js?v=73"></script>
-<script src="kpi.js?v=73"></script>
+<script src="core.js?v=74"></script>
+<script src="utilidades-navegacion.js?v=74"></script>
+<script src="buscador-agenda.js?v=74"></script>
+<script src="ordenes.js?v=74"></script>
+<script src="equipos-trazabilidad.js?v=74"></script>
+<script src="pdf.js?v=74"></script>
+<script src="config-clientes-equipos.js?v=74"></script>
+<script src="config-plantillas-tecnicos.js?v=74"></script>
+<script src="cotizador.js?v=74"></script>
+<script src="config-general.js?v=74"></script>
+<script src="inventario.js?v=74"></script>
+<script src="tienda-admin.js?v=74"></script>
+<script src="tienda-publica.js?v=74"></script>
+<script src="kpi.js?v=74"></script>
 </body>
 </html>
