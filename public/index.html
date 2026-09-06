@@ -452,11 +452,13 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .pdf-box{background:#f8fafc;border:1px solid #e2e8f0;padding:15px;border-radius:8px;margin-bottom:18px;}
 /* 3.1 Subtítulos de sección del reporte: negrita y tamaño mayor al texto de cuerpo, para jerarquía visual */
 .pdf-box h4{margin-top:0;color:#1e293b;border-bottom:1px solid #cbd5e1;padding-bottom:6px;margin-bottom:10px;font-size:15px;font-weight:700;}
-.pdf-fotos{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
-/* 1.2 Soporte fotográfico estandarizado en PDF: 10cm x 10cm */
-.pdf-fotos img{width:10cm;height:10cm;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;}
+.pdf-fotos{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;}
+/* Antes cada foto medía 10cm x 10cm fijo -- en una hoja carta eso apenas
+   dejaba UNA foto por fila, desperdiciando casi toda la página. Ahora se
+   organizan en una cuadrícula de 4 por fila, aprovechando el espacio. */
+.pdf-fotos img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;}
 .pdf-fotos figure{margin:0;}
-.pdf-fotos figcaption{width:10cm;font-size:11px;color:#475569;margin-top:5px;text-align:center;}
+.pdf-fotos figcaption{font-size:9px;color:#475569;margin-top:3px;text-align:center;}
 /* 3.2 Línea divisora entre secciones del reporte, para separar visualmente
    la información general de las lecturas técnicas de campo */
 .pdf-divider{border:none;border-top:1px dashed #cbd5e1;margin:20px 0;}
@@ -2182,19 +2184,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=69"></script>
-<script src="utilidades-navegacion.js?v=69"></script>
-<script src="buscador-agenda.js?v=69"></script>
-<script src="ordenes.js?v=69"></script>
-<script src="equipos-trazabilidad.js?v=69"></script>
-<script src="pdf.js?v=69"></script>
-<script src="config-clientes-equipos.js?v=69"></script>
-<script src="config-plantillas-tecnicos.js?v=69"></script>
-<script src="cotizador.js?v=69"></script>
-<script src="config-general.js?v=69"></script>
-<script src="inventario.js?v=69"></script>
-<script src="tienda-admin.js?v=69"></script>
-<script src="tienda-publica.js?v=69"></script>
-<script src="kpi.js?v=69"></script>
+<script src="core.js?v=70"></script>
+<script src="utilidades-navegacion.js?v=70"></script>
+<script src="buscador-agenda.js?v=70"></script>
+<script src="ordenes.js?v=70"></script>
+<script src="equipos-trazabilidad.js?v=70"></script>
+<script src="pdf.js?v=70"></script>
+<script src="config-clientes-equipos.js?v=70"></script>
+<script src="config-plantillas-tecnicos.js?v=70"></script>
+<script src="cotizador.js?v=70"></script>
+<script src="config-general.js?v=70"></script>
+<script src="inventario.js?v=70"></script>
+<script src="tienda-admin.js?v=70"></script>
+<script src="tienda-publica.js?v=70"></script>
+<script src="kpi.js?v=70"></script>
 </body>
 </html>

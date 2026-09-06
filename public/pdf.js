@@ -3,30 +3,31 @@
    PDF
 ========================================================= */
 let ordenPdfActualId = null;
-function verPDF(ordenId){
-  ordenPdfActualId = ordenId;
-  const o = db.ordenes.find(x=>x.id===ordenId);
-  const cliente = buscarCliente(o.clienteId), sede = buscarSede(o.clienteId,o.sedeId), equipo = buscarEquipo(o.clienteId,o.sedeId,o.equipoId), tecnico = buscarTecnico(o.tecnicoId);
-  const nombreClientePdf = nombreClienteOrden(o);
-  const logoHtml = db.config.logo ? `<img src="${db.config.logo}">` : '';
+
+// Genera el bloque de informe (diagnóstico + actividades + fotos) de UN
+// equipo — se usa tanto para órdenes de un solo equipo como, dentro de un
+// bucle, para cada equipo de una orden con varios. Antes esta función no
+// existía: el documento SIEMPRE leía o.cierre.diagnostico/o.cierre.fotos
+// directamente, que quedan vacíos en una orden de varios equipos (ahí la
+// información real vive en o.cierre.porEquipo) — por eso el informe y las
+// fotos no aparecían al imprimir, descargar o enviar por WhatsApp.
+function generarBloqueInformeEquipoPDF(datosCierre, plantilla){
+  datosCierre = datosCierre || {};
   let camposSimplesHtml = '';
   let camposEspecialesHtml = '';
-  const plantillaOrden = buscarPlantilla(o.plantillaId);
-  if(plantillaOrden && o.cierre){
-    plantillaOrden.campos.forEach(campo=>{
-      const respuesta = (o.cierre.respuestas && o.cierre.respuestas[campo.id]);
+  if(plantilla){
+    plantilla.campos.forEach(campo=>{
+      const respuesta = (datosCierre.respuestas && datosCierre.respuestas[campo.id]);
       if(campo.tipo==='checklist'){
         const resp = respuesta || {};
         const itemsHtml = (campo.items||[]).map(it=>`<div style="font-size:12px;">${resp[it.id]?'☑':'☐'} ${it.texto}</div>`).join('');
         camposEspecialesHtml += `<div class="pdf-box"><h4>${campo.label}</h4>${itemsHtml}</div>`;
       } else if(campo.tipo==='foto'){
-        const fotosCampo = normalizarFotosEvidencia((o.cierre.fotosPorCampo && o.cierre.fotosPorCampo[campo.id]) || []);
+        const fotosCampo = normalizarFotosEvidencia((datosCierre.fotosPorCampo && datosCierre.fotosPorCampo[campo.id]) || []);
         if(fotosCampo.length){
           const figura = f => f.desc ? `<figure><img src="${f.src}"><figcaption>${f.desc}</figcaption></figure>` : `<img src="${f.src}">`;
           let contenidoFotos;
           if(campo.bloqueImagenes){
-            // Mismo agrupado en bloques que se definió al diseñar la plantilla,
-            // para que el documento final se vea igual de organizado que en pantalla.
             let bloques = '';
             for(let inicio=0; inicio<fotosCampo.length; inicio+=campo.bloqueImagenes){
               const numeroBloque = Math.floor(inicio/campo.bloqueImagenes) + 1;
@@ -46,12 +47,42 @@ function verPDF(ordenId){
     });
   }
   const camposSimplesBox = camposSimplesHtml ? `<div class="pdf-box"><h4>Actividades realizadas y datos técnicos encontrados en sitio</h4><table class="pdf-tabla-datos" cellpadding="4">${camposSimplesHtml}</table></div>` : '';
-  const fotosHtml = (o.cierre && o.cierre.fotos && o.cierre.fotos.length) ? `<div class="pdf-box"><h4>Soporte fotográfico</h4><div class="pdf-fotos">${normalizarFotosEvidencia(o.cierre.fotos).map(f=>f.desc ? `<figure><img src="${f.src}"><figcaption>${f.desc}</figcaption></figure>` : `<img src="${f.src}">`).join('')}</div></div>` : '';
-  const bloqueDatosTecnicos = (camposSimplesBox || camposEspecialesHtml) ? `${camposSimplesBox}${camposEspecialesHtml}` : '';
-  const diagnosticoTexto = o.cierre ? (o.cierre.diagnostico || '').trim() : '';
-  const diagnosticoHtml = (o.cierre && !diagnosticoTexto) ? '' : `<div class="pdf-box"><h4>Diagnóstico técnico y observaciones</h4>
-      <p style="font-size:12px;color:#333;margin:0;">${o.cierre ? diagnosticoTexto : 'Sin cierre registrado.'}</p>
-    </div>`;
+  const fotosGenerales = normalizarFotosEvidencia(datosCierre.fotos);
+  const fotosHtml = fotosGenerales.length ? `<div class="pdf-box"><h4>Soporte fotográfico</h4><div class="pdf-fotos">${fotosGenerales.map(f=>f.desc ? `<figure><img src="${f.src}"><figcaption>${f.desc}</figcaption></figure>` : `<img src="${f.src}">`).join('')}</div></div>` : '';
+  const diagnosticoTexto = (datosCierre.diagnostico || '').trim();
+  const diagnosticoHtml = diagnosticoTexto ? `<div class="pdf-box"><h4>Diagnóstico técnico y observaciones</h4>
+      <p style="font-size:12px;color:#333;margin:0;">${diagnosticoTexto}</p>
+    </div>` : '';
+  return `${diagnosticoHtml}${fotosHtml}${camposSimplesBox}${camposEspecialesHtml}`;
+}
+
+function verPDF(ordenId){
+  ordenPdfActualId = ordenId;
+  const o = db.ordenes.find(x=>x.id===ordenId);
+  const cliente = buscarCliente(o.clienteId), sede = buscarSede(o.clienteId,o.sedeId), tecnico = buscarTecnico(o.tecnicoId);
+  const nombreClientePdf = nombreClienteOrden(o);
+  const logoHtml = db.config.logo ? `<img src="${db.config.logo}">` : '';
+  const esMultiEquipo = o.equiposIds && o.equiposIds.length > 1;
+  const equipo = esMultiEquipo ? null : buscarEquipo(o.clienteId, o.sedeId, o.equipoId);
+
+  let bloqueInformeHtml;
+  if(esMultiEquipo){
+    const cierrePorEquipo = (o.cierre && o.cierre.porEquipo) || {};
+    bloqueInformeHtml = o.equiposIds.map(equipoId=>{
+      const info = ubicarEquipoPorId(equipoId);
+      const datosEquipo = (o.equiposDatos||[]).find(d=>d.equipoId===equipoId) || {};
+      const plantillaEquipo = buscarPlantilla(datosEquipo.plantillaId);
+      const nombreEq = info ? info.equipo.nombre + (info.equipo.serie ? ' — '+info.equipo.serie : '') : 'Equipo #'+equipoId;
+      return `<div style="margin:22px 0 10px;padding:8px 12px;background:#0f172a;border-radius:6px;">
+          <strong style="color:#fff;font-size:13px;"><i class="fas fa-snowflake"></i> ${nombreEq}</strong>
+        </div>
+        ${generarBloqueInformeEquipoPDF(cierrePorEquipo[equipoId], plantillaEquipo)}`;
+    }).join('');
+  } else {
+    const plantillaOrden = buscarPlantilla(o.plantillaId);
+    bloqueInformeHtml = (o.cierre) ? generarBloqueInformeEquipoPDF(o.cierre, plantillaOrden) : '';
+  }
+
   const hayFirmaTecnico = o.cierre && o.cierre.firmaTecnico;
   const hayFirmaCliente = o.cierre && o.cierre.firmaCliente;
   const anchoFirma = (hayFirmaTecnico && hayFirmaCliente) ? '45%' : '100%';
@@ -59,13 +90,22 @@ function verPDF(ordenId){
   const firmaClienteHtml = hayFirmaCliente ? `<div style="width:${anchoFirma};text-align:center;"><img src="${o.cierre.firmaCliente}" style="max-height:60px;"><div style="border-top:1px solid #000;padding-top:5px;font-size:12px;">Firma Cliente</div></div>` : '';
   const firmasHtml = (hayFirmaTecnico || hayFirmaCliente) ? `<div class="pdf-box"><h4>Firmas</h4><div style="margin-top:4px;display:flex;justify-content:space-between;gap:20px;">${firmaTecnicoHtml}${firmaClienteHtml}</div></div>` : '';
 
-  // Hoja de vida del equipo: otras órdenes del mismo equipo (sin contar esta), como historial resumido.
   const historialPrevio = equipo ? db.ordenes.filter(x=>x.equipoId===equipo.id && x.id!==o.id).sort((a,b)=>(b.fechaProgramada||'').localeCompare(a.fechaProgramada||'')) : [];
   const hojaVidaHtml = historialPrevio.length ? `<div class="pdf-box"><h4>Hoja de Vida del Equipo (intervenciones anteriores)</h4>
       <table class="pdf-tabla-datos" cellpadding="4">
         ${historialPrevio.map(x=>`<tr><td style="width:20%;">${x.fechaProgramada||'Sin fecha'}</td><td style="width:20%;">${x.numero}</td><td style="width:30%;">${x.tipo}</td><td>${badgeEstado(x.estado)}</td></tr>`).join('')}
       </table>
     </div>` : '';
+
+  const filaEquipo = esMultiEquipo
+    ? `<tr><td style="width:45%;"><strong>Equipos incluidos</strong></td><td>${o.equiposIds.map(id=>{ const info = ubicarEquipoPorId(id); return info ? info.equipo.nombre : 'Equipo #'+id; }).join(', ')}</td></tr>`
+    : `<tr><td style="width:45%;"><strong>Equipo</strong></td><td>${equipo?equipo.nombre:''}</td></tr>
+       ${(equipo && equipo.marca) ? `<tr><td><strong>Marca</strong></td><td>${equipo.marca}</td></tr>` : ''}
+       ${(equipo && equipo.modelo) ? `<tr><td><strong>Modelo</strong></td><td>${equipo.modelo}</td></tr>` : ''}
+       ${(equipo && equipo.serie) ? `<tr><td><strong>Serie</strong></td><td>${equipo.serie}</td></tr>` : ''}
+       ${(equipo && equipo.capacidad) ? `<tr><td><strong>Capacidad</strong></td><td>${equipo.capacidad}</td></tr>` : ''}
+       ${(equipo && equipo.voltaje) ? `<tr><td><strong>Voltaje</strong></td><td>${equipo.voltaje}</td></tr>` : ''}
+       ${(equipo && equipo.refrigerante) ? `<tr><td><strong>Refrigerante</strong></td><td>${equipo.refrigerante}</td></tr>` : ''}`;
 
   document.getElementById('pdfContenido').innerHTML = `
     <div class="pdf-header">
@@ -95,21 +135,12 @@ function verPDF(ordenId){
         <tr><td style="width:45%;"><strong>Cliente</strong></td><td>${nombreClientePdf}${o.esClienteNuevo?' (Cliente nuevo, no registrado)':''}</td></tr>
         ${(cliente && cliente.numeroDocumento) ? `<tr><td><strong>${cliente.tipoDocumento||'NIT'}</strong></td><td>${cliente.numeroDocumento}</td></tr>` : ''}
         <tr><td><strong>Sede</strong></td><td>${o.esClienteNuevo ? (o.clienteNuevoDireccion || 'Sin dirección') : (sede?sede.nombre:'Sin sede')}</td></tr>
-        <tr><td><strong>Equipo</strong></td><td>${equipo?equipo.nombre:''}</td></tr>
-        ${(equipo && equipo.marca) ? `<tr><td><strong>Marca</strong></td><td>${equipo.marca}</td></tr>` : ''}
-        ${(equipo && equipo.modelo) ? `<tr><td><strong>Modelo</strong></td><td>${equipo.modelo}</td></tr>` : ''}
-        ${(equipo && equipo.serie) ? `<tr><td><strong>Serie</strong></td><td>${equipo.serie}</td></tr>` : ''}
-        ${(equipo && equipo.capacidad) ? `<tr><td><strong>Capacidad</strong></td><td>${equipo.capacidad}</td></tr>` : ''}
-        ${(equipo && equipo.voltaje) ? `<tr><td><strong>Voltaje</strong></td><td>${equipo.voltaje}</td></tr>` : ''}
-        ${(equipo && equipo.refrigerante) ? `<tr><td><strong>Refrigerante</strong></td><td>${equipo.refrigerante}</td></tr>` : ''}
+        ${filaEquipo}
       </table>
     </div>
 
     ${hojaVidaHtml}
-    ${fotosHtml}
-    ${diagnosticoHtml}
-    ${bloqueDatosTecnicos}
+    ${bloqueInformeHtml}
     ${firmasHtml}`;
   abrirModal('modalPDF');
 }
-
