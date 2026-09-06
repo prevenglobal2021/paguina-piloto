@@ -302,7 +302,7 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .config-content-area div[style*="background:rgba(0,0,0,.15)"]:hover{border-color:#93c5fd;box-shadow:0 6px 16px -8px rgba(15,23,42,.15);}
 .config-content-area div[style*="background:rgba(0,0,0,.2)"]{background:#f1f5f9 !important;}
 .config-modal-box label{color:#475569;}
-.config-modal-box input,.config-modal-box select,.config-modal-box textarea{background:#ffffff;color:#1e293b;border:1px solid #cbd5e1;}
+.config-modal-box input,.config-modal-box select,.config-modal-box textarea{background:#ffffff;color:#1e293b;border:1px solid var(--form-border-color, #cbd5e1);}
 .config-modal-box input::placeholder,.config-modal-box textarea::placeholder{color:#94a3b8;}
 .config-modal-box table.data-table th{background:#f1f5f9;color:#334155;}
 .config-modal-box table.data-table th,.config-modal-box table.data-table td{border-color:#e2e8f0;}
@@ -750,6 +750,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <li><a data-sec="agenda" onclick="mostrarSeccion('agenda')" class="active"><i class="fas fa-calendar-alt m-r-10"></i><span>Agenda / Órdenes</span></a></li>
       <li><a data-sec="equipos" onclick="mostrarSeccion('equipos')"><i class="fas fa-snowflake m-r-10"></i><span>Equipos</span></a></li>
       <li><a data-sec="trazabilidad" onclick="mostrarSeccion('trazabilidad')"><i class="fas fa-stream m-r-10"></i><span>Historial y Trazabilidad</span></a></li>
+      <li><a data-sec="asistencia" onclick="mostrarSeccion('asistencia')"><i class="fas fa-clock m-r-10"></i><span>Asistencia y Turnos</span></a></li>
       <li class="solo-admin" data-permiso="inventario_ver"><a data-sec="inventario" onclick="mostrarSeccion('inventario')"><i class="fas fa-boxes m-r-10"></i><span>Inventario</span></a></li>
       <li><a data-sec="tienda" onclick="mostrarSeccion('tienda')"><i class="fas fa-store m-r-10"></i><span>Tienda Virtual</span></a></li>
       <li class="solo-admin" data-permiso="kpi_ver"><a data-sec="kpi" onclick="mostrarSeccion('kpi')"><i class="fas fa-chart-line m-r-10"></i><span>Indicadores (KPI)</span></a></li>
@@ -846,7 +847,102 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <div id="timelineTrazabilidad" style="margin-top:20px;"></div>
     </div>
 
-    <!-- SECCION INVENTARIO -->
+    <!-- SECCION ASISTENCIA Y TURNOS -->
+    <div class="panel seccion" id="seccion-asistencia" style="display:none;">
+      <div class="panel-title"><span>⏰ Asistencia y Turnos</span></div>
+
+      <!-- Vista del Técnico / Auxiliar: solo sus botones y su historial -->
+      <div id="asistenciaVistaTecnico" style="display:none;">
+        <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin:10px 0 24px;">
+          <button class="btn-custom btn-success-custom" style="font-size:16px;padding:18px 34px;" onclick="abrirModalMarcacion('ingreso')"><i class="fas fa-right-to-bracket"></i> Marcar Ingreso</button>
+          <button class="btn-custom btn-danger-custom" style="font-size:16px;padding:18px 34px;" onclick="abrirModalMarcacion('salida')"><i class="fas fa-right-from-bracket"></i> Marcar Salida</button>
+        </div>
+        <div class="panel-title" style="margin-top:0;"><span>Mi historial</span></div>
+        <table class="data-table">
+          <thead><tr><th>Fecha</th><th>Ingreso</th><th>Salida</th><th>Horas Ord.</th><th>Horas Extra</th><th>Estado</th></tr></thead>
+          <tbody id="tablaAsistenciaTecnico"></tbody>
+        </table>
+      </div>
+
+      <!-- Vista del Administrador: tabla global + filtros + regularización -->
+      <div id="asistenciaVistaAdmin" style="display:none;">
+        <div class="field-row">
+          <div><label>Técnico:</label><select id="asistFiltroTecnico" onchange="renderizarTablaAsistenciaAdmin()"><option value="">Todos</option></select></div>
+          <div><label>Desde:</label><input type="date" id="asistFiltroDesde" onchange="renderizarTablaAsistenciaAdmin()"></div>
+          <div><label>Hasta:</label><input type="date" id="asistFiltroHasta" onchange="renderizarTablaAsistenciaAdmin()"></div>
+        </div>
+        <div style="margin-bottom:10px;">
+          <button class="btn-custom btn-secondary-custom" onclick="abrirModalRegularizarTurno()"><i class="fas fa-pen-to-square"></i> Modificar Asistencia / Regularizar Turno</button>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>Fecha</th><th>Técnico</th><th>Cargo</th><th>Ingreso</th><th>Salida</th><th>Horas Ord.</th><th>Horas Extra</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="tablaAsistenciaAdmin"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MODAL: MARCAR INGRESO / SALIDA (cámara en vivo + GPS + marca de agua) -->
+    <div class="modal-overlay" id="modalMarcacion">
+      <div class="modal-box" style="max-width:480px;">
+        <button class="close-modal" onclick="cerrarModalMarcacion()">✖</button>
+        <h3 id="tituloModalMarcacion">📸 Marcar Ingreso</h3>
+        <div id="marcacionPasoCamara">
+          <div style="position:relative;background:#000;border-radius:10px;overflow:hidden;">
+            <video id="marcacionVideo" autoplay playsinline style="width:100%;display:block;max-height:340px;object-fit:cover;"></video>
+            <canvas id="marcacionCanvasOculto" style="display:none;"></canvas>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+            <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="alternarCamaraMarcacion()"><i class="fas fa-camera-rotate"></i> Cambiar cámara</button>
+            <span id="marcacionEstadoGPS" style="font-size:11px;color:var(--text-muted);"><i class="fas fa-satellite-dish"></i> Obteniendo ubicación...</span>
+          </div>
+          <button class="btn-custom" style="width:100%;margin-top:10px;" id="btnCapturarMarcacion" onclick="capturarFotoMarcacion()" disabled><i class="fas fa-camera"></i> Capturar foto</button>
+        </div>
+        <div id="marcacionPasoPreview" style="display:none;">
+          <img id="marcacionPreviewImg" style="width:100%;border-radius:10px;">
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button class="btn-custom btn-secondary-custom" style="flex:1;" onclick="reintentarFotoMarcacion()"><i class="fas fa-rotate-left"></i> Repetir foto</button>
+            <button class="btn-custom btn-success-custom" style="flex:1;" onclick="conIndicadorCarga(this, confirmarMarcacion)"><i class="fas fa-check"></i> Confirmar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: REGULARIZAR TURNO (admin, retroactivo/manual) -->
+    <div class="modal-overlay" id="modalRegularizarTurno">
+      <div class="modal-box" style="max-width:560px;">
+        <button class="close-modal" onclick="cerrarModal('modalRegularizarTurno')">✖</button>
+        <h3>🛠️ Modificar Asistencia / Regularizar Turno</h3>
+        <input type="hidden" id="regAsistId">
+        <label>Técnico:</label>
+        <select id="regTecnico"></select>
+        <label>Fecha de la jornada:</label>
+        <input type="date" id="regFecha">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;">
+          <input type="checkbox" id="regDiaJustificado" style="width:auto;" onchange="toggleDiaJustificadoReg()"> Día asistido justificado (sin horas de entrada/salida)
+        </label>
+        <div id="wrapperRegHoras" class="field-row">
+          <div><label>Hora de entrada:</label><input type="time" id="regHoraEntrada"></div>
+          <div><label>Hora de salida:</label><input type="time" id="regHoraSalida"></div>
+        </div>
+        <div class="field-row">
+          <div><label>Horas ordinarias:</label><input type="number" id="regHorasOrdinarias" step="0.1"></div>
+          <div><label>Horas extra:</label><input type="number" id="regHorasExtra" step="0.1"></div>
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" style="align-self:flex-end;margin-bottom:8px;" onclick="recalcularHorasReg()">Recalcular</button>
+        </div>
+        <label>Motivo del ajuste manual (obligatorio):</label>
+        <textarea id="regMotivo" rows="2" placeholder="Ej: el técnico olvidó marcar el ingreso ese día, confirmado por el supervisor de obra."></textarea>
+        <button class="btn-custom" style="width:100%;margin-top:10px;" onclick="conIndicadorCarga(this, guardarRegularizacionTurno)">Guardar Ajuste</button>
+      </div>
+    </div>
+
+    <!-- MODAL: VER FOTO ESTAMPADA (ingreso/salida ya registrados) -->
+    <div class="modal-overlay" id="modalFotoAsistencia">
+      <div class="modal-box" style="max-width:480px;">
+        <button class="close-modal" onclick="cerrarModal('modalFotoAsistencia')">✖</button>
+        <h3>📷 Foto del registro</h3>
+        <img id="fotoAsistenciaAmpliada" style="width:100%;border-radius:10px;">
+      </div>
+    </div>
     <div class="panel seccion" id="seccion-inventario" style="display:none;">
       <div class="panel-title">
         <span>📦 Control de Inventario y Bodegas</span>
@@ -2025,6 +2121,12 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
             <option value="administrativo">Administrativo</option>
           </select>
         </div>
+        <div><label>Cargo (para asistencia y reportes):</label>
+          <select id="cfgTecCargo">
+            <option value="Técnico">Técnico</option>
+            <option value="Auxiliar Técnico">Auxiliar Técnico</option>
+          </select>
+        </div>
         <div style="display:flex;align-items:center;">
           <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin:0 0 8px 0;">
             <input type="checkbox" id="cfgTecAccesoTotal" style="width:auto;" onchange="renderizarChecklistPermisosPersonal()">
@@ -2388,19 +2490,20 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=84"></script>
-<script src="utilidades-navegacion.js?v=84"></script>
-<script src="buscador-agenda.js?v=84"></script>
-<script src="ordenes.js?v=84"></script>
-<script src="equipos-trazabilidad.js?v=84"></script>
-<script src="pdf.js?v=84"></script>
-<script src="config-clientes-equipos.js?v=84"></script>
-<script src="config-plantillas-tecnicos.js?v=84"></script>
-<script src="cotizador.js?v=84"></script>
-<script src="config-general.js?v=84"></script>
-<script src="inventario.js?v=84"></script>
-<script src="tienda-admin.js?v=84"></script>
-<script src="tienda-publica.js?v=84"></script>
-<script src="kpi.js?v=84"></script>
+<script src="core.js?v=86"></script>
+<script src="utilidades-navegacion.js?v=86"></script>
+<script src="buscador-agenda.js?v=86"></script>
+<script src="ordenes.js?v=86"></script>
+<script src="equipos-trazabilidad.js?v=86"></script>
+<script src="pdf.js?v=86"></script>
+<script src="config-clientes-equipos.js?v=86"></script>
+<script src="config-plantillas-tecnicos.js?v=86"></script>
+<script src="cotizador.js?v=86"></script>
+<script src="asistencia.js?v=1"></script>
+<script src="config-general.js?v=86"></script>
+<script src="inventario.js?v=86"></script>
+<script src="tienda-admin.js?v=86"></script>
+<script src="tienda-publica.js?v=86"></script>
+<script src="kpi.js?v=86"></script>
 </body>
 </html>

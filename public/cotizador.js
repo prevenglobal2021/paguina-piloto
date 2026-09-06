@@ -46,7 +46,23 @@ function nuevaPersonaLiquidacionVacia(){
 function toggleTecnicoLiquidacion(tecnicoId, marcado){
   const id = String(tecnicoId);
   if(marcado){
-    liquidacionEstado[id] = liquidacionEstado[id] || nuevaPersonaLiquidacionVacia();
+    const persona = nuevaPersonaLiquidacionVacia();
+    // Si el módulo de Asistencia y Turnos tiene registros de este técnico en
+    // el período que se está liquidando, se precargan solos los días y las
+    // horas — el administrador igual puede ajustarlos a mano después.
+    if(typeof precargarAsistenciaEnNomina === 'function'){
+      const desde = document.getElementById('liqPeriodoDesde').value;
+      const hasta = document.getElementById('liqPeriodoHasta').value;
+      if(desde && hasta){
+        const resumen = precargarAsistenciaEnNomina(tecnicoId, desde, hasta);
+        if(resumen.diasLaborados > 0){
+          persona.dias = resumen.diasLaborados;
+          persona.horas = resumen.horasOrdinarias;
+          persona.horasExtraAsistencia = resumen.horasExtra;
+        }
+      }
+    }
+    liquidacionEstado[id] = persona;
   } else {
     delete liquidacionEstado[id];
   }
@@ -120,6 +136,7 @@ function renderizarTarjetaPersonaLiquidacion(id){
       ${camposCantidad}
       <div><label style="font-size:11px;">Valor base</label><input type="text" disabled id="valorBase-${id}" value="${formatoCOP(valorBase)}"></div>
     </div>
+    ${persona.horasExtraAsistencia ? `<p style="font-size:11px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;margin:6px 0 0;"><i class="fas fa-clock"></i> Asistencia registra <strong>${persona.horasExtraAsistencia} horas extra</strong> en este período — agrégalas como ajuste si corresponde pagarlas.</p>` : ''}
     <label style="font-size:11px;margin-top:8px;">Ajustes / bonificaciones (+)</label>
     ${filasAjustes}
     <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarItemLiquidacion('${id}','ajustes')">+ Agregar ajuste</button>
@@ -1686,6 +1703,7 @@ function renderizarCotizacionesFacturas(){
         <td>${estadoHtml}</td><td>${origen}</td>
         <td style="white-space:nowrap;">
           <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verPDFFactura(${f.id})" title="Ver / Imprimir"><i class="fas fa-file-invoice"></i></button>
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalFactura(${f.id})" title="Editar"><i class="fas fa-pen"></i></button>
           <button class="btn-custom btn-success-custom btn-sm-custom" onclick="enviarPorWhatsAppFactura(${f.id})" title="Enviar por WhatsApp"><i class="fab fa-whatsapp"></i></button>
           ${pagada ? `<button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="revertirPagoFactura(${f.id})">Marcar pendiente</button>` : `<button class="btn-custom btn-success-custom btn-sm-custom" onclick="cambiarEstadoPagoFactura(${f.id})"><i class="fas fa-hand-holding-dollar"></i> Marcar pagada</button>`}
           <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarFactura(${f.id})" title="Eliminar"><i class="fas fa-trash"></i></button>
