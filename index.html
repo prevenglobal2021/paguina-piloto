@@ -69,15 +69,15 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .panel-title{font-size:15px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--card-border);padding-bottom:10px;flex-wrap:wrap;gap:8px;}
 /* MÓDULO DE INDICADORES (KPI) */
 .kpi-cards-grid{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:110px;gap:15px;margin-bottom:20px;}
-.kpi-cards-grid .kpi-card:first-child{grid-column:span 2;background:linear-gradient(135deg, color-mix(in srgb, var(--blue-accent) 18%, var(--card-bg)), var(--card-bg));}
+.kpi-cards-grid .kpi-card:first-child{grid-column:span 2;background:linear-gradient(150deg, #eef2f7 0%, #dde4ec 50%, #eef2f7 100%);}
 .kpi-cards-grid .kpi-card{transition:transform .15s ease, box-shadow .15s ease;}
-.kpi-cards-grid .kpi-card:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(0,0,0,.3);}
-.kpi-card{background:linear-gradient(160deg, #222530, #191b20);border:1px solid var(--card-border);border-radius:10px;padding:18px;text-align:center;}
-.kpi-card-valor{font-size:26px;font-weight:700;color:var(--blue-accent);}
-.kpi-card-label{font-size:11px;color:var(--text-muted);margin-top:6px;}
+.kpi-cards-grid .kpi-card:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(15,23,42,.15);}
+.kpi-card{background:linear-gradient(155deg, #f4f6f9 0%, #e2e8f0 45%, #eef1f5 100%);border:1px solid #c9d2dc;border-radius:10px;padding:18px;text-align:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.8), 0 1px 3px rgba(15,23,42,.06);}
+.kpi-card-valor{font-size:26px;font-weight:700;color:#1d4ed8;}
+.kpi-card-label{font-size:11px;color:#64748b;margin-top:6px;}
 .kpi-charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:20px;}
-.kpi-chart-box{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:15px;}
-.kpi-chart-box h4{margin:0 0 10px 0;font-size:13px;color:var(--text-muted);}
+.kpi-chart-box{background:linear-gradient(155deg, #f4f6f9 0%, #e8edf3 100%);border:1px solid #c9d2dc;border-radius:10px;padding:15px;box-shadow:inset 0 1px 0 rgba(255,255,255,.8), 0 1px 3px rgba(15,23,42,.06);}
+.kpi-chart-box h4{margin:0 0 10px 0;font-size:13px;color:#475569;}
 .kpi-chart-box canvas{max-height:240px;}
 @media (max-width:900px){
   .kpi-cards-grid{grid-template-columns:1fr 1fr;}
@@ -114,7 +114,7 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 /* Vista previa en miniatura de la pantalla de login (fiel al real: dos columnas) */
 .preview-login-mini{display:flex;width:100%;max-width:230px;height:280px;border-radius:10px;overflow:hidden;border:1px solid var(--card-border);margin:8px auto;box-shadow:0 4px 14px rgba(0,0,0,.2);}
 .preview-login-mini-izq{flex:0 0 38%;position:relative;background-size:cover;background-position:center;background-color:#e2e8f0;display:flex;flex-direction:column;justify-content:flex-end;padding:8px;}
-.preview-login-mini-izq::before{content:'';position:absolute;inset:0;background:linear-gradient(160deg, var(--preview-login-color-1,#7c3aed), var(--preview-login-color-2,#4c1d95));opacity:.85;}
+.preview-login-mini-izq::before{content:'';position:absolute;inset:0;background:linear-gradient(160deg, var(--preview-login-color-1,#2563eb), var(--preview-login-color-2,#1e3a8a));opacity:.85;}
 .preview-login-mini-texto{position:relative;z-index:1;color:#fff;}
 .preview-login-mini-texto strong{display:block;font-size:9px;line-height:1.25;font-weight:800;}
 .preview-login-mini-texto small{display:block;font-size:6px;line-height:1.35;opacity:.92;margin-top:3px;}
@@ -123,9 +123,19 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .preview-login-mini-der strong{font-size:10px;color:#1e293b;display:block;}
 .preview-login-mini-der small{font-size:7px;color:#64748b;display:block;margin-top:2px;margin-bottom:8px;}
 .preview-login-mini-input{width:85%;height:9px;background:#fff;border:1px solid #cbd5e1;border-radius:3px;margin-top:5px;}
-.preview-login-mini-boton{width:85%;height:14px;border-radius:12px;background:linear-gradient(120deg, var(--preview-login-color-1,#7c3aed), var(--preview-login-color-2,#4c1d95));margin-top:8px;color:#fff;font-size:6px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:.5px;}
-.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);display:none;justify-content:center;align-items:center;z-index:1000;padding:15px;}
-.modal-box{background:color-mix(in srgb, var(--card-bg) 88%, transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--card-border);width:100%;max-width:980px;max-height:90vh;overflow-y:auto;border-radius:12px;padding:25px;position:relative;color:var(--text-main);box-shadow:0 20px 60px rgba(0,0,0,.4);animation:apareceModal .2s ease;}
+.preview-login-mini-boton{width:85%;height:14px;border-radius:12px;background:linear-gradient(120deg, var(--preview-login-color-1,#2563eb), var(--preview-login-color-2,#1e3a8a));margin-top:8px;color:#fff;font-size:6px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:.5px;}
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,.55);display:none;justify-content:center;align-items:center;z-index:1000;padding:15px;}
+.modal-box{background:color-mix(in srgb, var(--card-bg) 88%, transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--card-border);width:100%;max-width:980px;max-height:90vh;overflow-y:auto;border-radius:12px;padding:25px;position:relative;color:var(--text-main);box-shadow:0 20px 60px rgba(0,0,0,.4);animation:apareceModal .2s ease;transition:max-width .18s ease, width .18s ease, max-height .18s ease;}
+.btn-modal-control{background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:13px;transition:background .12s ease;}
+.btn-modal-control:hover{background:#e2e8f0;}
+.modal-box.ampliado{max-width:96vw!important;width:96vw;max-height:96vh!important;height:96vh;}
+/* El modal de "Agregar/Editar Ítem" se abre ENCIMA de Cotización/Factura,
+   que sigue abierta detrás. Antes usaba el mismo fondo oscuro de pantalla
+   completa que cualquier otro modal — al cubrir toda la pantalla, daba la
+   sensación de que la factura se había cerrado. Con un fondo más liviano y
+   mayor z-index, se ve claramente como una ventana flotando ENCIMA, con la
+   factura todavía visible (atenuada) detrás. */
+#modalItemComercial{background:rgba(15,23,42,.25);z-index:1100;}
 @keyframes apareceModal{from{opacity:0;transform:translateY(8px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
 
 /* TOASTS (notificaciones modernas, reemplazan las ventanas mostrarToast() del navegador) */
@@ -196,6 +206,33 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .tienda-servicio-card img{width:100%;height:130px;object-fit:cover;border-radius:10px;margin-bottom:14px;}
 .tienda-servicio-card h5{margin:0 0 8px 0;font-size:15px;}
 .tienda-servicio-card p{margin:0;font-size:12px;color:var(--text-muted);line-height:1.5;}
+/* CARRUSEL (Tienda Virtual) */
+.carrusel-wrap{position:relative;border-radius:14px;overflow:hidden;background:#f1f5f9;}
+.carrusel-track{display:flex;transition:transform .5s cubic-bezier(.4,0,.2,1);}
+.carrusel-slide{flex:0 0 100%;min-width:100%;}
+.carrusel-flecha{position:absolute;top:50%;transform:translateY(-50%);background:rgba(15,23,42,.5);color:#fff;border:none;width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:15px;z-index:2;transition:background .15s ease;}
+.carrusel-flecha:hover{background:rgba(15,23,42,.8);}
+.carrusel-flecha.izq{left:12px;}
+.carrusel-flecha.der{right:12px;}
+.carrusel-puntos{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:2;}
+.carrusel-punto{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.55);border:none;cursor:pointer;padding:0;transition:background .15s ease,width .15s ease;}
+.carrusel-punto.activo{background:#fff;width:20px;border-radius:4px;}
+.carrusel-slide-imagen{position:relative;width:100%;aspect-ratio:16/8;overflow:hidden;}
+.carrusel-slide-imagen img{width:100%;height:100%;object-fit:cover;display:block;}
+.carrusel-slide-imagen .carrusel-desc{position:absolute;left:0;right:0;bottom:0;padding:20px 60px 16px 20px;background:linear-gradient(to top, rgba(15,23,42,.75), transparent);color:#fff;font-size:14px;}
+.carrusel-slide-proyecto{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;}
+.carrusel-slide-proyecto img{width:100%;height:100%;object-fit:cover;display:block;}
+.carrusel-slide-proyecto .carrusel-proyecto-info{position:absolute;left:0;right:0;bottom:0;padding:24px 60px 20px 24px;background:linear-gradient(to top, rgba(15,23,42,.82) 20%, transparent);color:#fff;}
+.carrusel-slide-proyecto h4{margin:0 0 4px;font-size:17px;font-weight:700;}
+.carrusel-slide-proyecto p{margin:0;font-size:13px;color:#e2e8f0;}
+.badge-referencia-temporal{display:inline-block;font-size:9px;font-weight:700;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:8px;letter-spacing:.3px;text-transform:uppercase;}
+@media (max-width:600px){
+  .carrusel-slide-imagen{aspect-ratio:4/3;}
+  .carrusel-slide-proyecto{aspect-ratio:4/3;}
+  .carrusel-flecha{width:30px;height:30px;font-size:11px;}
+  .carrusel-slide-imagen .carrusel-desc,.carrusel-slide-proyecto .carrusel-proyecto-info{padding:14px 44px 12px 14px;font-size:12px;}
+  .carrusel-slide-proyecto h4{font-size:14px;}
+}
 .tienda-proyecto-card{position:relative;border-radius:14px;overflow:hidden;height:200px;}
 .tienda-proyecto-card img{width:100%;height:100%;object-fit:cover;}
 .tienda-proyecto-card .capa{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.85),transparent 60%);display:flex;align-items:flex-end;padding:16px;}
@@ -294,12 +331,16 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .timeline-fotos img{width:50px;height:50px;object-fit:cover;border-radius:6px;border:1px solid var(--card-border);}
 .field-row{display:flex;gap:8px;align-items:flex-end;margin-bottom:8px;flex-wrap:wrap;}
 .autocomplete-wrapper{position:relative;}
-.autocomplete-resultados{position:absolute;top:100%;left:0;right:0;z-index:50;max-height:260px;overflow-y:auto;
-  background:var(--panel-bg-1,#212429);border:1px solid var(--card-border);border-top:none;border-radius:0 0 8px 8px;box-shadow:0 8px 20px rgba(0,0,0,.35);}
-.autocomplete-item{padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--card-border);}
+.autocomplete-resultados{position:absolute;top:100%;left:0;right:0;z-index:50;max-height:280px;overflow-y:auto;
+  background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 12px 28px rgba(15,23,42,.16);
+  margin-top:6px;opacity:0;transform:translateY(-6px);pointer-events:none;transition:opacity .16s ease,transform .16s ease;}
+.autocomplete-resultados.abierto{opacity:1;transform:translateY(0);pointer-events:auto;}
+.autocomplete-item{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;font-size:13px;color:#1e293b;border-bottom:1px solid #f1f5f9;transition:background .1s ease;}
 .autocomplete-item:last-child{border-bottom:none;}
-.autocomplete-item:hover, .autocomplete-item.resaltado{background:rgba(0,136,255,.15);}
-.autocomplete-item small{display:block;color:var(--text-muted);font-size:11px;margin-top:2px;}
+.autocomplete-item:hover, .autocomplete-item.resaltado{background:#eff6ff;}
+.autocomplete-item small{display:block;color:#64748b;font-size:11px;margin-top:2px;}
+.autocomplete-item mark{background:#dbeafe;color:#1d4ed8;border-radius:3px;padding:0 2px;font-weight:700;}
+.autocomplete-item-avatar{flex-shrink:0;width:32px;height:32px;border-radius:50%;background:#eff6ff;color:#2563eb;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;}
 /* Tarjeta de Orden de Servicio — Control de Órdenes Operativa */
 .orden-card{background:#fff;border:1px solid #e2e8f0;border-left:4px solid #f59e0b;border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.05);transition:box-shadow .15s ease;}
 .orden-card:hover{box-shadow:0 4px 14px rgba(0,0,0,.09);}
@@ -333,6 +374,14 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .editor-rico-toolbar button:hover{background:#e0f2fe;border-color:#7dd3fc;color:#0369a1;}
 .editor-rico-toolbar button:active{transform:scale(.92);}
 .editor-rico-toolbar button.activo{background:#dbeafe;border-color:#60a5fa;color:#1d4ed8;box-shadow:inset 0 0 0 1px #60a5fa;}
+/* Pestañas del módulo de Negocio / Contabilidad */
+.conta-tabs{display:flex;gap:2px;border-bottom:2px solid #e2e8f0;margin:16px 0 18px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.conta-tab-btn{background:none;border:none;padding:10px 16px;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:color .15s ease,border-color .15s ease;font-family:inherit;}
+.conta-tab-btn:hover{color:#2563eb;}
+.conta-tab-btn.activo{color:#2563eb;border-bottom-color:#2563eb;}
+.conta-tab-content{display:none;}
+.conta-tab-content.activo{display:block;animation:contaFadeIn .18s ease;}
+@keyframes contaFadeIn{from{opacity:0;transform:translateY(3px);}to{opacity:1;transform:translateY(0);}}
 .editor-rico-grupo-tamano,.editor-rico-grupo-tipo{display:flex;gap:3px;background:#fff;border:1px solid #e2e8f0;border-radius:7px;padding:2px;}
 .editor-rico-grupo-tamano button,.editor-rico-grupo-tipo button{width:30px;height:28px;border:none!important;border-radius:5px!important;}
 .editor-rico-grupo-tipo button{width:34px;}
@@ -413,11 +462,33 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .pdf-box{background:#f8fafc;border:1px solid #e2e8f0;padding:15px;border-radius:8px;margin-bottom:18px;}
 /* 3.1 Subtítulos de sección del reporte: negrita y tamaño mayor al texto de cuerpo, para jerarquía visual */
 .pdf-box h4{margin-top:0;color:#1e293b;border-bottom:1px solid #cbd5e1;padding-bottom:6px;margin-bottom:10px;font-size:15px;font-weight:700;}
-.pdf-fotos{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
-/* 1.2 Soporte fotográfico estandarizado en PDF: 10cm x 10cm */
-.pdf-fotos img{width:10cm;height:10cm;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;}
-.pdf-fotos figure{margin:0;}
-.pdf-fotos figcaption{width:10cm;font-size:11px;color:#475569;margin-top:5px;text-align:center;}
+.pdf-fotos-fila{display:flex;gap:6px;margin-top:6px;break-inside:avoid;page-break-inside:avoid;}
+/* Estas protecciones de "no partir a la mitad" tienen que estar disponibles
+   SIEMPRE (no solo dentro de @media print) — la herramienta que genera el
+   PDF para WhatsApp/descarga no activa el modo de impresión del navegador,
+   así que cualquier regla que solo viviera ahí adentro, ella nunca la veía.
+   Antes .pdf-box y table estaban solo ahí — por eso las fotos (que sí
+   tenían su propia regla aparte) se veían bien, pero la tabla de ítems de
+   Cotización/Factura seguía cortándose. Además, se protege la FILA (tr),
+   no la tabla completa — así una tabla con muchos ítems sí puede repartirse
+   en varias páginas, sin cortar ninguna fila a la mitad. */
+.pdf-box{break-inside:avoid;page-break-inside:avoid;}
+/* Misma caja visualmente, pero SIN "no partir" a nivel de caja completa —
+   para contenido que puede ser largo (como la tabla de ítems de una
+   Cotización/Factura con muchos productos), que sí necesita poder
+   repartirse en varias páginas. Sus filas igual quedan protegidas una por
+   una con la regla de abajo. */
+.pdf-box-flexible{background:#f8fafc;border:1px solid #e2e8f0;padding:15px;border-radius:8px;margin-bottom:18px;}
+.pdf-tabla-datos tr{break-inside:avoid;page-break-inside:avoid;}
+/* Antes todas las fotos vivían juntas en una sola cuadrícula (CSS Grid) --
+   la herramienta que arma el PDF no siempre distingue bien dónde termina
+   una fila ahí dentro, y a veces cortaba una foto a la mitad entre dos
+   páginas. Ahora cada fila de 4 es su propio bloque marcado como
+   "no partir", así la página salta ANTES o DESPUÉS de la fila completa. */
+.pdf-fotos-fila img{flex:1 1 0;width:0;aspect-ratio:1;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;cursor:zoom-in;}
+.pdf-fotos-fila figure{margin:0;flex:1 1 0;width:0;}
+.pdf-fotos-fila figure img{width:100%;}
+.pdf-fotos-fila figcaption{font-size:9px;color:#475569;margin-top:3px;text-align:center;}
 /* 3.2 Línea divisora entre secciones del reporte, para separar visualmente
    la información general de las lecturas técnicas de campo */
 .pdf-divider{border:none;border-top:1px dashed #cbd5e1;margin:20px 0;}
@@ -425,19 +496,32 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .pdf-tabla-datos{width:100%;font-size:12px;border-collapse:collapse;}
 .pdf-tabla-datos td{padding:6px 4px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#1e293b;}
 .pdf-tabla-datos tr:last-child td{border-bottom:none;}
+/* Encabezado con color y filas alternadas — para la tabla de ítems de
+   Cotización/Factura, donde puede haber muchas filas y conviene que se
+   lean fácil de un vistazo, en vez del estilo "etiqueta en negrita" que
+   usan las tablas cortas de datos (Cliente, Orden, etc.). */
+.pdf-tabla-datos thead th{background:#0088ff;color:#fff;padding:9px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;text-align:left;font-weight:700;}
+.pdf-tabla-datos tbody td{font-weight:400;}
+.pdf-tabla-datos tbody tr:nth-child(even){background:#f8fafc;}
 .empty-state{text-align:center;color:var(--text-muted);font-size:12px;padding:30px 10px;}
 .m-r-10{margin-right:10px;}
 /* CALENDARIO */
 .calendar-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
 .calendar-nav h4{margin:0;font-size:14px;}
-.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
-.calendar-dow{font-size:10px;text-transform:uppercase;color:var(--text-muted);text-align:center;font-weight:700;padding-bottom:4px;}
-.calendar-day{background:rgba(0,0,0,.15);border:1px solid var(--card-border);border-radius:8px;min-height:80px;padding:6px;font-size:11px;}
-.calendar-day.otro-mes{opacity:.35;}
-.calendar-day .num-dia{font-weight:700;color:var(--text-muted);margin-bottom:4px;}
-.calendar-chip{background:var(--blue-accent);color:#fff;border-radius:5px;padding:2px 5px;font-size:10px;margin-bottom:3px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;}
+.calendar-dow{font-size:10px;text-transform:uppercase;color:#475569;text-align:center;font-weight:700;letter-spacing:.4px;padding:6px 0;background:#f1f5f9;border-radius:6px;}
+.calendar-day{background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;min-height:80px;padding:6px;font-size:11px;transition:box-shadow .15s ease, border-color .15s ease, transform .1s ease;}
+.calendar-day:not(.otro-mes):hover{box-shadow:0 4px 12px rgba(15,23,42,.08);border-color:#93c5fd;transform:translateY(-1px);}
+.calendar-day.otro-mes{opacity:.4;background:#f8fafc;}
+.calendar-day.es-hoy{background:#eff6ff;border:1.5px solid #2563eb;}
+.calendar-day .num-dia{font-weight:700;color:#475569;margin-bottom:4px;display:flex;align-items:center;gap:5px;}
+.calendar-day.es-hoy .num-dia{color:#1d4ed8;}
+.etiqueta-hoy{background:#2563eb;color:#fff;font-size:8px;font-weight:700;padding:1px 5px;border-radius:6px;letter-spacing:.3px;}
+.calendar-chip{background:var(--blue-accent);color:#fff;border-radius:5px;padding:3px 6px;font-size:10px;margin-bottom:3px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;box-shadow:0 1px 2px rgba(0,0,0,.12);transition:filter .12s ease;}
+.calendar-chip:hover{filter:brightness(1.1);}
 .calendar-chip.finalizado{background:var(--green-success);}
-.calendar-chip.ejecucion{background:var(--purple-info);}
+.calendar-chip.ejecucion{background:#eab308;}
+.calendar-chip.fuera-horario{background:#ef4444;}
 /* FOTOS */
 .fotos-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
 .foto-thumb{position:relative;width:70px;height:70px;}
@@ -453,13 +537,12 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .paleta-opcion.selected{border-color:#fff;}
 /* MODO CLARO */
 body.modo-claro{--card-bg:#ffffff;--card-border:#e2e8f0;--text-main:#0f172a;--text-muted:#64748b;}
-body.modo-claro .calendar-day{background:#f8fafc;}
 body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background:#f1f5f9;color:#0f172a;}
 /* LOGIN */
 #loginOverlay{position:fixed;inset:0;background:#fff;display:none;z-index:2000;overflow-y:auto;}
 .login-split{display:flex;min-height:100vh;width:100%;}
-.login-split-izq{flex:0 0 40%;position:relative;min-height:100vh;background:linear-gradient(160deg, var(--login-color-1,#7c3aed), var(--login-color-2,#4c1d95));background-size:cover;background-position:center;display:flex;flex-direction:column;justify-content:flex-end;padding:40px;color:#fff;}
-.login-split-izq.tiene-imagen::before{content:'';position:absolute;inset:0;background:linear-gradient(160deg, var(--login-color-1,#7c3aed) 0%, var(--login-color-2,#4c1d95) 100%);opacity:.78;}
+.login-split-izq{flex:0 0 40%;position:relative;min-height:100vh;background:linear-gradient(160deg, var(--login-color-1,#2563eb), var(--login-color-2,#1e3a8a));background-size:cover;background-position:center;display:flex;flex-direction:column;justify-content:flex-end;padding:40px;color:#fff;}
+.login-split-izq.tiene-imagen::before{content:'';position:absolute;inset:0;background:linear-gradient(160deg, var(--login-color-1,#2563eb) 0%, var(--login-color-2,#1e3a8a) 100%);opacity:.35;}
 .login-split-izq-texto{position:relative;z-index:1;}
 .login-split-izq-texto h2{font-size:26px;margin:0 0 8px 0;font-weight:800;}
 .login-split-izq-texto p{font-size:13px;opacity:.92;margin:0;max-width:320px;line-height:1.5;}
@@ -467,14 +550,14 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 .login-box{background:#fff;border:none;border-radius:16px;padding:20px 10px;width:100%;max-width:400px;max-height:none;overflow:visible;text-align:center;box-shadow:none;color:#1e293b;}
 .login-box label{color:#334155;}
 .login-box input,.login-box select{background:#fff;color:#1e293b;border:1px solid #cbd5e1;}
-.login-box .btn-custom{background:linear-gradient(120deg, var(--login-color-1,#7c3aed), var(--login-color-2,#4c1d95));border:none;}
+.login-box .btn-custom{background:linear-gradient(120deg, var(--login-color-1,#2563eb), var(--login-color-2,#1e3a8a));border:none;}
 .login-box .btn-custom.btn-secondary-custom{background:#f1f5f9;color:#334155;}
 @media (max-width: 760px){
   .login-split-izq{position:fixed;inset:0;flex:none;z-index:0;}
-  .login-split-der{position:relative;z-index:1;min-height:100vh;background:rgba(255,255,255,.97);}
+  .login-split-der{position:relative;z-index:1;min-height:100vh;background:transparent;display:flex;align-items:center;justify-content:center;padding:20px;}
   .login-split-izq-texto{display:none;}
 }
-.login-box{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:40px 35px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.35);}
+.login-box{background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:40px 35px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.35);color:#1e293b;}
 .boton-empresa-registrada{display:flex;align-items:center;justify-content:space-between;width:100%;background:rgba(0,136,255,.08);border:1px solid var(--card-border);color:var(--text-main);padding:10px 14px;border-radius:8px;margin-top:8px;cursor:pointer;font-size:13px;text-align:left;}
 .boton-empresa-registrada:hover{background:rgba(0,136,255,.18);}
 .boton-empresa-registrada small{color:var(--text-muted);}
@@ -540,10 +623,10 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   #modalPDF .close-modal, #modalPDF #pdfBotonera, #modalVistaPreviaFormulario .close-modal, #modalVistaPreviaFormulario #vpBotonera, #modalComprobanteNomina .close-modal, #modalComprobanteNomina #comprobanteNominaBotonera{ display:none !important; }
   .pdf-preview{ padding:0 !important; }
 
-  /* Continuidad de hojas: la ficha técnica del equipo + presentación de la empresa
-     va SOLO en la primera hoja. De ahí en adelante (hoja 2, 3...) sigue directo el
-     informe/diagnóstico, sin repetir logo ni datos del equipo — para no perder espacio. */
-  .pdf-box, .pdf-fotos figure, .pdf-fotos img, table{ break-inside:avoid; page-break-inside:avoid; }
+  /* La protección de "no partir a la mitad" (.pdf-box, filas de tablas, fotos)
+     ahora vive fuera de este bloque, disponible siempre — ver más arriba en
+     el CSS. Antes solo estaba aquí y la herramienta de generar el PDF para
+     WhatsApp/descarga no la veía. */
 }
 </style>
 </head>
@@ -667,6 +750,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <li><a data-sec="agenda" onclick="mostrarSeccion('agenda')" class="active"><i class="fas fa-calendar-alt m-r-10"></i><span>Agenda / Órdenes</span></a></li>
       <li><a data-sec="equipos" onclick="mostrarSeccion('equipos')"><i class="fas fa-snowflake m-r-10"></i><span>Equipos</span></a></li>
       <li><a data-sec="trazabilidad" onclick="mostrarSeccion('trazabilidad')"><i class="fas fa-stream m-r-10"></i><span>Historial y Trazabilidad</span></a></li>
+      <li><a data-sec="asistencia" onclick="mostrarSeccion('asistencia')"><i class="fas fa-clock m-r-10"></i><span>Asistencia y Turnos</span></a></li>
       <li class="solo-admin" data-permiso="inventario_ver"><a data-sec="inventario" onclick="mostrarSeccion('inventario')"><i class="fas fa-boxes m-r-10"></i><span>Inventario</span></a></li>
       <li><a data-sec="tienda" onclick="mostrarSeccion('tienda')"><i class="fas fa-store m-r-10"></i><span>Tienda Virtual</span></a></li>
       <li class="solo-admin" data-permiso="kpi_ver"><a data-sec="kpi" onclick="mostrarSeccion('kpi')"><i class="fas fa-chart-line m-r-10"></i><span>Indicadores (KPI)</span></a></li>
@@ -763,7 +847,102 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <div id="timelineTrazabilidad" style="margin-top:20px;"></div>
     </div>
 
-    <!-- SECCION INVENTARIO -->
+    <!-- SECCION ASISTENCIA Y TURNOS -->
+    <div class="panel seccion" id="seccion-asistencia" style="display:none;">
+      <div class="panel-title"><span>⏰ Asistencia y Turnos</span></div>
+
+      <!-- Vista del Técnico / Auxiliar: solo sus botones y su historial -->
+      <div id="asistenciaVistaTecnico" style="display:none;">
+        <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin:10px 0 24px;">
+          <button class="btn-custom btn-success-custom" style="font-size:16px;padding:18px 34px;" onclick="abrirModalMarcacion('ingreso')"><i class="fas fa-right-to-bracket"></i> Marcar Ingreso</button>
+          <button class="btn-custom btn-danger-custom" style="font-size:16px;padding:18px 34px;" onclick="abrirModalMarcacion('salida')"><i class="fas fa-right-from-bracket"></i> Marcar Salida</button>
+        </div>
+        <div class="panel-title" style="margin-top:0;"><span>Mi historial</span></div>
+        <table class="data-table">
+          <thead><tr><th>Fecha</th><th>Ingreso</th><th>Salida</th><th>Horas Ord.</th><th>Horas Extra</th><th>Estado</th></tr></thead>
+          <tbody id="tablaAsistenciaTecnico"></tbody>
+        </table>
+      </div>
+
+      <!-- Vista del Administrador: tabla global + filtros + regularización -->
+      <div id="asistenciaVistaAdmin" style="display:none;">
+        <div class="field-row">
+          <div><label>Técnico:</label><select id="asistFiltroTecnico" onchange="renderizarTablaAsistenciaAdmin()"><option value="">Todos</option></select></div>
+          <div><label>Desde:</label><input type="date" id="asistFiltroDesde" onchange="renderizarTablaAsistenciaAdmin()"></div>
+          <div><label>Hasta:</label><input type="date" id="asistFiltroHasta" onchange="renderizarTablaAsistenciaAdmin()"></div>
+        </div>
+        <div style="margin-bottom:10px;">
+          <button class="btn-custom btn-secondary-custom" onclick="abrirModalRegularizarTurno()"><i class="fas fa-pen-to-square"></i> Modificar Asistencia / Regularizar Turno</button>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>Fecha</th><th>Técnico</th><th>Cargo</th><th>Ingreso</th><th>Salida</th><th>Horas Ord.</th><th>Horas Extra</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="tablaAsistenciaAdmin"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MODAL: MARCAR INGRESO / SALIDA (cámara en vivo + GPS + marca de agua) -->
+    <div class="modal-overlay" id="modalMarcacion">
+      <div class="modal-box" style="max-width:480px;">
+        <button class="close-modal" onclick="cerrarModalMarcacion()">✖</button>
+        <h3 id="tituloModalMarcacion">📸 Marcar Ingreso</h3>
+        <div id="marcacionPasoCamara">
+          <div style="position:relative;background:#000;border-radius:10px;overflow:hidden;">
+            <video id="marcacionVideo" autoplay playsinline style="width:100%;display:block;max-height:340px;object-fit:cover;"></video>
+            <canvas id="marcacionCanvasOculto" style="display:none;"></canvas>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+            <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="alternarCamaraMarcacion()"><i class="fas fa-camera-rotate"></i> Cambiar cámara</button>
+            <span id="marcacionEstadoGPS" style="font-size:11px;color:var(--text-muted);"><i class="fas fa-satellite-dish"></i> Obteniendo ubicación...</span>
+          </div>
+          <button class="btn-custom" style="width:100%;margin-top:10px;" id="btnCapturarMarcacion" onclick="capturarFotoMarcacion()" disabled><i class="fas fa-camera"></i> Capturar foto</button>
+        </div>
+        <div id="marcacionPasoPreview" style="display:none;">
+          <img id="marcacionPreviewImg" style="width:100%;border-radius:10px;">
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button class="btn-custom btn-secondary-custom" style="flex:1;" onclick="reintentarFotoMarcacion()"><i class="fas fa-rotate-left"></i> Repetir foto</button>
+            <button class="btn-custom btn-success-custom" style="flex:1;" onclick="conIndicadorCarga(this, confirmarMarcacion)"><i class="fas fa-check"></i> Confirmar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: REGULARIZAR TURNO (admin, retroactivo/manual) -->
+    <div class="modal-overlay" id="modalRegularizarTurno">
+      <div class="modal-box" style="max-width:560px;">
+        <button class="close-modal" onclick="cerrarModal('modalRegularizarTurno')">✖</button>
+        <h3>🛠️ Modificar Asistencia / Regularizar Turno</h3>
+        <input type="hidden" id="regAsistId">
+        <label>Técnico:</label>
+        <select id="regTecnico"></select>
+        <label>Fecha de la jornada:</label>
+        <input type="date" id="regFecha">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;">
+          <input type="checkbox" id="regDiaJustificado" style="width:auto;" onchange="toggleDiaJustificadoReg()"> Día asistido justificado (sin horas de entrada/salida)
+        </label>
+        <div id="wrapperRegHoras" class="field-row">
+          <div><label>Hora de entrada:</label><input type="time" id="regHoraEntrada"></div>
+          <div><label>Hora de salida:</label><input type="time" id="regHoraSalida"></div>
+        </div>
+        <div class="field-row">
+          <div><label>Horas ordinarias:</label><input type="number" id="regHorasOrdinarias" step="0.1"></div>
+          <div><label>Horas extra:</label><input type="number" id="regHorasExtra" step="0.1"></div>
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" style="align-self:flex-end;margin-bottom:8px;" onclick="recalcularHorasReg()">Recalcular</button>
+        </div>
+        <label>Motivo del ajuste manual (obligatorio):</label>
+        <textarea id="regMotivo" rows="2" placeholder="Ej: el técnico olvidó marcar el ingreso ese día, confirmado por el supervisor de obra."></textarea>
+        <button class="btn-custom" style="width:100%;margin-top:10px;" onclick="conIndicadorCarga(this, guardarRegularizacionTurno)">Guardar Ajuste</button>
+      </div>
+    </div>
+
+    <!-- MODAL: VER FOTO ESTAMPADA (ingreso/salida ya registrados) -->
+    <div class="modal-overlay" id="modalFotoAsistencia">
+      <div class="modal-box" style="max-width:480px;">
+        <button class="close-modal" onclick="cerrarModal('modalFotoAsistencia')">✖</button>
+        <h3>📷 Foto del registro</h3>
+        <img id="fotoAsistenciaAmpliada" style="width:100%;border-radius:10px;">
+      </div>
+    </div>
     <div class="panel seccion" id="seccion-inventario" style="display:none;">
       <div class="panel-title">
         <span>📦 Control de Inventario y Bodegas</span>
@@ -772,6 +951,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <button class="btn-custom btn-sm-custom" onclick="abrirModalItemInventario()">+ Ítem</button>
         </div>
       </div>
+      <div id="listaBodegasChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;"></div>
       <div id="alertasStockBajo"></div>
       <input type="text" id="invBuscador" placeholder="🔍 Buscar por nombre, categoría o bodega..." oninput="renderizarInventario()" style="margin-bottom:10px;">
       <table class="data-table">
@@ -863,7 +1043,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div class="panel seccion" id="seccion-contabilidad" style="display:none;">
       <div class="panel-title">
         <span>💼 Negocio / Contabilidad</span>
-        <div style="display:flex;align-items:center;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <label style="margin:0;font-size:12px;">Mes:</label>
           <input type="month" id="contaMesFiltro" onchange="renderizarContabilidad()" style="width:auto;margin:0;">
         </div>
@@ -876,130 +1056,161 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <div class="kpi-card"><div class="kpi-card-valor" id="contaCardBalance">$0</div><div class="kpi-card-label">Balance del mes</div></div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:10px;">
-        <div>
-          <div class="panel-title"><span>🧾 Nómina</span></div>
-          <button class="btn-custom" onclick="abrirModalLiquidacionNomina()"><i class="fas fa-file-invoice-dollar m-r-10"></i>Nueva liquidación de nómina</button>
-          <div class="field-row" style="margin-top:12px;">
-            <div><input type="text" id="nomBuscarTexto" placeholder="Buscar por nombre o N.º de comprobante..." onkeydown="if(event.key==='Enter')renderizarHistorialNomina()"></div>
-            <div><label style="font-size:11px;">Técnico:</label><select id="nomFiltroTecnico" onchange="renderizarHistorialNomina()"><option value="">Todos</option></select></div>
-            <div><label style="font-size:11px;">Desde:</label><input type="date" id="nomFiltroDesde" onchange="renderizarHistorialNomina()"></div>
-            <div><label style="font-size:11px;">Hasta:</label><input type="date" id="nomFiltroHasta" onchange="renderizarHistorialNomina()"></div>
-            <div><button class="btn-custom btn-sm-custom" onclick="renderizarHistorialNomina()"><i class="fas fa-search"></i> Buscar</button></div>
-            <div><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="limpiarFiltrosNomina()">Limpiar filtros</button></div>
-          </div>
-          <table class="data-table" style="margin-top:12px;">
-            <thead><tr><th>N.º</th><th>Técnico</th><th>Periodo</th><th>Total neto</th><th>Estado</th><th></th></tr></thead>
-            <tbody id="tablaNomina"></tbody>
-            <tfoot id="pieTotalNomina"></tfoot>
-          </table>
+      <div class="conta-tabs">
+        <button class="conta-tab-btn activo" onclick="cambiarTabContabilidad(event,'Nomina')"><i class="fas fa-file-invoice-dollar"></i> Liquidación de Nómina</button>
+        <button class="conta-tab-btn" onclick="cambiarTabContabilidad(event,'Gastos')"><i class="fas fa-money-bill-wave"></i> Registro de Gastos</button>
+        <button class="conta-tab-btn" onclick="cambiarTabContabilidad(event,'Servicio')"><i class="fas fa-calculator"></i> Agregar Servicio</button>
+        <button class="conta-tab-btn" onclick="cambiarTabContabilidad(event,'CotizacionFactura')"><i class="fas fa-file-invoice"></i> Cotización y Facturación</button>
+        <button class="conta-tab-btn" onclick="cambiarTabContabilidad(event,'Trazabilidad')"><i class="fas fa-chart-line"></i> Trazabilidad / Cuadre</button>
+      </div>
+
+      <div id="contaTabNomina" class="conta-tab-content activo">
+        <button class="btn-custom" onclick="abrirModalLiquidacionNomina()"><i class="fas fa-file-invoice-dollar m-r-10"></i>Nueva liquidación de nómina</button>
+        <div class="field-row" style="margin-top:12px;">
+          <div><input type="text" id="nomBuscarTexto" placeholder="Buscar por nombre o N.º de comprobante..." oninput="renderizarHistorialNomina()"></div>
+          <div><label style="font-size:11px;">Técnico:</label><select id="nomFiltroTecnico" onchange="renderizarHistorialNomina()"><option value="">Todos</option></select></div>
+          <div><label style="font-size:11px;">Desde:</label><input type="date" id="nomFiltroDesde" onchange="renderizarHistorialNomina()"></div>
+          <div><label style="font-size:11px;">Hasta:</label><input type="date" id="nomFiltroHasta" onchange="renderizarHistorialNomina()"></div>
+          <div><button class="btn-custom btn-sm-custom" onclick="renderizarHistorialNomina()"><i class="fas fa-search"></i> Buscar</button></div>
+          <div><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="limpiarFiltrosNomina()">Limpiar filtros</button></div>
         </div>
-        <div>
-          <div class="panel-title"><span>📈 Registro de ingreso</span></div>
-          <label style="display:flex;align-items:center;gap:8px;font-weight:normal;">
-            <input type="checkbox" id="ingresoClienteEsporadico" style="width:auto;" onchange="toggleIngresoClienteEsporadico()">
-            Cliente esporádico (no está registrado en Clientes)
-          </label>
-          <div class="field-row">
-            <div id="wrapperIngresoClienteExistente"><label style="font-size:11px;">Cliente:</label><select id="ingresoCliente"><option value="">(Ninguno / general)</option></select></div>
-            <div id="wrapperIngresoClienteEsporadico" style="display:none;"><label style="font-size:11px;">Nombre del cliente esporádico:</label><input type="text" id="ingresoClienteEsporadicoNombre" placeholder="Nombre"></div>
-            <div><input type="text" id="ingresoConcepto" placeholder="Concepto (ej. Servicio, Venta de repuesto)"></div>
-            <div><input type="number" id="ingresoMonto" placeholder="Monto (COP)"></div>
-            <div><input type="date" id="ingresoFecha"></div>
-          </div>
-          <button class="btn-custom" onclick="agregarIngreso()">+ Registrar ingreso</button>
-          <table class="data-table" style="margin-top:12px;">
-            <thead><tr><th>Fecha</th><th>Cliente</th><th>Concepto</th><th>Monto</th><th></th></tr></thead>
-            <tbody id="tablaIngresos"></tbody>
-          </table>
-        </div>
-        <div>
-          <div class="panel-title"><span>📉 Gastos del negocio</span></div>
-          <div class="field-row">
-            <div>
-              <select id="gastoCategoria">
-                <option>Arriendo</option><option>Servicios públicos</option><option>Insumos y repuestos</option>
-                <option>Transporte</option><option>Mantenimiento de herramientas</option><option>Impuestos</option><option>Otro</option>
-              </select>
+        <table class="data-table" style="margin-top:12px;">
+          <thead><tr><th>N.º</th><th>Técnico</th><th>Periodo</th><th>Total neto</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="tablaNomina"></tbody>
+          <tfoot id="pieTotalNomina"></tfoot>
+        </table>
+      </div>
+
+      <div id="contaTabGastos" class="conta-tab-content">
+        <input type="text" id="contaBuscarTexto" placeholder="🔍 Buscar ingreso o gasto..." oninput="renderizarContabilidad()" style="max-width:280px;margin-bottom:14px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+          <div>
+            <div class="panel-title"><span>📈 Registro de ingreso</span></div>
+            <label style="display:flex;align-items:center;gap:8px;font-weight:normal;">
+              <input type="checkbox" id="ingresoClienteEsporadico" style="width:auto;" onchange="toggleIngresoClienteEsporadico()">
+              Cliente esporádico (no está registrado en Clientes)
+            </label>
+            <div class="field-row">
+              <div id="wrapperIngresoClienteExistente"><label style="font-size:11px;">Cliente:</label><select id="ingresoCliente"><option value="">(Ninguno / general)</option></select></div>
+              <div id="wrapperIngresoClienteEsporadico" style="display:none;"><label style="font-size:11px;">Nombre del cliente esporádico:</label><input type="text" id="ingresoClienteEsporadicoNombre" placeholder="Nombre"></div>
+              <div><input type="text" id="ingresoConcepto" placeholder="Concepto (ej. Servicio, Venta de repuesto)"></div>
+              <div><input type="number" id="ingresoMonto" placeholder="Monto (COP)"></div>
+              <div><input type="date" id="ingresoFecha"></div>
             </div>
-            <div><input type="text" id="gastoDescripcion" placeholder="Descripción"></div>
-            <div><input type="number" id="gastoMonto" placeholder="Monto (COP)"></div>
-            <div><input type="date" id="gastoFecha"></div>
+            <button class="btn-custom" onclick="conIndicadorCarga(this, agregarIngreso)">+ Registrar ingreso</button>
+            <table class="data-table" style="margin-top:12px;">
+              <thead><tr><th>Fecha</th><th>Cliente</th><th>Concepto</th><th>Monto</th><th></th></tr></thead>
+              <tbody id="tablaIngresos"></tbody>
+            </table>
           </div>
-          <button class="btn-custom" onclick="agregarGasto()">+ Registrar gasto</button>
-          <table class="data-table" style="margin-top:12px;">
-            <thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Monto</th><th></th></tr></thead>
-            <tbody id="tablaGastos"></tbody>
-          </table>
+          <div>
+            <div class="panel-title"><span>📉 Gastos del negocio</span></div>
+            <div class="field-row">
+              <div>
+                <select id="gastoCategoria">
+                  <option>Arriendo</option><option>Servicios públicos</option><option>Insumos y repuestos</option>
+                  <option>Transporte</option><option>Mantenimiento de herramientas</option><option>Impuestos</option><option>Otro</option>
+                </select>
+              </div>
+              <div><input type="text" id="gastoDescripcion" placeholder="Descripción"></div>
+              <div><input type="number" id="gastoMonto" placeholder="Monto (COP)"></div>
+              <div><input type="date" id="gastoFecha"></div>
+            </div>
+            <button class="btn-custom" onclick="conIndicadorCarga(this, agregarGasto)">+ Registrar gasto</button>
+            <table class="data-table" style="margin-top:12px;">
+              <thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Monto</th><th></th></tr></thead>
+              <tbody id="tablaGastos"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <div class="panel-title" style="margin-top:24px;"><span>🛒 Pedidos de la Tienda Virtual (ingresos)</span></div>
-      <table class="data-table">
-        <thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado del pago</th></tr></thead>
-        <tbody id="tablaPedidosTiendaConta"></tbody>
-      </table>
+      <div id="contaTabServicio" class="conta-tab-content">
+        <p style="font-size:11px;color:var(--text-muted);">Calcula automáticamente el precio al cliente y la utilidad de cada servicio, con la misma fórmula de tu control operativo.</p>
 
-      <!-- COTIZADOR / CONTROL OPERATIVO -->
-      <div class="panel-title" style="margin-top:30px;"><span>🧮 Cotizador — Control Operativo</span></div>
-      <p style="font-size:11px;color:var(--text-muted);">Calcula automáticamente el precio al cliente y la utilidad de cada servicio, con la misma fórmula de tu control operativo.</p>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:8px;margin-bottom:14px;">
+          <div class="field-row">
+            <div><label>Recargo sobre materiales:</label><input type="number" id="cfgRecargoMateriales" step="0.01" style="width:90px;"> <small style="color:var(--text-muted);">(1.3 = 30%)</small></div>
+            <div><label>% pago sugerido a terceros:</label><input type="number" id="cfgPorcentajeTercero" step="0.01" style="width:90px;"> <small style="color:var(--text-muted);">(0.45 = 45% de la mano de obra)</small></div>
+            <div><label>Meta mensual de utilidad:</label><input type="number" id="cfgMetaMensual" style="width:130px;"></div>
+            <button class="btn-custom btn-sm-custom" onclick="conIndicadorCarga(this, guardarParametrosCotizador)">Guardar parámetros</button>
+          </div>
+        </div>
 
-      <div style="background:rgba(0,0,0,.15);padding:12px;border-radius:8px;margin-bottom:14px;">
         <div class="field-row">
-          <div><label>Recargo sobre materiales:</label><input type="number" id="cfgRecargoMateriales" step="0.01" style="width:90px;"> <small style="color:var(--text-muted);">(1.3 = 30%)</small></div>
-          <div><label>% pago sugerido a terceros:</label><input type="number" id="cfgPorcentajeTercero" step="0.01" style="width:90px;"> <small style="color:var(--text-muted);">(0.45 = 45% de la mano de obra)</small></div>
-          <div><label>Meta mensual de utilidad:</label><input type="number" id="cfgMetaMensual" style="width:130px;"></div>
-          <button class="btn-custom btn-sm-custom" onclick="guardarParametrosCotizador()">Guardar parámetros</button>
+          <div><input type="date" id="coFecha"></div>
+          <div><input type="text" id="coServicioCliente" placeholder="Servicio / Cliente"></div>
+          <div>
+            <select id="coTipoServicio"><option>Instalación</option><option>Correctivo</option><option>Preventivo</option><option>Diagnóstico</option></select>
+          </div>
+          <div>
+            <select id="coEjecutor" onchange="actualizarSugerenciaPagoTecnico()"><option>Yo mismo</option><option>Tercero</option></select>
+          </div>
         </div>
+        <div class="field-row">
+          <div><label>Horas (0 = tarifa fija):</label><input type="number" id="coHoras" value="0" oninput="actualizarSugerenciaPagoTecnico()"></div>
+          <div><label>Comp (1 / 1.2 / 1.5 / 2):</label><input type="number" id="coComp" value="1" step="0.1" oninput="actualizarSugerenciaPagoTecnico()"></div>
+          <div><label>Valor hora / Tarifa fija:</label><input type="number" id="coValorHora" value="0" oninput="actualizarSugerenciaPagoTecnico()"></div>
+          <div><label>Materiales (costo base):</label><input type="number" id="coMateriales" value="0" oninput="actualizarPreviewCotizador()"></div>
+          <div><label>Logística:</label><input type="number" id="coLogistica" value="0" oninput="actualizarPreviewCotizador()"></div>
+          <div><label>Pago técnico (si es Tercero):</label><input type="number" id="coPagoTecnico" value="0" oninput="actualizarPreviewCotizador()"></div>
+        </div>
+        <div class="field-row">
+          <div>
+            <label>Estado del servicio:</label>
+            <select id="coEstado"><option>Pendiente</option><option>Aprobada</option><option>cancelado</option></select>
+          </div>
+          <div>
+            <label>Estado de cartera:</label>
+            <select id="coCartera"><option>Pendiente</option><option>Pagado</option></select>
+          </div>
+          <div><label>Dinero abonado:</label><input type="number" id="coDineroAbonado" value="0"></div>
+        </div>
+        <div style="background:rgba(0,136,255,.1);border-radius:8px;padding:10px;margin:10px 0;font-size:13px;">
+          Precio al cliente (calculado): <strong id="coPreviewPrecio">$0</strong> &nbsp;|&nbsp;
+          Utilidad neta (calculada): <strong id="coPreviewUtilidad">$0</strong>
+        </div>
+        <button class="btn-custom" onclick="conIndicadorCarga(this, agregarControlOperativo)">+ Agregar servicio</button>
+
+        <table class="data-table" style="margin-top:14px;">
+          <thead><tr><th>Fecha</th><th>Servicio / Cliente</th><th>Tipo</th><th>Ejecutor</th><th>Precio Cliente</th><th>Pago Técnico</th><th>Utilidad Neta</th><th>Estado</th><th>Cartera</th><th></th></tr></thead>
+          <tbody id="tablaControlOperativo"></tbody>
+          <tfoot><tr style="font-weight:700;background:#eff6ff;color:#1e3a5f;"><td colspan="4">TOTALES</td><td id="coTotalPrecio">$0</td><td id="coTotalPagoTec">$0</td><td id="coTotalUtilidad">$0</td><td colspan="3"></td></tr></tfoot>
+        </table>
       </div>
 
-      <div class="field-row">
-        <div><input type="date" id="coFecha"></div>
-        <div><input type="text" id="coServicioCliente" placeholder="Servicio / Cliente"></div>
-        <div>
-          <select id="coTipoServicio"><option>Instalación</option><option>Correctivo</option><option>Preventivo</option><option>Diagnóstico</option></select>
+      <div id="contaTabCotizacionFactura" class="conta-tab-content">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+          <button class="btn-custom" onclick="abrirModalCotizacion()"><i class="fas fa-file-circle-plus"></i> Nueva Cotización</button>
+          <button class="btn-custom btn-secondary-custom" onclick="abrirModalFactura()"><i class="fas fa-file-invoice-dollar"></i> Nueva Factura (directa)</button>
         </div>
-        <div>
-          <select id="coEjecutor" onchange="actualizarSugerenciaPagoTecnico()"><option>Yo mismo</option><option>Tercero</option></select>
-        </div>
-      </div>
-      <div class="field-row">
-        <div><label>Horas (0 = tarifa fija):</label><input type="number" id="coHoras" value="0" oninput="actualizarSugerenciaPagoTecnico()"></div>
-        <div><label>Comp (1 / 1.2 / 1.5 / 2):</label><input type="number" id="coComp" value="1" step="0.1" oninput="actualizarSugerenciaPagoTecnico()"></div>
-        <div><label>Valor hora / Tarifa fija:</label><input type="number" id="coValorHora" value="0" oninput="actualizarSugerenciaPagoTecnico()"></div>
-        <div><label>Materiales (costo base):</label><input type="number" id="coMateriales" value="0" oninput="actualizarPreviewCotizador()"></div>
-        <div><label>Logística:</label><input type="number" id="coLogistica" value="0" oninput="actualizarPreviewCotizador()"></div>
-        <div><label>Pago técnico (si es Tercero):</label><input type="number" id="coPagoTecnico" value="0" oninput="actualizarPreviewCotizador()"></div>
-      </div>
-      <div class="field-row">
-        <div>
-          <label>Estado del servicio:</label>
-          <select id="coEstado"><option>Pendiente</option><option>Aprobada</option><option>cancelado</option></select>
-        </div>
-        <div>
-          <label>Estado de cartera:</label>
-          <select id="coCartera"><option>Pendiente</option><option>Pagado</option></select>
-        </div>
-        <div><label>Dinero abonado:</label><input type="number" id="coDineroAbonado" value="0"></div>
-      </div>
-      <div style="background:rgba(0,136,255,.1);border-radius:8px;padding:10px;margin:10px 0;font-size:13px;">
-        Precio al cliente (calculado): <strong id="coPreviewPrecio">$0</strong> &nbsp;|&nbsp;
-        Utilidad neta (calculada): <strong id="coPreviewUtilidad">$0</strong>
-      </div>
-      <button class="btn-custom" onclick="agregarControlOperativo()">+ Agregar servicio</button>
 
-      <table class="data-table" style="margin-top:14px;">
-        <thead><tr><th>Fecha</th><th>Servicio / Cliente</th><th>Tipo</th><th>Ejecutor</th><th>Precio Cliente</th><th>Pago Técnico</th><th>Utilidad Neta</th><th>Estado</th><th>Cartera</th><th></th></tr></thead>
-        <tbody id="tablaControlOperativo"></tbody>
-        <tfoot><tr style="font-weight:700;background:#eff6ff;color:#1e3a5f;"><td colspan="4">TOTALES</td><td id="coTotalPrecio">$0</td><td id="coTotalPagoTec">$0</td><td id="coTotalUtilidad">$0</td><td colspan="3"></td></tr></tfoot>
-      </table>
+        <div class="panel-title" style="margin-top:0;"><span>📝 Cotizaciones</span></div>
+        <table class="data-table">
+          <thead><tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="tablaCotizaciones"></tbody>
+        </table>
 
-      <!-- CUADRO DE MANDO ANUAL -->
-      <div class="panel-title" style="margin-top:30px;"><span>📅 Cuadro de Mando y Trazabilidad Anual</span></div>
-      <table class="data-table">
-        <thead><tr><th>Mes</th><th>Utilidad Aprobada (Caja Real)</th><th>Utilidad Pendiente (En Facturación)</th><th>Utilidad Total</th><th>Meta Mensual</th><th>% Cumplimiento (Caja Real)</th><th>% Cumplimiento (Proyectado)</th></tr></thead>
-        <tbody id="tablaCuadroMandoAnual"></tbody>
-      </table>
+        <div class="panel-title" style="margin-top:24px;"><span>🧾 Facturas</span></div>
+        <table class="data-table">
+          <thead><tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado de pago</th><th>Origen</th><th></th></tr></thead>
+          <tbody id="tablaFacturas"></tbody>
+        </table>
+      </div>
+
+      <div id="contaTabTrazabilidad" class="conta-tab-content">
+        <div class="panel-title" style="margin-top:0;"><span>🛒 Pedidos de la Tienda Virtual (ingresos)</span></div>
+        <table class="data-table">
+          <thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado del pago</th></tr></thead>
+          <tbody id="tablaPedidosTiendaConta"></tbody>
+        </table>
+
+        <div class="panel-title" style="margin-top:24px;"><span>📅 Cuadro de Mando y Trazabilidad Anual</span></div>
+        <table class="data-table">
+          <thead><tr><th>Mes</th><th>Utilidad Aprobada (Caja Real)</th><th>Utilidad Pendiente (En Facturación)</th><th>Utilidad Total</th><th>Meta Mensual</th><th>% Cumplimiento (Caja Real)</th><th>% Cumplimiento (Proyectado)</th></tr></thead>
+          <tbody id="tablaCuadroMandoAnual"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -1076,7 +1287,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 
 <div id="resetPasswordOverlay" style="display:none;position:fixed;inset:0;background:#fff;z-index:3000;align-items:center;justify-content:center;">
   <div class="login-box" style="max-width:380px;">
-    <h2 style="font-size:20px;color:#1e293b;"><i class="fas fa-key" style="color:#7c3aed;"></i> Crear nueva contraseña</h2>
+    <h2 style="font-size:20px;color:#1e293b;"><i class="fas fa-key" style="color:#2563eb;"></i> Crear nueva contraseña</h2>
     <p style="font-size:12px;color:#64748b;">Escribe tu nueva contraseña. Este enlace deja de funcionar después de usarlo, o si pasó más de 1 hora desde que lo pediste.</p>
     <label>Nueva contraseña:</label>
     <input type="password" id="resetNuevaPassword" placeholder="Mínimo 4 caracteres">
@@ -1099,7 +1310,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   <div class="login-split-der">
   <div class="login-box">
     <div id="loginLogoWrap" style="display:none;width:84px;height:84px;background:#fff;border-radius:50%;align-items:center;justify-content:center;overflow:hidden;margin:0 auto 16px;box-shadow:0 6px 20px rgba(0,0,0,.12);"><img id="loginLogo" style="max-width:78%;max-height:78%;object-fit:contain;"></div>
-    <h2 id="loginTituloEmpresa" style="font-size:20px;color:#1e293b;margin-bottom:2px;"><i id="loginIconoDefault" class="fas fa-snowflake" style="color:var(--login-color-1,#7c3aed);"></i> Prevenglobal</h2>
+    <h2 id="loginTituloEmpresa" style="font-size:20px;color:#1e293b;margin-bottom:2px;"><i id="loginIconoDefault" class="fas fa-snowflake" style="color:var(--login-color-1,#2563eb);"></i> Prevenglobal</h2>
 
     <!-- PASO 1: Empresa (multiempresa) — oculto por defecto, esta plataforma es de empresa única -->
     <div id="loginPasoEmpresa" style="display:none;">
@@ -1137,17 +1348,29 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <p id="loginBienvenidaTitulo" style="font-size:22px;font-weight:700;color:#1e293b;margin:8px 0 2px;">¡Bienvenido!</p>
       <p id="loginBienvenidaSubtitulo" style="font-size:13px;color:#64748b;margin:0 0 18px;">Por favor inicia sesión</p>
       <p id="loginEmpresaActualLbl" style="font-size:11px;color:var(--text-muted);display:none;"></p>
-      <label style="text-align:left;display:block;">Ingresar como técnico:</label>
-      <select id="loginTecnicoSelect"></select>
-      <label style="text-align:left;display:block;">Contraseña:</label>
-      <input type="password" id="loginTecnicoPassword" placeholder="Contraseña" onkeydown="if(event.key==='Enter')iniciarSesionComo('tecnico')">
+      <label style="text-align:left;display:block;">¿Cómo vas a ingresar?</label>
+      <select id="loginModoAcceso" onchange="cambiarModoAccesoLogin()">
+        <option value="tecnico">Como Técnico</option>
+        <option value="admin">Como Administrador</option>
+      </select>
+
+      <div id="loginBloqueTecnico" style="margin-top:8px;">
+        <label style="text-align:left;display:block;">Técnico:</label>
+        <select id="loginTecnicoSelect"></select>
+        <label style="text-align:left;display:block;">Contraseña:</label>
+        <input type="password" id="loginTecnicoPassword" placeholder="Contraseña" onkeydown="if(event.key==='Enter')iniciarSesionComo('tecnico')">
+        <button class="btn-custom" style="margin-top:10px;width:100%;" onclick="iniciarSesionComo('tecnico')">ENTRAR COMO TÉCNICO</button>
+      </div>
+
+      <div id="loginBloqueAdmin" style="margin-top:8px;display:none;">
+        <label style="text-align:left;display:block;">Usuario administrador (correo):</label>
+        <input type="text" id="loginAdminUsuario" placeholder="Usuario administrador (correo)">
+        <label style="text-align:left;display:block;">Contraseña:</label>
+        <input type="password" id="loginAdminPassword" placeholder="Contraseña de administrador" onkeydown="if(event.key==='Enter')iniciarSesionComo('admin')">
+        <button class="btn-custom btn-secondary-custom" style="margin-top:10px;width:100%;" onclick="iniciarSesionComo('admin')">ENTRAR COMO ADMINISTRADOR</button>
+      </div>
+
       <div id="loginError" style="color:var(--red-alert);font-size:11px;margin-top:6px;display:none;">Usuario o contraseña incorrectos.</div>
-      <button class="btn-custom" style="margin-top:10px;width:100%;" onclick="iniciarSesionComo('tecnico')">ENTRAR COMO TÉCNICO</button>
-      <div style="margin:18px 0;border-top:1px solid #e2e8f0;"></div>
-      <label style="text-align:left;display:block;">Acceso de Administrador:</label>
-      <input type="text" id="loginAdminUsuario" placeholder="Usuario administrador (correo)">
-      <input type="password" id="loginAdminPassword" placeholder="Contraseña de administrador" onkeydown="if(event.key==='Enter')iniciarSesionComo('admin')">
-      <button class="btn-custom btn-secondary-custom" style="margin-top:10px;width:100%;" onclick="iniciarSesionComo('admin')">ENTRAR COMO ADMINISTRADOR</button>
       <p style="font-size:11px;color:#94a3b8;margin-top:16px;text-align:center;">
         <a href="javascript:void(0)" onclick="mostrarAyudaContrasena()" style="color:#64748b;text-decoration:none;"><i class="fas fa-lock" style="font-size:10px;"></i> ¿Olvidó su contraseña?</a>
       </p>
@@ -1191,7 +1414,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     </div>
     <label>Descripción para la tienda:</label>
     <textarea id="invDescripcionTienda" rows="2" placeholder="Descripción atractiva para el cliente, características, garantía, etc."></textarea>
-    <button class="btn-custom" style="margin-top:12px;" onclick="guardarItemInventario()">Guardar Ítem</button>
+    <button class="btn-custom" style="margin-top:12px;" onclick="conIndicadorCarga(this, guardarItemInventario)">Guardar Ítem</button>
   </div>
 </div>
 
@@ -1199,10 +1422,11 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 <div class="modal-overlay" id="modalBodega">
   <div class="modal-box modal-sm">
     <button class="close-modal" onclick="cerrarModal('modalBodega')">✖</button>
-    <h3>🏬 Nueva Bodega / Unidad Móvil</h3>
+    <h3 id="tituloModalBodega">🏬 Nueva Bodega / Unidad Móvil</h3>
+    <input type="hidden" id="bodId">
     <label>Nombre:</label><input type="text" id="bodNombre" placeholder="Ej. Camioneta Técnico 1">
     <label>Tipo:</label><select id="bodTipo"><option value="fija">Fija</option><option value="movil">Móvil</option></select>
-    <button class="btn-custom" style="margin-top:12px;" onclick="guardarBodega()">Guardar Bodega</button>
+    <button class="btn-custom" style="margin-top:12px;" onclick="conIndicadorCarga(this, guardarBodega)">Guardar Bodega</button>
   </div>
 </div>
 
@@ -1219,6 +1443,16 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <option value="transferencia">Transferencia entre bodegas</option>
     </select>
     <label>Cantidad:</label><input type="number" id="kdxCantidad" value="1" min="1">
+    <div id="wrapperKdxPersona" style="display:none;">
+      <label>¿Quién se la lleva? <span style="font-weight:400;color:#94a3b8;">(opcional)</span></label>
+      <select id="kdxPersonaSelect" onchange="toggleKardexPersonaLibre()">
+        <option value="">Sin especificar</option>
+        <option value="__otro__">Otra persona (no registrada)...</option>
+      </select>
+      <div id="wrapperKdxPersonaLibre" style="display:none;margin-top:6px;">
+        <input type="text" id="kdxPersonaLibre" placeholder="Nombre de la persona">
+      </div>
+    </div>
     <div id="wrapperKdxDestino" style="display:none;">
       <label>Bodega destino:</label><select id="kdxBodegaDestino"></select>
     </div>
@@ -1252,7 +1486,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <input type="text" id="ordClienteBuscador" placeholder="Escribe el nombre del cliente, o el nombre/serie de un equipo suyo..." autocomplete="off"
           oninput="filtrarClientesOrden()" onfocus="filtrarClientesOrden()" onblur="setTimeout(cerrarListaClientesOrden, 150)">
         <input type="hidden" id="ordCliente">
-        <div id="ordClienteResultados" class="autocomplete-resultados" style="display:none;"></div>
+        <div id="ordClienteResultados" class="autocomplete-resultados"></div>
       </div>
       </div>
     </div>
@@ -1306,7 +1540,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 
     <div style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalNuevaOrden')">Cancelar</button>
-      <button class="btn-custom" onclick="guardarNuevaOrden()">Crear Orden</button>
+      <button class="btn-custom" onclick="conIndicadorCarga(this, guardarNuevaOrden)">Crear Orden</button>
     </div>
   </div>
 </div>
@@ -1340,8 +1574,9 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <strong style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#2563eb;margin-bottom:3px;"><i class="fas fa-note-sticky"></i> Notas del servicio</strong>
       <span id="detNotasInicialesTexto"></span>
     </div>
-    <div id="detAvisoFinalizada" style="display:none;background:rgba(34,197,94,.12);border:1px solid var(--green-success);color:var(--green-success);padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px;">
-      🔒 Esta orden está Finalizada. Los datos quedan en modo solo lectura para proteger la trazabilidad.
+    <div id="detAvisoFinalizada" style="display:none;background:rgba(34,197,94,.12);border:1px solid var(--green-success);color:var(--green-success);padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <span>🔒 Esta orden está Finalizada. Los datos quedan en modo solo lectura para proteger la trazabilidad.</span>
+      <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" onclick="editarOrdenFinalizada(ordenDetalleId)" style="white-space:nowrap;"><i class="fas fa-unlock"></i> Editar diagnóstico/fotos (admin)</button>
     </div>
     <div id="detAvisoEdicionForzada" style="display:none;background:rgba(245,158,11,.12);border:1px solid var(--orange-warning);color:var(--orange-warning);padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px;">
       ✏️ Estás editando una orden ya Finalizada (acceso de administrador). Al guardar, la orden permanece Finalizada y el documento/PDF reflejará los cambios.
@@ -1351,7 +1586,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div id="detWrapperClienteExistente"><label>Cliente:</label><select id="detCliente" onchange="poblarEquiposDetalleOrden()"></select></div>
-      <div id="detWrapperEquipoExistente"><label>Equipo:</label><select id="detEquipo"></select></div>
+      <div id="detWrapperEquipoExistente"><label>Equipo:</label><select id="detEquipo"></select><small id="detEquipoMultiAviso" style="display:none;color:var(--text-muted);">Esta orden tiene varios equipos — cada uno se edita en su propio bloque más abajo.</small></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div><label>Técnico asignado:</label><select id="detTecnico"></select></div>
@@ -1366,6 +1601,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <div><label>Hora programada:</label><input type="time" id="detHora"></div>
       <div><label>Estado:</label><select id="detEstado"><option>Programado</option><option>En Ejecución</option></select></div>
     </div>
+    <div id="detBloqueUnEquipo">
     <label>Diagnóstico / observaciones generales:</label>
     <div class="editor-rico-toolbar">
       <div class="editor-rico-grupo-tamano">
@@ -1397,6 +1633,8 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <label>Fotos de evidencia:</label>
     <input type="file" id="detInputFotos" accept="image/*" multiple onchange="manejarFotosDetalle(event)">
     <div class="galeria-fotos" id="detPreviewFotos"></div>
+    </div>
+    <div id="detBloquesEquipos" style="display:none;"></div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:10px;">
       <div>
@@ -1420,8 +1658,8 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div id="detAccionesEdicion" style="margin-top:15px;display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;">
       <span style="font-size:11px;color:var(--text-muted);margin-right:auto;">No hace falta llenarlo todo — puedes guardar el avance y continuar después.</span>
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalDetalleOrden')">Cancelar</button>
-      <button class="btn-custom" onclick="guardarDetalleOrden(false)"><i class="fas fa-floppy-disk"></i> Guardar Avance</button>
-      <button class="btn-custom btn-success-custom" onclick="confirmarFinalizarOrden()">✅ Finalizar Orden</button>
+      <button class="btn-custom" onclick="conIndicadorCarga(this, ()=>guardarDetalleOrden(false))"><i class="fas fa-floppy-disk"></i> Guardar Avance</button>
+      <button class="btn-custom btn-success-custom" onclick="conIndicadorCarga(this, confirmarFinalizarOrden)">✅ Finalizar Orden</button>
     </div>
     <div id="detAccionesSoloLectura" style="margin-top:15px;text-align:right;display:none;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalDetalleOrden')">Cerrar</button>
@@ -1438,7 +1676,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div id="pdfBotonera" style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalPDF')">Cerrar</button>
       <button class="btn-custom" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
-      <button class="btn-custom btn-success-custom solo-admin" data-permiso="enviar_whatsapp" onclick="enviarPorWhatsApp(ordenPdfActualId)"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
+      <button class="btn-custom btn-success-custom solo-admin" data-permiso="enviar_whatsapp" onclick="enviarDocumentoActualPorWhatsApp()"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
     </div>
   </div>
 </div>
@@ -1474,7 +1712,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div class="galeria-fotos" id="previewFotosEquipoModal"></div>
     <div style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalEquipo')">Cancelar</button>
-      <button class="btn-custom" onclick="guardarEquipoModal()">Guardar Equipo</button>
+      <button class="btn-custom" onclick="conIndicadorCarga(this, guardarEquipoModal)">Guardar Equipo</button>
     </div>
   </div>
 </div>
@@ -1534,7 +1772,153 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<!-- MODAL: COMPROBANTE DE PAGO DE NÓMINA (papel, imprimible) -->
+<!-- MODAL: NUEVA / EDITAR COTIZACIÓN -->
+<div class="modal-overlay" id="modalCotizacion">
+  <div class="modal-box" id="cajaModalCotizacion" style="max-width:760px;">
+    <div style="position:absolute;top:14px;right:44px;display:flex;gap:6px;">
+      <button class="btn-modal-control" onclick="toggleAmpliarModal('cajaModalCotizacion', this)" title="Ampliar / Restaurar"><i class="fas fa-expand"></i></button>
+    </div>
+    <button class="close-modal" onclick="cerrarModal('modalCotizacion')">✖</button>
+    <h3 id="tituloModalCotizacion">📝 Nueva Cotización <span id="badgeBorradorCot" style="display:none;font-size:10px;font-weight:700;background:#e2e8f0;color:#475569;padding:3px 9px;border-radius:10px;vertical-align:middle;">BORRADOR</span></h3>
+    <input type="hidden" id="cotId">
+
+    <div class="form-seccion">
+      <div class="form-seccion-titulo">👤 Cliente</div>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:normal;">
+        <input type="checkbox" id="cotClienteEsNuevo" style="width:auto;" onchange="toggleClienteCotizacion()"> Cliente no registrado (ingresar datos manualmente)
+      </label>
+      <div id="wrapperCotClienteRegistrado" style="position:relative;">
+        <label>Cliente:</label>
+        <input type="text" id="cotClienteBuscador" placeholder="Escribe el nombre del cliente..." autocomplete="off"
+          oninput="filtrarClientesCotizacion()" onfocus="filtrarClientesCotizacion()" onblur="setTimeout(()=>document.getElementById('cotClienteResultados').classList.remove('abierto'),150)">
+        <input type="hidden" id="cotCliente">
+        <div id="cotClienteResultados" class="autocomplete-resultados"></div>
+      </div>
+      <div id="wrapperCotClienteManual" style="display:none;">
+        <div class="field-row">
+          <div><label>Nombre:</label><input type="text" id="cotClienteManualNombre" placeholder="Nombre completo"></div>
+          <div><label>Teléfono:</label><input type="text" id="cotClienteManualTelefono" placeholder="Teléfono (para WhatsApp)"></div>
+          <div><label>Correo:</label><input type="email" id="cotClienteManualEmail" placeholder="correo@ejemplo.com"></div>
+          <div><label>Documento:</label><input type="text" id="cotClienteManualDocumento" placeholder="NIT / Cédula (opcional)"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-seccion">
+      <div class="form-seccion-titulo" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>📦 Ítems</span>
+        <button class="btn-custom btn-sm-custom" onclick="abrirModalItemComercial('cot')">+ Agregar Ítem</button>
+      </div>
+      <table class="data-table" style="margin-top:6px;">
+        <thead><tr><th style="width:20px;"></th><th>Ítem</th><th>Descripción</th><th>Cant.</th><th>Precio Unit.</th><th>Desc.</th><th>Subtotal</th><th></th></tr></thead>
+        <tbody id="tablaItemsCot"></tbody>
+      </table>
+    </div>
+
+    <div class="field-row">
+      <div><label>Descuento general (%):</label><input type="number" id="cotDescuentoGeneral" value="0" step="0.1" oninput="actualizarPreviewCotizacionFactura('cot')"></div>
+      <div><label>Impuesto (%):</label><input type="number" id="cotImpuestoPorcentaje" value="0" step="0.1" oninput="actualizarPreviewCotizacionFactura('cot')"></div>
+      <div><label>Válida hasta:</label><input type="date" id="cotFechaVencimiento"></div>
+    </div>
+    <label>Notas / Términos y condiciones:</label>
+    <textarea id="cotNotas" rows="2" placeholder="Forma de pago, garantía, validez, etc. (opcional)"></textarea>
+
+    <div style="background:rgba(0,136,255,.1);border-radius:8px;padding:10px;margin:10px 0;text-align:right;font-size:13px;position:sticky;bottom:0;">
+      Subtotal: <strong id="cotPreviewSubtotal">$0</strong> &nbsp;|&nbsp;
+      Descuentos: <strong id="cotPreviewDescuentos">$0</strong> &nbsp;|&nbsp;
+      Impuesto: <strong id="cotPreviewImpuesto">$0</strong> &nbsp;|&nbsp;
+      <span style="font-size:17px;">Total: <strong id="cotPreviewTotal">$0</strong></span>
+    </div>
+
+    <button class="btn-custom" style="width:100%;" onclick="conIndicadorCarga(this, guardarCotizacion)">Guardar Cotización</button>
+  </div>
+</div>
+
+<!-- MODAL: AGREGAR / EDITAR ÍTEM (compartido entre Cotización y Factura) -->
+<div class="modal-overlay" id="modalItemComercial">
+  <div class="modal-box" style="max-width:540px;">
+    <button class="close-modal" onclick="cerrarModal('modalItemComercial')">✖</button>
+    <h3 id="tituloModalItemComercial">📦 Agregar Ítem</h3>
+    <input type="hidden" id="itemComPrefijo">
+    <input type="hidden" id="itemComIndice">
+    <label>Producto del inventario (o déjalo en blanco para un ítem esporádico, solo de este documento):</label>
+    <select id="itemComInventarioSelect" onchange="autocompletarItemComercialDesdeInventario()"></select>
+    <label>Nombre:</label><input type="text" id="itemComNombre" placeholder="Nombre del producto/servicio">
+    <label>Descripción:</label><textarea id="itemComDescripcion" rows="2" placeholder="Detalles, especificaciones (opcional)"></textarea>
+    <div class="field-row">
+      <div><label>Cantidad:</label><input type="number" id="itemComCantidad" value="1" min="1" oninput="actualizarPreviewItemComercial()"></div>
+      <div><label>Precio unitario:</label><input type="number" id="itemComPrecio" value="0" oninput="actualizarPreviewItemComercial()"></div>
+      <div><label>Descuento (%):</label><input type="number" id="itemComDescuento" value="0" step="0.1" oninput="actualizarPreviewItemComercial()"></div>
+    </div>
+    <div style="background:#eff6ff;border-radius:8px;padding:10px;margin:10px 0;text-align:right;">
+      Subtotal de este ítem: <strong id="itemComPreviewSubtotal" style="font-size:16px;">$0</strong>
+    </div>
+    <button class="btn-custom" style="width:100%;" onclick="guardarItemComercialDesdeModal()">Guardar Ítem</button>
+  </div>
+</div>
+
+<!-- MODAL: NUEVA / EDITAR FACTURA -->
+<div class="modal-overlay" id="modalFactura">
+  <div class="modal-box" id="cajaModalFactura" style="max-width:720px;">
+    <div style="position:absolute;top:14px;right:44px;display:flex;gap:6px;">
+      <button class="btn-modal-control" onclick="toggleAmpliarModal('cajaModalFactura', this)" title="Ampliar / Restaurar"><i class="fas fa-expand"></i></button>
+    </div>
+    <button class="close-modal" onclick="cerrarModal('modalFactura')">✖</button>
+    <h3 id="tituloModalFactura">🧾 Nueva Factura <span id="badgeBorradorFac" style="display:none;font-size:10px;font-weight:700;background:#e2e8f0;color:#475569;padding:3px 9px;border-radius:10px;vertical-align:middle;">BORRADOR</span></h3>
+    <input type="hidden" id="facId">
+    <input type="hidden" id="facCotizacionOrigenId">
+
+    <div class="form-seccion">
+      <div class="form-seccion-titulo">👤 Cliente</div>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:normal;">
+        <input type="checkbox" id="facClienteEsNuevo" style="width:auto;" onchange="toggleClienteFactura()"> Cliente no registrado (ingresar datos manualmente)
+      </label>
+      <div id="wrapperFacClienteRegistrado" style="position:relative;">
+        <label>Cliente:</label>
+        <input type="text" id="facClienteBuscador" placeholder="Escribe el nombre del cliente..." autocomplete="off"
+          oninput="filtrarClientesFactura()" onfocus="filtrarClientesFactura()" onblur="setTimeout(()=>document.getElementById('facClienteResultados').classList.remove('abierto'),150)">
+        <input type="hidden" id="facCliente">
+        <div id="facClienteResultados" class="autocomplete-resultados"></div>
+      </div>
+      <div id="wrapperFacClienteManual" style="display:none;">
+        <div class="field-row">
+          <div><label>Nombre:</label><input type="text" id="facClienteManualNombre" placeholder="Nombre completo"></div>
+          <div><label>Teléfono:</label><input type="text" id="facClienteManualTelefono" placeholder="Teléfono (para WhatsApp)"></div>
+          <div><label>Correo:</label><input type="email" id="facClienteManualEmail" placeholder="correo@ejemplo.com"></div>
+          <div><label>Documento:</label><input type="text" id="facClienteManualDocumento" placeholder="NIT / Cédula (opcional)"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-seccion">
+      <div class="form-seccion-titulo" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>📦 Ítems</span>
+        <button class="btn-custom btn-sm-custom" onclick="abrirModalItemComercial('fac')">+ Agregar Ítem</button>
+      </div>
+      <table class="data-table" style="margin-top:6px;">
+        <thead><tr><th style="width:20px;"></th><th>Ítem</th><th>Descripción</th><th>Cant.</th><th>Precio Unit.</th><th>Desc.</th><th>Subtotal</th><th></th></tr></thead>
+        <tbody id="tablaItemsFac"></tbody>
+      </table>
+    </div>
+
+    <div class="field-row">
+      <div><label>Descuento general (%):</label><input type="number" id="facDescuentoGeneral" value="0" step="0.1" oninput="actualizarPreviewCotizacionFactura('fac')"></div>
+      <div><label>Impuesto (%):</label><input type="number" id="facImpuestoPorcentaje" value="0" step="0.1" oninput="actualizarPreviewCotizacionFactura('fac')"></div>
+      <div><label>Fecha límite de pago:</label><input type="date" id="facFechaVencimiento"></div>
+    </div>
+    <label>Notas / Términos y condiciones:</label>
+    <textarea id="facNotas" rows="2" placeholder="Forma de pago, garantía, etc. (opcional)"></textarea>
+
+    <div style="background:rgba(0,136,255,.1);border-radius:8px;padding:10px;margin:10px 0;text-align:right;font-size:13px;position:sticky;bottom:0;">
+      Subtotal: <strong id="facPreviewSubtotal">$0</strong> &nbsp;|&nbsp;
+      Descuentos: <strong id="facPreviewDescuentos">$0</strong> &nbsp;|&nbsp;
+      Impuesto: <strong id="facPreviewImpuesto">$0</strong> &nbsp;|&nbsp;
+      <span style="font-size:17px;">Total: <strong id="facPreviewTotal">$0</strong></span>
+    </div>
+
+    <button class="btn-custom" style="width:100%;" onclick="conIndicadorCarga(this, guardarFactura)">Guardar Factura</button>
+  </div>
+</div>
 <div class="modal-overlay" id="modalComprobanteNomina">
   <div class="modal-box" style="background:#fff;color:#333;">
     <button class="close-modal" style="color:#000;" onclick="cerrarModal('modalComprobanteNomina')">✖</button>
@@ -1642,7 +2026,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <label style="margin-top:12px;">Imágenes de referencia (fachada, entrada, punto de acceso):</label>
           <input type="file" id="cfgCliImagenInput" accept="image/*" multiple onchange="manejarImagenClienteUpload(event)">
           <div class="galeria-fotos" id="previewImagenesCliente"></div>
-          <button class="btn-custom" style="margin-top:12px;" onclick="guardarClienteConfig()">Guardar Cliente</button>
+          <button class="btn-custom" style="margin-top:12px;" onclick="conIndicadorCarga(this, guardarClienteConfig)">Guardar Cliente</button>
         </div>
         <div>
           <h4 style="margin-top:0;font-size:13px;">📋 Directorio de Clientes</h4>
@@ -1678,7 +2062,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <input type="hidden" id="cfgPlantId" value="">
           <label>Nombre de la plantilla:</label>
           <input type="text" id="cfgPlantNombre" placeholder="Ej. Mantenimiento Preventivo Cámaras">
-          <button class="btn-custom" style="margin-top:12px;" onclick="guardarPlantillaConfig()">Guardar Plantilla</button>
+          <button class="btn-custom" style="margin-top:12px;" onclick="conIndicadorCarga(this, guardarPlantillaConfig)">Guardar Plantilla</button>
         </div>
         <div>
           <h4 style="margin-top:0;font-size:13px;">📋 Plantillas Disponibles</h4>
@@ -1701,7 +2085,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
               <option value="foto">Foto específica del campo</option>
             </select>
           </div>
-          <button class="btn-custom" id="btnGuardarCampo" onclick="guardarCampoConfig()">+ Agregar Campo</button>
+          <button class="btn-custom" id="btnGuardarCampo" onclick="conIndicadorCarga(this, guardarCampoConfig)">+ Agregar Campo</button>
           <button class="btn-custom btn-secondary-custom" id="btnCancelarEdicionCampo" style="display:none;" onclick="cancelarEdicionCampo()">Cancelar edición</button>
         </div>
         <div id="wrapperCampoItems" style="display:none;">
@@ -1737,6 +2121,12 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
             <option value="administrativo">Administrativo</option>
           </select>
         </div>
+        <div><label>Cargo (para asistencia y reportes):</label>
+          <select id="cfgTecCargo">
+            <option value="Técnico">Técnico</option>
+            <option value="Auxiliar Técnico">Auxiliar Técnico</option>
+          </select>
+        </div>
         <div style="display:flex;align-items:center;">
           <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin:0 0 8px 0;">
             <input type="checkbox" id="cfgTecAccesoTotal" style="width:auto;" onchange="renderizarChecklistPermisosPersonal()">
@@ -1749,7 +2139,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <div id="checklistPermisosPersonal" style="max-height:240px;overflow-y:auto;border:1px solid var(--card-border);border-radius:8px;padding:10px;margin-top:4px;"></div>
       </div>
       <div class="field-row" style="margin-top:12px;">
-        <button class="btn-custom" id="btnGuardarTecnico" onclick="guardarTecnicoConfig()">+ Añadir Personal</button>
+        <button class="btn-custom" id="btnGuardarTecnico" onclick="conIndicadorCarga(this, guardarTecnicoConfig)">+ Añadir Personal</button>
         <button class="btn-custom btn-secondary-custom" id="btnCancelarEdicionTecnico" style="display:none;" onclick="cancelarEdicionTecnico()">Cancelar</button>
       </div>
       <table class="data-table"><thead><tr><th>Nombre</th><th>Rol</th><th>Teléfono</th><th>Usuario</th><th>Contraseña</th><th>Acción</th></tr></thead><tbody id="tablaConfigTecnicosBody"></tbody></table>
@@ -1990,9 +2380,15 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <small style="display:block;margin-top:4px;color:var(--text-muted);">📐 Medida recomendada: <strong>1600 × 500 px</strong> (panorámica), formato JPG. Puedes seleccionar varias imágenes a la vez.</small>
           <div class="galeria-fotos" id="previewBannerTienda"></div>
 
-          <h4 style="font-size:13px;">🖼️ Pasarela de imágenes (galería/carrusel)</h4>
-          <p style="font-size:11px;color:var(--text-muted);">Imágenes adicionales para mostrar en un carrusel dentro de la tienda (proyectos, instalaciones, marcas que manejas, etc.).</p>
+          <h4 style="font-size:13px;">🖼️ Tira de fotos (desplazamiento horizontal)</h4>
+          <p style="font-size:11px;color:var(--text-muted);">Imágenes adicionales en una tira que se desliza horizontalmente (marcas, instalaciones, etc.).</p>
           <input type="file" id="inputGaleriaTienda" accept="image/*" multiple onchange="subirGaleriaTienda(event)">
+
+          <h4 style="font-size:13px;">🎠 Carrusel de Imágenes (con flechas y puntos de navegación)</h4>
+          <p style="font-size:11px;color:var(--text-muted);">Se muestra al inicio de la tienda, con transición suave, controles de navegación y rotación automática. Puedes agregar una descripción breve a cada imagen y reordenarlas.</p>
+          <input type="file" id="inputCarruselImagenes" accept="image/*" multiple onchange="subirImagenesCarrusel(event)">
+          <small style="display:block;margin:4px 0 10px;color:var(--text-muted);">📐 Medida recomendada: <strong>1600 × 1000 px</strong> (panorámica), formato JPG. Puedes seleccionar varias a la vez.</small>
+          <div id="adminCarruselImagenes"></div>
           <small style="display:block;margin-top:4px;color:var(--text-muted);">📐 Medida recomendada: <strong>800 × 600 px</strong>, formato JPG. Puedes seleccionar varias imágenes a la vez.</small>
           <div class="galeria-fotos" id="previewGaleriaTienda"></div>
         </div>
@@ -2094,19 +2490,20 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=53"></script>
-<script src="utilidades-navegacion.js?v=53"></script>
-<script src="buscador-agenda.js?v=53"></script>
-<script src="ordenes.js?v=53"></script>
-<script src="equipos-trazabilidad.js?v=53"></script>
-<script src="pdf.js?v=53"></script>
-<script src="config-clientes-equipos.js?v=53"></script>
-<script src="config-plantillas-tecnicos.js?v=53"></script>
-<script src="cotizador.js?v=53"></script>
-<script src="config-general.js?v=53"></script>
-<script src="inventario.js?v=53"></script>
-<script src="tienda-admin.js?v=53"></script>
-<script src="tienda-publica.js?v=53"></script>
-<script src="kpi.js?v=53"></script>
+<script src="core.js?v=85"></script>
+<script src="utilidades-navegacion.js?v=85"></script>
+<script src="buscador-agenda.js?v=85"></script>
+<script src="ordenes.js?v=85"></script>
+<script src="equipos-trazabilidad.js?v=85"></script>
+<script src="pdf.js?v=85"></script>
+<script src="config-clientes-equipos.js?v=85"></script>
+<script src="config-plantillas-tecnicos.js?v=85"></script>
+<script src="cotizador.js?v=85"></script>
+<script src="asistencia.js?v=1"></script>
+<script src="config-general.js?v=85"></script>
+<script src="inventario.js?v=85"></script>
+<script src="tienda-admin.js?v=85"></script>
+<script src="tienda-publica.js?v=85"></script>
+<script src="kpi.js?v=85"></script>
 </body>
 </html>

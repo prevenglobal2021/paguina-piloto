@@ -46,7 +46,23 @@ function nuevaPersonaLiquidacionVacia(){
 function toggleTecnicoLiquidacion(tecnicoId, marcado){
   const id = String(tecnicoId);
   if(marcado){
-    liquidacionEstado[id] = liquidacionEstado[id] || nuevaPersonaLiquidacionVacia();
+    const persona = nuevaPersonaLiquidacionVacia();
+    // Si el módulo de Asistencia y Turnos tiene registros de este técnico en
+    // el período que se está liquidando, se precargan solos los días y las
+    // horas — el administrador igual puede ajustarlos a mano después.
+    if(typeof precargarAsistenciaEnNomina === 'function'){
+      const desde = document.getElementById('liqPeriodoDesde').value;
+      const hasta = document.getElementById('liqPeriodoHasta').value;
+      if(desde && hasta){
+        const resumen = precargarAsistenciaEnNomina(tecnicoId, desde, hasta);
+        if(resumen.diasLaborados > 0){
+          persona.dias = resumen.diasLaborados;
+          persona.horas = resumen.horasOrdinarias;
+          persona.horasExtraAsistencia = resumen.horasExtra;
+        }
+      }
+    }
+    liquidacionEstado[id] = persona;
   } else {
     delete liquidacionEstado[id];
   }
@@ -120,6 +136,7 @@ function renderizarTarjetaPersonaLiquidacion(id){
       ${camposCantidad}
       <div><label style="font-size:11px;">Valor base</label><input type="text" disabled id="valorBase-${id}" value="${formatoCOP(valorBase)}"></div>
     </div>
+    ${persona.horasExtraAsistencia ? `<p style="font-size:11px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;margin:6px 0 0;"><i class="fas fa-clock"></i> Asistencia registra <strong>${persona.horasExtraAsistencia} horas extra</strong> en este período — agrégalas como ajuste si corresponde pagarlas.</p>` : ''}
     <label style="font-size:11px;margin-top:8px;">Ajustes / bonificaciones (+)</label>
     ${filasAjustes}
     <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarItemLiquidacion('${id}','ajustes')">+ Agregar ajuste</button>
@@ -266,31 +283,68 @@ function renderizarHistorialNomina(){
   // se crearon — ya no depende del orden en que casualmente quedaron guardadas.
   lista = lista.sort((a,b)=> b.fecha.localeCompare(a.fecha) || b.id - a.id);
 
-  document.getElementById('tablaNomina').innerHTML = lista.map(l=>{
-    const nombreMostrado = l.esOcasional
-      ? `${l.personalOcasionalNombre||'—'} <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;">OCASIONAL</span>`
-      : (buscarTecnico(l.tecnicoId)?.nombre || '—');
-    const infoEstadoPago = infoEstadoPagoNomina(l.estadoPago);
-    const estadoPagoHtml = `<span style="font-size:10px;font-weight:700;background:${infoEstadoPago.fondo};color:${infoEstadoPago.texto};padding:3px 10px;border-radius:12px;white-space:nowrap;" title="${l.montoAbonado ? 'Abonado: '+formatoCOP(l.montoAbonado)+' de '+formatoCOP(l.totalNeto) : ''}"><i class="fas ${infoEstadoPago.icono}"></i> ${infoEstadoPago.etiqueta}</span>`;
-    return `<tr>
-      <td>${l.numero}</td><td>${nombreMostrado}</td><td>${l.periodoDesde} a ${l.periodoHasta}</td>
-      <td>${formatoCOP(l.totalNeto)}</td>
-      <td>${estadoPagoHtml}</td>
-      <td>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verComprobanteNomina(${l.id})"><i class="fas fa-file-invoice"></i> Ver comprobante</button>
-        <button class="btn-custom btn-success-custom btn-sm-custom solo-admin" data-permiso="nomina_editar" onclick="cambiarEstadoPagoNomina(${l.id})"><i class="fas fa-hand-holding-dollar"></i> Estado de pago</button>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="nomina_editar" onclick="editarLiquidacionNomina(${l.id})"><i class="fas fa-pen"></i> Editar</button>
-        <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" data-permiso="nomina_eliminar" onclick="eliminarLiquidacionNomina(${l.id})"><i class="fas fa-trash"></i> Eliminar</button>
+  // Una paleta fija de colores para distinguir cada período/corte a simple
+  // vista — se asigna siempre en el mismo orden según la fecha del período,
+  // así el mismo corte se ve siempre del mismo color entre sesiones.
+  const PALETA_PERIODOS_NOMINA = [
+    { fondo:'#eff6ff', borde:'#bfdbfe', texto:'#1e3a5f', barra:'#3b82f6' },
+    { fondo:'#f0fdf4', borde:'#bbf7d0', texto:'#166534', barra:'#22c55e' },
+    { fondo:'#fef3c7', borde:'#fde68a', texto:'#92400e', barra:'#f59e0b' },
+    { fondo:'#fae8ff', borde:'#f5d0fe', texto:'#86198f', barra:'#d946ef' },
+    { fondo:'#ecfeff', borde:'#a5f3fc', texto:'#155e75', barra:'#06b6d4' },
+    { fondo:'#fff1f2', borde:'#fecdd3', texto:'#9f1239', barra:'#f43f5e' },
+  ];
+  // Agrupa las liquidaciones ya filtradas/ordenadas por su período exacto
+  // (mismo "Desde" y "Hasta"), conservando el orden (más reciente primero).
+  const gruposPorPeriodo = [];
+  const indicePorClave = {};
+  lista.forEach(l=>{
+    const clave = `${l.periodoDesde}|${l.periodoHasta}`;
+    if(!(clave in indicePorClave)){
+      indicePorClave[clave] = gruposPorPeriodo.length;
+      gruposPorPeriodo.push({ periodoDesde:l.periodoDesde, periodoHasta:l.periodoHasta, registros:[] });
+    }
+    gruposPorPeriodo[indicePorClave[clave]].registros.push(l);
+  });
+
+  document.getElementById('tablaNomina').innerHTML = gruposPorPeriodo.map((grupo, idx)=>{
+    const color = PALETA_PERIODOS_NOMINA[idx % PALETA_PERIODOS_NOMINA.length];
+    const totalPeriodo = grupo.registros.reduce((s,l)=>s+l.totalNeto, 0);
+    const filaEncabezado = `<tr style="background:${color.fondo};">
+      <td colspan="6" style="border-left:4px solid ${color.barra};color:${color.texto};font-weight:700;padding:8px 12px;">
+        📅 Período: ${grupo.periodoDesde} a ${grupo.periodoHasta}
+        <span style="float:right;">${grupo.registros.length} persona${grupo.registros.length===1?'':'s'} — Total del período: ${formatoCOP(totalPeriodo)}</span>
       </td>
     </tr>`;
+    const filas = grupo.registros.map(l=>{
+      const nombreMostrado = l.esOcasional
+        ? `${l.personalOcasionalNombre||'—'} <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;">OCASIONAL</span>`
+        : (buscarTecnico(l.tecnicoId)?.nombre || '—');
+      const infoEstadoPago = infoEstadoPagoNomina(l.estadoPago);
+      const estadoPagoHtml = `<span style="font-size:10px;font-weight:700;background:${infoEstadoPago.fondo};color:${infoEstadoPago.texto};padding:3px 10px;border-radius:12px;white-space:nowrap;" title="${l.montoAbonado ? 'Abonado: '+formatoCOP(l.montoAbonado)+' de '+formatoCOP(l.totalNeto) : ''}"><i class="fas ${infoEstadoPago.icono}"></i> ${infoEstadoPago.etiqueta}</span>`;
+      return `<tr style="border-left:4px solid ${color.borde};">
+        <td>${l.numero}</td><td>${nombreMostrado}</td><td>${l.periodoDesde} a ${l.periodoHasta}</td>
+        <td>${formatoCOP(l.totalNeto)}</td>
+        <td>${estadoPagoHtml}</td>
+        <td>
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verComprobanteNomina(${l.id})"><i class="fas fa-file-invoice"></i> Ver comprobante</button>
+          <button class="btn-custom btn-success-custom btn-sm-custom solo-admin" data-permiso="nomina_editar" onclick="cambiarEstadoPagoNomina(${l.id})"><i class="fas fa-hand-holding-dollar"></i> Estado de pago</button>
+          <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="nomina_editar" onclick="editarLiquidacionNomina(${l.id})"><i class="fas fa-pen"></i> Editar</button>
+          <button class="btn-custom btn-danger-custom btn-sm-custom solo-admin" data-permiso="nomina_eliminar" onclick="eliminarLiquidacionNomina(${l.id})"><i class="fas fa-trash"></i> Eliminar</button>
+        </td>
+      </tr>`;
+    }).join('');
+    return filaEncabezado + filas;
   }).join('') || '<tr><td colspan="6" class="empty-state">Sin liquidaciones que coincidan con la búsqueda.</td></tr>';
 
-  // Total general de justo lo que está filtrado/visible en la tabla en este momento.
+  // Total general de TODOS los períodos juntos — separado y con menor
+  // protagonismo que los totales individuales de cada período, que ya se
+  // ven arriba en su propio encabezado de color.
   const totalGeneral = lista.reduce((suma,l)=>suma + l.totalNeto, 0);
   const pieTabla = document.getElementById('pieTotalNomina');
   if(pieTabla){
     pieTabla.innerHTML = lista.length
-      ? `<tr style="font-weight:700;background:#eff6ff;color:#1e3a5f;border-top:2px solid #bfdbfe;"><td colspan="3" style="text-align:right;">Total (${lista.length} comprobante${lista.length===1?'':'s'}):</td><td colspan="3">${formatoCOP(totalGeneral)}</td></tr>`
+      ? `<tr style="font-weight:700;background:#f1f5f9;color:#334155;border-top:2px solid #cbd5e1;"><td colspan="3" style="text-align:right;">Suma general de los ${gruposPorPeriodo.length} período${gruposPorPeriodo.length===1?'':'s'} (${lista.length} comprobante${lista.length===1?'':'s'}):</td><td colspan="3">${formatoCOP(totalGeneral)}</td></tr>`
       : '';
   }
   aplicarRBACaUI();
@@ -369,7 +423,7 @@ function enviarComprobanteNominaPorWhatsApp(id){
   verComprobanteNomina(id); // arma el contenido del comprobante en #comprobanteNominaContenido
   const nombreArchivo = `Comprobante_${l.numero}_${t.nombre}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
   const elemento = document.getElementById('comprobanteNominaContenido');
-  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
+  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
 
   if(typeof html2pdf === 'undefined'){
     if(puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
@@ -448,6 +502,7 @@ async function eliminarIngreso(id){
     mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
     return;
   }
+  mostrarToast('✅ Ingreso eliminado.', 'exito');
   renderizarContabilidad();
 }
 async function agregarGasto(){
@@ -474,21 +529,49 @@ async function agregarGasto(){
   mostrarToast(`✅ Gasto registrado: ${categoria} — ${formatoCOP(monto)}`, 'exito');
 }
 async function eliminarGasto(id){
-  if(!confirm('¿Eliminar este gasto?')) return;
+  const gasto = db.gastos.find(g=>g.id===id);
+  const mensaje = gasto && gasto.origenNominaId
+    ? '⚠️ Este gasto se generó automáticamente desde una liquidación de Nómina. Si lo eliminas aquí, la nómina seguirá marcada como pagada, pero ya no quedará reflejada en Gastos. ¿Eliminar de todas formas?'
+    : '¿Eliminar este gasto?';
+  if(!confirm(mensaje)) return;
   const listaAnterior = db.gastos.slice();
   db.gastos = db.gastos.filter(g=>g.id!==id);
+  // Si el gasto venía de una nómina, se ajusta el rastreo de esa nómina para
+  // que, si más adelante se vuelve a tocar su estado de pago, no se pierda
+  // la cuenta de lo que ya se había reflejado en Gastos.
+  let liquidacionAfectada = null, montoAnteriorLiquidacion = null;
+  if(gasto && gasto.origenNominaId){
+    liquidacionAfectada = (db.liquidacionesNomina||[]).find(l=>l.id===gasto.origenNominaId);
+    if(liquidacionAfectada){
+      montoAnteriorLiquidacion = liquidacionAfectada.montoRegistradoComoGasto;
+      liquidacionAfectada.montoRegistradoComoGasto = Math.max(0, (liquidacionAfectada.montoRegistradoComoGasto||0) - gasto.monto);
+    }
+  }
   registrarEliminacion('gastos', id);
   try{
     await dbGuardarInmediato();
   }catch(err){
     db.gastos = listaAnterior;
+    if(liquidacionAfectada) liquidacionAfectada.montoRegistradoComoGasto = montoAnteriorLiquidacion;
     mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
     return;
   }
+  mostrarToast('✅ Gasto eliminado.', 'exito');
   renderizarContabilidad();
+}
+// Cambia entre las 4 pestañas del módulo de Negocio/Contabilidad. Todo el
+// contenido de cada pestaña ya existe en la página (nunca se destruye ni se
+// vuelve a crear al cambiar) — esto solo cambia cuál está visible, por eso
+// el cambio es instantáneo y ningún dato ni función se ve afectada.
+function cambiarTabContabilidad(event, nombre){
+  document.querySelectorAll('.conta-tab-content').forEach(el=>el.classList.remove('activo'));
+  document.querySelectorAll('.conta-tab-btn').forEach(el=>el.classList.remove('activo'));
+  document.getElementById('contaTab'+nombre).classList.add('activo');
+  event.currentTarget.classList.add('activo');
 }
 function renderizarContabilidad(){
   db.liquidacionesNomina = db.liquidacionesNomina || []; db.gastos = db.gastos || []; db.pedidosTienda = db.pedidosTienda || []; db.ingresos = db.ingresos || [];
+  renderizarCotizacionesFacturas();
   const filtroMes = document.getElementById('contaMesFiltro');
   if(!filtroMes.value) filtroMes.value = mesActualISO();
   const mes = filtroMes.value; // "YYYY-MM"
@@ -497,6 +580,13 @@ function renderizarContabilidad(){
   const gastosDelMes = db.gastos.filter(g=>g.fecha && g.fecha.startsWith(mes));
   const pedidosDelMes = db.pedidosTienda.filter(p=>p.fecha && p.fecha.startsWith(mes));
   const ingresosDelMes = db.ingresos.filter(i=>i.fecha && i.fecha.startsWith(mes));
+  const textoBusqueda = (document.getElementById('contaBuscarTexto')?.value || '').trim().toLowerCase();
+  const ingresosFiltrados = !textoBusqueda ? ingresosDelMes : ingresosDelMes.filter(i=>{
+    const nombreCli = i.esClienteEsporadico ? i.clienteEsporadicoNombre : (i.clienteId ? (buscarCliente(i.clienteId)?.nombre||'') : '');
+    return (i.concepto||'').toLowerCase().includes(textoBusqueda) || (nombreCli||'').toLowerCase().includes(textoBusqueda);
+  });
+  const gastosFiltrados = !textoBusqueda ? gastosDelMes : gastosDelMes.filter(g=>
+    (g.descripcion||'').toLowerCase().includes(textoBusqueda) || (g.categoria||'').toLowerCase().includes(textoBusqueda));
 
   const totalNomina = nominaDelMes.reduce((a,l)=>a+l.totalNeto,0);
   const totalGastos = gastosDelMes.reduce((a,g)=>a+g.monto,0);
@@ -517,17 +607,19 @@ function renderizarContabilidad(){
   selIngresoCliente.innerHTML = '<option value="">(Ninguno / general)</option>' + db.clientes.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
   selIngresoCliente.value = valorSelActual;
 
-  document.getElementById('tablaIngresos').innerHTML = ingresosDelMes.slice().reverse().map(i=>{
+  document.getElementById('tablaIngresos').innerHTML = ingresosFiltrados.slice().reverse().map(i=>{
     const nombreCliente = i.esClienteEsporadico
       ? `${i.clienteEsporadicoNombre||'—'} <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;">ESPORÁDICO</span>`
       : (i.clienteId ? (buscarCliente(i.clienteId)?.nombre || '—') : '<span style="color:var(--text-muted);">General</span>');
     return `<tr><td>${i.fecha}</td><td>${nombreCliente}</td><td>${i.concepto}</td><td>${formatoCOP(i.monto)}</td>
       <td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarIngreso(${i.id})">X</button></td></tr>`;
-  }).join('') || '<tr><td colspan="5" class="empty-state">Sin ingresos manuales registrados este mes.</td></tr>';
+  }).join('') || `<tr><td colspan="5" class="empty-state">${textoBusqueda ? 'Sin ingresos que coincidan con "'+document.getElementById('contaBuscarTexto').value+'".' : 'Sin ingresos manuales registrados este mes.'}</td></tr>`;
 
-  document.getElementById('tablaGastos').innerHTML = gastosDelMes.map(g=>`
-    <tr><td>${g.fecha}</td><td>${g.categoria}</td><td>${g.descripcion}</td><td>${formatoCOP(g.monto)}</td>
-      <td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarGasto(${g.id})">X</button></td></tr>`).join('') || '<tr><td colspan="5" class="empty-state">Sin gastos registrados este mes.</td></tr>';
+  document.getElementById('tablaGastos').innerHTML = gastosFiltrados.map(g=>{
+    const etiquetaCategoria = g.origenNominaId ? `${g.categoria} <span title="Este gasto se generó automáticamente al marcar una nómina como pagada" style="font-size:9px;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:8px;"><i class="fas fa-link"></i> Automático</span>` : g.categoria;
+    return `<tr><td>${g.fecha}</td><td>${etiquetaCategoria}</td><td>${g.descripcion}</td><td>${formatoCOP(g.monto)}</td>
+      <td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarGasto(${g.id})">X</button></td></tr>`;
+  }).join('') || `<tr><td colspan="5" class="empty-state">${textoBusqueda ? 'Sin gastos que coincidan con "'+document.getElementById('contaBuscarTexto').value+'".' : 'Sin gastos registrados este mes.'}</td></tr>`;
 
   document.getElementById('tablaPedidosTiendaConta').innerHTML = pedidosDelMes.map(p=>`
     <tr><td>${p.numero}</td><td>${new Date(p.fecha).toLocaleDateString('es-CO')}</td><td>${p.nombre}</td><td>${formatoCOP(p.total)}</td><td><small>${p.estadoPago}</small></td></tr>`).join('') || '<tr><td colspan="5" class="empty-state">Sin pedidos de la tienda este mes.</td></tr>';
@@ -540,12 +632,19 @@ function renderizarContabilidad(){
   renderizarControlOperativo();
   renderizarCuadroMandoAnual();
 }
-function guardarParametrosCotizador(){
+async function guardarParametrosCotizador(){
+  const respaldo = { recargoMateriales: db.config.recargoMateriales, porcentajePagoTercero: db.config.porcentajePagoTercero, metaMensualUtilidad: db.config.metaMensualUtilidad };
   db.config.recargoMateriales = parseFloat(document.getElementById('cfgRecargoMateriales').value) || 1.3;
   db.config.porcentajePagoTercero = parseFloat(document.getElementById('cfgPorcentajeTercero').value) || 0;
   db.config.metaMensualUtilidad = parseFloat(document.getElementById('cfgMetaMensual').value) || 0;
-  dbGuardarInmediato();
-  mostrarToast('Parámetros del cotizador guardados.');
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    Object.assign(db.config, respaldo);
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
+  mostrarToast('✅ Parámetros del cotizador guardados.', 'exito');
   renderizarCuadroMandoAnual();
 }
 function calcularManoDeObra(horas, comp, valorHora){
@@ -625,18 +724,32 @@ async function agregarControlOperativo(){
   renderizarContabilidad();
   mostrarToast(`✅ Servicio agregado: ${servicioCliente} — ${formatoCOP(precioCliente)}`, 'exito');
 }
-function eliminarControlOperativo(id){
+async function eliminarControlOperativo(id){
   if(!confirm('¿Eliminar este registro del control operativo?')) return;
+  const respaldo = db.controlOperativo.slice();
   db.controlOperativo = db.controlOperativo.filter(r=>r.id!==id);
-  dbGuardarInmediato();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.controlOperativo = respaldo;
+    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
+    return;
+  }
   renderizarControlOperativo();
   renderizarCuadroMandoAnual();
 }
-function cambiarEstadoControlOperativo(id, campo, valor){
+async function cambiarEstadoControlOperativo(id, campo, valor){
   const r = (db.controlOperativo||[]).find(x=>x.id===id);
   if(!r) return;
+  const anterior = r[campo];
   r[campo] = valor;
-  dbGuardarInmediato();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    r[campo] = anterior;
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
   renderizarCuadroMandoAnual();
 }
 function renderizarControlOperativo(){
@@ -846,6 +959,52 @@ function toggleMontoAbonadoNomina(){
   const estado = document.getElementById('selEstadoPagoNomina').value;
   document.getElementById('wrapperMontoAbonadoNomina').style.display = (estado==='parcial' || estado==='abonado') ? 'block' : 'none';
 }
+// Mantiene sincronizado el Registro de Gastos con el estado de pago real de
+// cada nómina — sin importar cuántas veces se cambie el estado (marcar,
+// desmarcar, abonar más, completar después), nunca queda un gasto duplicado
+// ni de más: siempre se ajusta a la diferencia exacta desde el último cambio.
+function sincronizarGastoDesdeNomina(l){
+  const yaRegistrado = l.montoRegistradoComoGasto || 0;
+  const debeEstarPagado = l.estadoPago==='pagado' ? l.totalNeto : (l.estadoPago==='parcial'||l.estadoPago==='abonado') ? (l.montoAbonado||0) : 0;
+  if(debeEstarPagado === yaRegistrado) return; // nada cambió realmente, no hay nada que sincronizar
+
+  const nombrePersona = l.esOcasional ? (l.personalOcasionalNombre||'—') : (buscarTecnico(l.tecnicoId)?.nombre||'—');
+  db.gastos = db.gastos || [];
+
+  if(debeEstarPagado === 0){
+    // Se volvió a marcar como "Pendiente" — se retira por completo el/los
+    // gasto(s) que se habían generado para esta nómina, para que no quede
+    // reflejado un pago que en realidad no se hizo (o ya no está confirmado).
+    db.gastos = db.gastos.filter(g=>g.origenNominaId !== l.id);
+  } else if(debeEstarPagado > yaRegistrado){
+    // Aumentó lo pagado (primer pago, o un abono adicional, o se completó
+    // después de un abono) — se agrega SOLO la diferencia como un gasto
+    // nuevo, nunca el total de nuevo.
+    const diferencia = debeEstarPagado - yaRegistrado;
+    db.gastos.push({
+      id: Date.now() + Math.floor(Math.random()*1000),
+      categoria: 'Nómina',
+      descripcion: `Pago de nómina — ${nombrePersona} — periodo ${l.periodoDesde} a ${l.periodoHasta} (${l.numero})`,
+      monto: diferencia,
+      fecha: l.fechaPago || new Date().toISOString().slice(0,10),
+      origenNominaId: l.id
+    });
+  } else {
+    // Disminuyó lo pagado (por ejemplo, se corrigió un abono hacia abajo) —
+    // se retiran los gastos previos de esta nómina y se registra uno solo
+    // con el monto correcto y actualizado, para no dejar cifras de más.
+    db.gastos = db.gastos.filter(g=>g.origenNominaId !== l.id);
+    db.gastos.push({
+      id: Date.now() + Math.floor(Math.random()*1000),
+      categoria: 'Nómina',
+      descripcion: `Pago de nómina — ${nombrePersona} — periodo ${l.periodoDesde} a ${l.periodoHasta} (${l.numero})`,
+      monto: debeEstarPagado,
+      fecha: l.fechaPago || new Date().toISOString().slice(0,10),
+      origenNominaId: l.id
+    });
+  }
+  l.montoRegistradoComoGasto = debeEstarPagado;
+}
 async function guardarEstadoPagoNomina(){
   const l = (db.liquidacionesNomina||[]).find(x=>x.id===nominaEstadoPagoActualId);
   if(!l) return;
@@ -857,14 +1016,17 @@ async function guardarEstadoPagoNomina(){
     if(!montoAbonado || montoAbonado<=0){ mostrarToast('Escribe el monto abonado hasta ahora.'); return; }
     if(montoAbonado >= l.totalNeto){ mostrarToast('El monto abonado no puede ser igual o mayor al total — para eso usa "Pagada completa".'); return; }
   }
-  const respaldo = { estadoPago: l.estadoPago, fechaPago: l.fechaPago, montoAbonado: l.montoAbonado };
+  const respaldo = { estadoPago: l.estadoPago, fechaPago: l.fechaPago, montoAbonado: l.montoAbonado, montoRegistradoComoGasto: l.montoRegistradoComoGasto };
+  const gastosRespaldo = (db.gastos||[]).slice();
   l.estadoPago = nuevoEstado;
   l.fechaPago = nuevoEstado==='pendiente' ? null : new Date().toISOString().slice(0,10);
   l.montoAbonado = montoAbonado;
+  sincronizarGastoDesdeNomina(l);
   try{
     await dbGuardarInmediato();
   }catch(err){
     Object.assign(l, respaldo);
+    db.gastos = gastosRespaldo;
     mostrarToast('⚠️ No se pudo actualizar el estado de pago: ' + err.message, 'error');
     return;
   }
@@ -922,3 +1084,630 @@ function eliminarLiquidacionNomina(id){
   });
 }
 
+
+/* =========================================================
+   COTIZACIÓN Y FACTURACIÓN — Negocio / Contabilidad
+========================================================= */
+let itemsCotTemp = [];
+let itemsFacTemp = [];
+
+function itemsTempDe(prefijo){ return prefijo==='cot' ? itemsCotTemp : itemsFacTemp; }
+
+// --- Buscador de cliente (reutilizable entre Cotización y Factura) ---
+function buscarYRenderizarClientesComercial(idInput, idResultados, nombreFuncionSeleccionar){
+  const texto = document.getElementById(idInput).value.trim().toLowerCase();
+  const cont = document.getElementById(idResultados);
+  const resultados = db.clientes.filter(c=>!texto || c.nombre.toLowerCase().includes(texto)).slice(0,30);
+  if(!resultados.length){
+    cont.innerHTML = '<div class="autocomplete-item" style="cursor:default;color:#94a3b8;">Sin resultados para esa búsqueda</div>';
+  } else {
+    cont.innerHTML = resultados.map(c=>`
+      <div class="autocomplete-item" onmousedown="${nombreFuncionSeleccionar}(${c.id})">
+        <span class="autocomplete-item-avatar">${(c.nombre||'?').trim().charAt(0).toUpperCase()}</span>
+        <span style="flex:1;min-width:0;">${resaltarCoincidencia(c.nombre, texto)}</span>
+      </div>`).join('');
+  }
+  cont.classList.add('abierto');
+}
+function toggleClienteCotizacion(){
+  const esNuevo = document.getElementById('cotClienteEsNuevo').checked;
+  document.getElementById('wrapperCotClienteRegistrado').style.display = esNuevo ? 'none' : 'block';
+  document.getElementById('wrapperCotClienteManual').style.display = esNuevo ? 'block' : 'none';
+}
+function filtrarClientesCotizacion(){ buscarYRenderizarClientesComercial('cotClienteBuscador','cotClienteResultados','seleccionarClienteCotizacion'); }
+function seleccionarClienteCotizacion(clienteId){
+  const c = buscarCliente(clienteId);
+  if(!c) return;
+  document.getElementById('cotClienteBuscador').value = c.nombre;
+  document.getElementById('cotCliente').value = clienteId;
+  document.getElementById('cotClienteResultados').classList.remove('abierto');
+}
+function toggleClienteFactura(){
+  const esNuevo = document.getElementById('facClienteEsNuevo').checked;
+  document.getElementById('wrapperFacClienteRegistrado').style.display = esNuevo ? 'none' : 'block';
+  document.getElementById('wrapperFacClienteManual').style.display = esNuevo ? 'block' : 'none';
+}
+function filtrarClientesFactura(){ buscarYRenderizarClientesComercial('facClienteBuscador','facClienteResultados','seleccionarClienteFactura'); }
+function seleccionarClienteFactura(clienteId){
+  const c = buscarCliente(clienteId);
+  if(!c) return;
+  document.getElementById('facClienteBuscador').value = c.nombre;
+  document.getElementById('facCliente').value = clienteId;
+  document.getElementById('facClienteResultados').classList.remove('abierto');
+}
+
+// --- Ítems (productos/servicios del inventario, o líneas libres) ---
+function poblarSelectItemsComercial(selectId){
+  document.getElementById(selectId).innerHTML = '<option value="">-- Ítem esporádico: escribir manualmente (no se guarda en el catálogo) --</option>' +
+    db.inventario.map(it=>`<option value="${it.id}">${it.nombre} (${formatoCOP(it.precio||0)})</option>`).join('');
+}
+function calcularSubtotalItem(cantidad, precioUnitario, descuentoPorcentaje){
+  const bruto = cantidad * precioUnitario;
+  const descuento = bruto * (descuentoPorcentaje||0) / 100;
+  return bruto - descuento;
+}
+
+// --- Modal de ítem (agregar o editar) — compartido entre Cotización y Factura ---
+function abrirModalItemComercial(prefijo, indice){
+  document.getElementById('itemComPrefijo').value = prefijo;
+  document.getElementById('itemComIndice').value = (indice===undefined || indice===null) ? '' : indice;
+  poblarSelectItemsComercial('itemComInventarioSelect');
+  document.getElementById('itemComInventarioSelect').value = '';
+
+  if(indice!==undefined && indice!==null){
+    const it = itemsTempDe(prefijo)[indice];
+    document.getElementById('tituloModalItemComercial').innerText = '📦 Editar Ítem';
+    document.getElementById('itemComNombre').value = it.descripcion || '';
+    document.getElementById('itemComDescripcion').value = it.descripcionExtra || '';
+    document.getElementById('itemComCantidad').value = it.cantidad || 1;
+    document.getElementById('itemComPrecio').value = it.precioUnitario || 0;
+    document.getElementById('itemComDescuento').value = it.descuentoPorcentaje || 0;
+    if(it.itemId) document.getElementById('itemComInventarioSelect').value = it.itemId;
+  } else {
+    document.getElementById('tituloModalItemComercial').innerText = '📦 Agregar Ítem';
+    document.getElementById('itemComNombre').value = '';
+    document.getElementById('itemComDescripcion').value = '';
+    document.getElementById('itemComCantidad').value = 1;
+    document.getElementById('itemComPrecio').value = 0;
+    document.getElementById('itemComDescuento').value = 0;
+  }
+  actualizarPreviewItemComercial();
+  abrirModal('modalItemComercial');
+}
+function autocompletarItemComercialDesdeInventario(){
+  const itemId = parseInt(document.getElementById('itemComInventarioSelect').value);
+  const it = db.inventario.find(x=>x.id===itemId);
+  if(!it) return;
+  document.getElementById('itemComNombre').value = it.nombre;
+  document.getElementById('itemComPrecio').value = it.precio || 0;
+  actualizarPreviewItemComercial();
+}
+function actualizarPreviewItemComercial(){
+  const cantidad = parseInt(document.getElementById('itemComCantidad').value) || 0;
+  const precio = parseFloat(document.getElementById('itemComPrecio').value) || 0;
+  const descuento = parseFloat(document.getElementById('itemComDescuento').value) || 0;
+  document.getElementById('itemComPreviewSubtotal').innerText = formatoCOP(calcularSubtotalItem(cantidad, precio, descuento));
+}
+function guardarItemComercialDesdeModal(){
+  const prefijo = document.getElementById('itemComPrefijo').value;
+  const indiceRaw = document.getElementById('itemComIndice').value;
+  const nombre = document.getElementById('itemComNombre').value.trim();
+  if(!nombre){ mostrarToast('Escribe el nombre del ítem.'); return; }
+  const cantidad = parseInt(document.getElementById('itemComCantidad').value) || 1;
+  const precioUnitario = parseFloat(document.getElementById('itemComPrecio').value) || 0;
+  const descuentoPorcentaje = parseFloat(document.getElementById('itemComDescuento').value) || 0;
+  const descripcionExtra = document.getElementById('itemComDescripcion').value.trim();
+  const itemIdRaw = document.getElementById('itemComInventarioSelect').value;
+  const item = {
+    tipo: itemIdRaw ? 'inventario' : 'libre', itemId: itemIdRaw ? parseInt(itemIdRaw) : null,
+    descripcion: nombre, descripcionExtra, cantidad, precioUnitario, descuentoPorcentaje,
+    subtotal: calcularSubtotalItem(cantidad, precioUnitario, descuentoPorcentaje)
+  };
+  const items = itemsTempDe(prefijo);
+  if(indiceRaw!==''){ items[parseInt(indiceRaw)] = item; } else { items.push(item); }
+  cerrarModal('modalItemComercial');
+  renderizarTablaItemsForm(prefijo);
+  actualizarPreviewCotizacionFactura(prefijo);
+  autoguardarBorrador(prefijo);
+}
+function duplicarItemComercial(prefijo, indice){
+  const items = itemsTempDe(prefijo);
+  const copia = JSON.parse(JSON.stringify(items[indice]));
+  items.splice(indice+1, 0, copia);
+  renderizarTablaItemsForm(prefijo);
+  actualizarPreviewCotizacionFactura(prefijo);
+  autoguardarBorrador(prefijo);
+}
+function eliminarItemFormCotizacionFactura(prefijo, indice){
+  itemsTempDe(prefijo).splice(indice,1);
+  renderizarTablaItemsForm(prefijo);
+  actualizarPreviewCotizacionFactura(prefijo);
+  autoguardarBorrador(prefijo);
+}
+
+// --- Reordenar arrastrando (drag & drop) ---
+let itemComercialArrastrandoIndice = null;
+function dragStartItemComercial(indice){ itemComercialArrastrandoIndice = indice; }
+function dropItemComercial(prefijo, indiceDestino){
+  if(itemComercialArrastrandoIndice===null || itemComercialArrastrandoIndice===indiceDestino) return;
+  const items = itemsTempDe(prefijo);
+  const [movido] = items.splice(itemComercialArrastrandoIndice, 1);
+  items.splice(indiceDestino, 0, movido);
+  itemComercialArrastrandoIndice = null;
+  renderizarTablaItemsForm(prefijo);
+  autoguardarBorrador(prefijo);
+}
+function renderizarTablaItemsForm(prefijo){
+  const items = itemsTempDe(prefijo);
+  const idTabla = prefijo==='cot' ? 'tablaItemsCot' : 'tablaItemsFac';
+  document.getElementById(idTabla).innerHTML = items.map((it,i)=>`
+    <tr draggable="true" ondragstart="dragStartItemComercial(${i})" ondragover="event.preventDefault()" ondrop="dropItemComercial('${prefijo}',${i})">
+      <td style="cursor:grab;text-align:center;color:var(--text-muted);" title="Arrastra para reordenar">⠿</td>
+      <td>${it.descripcion}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${it.descripcionExtra||'—'}</td>
+      <td>${it.cantidad}</td>
+      <td>${formatoCOP(it.precioUnitario)}</td>
+      <td>${it.descuentoPorcentaje ? it.descuentoPorcentaje+'%' : '—'}</td>
+      <td>${formatoCOP(it.subtotal)}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalItemComercial('${prefijo}',${i})" title="Editar"><i class="fas fa-pen"></i></button>
+        <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="duplicarItemComercial('${prefijo}',${i})" title="Duplicar"><i class="fas fa-copy"></i></button>
+        <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarItemFormCotizacionFactura('${prefijo}',${i})" title="Eliminar">✖</button>
+      </td>
+    </tr>`
+  ).join('') || '<tr><td colspan="8" class="empty-state">Sin ítems agregados todavía — usa "+ Agregar Ítem".</td></tr>';
+}
+function actualizarPreviewCotizacionFactura(prefijo){
+  const items = itemsTempDe(prefijo);
+  const subtotalBruto = items.reduce((s,it)=>s + it.cantidad*it.precioUnitario, 0);
+  const descuentoItems = items.reduce((s,it)=>s + (it.cantidad*it.precioUnitario*(it.descuentoPorcentaje||0)/100), 0);
+  const baseTrasDescuentoItems = subtotalBruto - descuentoItems;
+  const descuentoGeneralPorcentaje = parseFloat(document.getElementById(prefijo+'DescuentoGeneral')?.value) || 0;
+  const descuentoGeneral = baseTrasDescuentoItems * descuentoGeneralPorcentaje / 100;
+  const baseFinal = baseTrasDescuentoItems - descuentoGeneral;
+  const impuestoPorcentaje = parseFloat(document.getElementById(prefijo+'ImpuestoPorcentaje')?.value) || 0;
+  const impuesto = baseFinal * impuestoPorcentaje / 100;
+  const total = baseFinal + impuesto;
+  const descuentosTotales = descuentoItems + descuentoGeneral;
+  const idPrev = prefijo==='cot' ? 'cotPreview' : 'facPreview';
+  if(document.getElementById(idPrev+'Subtotal')){
+    document.getElementById(idPrev+'Subtotal').innerText = formatoCOP(subtotalBruto);
+    document.getElementById(idPrev+'Descuentos').innerText = formatoCOP(descuentosTotales);
+    document.getElementById(idPrev+'Impuesto').innerText = formatoCOP(impuesto);
+    document.getElementById(idPrev+'Total').innerText = formatoCOP(total);
+  }
+  return { subtotal: subtotalBruto, descuentoItems, descuentoGeneralPorcentaje, descuentoGeneral, descuentosTotales, impuestoPorcentaje, impuesto, total };
+}
+
+// --- Borrador automático: desde el primer ítem agregado, el documento ya
+// queda creado y se va actualizando solo, para no perder nada si el modal
+// se cierra por accidente antes de presionar "Guardar". ---
+async function autoguardarBorrador(prefijo){
+  const items = itemsTempDe(prefijo);
+  if(!items.length) return;
+  const idCampo = prefijo+'Id';
+  const idRaw = document.getElementById(idCampo).value;
+  const totales = actualizarPreviewCotizacionFactura(prefijo);
+  const coleccion = prefijo==='cot' ? 'cotizaciones' : 'facturas';
+  db[coleccion] = db[coleccion] || [];
+  let doc;
+  if(idRaw){
+    doc = db[coleccion].find(x=>x.id===parseInt(idRaw));
+  }
+  if(!doc){
+    const nuevoId = Date.now();
+    doc = prefijo==='cot'
+      ? { id:nuevoId, numero: siguienteNumeroCotizacion(), fecha: new Date().toISOString().slice(0,10), clienteId:null, clienteManual:{nombre:'(sin definir todavía)'}, estado:'Borrador', facturaId:null }
+      : { id:nuevoId, numero: siguienteNumeroFactura(), fecha: new Date().toISOString().slice(0,10), clienteId:null, clienteManual:{nombre:'(sin definir todavía)'}, estadoPago:'pendiente', esBorrador:true, fechaPago:null, cotizacionOrigenId: parseInt(document.getElementById('facCotizacionOrigenId')?.value)||null, montoRegistradoComoIngreso:0 };
+    db[coleccion].push(doc);
+    document.getElementById(idCampo).value = nuevoId;
+    document.getElementById('badgeBorrador'+(prefijo==='cot'?'Cot':'Fac')).style.display = 'inline-block';
+  }
+  doc.items = items.slice();
+  doc.subtotal = totales.subtotal;
+  doc.descuentoItems = totales.descuentoItems;
+  doc.descuentoGeneralPorcentaje = totales.descuentoGeneralPorcentaje;
+  doc.descuentoGeneral = totales.descuentoGeneral;
+  doc.impuestoPorcentaje = totales.impuestoPorcentaje;
+  doc.impuestoValor = totales.impuesto;
+  doc.total = totales.total;
+  try{
+    await dbGuardarInmediato();
+  }catch(err){ /* silencioso a propósito: no se quiere interrumpir mientras se arma el documento */ }
+}
+
+function siguienteNumeroCotizacion(){ return `COT-2026-${String((db.cotizaciones||[]).length + 1).padStart(4,'0')}`; }
+function siguienteNumeroFactura(){ return `FACT-2026-${String((db.facturas||[]).length + 1).padStart(4,'0')}`; }
+
+// --- Abrir modales ---
+function abrirModalCotizacion(cotizacionId){
+  // Por seguridad: si por cualquier motivo quedó abierto el modal del ítem o
+  // del PDF de una sesión anterior (por ejemplo, si algo falló a mitad de
+  // camino), se cierran aquí — así nunca bloquean el formulario nuevo.
+  cerrarModal('modalItemComercial');
+  cerrarModal('modalPDF');
+  const cajaCot = document.getElementById('cajaModalCotizacion');
+  if(cajaCot) cajaCot.classList.remove('ampliado');
+  document.getElementById('cotClienteResultados').classList.remove('abierto');
+  itemsCotTemp = [];
+  document.getElementById('cotId').value = cotizacionId || '';
+  document.getElementById('cotClienteEsNuevo').checked = false;
+  toggleClienteCotizacion();
+  document.getElementById('cotClienteBuscador').value = '';
+  document.getElementById('cotCliente').value = '';
+  document.getElementById('cotClienteManualNombre').value = '';
+  document.getElementById('cotClienteManualTelefono').value = '';
+  document.getElementById('cotClienteManualEmail').value = '';
+  document.getElementById('cotClienteManualDocumento').value = '';
+  document.getElementById('cotImpuestoPorcentaje').value = 0;
+  document.getElementById('cotDescuentoGeneral').value = 0;
+  document.getElementById('cotFechaVencimiento').value = '';
+  document.getElementById('cotNotas').value = '';
+  document.getElementById('badgeBorradorCot').style.display = 'none';
+  if(cotizacionId){
+    const c = db.cotizaciones.find(x=>x.id===cotizacionId);
+    if(c){
+      document.getElementById('tituloModalCotizacion').innerText = '📝 Editar Cotización ' + c.numero;
+      if(c.estado==='Borrador') document.getElementById('badgeBorradorCot').style.display = 'inline-block';
+      if(c.clienteId){ document.getElementById('cotCliente').value = c.clienteId; const cl = buscarCliente(c.clienteId); document.getElementById('cotClienteBuscador').value = cl?cl.nombre:''; }
+      else {
+        document.getElementById('cotClienteEsNuevo').checked = true; toggleClienteCotizacion();
+        document.getElementById('cotClienteManualNombre').value = (c.clienteManual?.nombre==='(sin definir todavía)') ? '' : (c.clienteManual?.nombre||'');
+        document.getElementById('cotClienteManualTelefono').value = c.clienteManual?.telefono||'';
+        document.getElementById('cotClienteManualEmail').value = c.clienteManual?.email||'';
+        document.getElementById('cotClienteManualDocumento').value = c.clienteManual?.documento||'';
+      }
+      itemsCotTemp = JSON.parse(JSON.stringify(c.items||[]));
+      document.getElementById('cotImpuestoPorcentaje').value = c.impuestoPorcentaje||0;
+      document.getElementById('cotDescuentoGeneral').value = c.descuentoGeneralPorcentaje||0;
+      document.getElementById('cotFechaVencimiento').value = c.fechaVencimiento||'';
+      document.getElementById('cotNotas').value = c.notas||'';
+    }
+  } else {
+    document.getElementById('tituloModalCotizacion').innerText = '📝 Nueva Cotización';
+  }
+  renderizarTablaItemsForm('cot');
+  actualizarPreviewCotizacionFactura('cot');
+  abrirModal('modalCotizacion');
+}
+function abrirModalFactura(facturaId, cotizacionOrigen){
+  cerrarModal('modalItemComercial');
+  cerrarModal('modalPDF');
+  const cajaFac = document.getElementById('cajaModalFactura');
+  if(cajaFac) cajaFac.classList.remove('ampliado');
+  document.getElementById('facClienteResultados').classList.remove('abierto');
+  itemsFacTemp = [];
+  document.getElementById('facId').value = facturaId || '';
+  document.getElementById('facCotizacionOrigenId').value = '';
+  document.getElementById('facClienteEsNuevo').checked = false;
+  toggleClienteFactura();
+  document.getElementById('facClienteBuscador').value = '';
+  document.getElementById('facCliente').value = '';
+  document.getElementById('facClienteManualNombre').value = '';
+  document.getElementById('facClienteManualTelefono').value = '';
+  document.getElementById('facClienteManualEmail').value = '';
+  document.getElementById('facClienteManualDocumento').value = '';
+  document.getElementById('facImpuestoPorcentaje').value = 0;
+  document.getElementById('facDescuentoGeneral').value = 0;
+  document.getElementById('facFechaVencimiento').value = '';
+  document.getElementById('facNotas').value = '';
+  document.getElementById('badgeBorradorFac').style.display = 'none';
+
+  if(facturaId){
+    const f = db.facturas.find(x=>x.id===facturaId);
+    if(f){
+      document.getElementById('tituloModalFactura').innerText = '🧾 Editar Factura ' + f.numero;
+      if(f.esBorrador) document.getElementById('badgeBorradorFac').style.display = 'inline-block';
+      if(f.clienteId){ document.getElementById('facCliente').value = f.clienteId; const cl = buscarCliente(f.clienteId); document.getElementById('facClienteBuscador').value = cl?cl.nombre:''; }
+      else {
+        document.getElementById('facClienteEsNuevo').checked = true; toggleClienteFactura();
+        document.getElementById('facClienteManualNombre').value = (f.clienteManual?.nombre==='(sin definir todavía)') ? '' : (f.clienteManual?.nombre||'');
+        document.getElementById('facClienteManualTelefono').value = f.clienteManual?.telefono||'';
+        document.getElementById('facClienteManualEmail').value = f.clienteManual?.email||'';
+        document.getElementById('facClienteManualDocumento').value = f.clienteManual?.documento||'';
+      }
+      itemsFacTemp = JSON.parse(JSON.stringify(f.items||[]));
+      document.getElementById('facImpuestoPorcentaje').value = f.impuestoPorcentaje||0;
+      document.getElementById('facDescuentoGeneral').value = f.descuentoGeneralPorcentaje||0;
+      document.getElementById('facFechaVencimiento').value = f.fechaVencimiento||'';
+      document.getElementById('facNotas').value = f.notas||'';
+      document.getElementById('facCotizacionOrigenId').value = f.cotizacionOrigenId || '';
+    }
+  } else if(cotizacionOrigen){
+    document.getElementById('tituloModalFactura').innerText = '🧾 Nueva Factura (desde ' + cotizacionOrigen.numero + ')';
+    document.getElementById('facCotizacionOrigenId').value = cotizacionOrigen.id;
+    if(cotizacionOrigen.clienteId){ document.getElementById('facCliente').value = cotizacionOrigen.clienteId; const cl = buscarCliente(cotizacionOrigen.clienteId); document.getElementById('facClienteBuscador').value = cl?cl.nombre:''; }
+    else {
+      document.getElementById('facClienteEsNuevo').checked = true; toggleClienteFactura();
+      document.getElementById('facClienteManualNombre').value = cotizacionOrigen.clienteManual?.nombre||'';
+      document.getElementById('facClienteManualTelefono').value = cotizacionOrigen.clienteManual?.telefono||'';
+      document.getElementById('facClienteManualEmail').value = cotizacionOrigen.clienteManual?.email||'';
+      document.getElementById('facClienteManualDocumento').value = cotizacionOrigen.clienteManual?.documento||'';
+    }
+    itemsFacTemp = JSON.parse(JSON.stringify(cotizacionOrigen.items||[]));
+    document.getElementById('facImpuestoPorcentaje').value = cotizacionOrigen.impuestoPorcentaje||0;
+    document.getElementById('facDescuentoGeneral').value = cotizacionOrigen.descuentoGeneralPorcentaje||0;
+    document.getElementById('facNotas').value = cotizacionOrigen.notas||'';
+  } else {
+    document.getElementById('tituloModalFactura').innerText = '🧾 Nueva Factura';
+  }
+  renderizarTablaItemsForm('fac');
+  actualizarPreviewCotizacionFactura('fac');
+  abrirModal('modalFactura');
+}
+
+// --- Guardar (confirmación final: si venía de un borrador automático, deja
+// de serlo — pasa a su estado normal de seguimiento) ---
+async function guardarCotizacion(){
+  db.cotizaciones = db.cotizaciones || [];
+  if(!itemsCotTemp.length){ mostrarToast('Agrega al menos un ítem a la cotización.'); return; }
+  const esNuevoCliente = document.getElementById('cotClienteEsNuevo').checked;
+  let clienteId = null, clienteManual = null;
+  if(esNuevoCliente){
+    const nombre = document.getElementById('cotClienteManualNombre').value.trim();
+    if(!nombre){ mostrarToast('Escribe el nombre del cliente.'); return; }
+    clienteManual = { nombre, telefono: document.getElementById('cotClienteManualTelefono').value.trim(), email: document.getElementById('cotClienteManualEmail').value.trim(), documento: document.getElementById('cotClienteManualDocumento').value.trim() };
+  } else {
+    clienteId = parseInt(document.getElementById('cotCliente').value) || null;
+    if(!clienteId){ mostrarToast('Selecciona un cliente, o marca "Cliente no registrado".'); return; }
+  }
+  const totales = actualizarPreviewCotizacionFactura('cot');
+  const idRaw = document.getElementById('cotId').value;
+  const notas = document.getElementById('cotNotas').value.trim();
+  const fechaVencimiento = document.getElementById('cotFechaVencimiento').value || null;
+  const impuestoPorcentaje = parseFloat(document.getElementById('cotImpuestoPorcentaje').value) || 0;
+  const descuentoGeneralPorcentaje = parseFloat(document.getElementById('cotDescuentoGeneral').value) || 0;
+  let respaldo = null, esNuevaCot = false;
+  const datosDoc = { clienteId, clienteManual, items: itemsCotTemp.slice(), impuestoPorcentaje, descuentoGeneralPorcentaje,
+    subtotal: totales.subtotal, descuentoItems: totales.descuentoItems, descuentoGeneral: totales.descuentoGeneral,
+    impuestoValor: totales.impuesto, total: totales.total, notas, fechaVencimiento };
+  if(idRaw){
+    const c = db.cotizaciones.find(x=>x.id===parseInt(idRaw));
+    if(!c){ mostrarToast('No se encontró la cotización.'); return; }
+    respaldo = JSON.parse(JSON.stringify(c));
+    Object.assign(c, datosDoc);
+    if(c.estado==='Borrador') c.estado = 'Enviada'; // el borrador automático se confirma al guardar de verdad
+  } else {
+    esNuevaCot = true;
+    db.cotizaciones.push(Object.assign({ id:Date.now(), numero: siguienteNumeroCotizacion(), fecha: new Date().toISOString().slice(0,10), estado:'Enviada', facturaId:null }, datosDoc));
+  }
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    if(idRaw && respaldo){ const idx=db.cotizaciones.findIndex(x=>x.id===parseInt(idRaw)); db.cotizaciones[idx]=respaldo; }
+    else if(esNuevaCot) db.cotizaciones.pop();
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
+  registrarLog(idRaw?'Editar':'Crear', 'Cotizacion', clienteId?(buscarCliente(clienteId)?.nombre||''):clienteManual.nombre);
+  mostrarToast(idRaw ? '✅ Cotización actualizada.' : '✅ Cotización creada.', 'exito');
+  cerrarModal('modalCotizacion');
+  renderizarCotizacionesFacturas();
+}
+async function guardarFactura(){
+  db.facturas = db.facturas || [];
+  if(!itemsFacTemp.length){ mostrarToast('Agrega al menos un ítem a la factura.'); return; }
+  const esNuevoCliente = document.getElementById('facClienteEsNuevo').checked;
+  let clienteId = null, clienteManual = null;
+  if(esNuevoCliente){
+    const nombre = document.getElementById('facClienteManualNombre').value.trim();
+    if(!nombre){ mostrarToast('Escribe el nombre del cliente.'); return; }
+    clienteManual = { nombre, telefono: document.getElementById('facClienteManualTelefono').value.trim(), email: document.getElementById('facClienteManualEmail').value.trim(), documento: document.getElementById('facClienteManualDocumento').value.trim() };
+  } else {
+    clienteId = parseInt(document.getElementById('facCliente').value) || null;
+    if(!clienteId){ mostrarToast('Selecciona un cliente, o marca "Cliente no registrado".'); return; }
+  }
+  const totales = actualizarPreviewCotizacionFactura('fac');
+  const idRaw = document.getElementById('facId').value;
+  const cotizacionOrigenId = parseInt(document.getElementById('facCotizacionOrigenId').value) || null;
+  const notas = document.getElementById('facNotas').value.trim();
+  const fechaVencimiento = document.getElementById('facFechaVencimiento').value || null;
+  const impuestoPorcentaje = parseFloat(document.getElementById('facImpuestoPorcentaje').value) || 0;
+  const descuentoGeneralPorcentaje = parseFloat(document.getElementById('facDescuentoGeneral').value) || 0;
+  let respaldo = null, esNuevaFac = false, nuevaFacturaId = null, respaldoFacturaIdCotizacion;
+  const datosDoc = { clienteId, clienteManual, items: itemsFacTemp.slice(), impuestoPorcentaje, descuentoGeneralPorcentaje,
+    subtotal: totales.subtotal, descuentoItems: totales.descuentoItems, descuentoGeneral: totales.descuentoGeneral,
+    impuestoValor: totales.impuesto, total: totales.total, notas, fechaVencimiento, esBorrador:false };
+  if(idRaw){
+    const f = db.facturas.find(x=>x.id===parseInt(idRaw));
+    if(!f){ mostrarToast('No se encontró la factura.'); return; }
+    respaldo = JSON.parse(JSON.stringify(f));
+    Object.assign(f, datosDoc);
+  } else {
+    esNuevaFac = true;
+    nuevaFacturaId = Date.now();
+    db.facturas.push(Object.assign({ id:nuevaFacturaId, numero: siguienteNumeroFactura(), fecha: new Date().toISOString().slice(0,10),
+      estadoPago:'pendiente', fechaPago:null, cotizacionOrigenId, montoRegistradoComoIngreso:0 }, datosDoc));
+    if(cotizacionOrigenId){
+      const cot = db.cotizaciones.find(x=>x.id===cotizacionOrigenId);
+      if(cot){ respaldoFacturaIdCotizacion = cot.facturaId; cot.facturaId = nuevaFacturaId; }
+    }
+  }
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    if(idRaw && respaldo){ const idx=db.facturas.findIndex(x=>x.id===parseInt(idRaw)); db.facturas[idx]=respaldo; }
+    else if(esNuevaFac){
+      db.facturas.pop();
+      if(cotizacionOrigenId){ const cot = db.cotizaciones.find(x=>x.id===cotizacionOrigenId); if(cot) cot.facturaId = respaldoFacturaIdCotizacion; }
+    }
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
+  registrarLog(idRaw?'Editar':'Crear', 'Factura', clienteId?(buscarCliente(clienteId)?.nombre||''):clienteManual.nombre);
+  mostrarToast(idRaw ? '✅ Factura actualizada.' : '✅ Factura creada.', 'exito');
+  cerrarModal('modalFactura');
+  renderizarCotizacionesFacturas();
+}
+
+// --- Estados y conversión ---
+async function cambiarEstadoCotizacion(id, nuevoEstado){
+  const c = db.cotizaciones.find(x=>x.id===id);
+  if(!c) return;
+  const anterior = c.estado;
+  c.estado = nuevoEstado;
+  try{ await dbGuardarInmediato(); }catch(err){ c.estado = anterior; mostrarToast('⚠️ No se pudo cambiar el estado: '+err.message,'error'); renderizarCotizacionesFacturas(); return; }
+  mostrarToast(`Estado actualizado a "${nuevoEstado}".`, 'exito');
+  renderizarCotizacionesFacturas();
+}
+function convertirCotizacionAFactura(cotizacionId){
+  const c = db.cotizaciones.find(x=>x.id===cotizacionId);
+  if(!c) return;
+  if(c.estado !== 'Aprobada'){ mostrarToast('Solo se puede convertir en factura una cotización marcada como "Aprobada".'); return; }
+  if(c.facturaId){ mostrarToast('Esta cotización ya fue convertida en la factura ' + (db.facturas.find(f=>f.id===c.facturaId)?.numero||'') + '.'); return; }
+  abrirModalFactura(null, c);
+}
+
+// --- Pago de factura (con ingreso automático — mismo patrón que Nómina→Gastos) ---
+async function cambiarEstadoPagoFactura(id){
+  if(!confirm('¿Marcar esta factura como pagada?')) return;
+  const f = db.facturas.find(x=>x.id===id);
+  if(!f) return;
+  const anterior = JSON.parse(JSON.stringify(f));
+  const respaldoIngresos = db.ingresos ? db.ingresos.slice() : [];
+  f.estadoPago = 'pagado';
+  f.fechaPago = new Date().toISOString().slice(0,10);
+  sincronizarIngresoDesdeFactura(f);
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    Object.assign(f, anterior);
+    db.ingresos = respaldoIngresos;
+    mostrarToast('⚠️ No se pudo actualizar: ' + err.message, 'error');
+    return;
+  }
+  mostrarToast('✅ Factura marcada como pagada — se registró el ingreso automáticamente.', 'exito');
+  renderizarCotizacionesFacturas();
+  renderizarContabilidad();
+}
+async function revertirPagoFactura(id){
+  const f = db.facturas.find(x=>x.id===id);
+  if(!f) return;
+  if(!confirm('¿Marcar esta factura como pendiente de pago otra vez?')) return;
+  const anterior = JSON.parse(JSON.stringify(f));
+  const respaldoIngresos = db.ingresos ? db.ingresos.slice() : [];
+  f.estadoPago = 'pendiente'; f.fechaPago = null;
+  sincronizarIngresoDesdeFactura(f);
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    Object.assign(f, anterior);
+    db.ingresos = respaldoIngresos;
+    mostrarToast('⚠️ No se pudo actualizar: ' + err.message, 'error');
+    return;
+  }
+  mostrarToast('Factura marcada como pendiente.', 'exito');
+  renderizarCotizacionesFacturas();
+  renderizarContabilidad();
+}
+// Registra en Gastos... digo, en INGRESOS, solo la DIFERENCIA desde la última
+// vez que se sincronizó — igual que se hizo para Nómina→Gastos — para que
+// marcar pagada/pendiente varias veces por error nunca duplique ni sume de más.
+function sincronizarIngresoDesdeFactura(f){
+  db.ingresos = db.ingresos || [];
+  const montoObjetivo = f.estadoPago === 'pagado' ? f.total : 0;
+  const yaRegistrado = f.montoRegistradoComoIngreso || 0;
+  const delta = montoObjetivo - yaRegistrado;
+  const nombreCliente = f.clienteId ? (buscarCliente(f.clienteId)?.nombre||'Cliente') : (f.clienteManual?.nombre||'Cliente');
+  if(delta > 0){
+    db.ingresos.push({
+      id: Date.now(), concepto: `Factura ${f.numero} — ${nombreCliente}`, monto: delta,
+      fecha: f.fechaPago || new Date().toISOString().slice(0,10),
+      clienteId: f.clienteId || null, esClienteEsporadico: !f.clienteId, clienteEsporadicoNombre: f.clienteId ? null : nombreCliente,
+      origenFacturaId: f.id, origenFacturaNumero: f.numero
+    });
+    f.montoRegistradoComoIngreso = montoObjetivo;
+  } else if(delta < 0){
+    let porQuitar = -delta;
+    const vinculados = db.ingresos.filter(g=>g.origenFacturaId===f.id).sort((a,b)=>b.id-a.id);
+    for(const g of vinculados){
+      if(porQuitar<=0) break;
+      if(g.monto <= porQuitar){ porQuitar -= g.monto; db.ingresos = db.ingresos.filter(x=>x.id!==g.id); }
+      else { g.monto -= porQuitar; porQuitar = 0; }
+    }
+    f.montoRegistradoComoIngreso = montoObjetivo;
+  }
+}
+
+// --- Eliminar ---
+async function eliminarCotizacion(id){
+  if(!confirm('¿Eliminar esta cotización?')) return;
+  const respaldo = db.cotizaciones.slice();
+  db.cotizaciones = db.cotizaciones.filter(x=>x.id!==id);
+  try{ await dbGuardarInmediato(); }catch(err){ db.cotizaciones = respaldo; mostrarToast('⚠️ No se pudo eliminar: '+err.message,'error'); return; }
+  mostrarToast('Cotización eliminada.', 'exito');
+  renderizarCotizacionesFacturas();
+}
+async function eliminarFactura(id){
+  const f = db.facturas.find(x=>x.id===id);
+  if(f && f.estadoPago==='pagado'){ mostrarToast('Esta factura ya está pagada y tiene un ingreso vinculado. Márcala como "pendiente" primero si de verdad quieres eliminarla.'); return; }
+  if(!confirm('¿Eliminar esta factura?')) return;
+  const respaldo = db.facturas.slice();
+  const cotVinculada = f && f.cotizacionOrigenId ? db.cotizaciones.find(c=>c.id===f.cotizacionOrigenId) : null;
+  const respaldoFacturaIdCot = cotVinculada ? cotVinculada.facturaId : undefined;
+  db.facturas = db.facturas.filter(x=>x.id!==id);
+  if(cotVinculada) cotVinculada.facturaId = null;
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.facturas = respaldo;
+    if(cotVinculada) cotVinculada.facturaId = respaldoFacturaIdCot;
+    mostrarToast('⚠️ No se pudo eliminar: '+err.message,'error');
+    return;
+  }
+  mostrarToast('Factura eliminada.', 'exito');
+  renderizarCotizacionesFacturas();
+}
+
+// --- Render de las 2 tablas ---
+function renderizarCotizacionesFacturas(){
+  db.cotizaciones = db.cotizaciones || [];
+  db.facturas = db.facturas || [];
+  const coloresEstadoCot = {
+    'Borrador': {fondo:'#e2e8f0',texto:'#475569'}, 'Enviada': {fondo:'#dbeafe',texto:'#1e40af'}, 'Vista':{fondo:'#e0e7ff',texto:'#4338ca'},
+    'Aprobada':{fondo:'#dcfce7',texto:'#166534'}, 'Rechazada':{fondo:'#fee2e2',texto:'#b91c1c'}, 'Vencida':{fondo:'#f1f5f9',texto:'#475569'}
+  };
+  const tablaCot = document.getElementById('tablaCotizaciones');
+  if(tablaCot){
+    tablaCot.innerHTML = db.cotizaciones.slice().reverse().map(c=>{
+      const nombreCliente = c.clienteId ? (buscarCliente(c.clienteId)?.nombre||'—') : `${c.clienteManual?.nombre||'—'} <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;">NO REGISTRADO</span>`;
+      const opcionesEstado = ['Borrador','Enviada','Vista','Aprobada','Rechazada','Vencida'].map(e=>`<option value="${e}" ${c.estado===e?'selected':''}>${e}</option>`).join('');
+      const col = coloresEstadoCot[c.estado] || coloresEstadoCot['Enviada'];
+      return `<tr>
+        <td>${c.numero}</td><td>${c.fecha}</td><td>${nombreCliente}</td><td>${formatoCOP(c.total)}</td>
+        <td><select onchange="cambiarEstadoCotizacion(${c.id}, this.value)" style="background:${col.fondo};color:${col.texto};border:none;font-weight:700;font-size:11px;border-radius:8px;padding:3px 6px;">${opcionesEstado}</select></td>
+        <td style="white-space:nowrap;">
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verPDFCotizacion(${c.id})" title="Ver / Imprimir"><i class="fas fa-file-invoice"></i></button>
+          <button class="btn-custom btn-success-custom btn-sm-custom" onclick="enviarPorWhatsAppCotizacion(${c.id})" title="Enviar por WhatsApp"><i class="fab fa-whatsapp"></i></button>
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalCotizacion(${c.id})" title="Editar"><i class="fas fa-pen"></i></button>
+          ${c.estado==='Aprobada' && !c.facturaId ? `<button class="btn-custom btn-sm-custom" onclick="convertirCotizacionAFactura(${c.id})">→ Factura</button>` : ''}
+          ${c.facturaId ? `<span style="font-size:10px;color:var(--text-muted);">→ ${db.facturas.find(f=>f.id===c.facturaId)?.numero||''}</span>` : ''}
+          <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarCotizacion(${c.id})" title="Eliminar"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="6" class="empty-state">Sin cotizaciones registradas todavía.</td></tr>';
+  }
+  const tablaFac = document.getElementById('tablaFacturas');
+  if(tablaFac){
+    tablaFac.innerHTML = db.facturas.slice().reverse().map(f=>{
+      const nombreCliente = f.clienteId ? (buscarCliente(f.clienteId)?.nombre||'—') : `${f.clienteManual?.nombre||'—'} <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;">NO REGISTRADO</span>`;
+      const pagada = f.estadoPago === 'pagado';
+      const estadoHtml = f.esBorrador
+        ? `<span style="font-size:10px;font-weight:700;background:#e2e8f0;color:#475569;padding:3px 10px;border-radius:12px;white-space:nowrap;"><i class="fas fa-pen"></i> Borrador</span>`
+        : pagada
+        ? `<span style="font-size:10px;font-weight:700;background:#dcfce7;color:#166534;padding:3px 10px;border-radius:12px;white-space:nowrap;"><i class="fas fa-circle-check"></i> Pagada</span>`
+        : `<span style="font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:12px;white-space:nowrap;"><i class="fas fa-clock"></i> Pendiente</span>`;
+      const origen = f.cotizacionOrigenId ? (db.cotizaciones.find(c=>c.id===f.cotizacionOrigenId)?.numero || '—') : '<span style="color:var(--text-muted);">Directa</span>';
+      return `<tr>
+        <td>${f.numero}</td><td>${f.fecha}</td><td>${nombreCliente}</td><td>${formatoCOP(f.total)}</td>
+        <td>${estadoHtml}</td><td>${origen}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verPDFFactura(${f.id})" title="Ver / Imprimir"><i class="fas fa-file-invoice"></i></button>
+          <button class="btn-custom btn-success-custom btn-sm-custom" onclick="enviarPorWhatsAppFactura(${f.id})" title="Enviar por WhatsApp"><i class="fab fa-whatsapp"></i></button>
+          ${pagada ? `<button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="revertirPagoFactura(${f.id})">Marcar pendiente</button>` : `<button class="btn-custom btn-success-custom btn-sm-custom" onclick="cambiarEstadoPagoFactura(${f.id})"><i class="fas fa-hand-holding-dollar"></i> Marcar pagada</button>`}
+          <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarFactura(${f.id})" title="Eliminar"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="7" class="empty-state">Sin facturas registradas todavía.</td></tr>';
+  }
+}

@@ -2,13 +2,22 @@
 /* =========================================================
    CONFIGURACIÓN: PLANTILLAS DE FORMULARIOS
 ========================================================= */
-function guardarPlantillaConfig(){
+async function guardarPlantillaConfig(){
   const id = document.getElementById('cfgPlantId').value;
   const nombre = document.getElementById('cfgPlantNombre').value;
   if(!nombre){ mostrarToast('Escribe el nombre de la plantilla'); return; }
-  if(id){ const p = buscarPlantilla(parseInt(id)); p.nombre = nombre; }
-  else db.plantillas.push({ id:Date.now(), nombre, campos:[] });
-  dbGuardar();
+  let respaldo = null, esNueva = false;
+  if(id){ const p = buscarPlantilla(parseInt(id)); respaldo = p.nombre; p.nombre = nombre; }
+  else { esNueva = true; db.plantillas.push({ id:Date.now(), nombre, campos:[] }); }
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    if(id && respaldo!==null){ buscarPlantilla(parseInt(id)).nombre = respaldo; }
+    else if(esNueva){ db.plantillas.pop(); }
+    mostrarToast('⚠️ No se pudo guardar la plantilla: ' + err.message, 'error');
+    return;
+  }
+  mostrarToast('✅ Plantilla guardada.', 'exito');
   document.getElementById('cfgPlantId').value=''; document.getElementById('cfgPlantNombre').value='';
   renderizarPlantillasConfig();
 }
@@ -63,11 +72,20 @@ function visualizarPlantilla(id){
   `;
   abrirModal('modalVistaPreviaFormulario');
 }
-function eliminarPlantillaConfig(id){
+async function eliminarPlantillaConfig(id){
   if(!confirm('¿Eliminar esta plantilla?')) return;
+  const respaldo = db.plantillas.slice();
   db.plantillas = db.plantillas.filter(p=>p.id!==id);
   registrarEliminacion('plantillas', id);
-  dbGuardar(); renderizarPlantillasConfig();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.plantillas = respaldo;
+    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
+    return;
+  }
+  mostrarToast('Plantilla eliminada.', 'exito');
+  renderizarPlantillasConfig();
   document.getElementById('cfgSeccionCampos').style.display='none';
 }
 function seleccionarPlantillaConfig(id){
@@ -91,7 +109,7 @@ function toggleCampoItemsInput(){
   document.getElementById('wrapperCampoBloqueImagenes').style.display = (tipo==='foto') ? 'block' : 'none';
 }
 const NOMBRES_TIPO_CAMPO = { number:'Numérico', text:'Texto corto', textarea:'Observación larga', checkbox:'Verificación (Sí/No)', checklist:'Lista de chequeo', foto:'Foto específica' };
-function guardarCampoConfig(){
+async function guardarCampoConfig(){
   const idRaw = document.getElementById('cfgCampoId').value;
   const label = document.getElementById('cfgCampoLabel').value;
   const tipo = document.getElementById('cfgCampoTipo').value;
@@ -105,6 +123,7 @@ function guardarCampoConfig(){
   const p = buscarPlantilla(plantillaActivaId);
   const bloqueImagenesRaw = document.getElementById('cfgCampoBloqueImagenes').value;
   const bloqueImagenes = (tipo==='foto' && bloqueImagenesRaw) ? parseInt(bloqueImagenesRaw) : null;
+  const respaldoCampos = JSON.parse(JSON.stringify(p.campos));
   if(idRaw){
     const campo = p.campos.find(c=>c.id===parseInt(idRaw));
     if(campo){
@@ -118,7 +137,14 @@ function guardarCampoConfig(){
     if(tipo==='foto') nuevoCampo.bloqueImagenes = bloqueImagenes;
     p.campos.push(nuevoCampo);
   }
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    p.campos = respaldoCampos;
+    mostrarToast('⚠️ No se pudo guardar el campo: ' + err.message, 'error');
+    return;
+  }
+  mostrarToast('✅ Campo guardado.', 'exito');
   cancelarEdicionCampo();
   renderizarCamposConfig(); renderizarPlantillasConfig();
 }
@@ -158,10 +184,18 @@ function renderizarCamposConfig(){
       <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarCampoConfig(${campo.id})">X</button></td></tr>`;
   });
 }
-function eliminarCampoConfig(id){
+async function eliminarCampoConfig(id){
   const p = buscarPlantilla(plantillaActivaId);
+  const respaldoCampos = p.campos.slice();
   p.campos = p.campos.filter(c=>c.id!==id);
-  dbGuardar(); cancelarEdicionCampo(); renderizarCamposConfig(); renderizarPlantillasConfig();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    p.campos = respaldoCampos;
+    mostrarToast('⚠️ No se pudo eliminar el campo: ' + err.message, 'error');
+    return;
+  }
+  cancelarEdicionCampo(); renderizarCamposConfig(); renderizarPlantillasConfig();
 }
 
 /* =========================================================
@@ -198,13 +232,14 @@ function leerPermisosMarcadosPersonal(){
   document.querySelectorAll('.chk-permiso-personal').forEach(chk=>{ permisos[chk.value] = chk.checked; });
   return permisos;
 }
-function guardarTecnicoConfig(){
+async function guardarTecnicoConfig(){
   const id = document.getElementById('cfgTecId').value;
   const nombre = document.getElementById('cfgTecNombre').value.trim();
   const telefono = document.getElementById('cfgTecTelefono').value.trim();
   const usuario = document.getElementById('cfgTecUsuario').value.trim();
   const password = document.getElementById('cfgTecPassword').value;
   const rol = document.getElementById('cfgTecRol').value;
+  const cargo = document.getElementById('cfgTecCargo').value;
   const accesoTotal = document.getElementById('cfgTecAccesoTotal').checked;
   const permisos = accesoTotal ? {} : leerPermisosMarcadosPersonal();
   if(!nombre){ mostrarToast('Escribe el nombre de la persona'); return; }
@@ -212,16 +247,30 @@ function guardarTecnicoConfig(){
   if(!id && !password){ mostrarToast('Define una contraseña para la persona nueva.'); return; }
   const duplicado = db.tecnicos.find(t=>t.usuario && t.usuario.toLowerCase()===usuario.toLowerCase() && String(t.id)!==id);
   if(duplicado){ mostrarToast('Ya existe otra persona con ese usuario.'); return; }
+  // Antes esto guardaba en segundo plano sin esperar confirmación real del
+  // servidor (mismo tipo de problema ya corregido en Nómina) — si algo
+  // fallaba, la edición se perdía en silencio y parecía que "no editaba".
+  let respaldo = null;
+  let esNuevo = false;
   if(id){
     const t = buscarTecnico(parseInt(id));
-    t.nombre = nombre; t.telefono = telefono; t.usuario = usuario; t.rol = rol; t.accesoTotal = accesoTotal; t.permisos = permisos;
+    respaldo = Object.assign({}, t);
+    t.nombre = nombre; t.telefono = telefono; t.usuario = usuario; t.rol = rol; t.cargo = cargo; t.accesoTotal = accesoTotal; t.permisos = permisos;
     if(password) t.password = password;
-    registrarLog('Editar', 'Personal', nombre);
   } else {
-    db.tecnicos.push({ id:Date.now(), nombre, telefono, usuario, password, activo:true, rol, accesoTotal, permisos });
-    registrarLog('Crear', 'Personal', nombre);
+    esNuevo = true;
+    db.tecnicos.push({ id:Date.now(), nombre, telefono, usuario, password, activo:true, rol, cargo, accesoTotal, permisos });
   }
-  dbGuardar();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    if(id && respaldo){ Object.assign(buscarTecnico(parseInt(id)), respaldo); }
+    else if(esNuevo){ db.tecnicos.pop(); }
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
+  registrarLog(id ? 'Editar' : 'Crear', 'Personal', nombre);
+  mostrarToast(id ? `✅ ${nombre} actualizado correctamente.` : `✅ ${nombre} agregado a Personal.`, 'exito');
   cancelarEdicionTecnico();
   renderizarTecnicosConfig();
 }
@@ -235,6 +284,7 @@ function editarTecnicoConfig(id){
   document.getElementById('cfgTecPassword').value = '';
   document.getElementById('cfgTecPassword').placeholder = 'Dejar en blanco para no cambiarla';
   document.getElementById('cfgTecRol').value = t.rol || 'tecnico';
+  document.getElementById('cfgTecCargo').value = t.cargo || 'Técnico';
   document.getElementById('cfgTecAccesoTotal').checked = !!t.accesoTotal;
   renderizarChecklistPermisosPersonal(t.permisos);
   document.getElementById('btnGuardarTecnico').innerText = 'Guardar Cambios';
@@ -246,6 +296,7 @@ function cancelarEdicionTecnico(){
   document.getElementById('cfgTecUsuario').value=''; document.getElementById('cfgTecPassword').value='';
   document.getElementById('cfgTecPassword').placeholder = 'Contraseña';
   document.getElementById('cfgTecRol').value = 'tecnico';
+  document.getElementById('cfgTecCargo').value = 'Técnico';
   document.getElementById('cfgTecAccesoTotal').checked = false;
   renderizarChecklistPermisosPersonal();
   document.getElementById('btnGuardarTecnico').innerText = '+ Añadir Personal';
@@ -267,11 +318,18 @@ function renderizarTecnicosConfig(){
       <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarTecnicoConfig(${t.id})">X</button></td></tr>`;
   });
 }
-function toggleActivoTecnico(id){
+async function toggleActivoTecnico(id){
   const t = buscarTecnico(id);
   if(!t) return;
+  const anterior = t.activo;
   t.activo = t.activo === false ? true : false;
-  dbGuardarInmediato();
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    t.activo = anterior;
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
   registrarLog(t.activo ? 'Activar' : 'Desactivar', 'Técnico', t.nombre);
   renderizarTecnicosConfig();
 }
