@@ -4,6 +4,23 @@
 ========================================================= */
 let ordenPdfActualId = null;
 
+// Arma las fotos en FILAS explícitas de a 4 (cada fila es su propio <div>).
+// Antes se usaba una sola cuadrícula (CSS Grid) para todas las fotos juntas
+// — pero la herramienta que arma el PDF no siempre reconoce bien dónde
+// termina una fila dentro de una cuadrícula, y a veces corta una foto a la
+// mitad entre dos páginas. Con cada fila como su propio bloque indivisible,
+// la página salta ANTES o DESPUÉS de la fila completa, nunca a la mitad.
+function generarFilasFotosPDF(fotos, porFila){
+  porFila = porFila || 4;
+  const figura = f => f.desc ? `<figure><img src="${f.src}" onclick="verImagenAmpliada('${f.src}')"><figcaption>${f.desc}</figcaption></figure>` : `<img src="${f.src}" onclick="verImagenAmpliada('${f.src}')">`;
+  let html = '';
+  for(let inicio=0; inicio<fotos.length; inicio+=porFila){
+    const fila = fotos.slice(inicio, inicio+porFila);
+    html += `<div class="pdf-fotos-fila">${fila.map(figura).join('')}</div>`;
+  }
+  return html;
+}
+
 // Genera el bloque de informe (diagnóstico + actividades + fotos) de UN
 // equipo — se usa tanto para órdenes de un solo equipo como, dentro de un
 // bucle, para cada equipo de una orden con varios. Antes esta función no
@@ -25,18 +42,17 @@ function generarBloqueInformeEquipoPDF(datosCierre, plantilla){
       } else if(campo.tipo==='foto'){
         const fotosCampo = normalizarFotosEvidencia((datosCierre.fotosPorCampo && datosCierre.fotosPorCampo[campo.id]) || []);
         if(fotosCampo.length){
-          const figura = f => f.desc ? `<figure><img src="${f.src}" onclick="verImagenAmpliada('${f.src}')"><figcaption>${f.desc}</figcaption></figure>` : `<img src="${f.src}" onclick="verImagenAmpliada('${f.src}')">`;
           let contenidoFotos;
           if(campo.bloqueImagenes){
             let bloques = '';
             for(let inicio=0; inicio<fotosCampo.length; inicio+=campo.bloqueImagenes){
               const numeroBloque = Math.floor(inicio/campo.bloqueImagenes) + 1;
               const trozo = fotosCampo.slice(inicio, inicio+campo.bloqueImagenes);
-              bloques += `<p style="font-size:10px;color:#64748b;margin:8px 0 4px;font-weight:700;">BLOQUE ${numeroBloque}</p><div class="pdf-fotos">${trozo.map(figura).join('')}</div>`;
+              bloques += `<p style="font-size:10px;color:#64748b;margin:8px 0 4px;font-weight:700;">BLOQUE ${numeroBloque}</p>${generarFilasFotosPDF(trozo, 4)}`;
             }
             contenidoFotos = bloques;
           } else {
-            contenidoFotos = `<div class="pdf-fotos">${fotosCampo.map(figura).join('')}</div>`;
+            contenidoFotos = generarFilasFotosPDF(fotosCampo, 4);
           }
           camposEspecialesHtml += `<div class="pdf-box"><h4>${campo.label}</h4>${contenidoFotos}</div>`;
         }
@@ -48,7 +64,7 @@ function generarBloqueInformeEquipoPDF(datosCierre, plantilla){
   }
   const camposSimplesBox = camposSimplesHtml ? `<div class="pdf-box"><h4>Actividades realizadas y datos técnicos encontrados en sitio</h4><table class="pdf-tabla-datos" cellpadding="4">${camposSimplesHtml}</table></div>` : '';
   const fotosGenerales = normalizarFotosEvidencia(datosCierre.fotos);
-  const fotosHtml = fotosGenerales.length ? `<div class="pdf-box"><h4>Soporte fotográfico</h4><div class="pdf-fotos">${fotosGenerales.map(f=>f.desc ? `<figure><img src="${f.src}" onclick="verImagenAmpliada('${f.src}')"><figcaption>${f.desc}</figcaption></figure>` : `<img src="${f.src}" onclick="verImagenAmpliada('${f.src}')">`).join('')}</div></div>` : '';
+  const fotosHtml = fotosGenerales.length ? `<div class="pdf-box"><h4>Soporte fotográfico</h4>${generarFilasFotosPDF(fotosGenerales, 4)}</div>` : '';
   const diagnosticoTexto = (datosCierre.diagnostico || '').trim();
   const diagnosticoHtml = diagnosticoTexto ? `<div class="pdf-box"><h4>Diagnóstico técnico y observaciones</h4>
       <p style="font-size:12px;color:#333;margin:0;">${diagnosticoTexto}</p>
