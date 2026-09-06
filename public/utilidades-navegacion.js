@@ -18,6 +18,15 @@ function generarImagenReferenciaSVG(emoji, texto, colorDe, colorA){
   return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
 }
 function buscarCliente(id){ return db.clientes.find(c=>c.id===id); }
+// Alterna la ventana entre tamaño normal y ampliado (casi pantalla completa) —
+// el mismo botón sirve para ampliar y para volver a restaurar el tamaño normal.
+function toggleAmpliarModal(idCaja, boton){
+  const caja = document.getElementById(idCaja);
+  const ampliado = caja.classList.toggle('ampliado');
+  const icono = boton.querySelector('i');
+  icono.className = ampliado ? 'fas fa-compress' : 'fas fa-expand';
+  boton.title = ampliado ? 'Restaurar tamaño' : 'Ampliar';
+}
 /* =========================================================
    CARRUSEL REUTILIZABLE (Tienda Virtual) — un solo componente
    para el carrusel de imágenes y el de proyectos, con flechas,
