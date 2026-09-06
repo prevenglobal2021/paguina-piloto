@@ -930,6 +930,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <button class="conta-tab-btn activo" onclick="cambiarTabContabilidad(event,'Nomina')"><i class="fas fa-file-invoice-dollar"></i> Liquidación de Nómina</button>
         <button class="conta-tab-btn" onclick="cambiarTabContabilidad(event,'Gastos')"><i class="fas fa-money-bill-wave"></i> Registro de Gastos</button>
         <button class="conta-tab-btn" onclick="cambiarTabContabilidad(event,'Servicio')"><i class="fas fa-calculator"></i> Agregar Servicio</button>
+        <button class="conta-tab-btn" onclick="cambiarTabContabilidad(event,'CotizacionFactura')"><i class="fas fa-file-invoice"></i> Cotización y Facturación</button>
         <button class="conta-tab-btn" onclick="cambiarTabContabilidad(event,'Trazabilidad')"><i class="fas fa-chart-line"></i> Trazabilidad / Cuadre</button>
       </div>
 
@@ -1045,6 +1046,25 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <thead><tr><th>Fecha</th><th>Servicio / Cliente</th><th>Tipo</th><th>Ejecutor</th><th>Precio Cliente</th><th>Pago Técnico</th><th>Utilidad Neta</th><th>Estado</th><th>Cartera</th><th></th></tr></thead>
           <tbody id="tablaControlOperativo"></tbody>
           <tfoot><tr style="font-weight:700;background:#eff6ff;color:#1e3a5f;"><td colspan="4">TOTALES</td><td id="coTotalPrecio">$0</td><td id="coTotalPagoTec">$0</td><td id="coTotalUtilidad">$0</td><td colspan="3"></td></tr></tfoot>
+        </table>
+      </div>
+
+      <div id="contaTabCotizacionFactura" class="conta-tab-content">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+          <button class="btn-custom" onclick="abrirModalCotizacion()"><i class="fas fa-file-circle-plus"></i> Nueva Cotización</button>
+          <button class="btn-custom btn-secondary-custom" onclick="abrirModalFactura()"><i class="fas fa-file-invoice-dollar"></i> Nueva Factura (directa)</button>
+        </div>
+
+        <div class="panel-title" style="margin-top:0;"><span>📝 Cotizaciones</span></div>
+        <table class="data-table">
+          <thead><tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="tablaCotizaciones"></tbody>
+        </table>
+
+        <div class="panel-title" style="margin-top:24px;"><span>🧾 Facturas</span></div>
+        <table class="data-table">
+          <thead><tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado de pago</th><th>Origen</th><th></th></tr></thead>
+          <tbody id="tablaFacturas"></tbody>
         </table>
       </div>
 
@@ -1621,7 +1641,132 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<!-- MODAL: COMPROBANTE DE PAGO DE NÓMINA (papel, imprimible) -->
+<!-- MODAL: NUEVA / EDITAR COTIZACIÓN -->
+<div class="modal-overlay" id="modalCotizacion">
+  <div class="modal-box" style="max-width:720px;">
+    <button class="close-modal" onclick="cerrarModal('modalCotizacion')">✖</button>
+    <h3 id="tituloModalCotizacion">📝 Nueva Cotización</h3>
+    <input type="hidden" id="cotId">
+
+    <div class="form-seccion">
+      <div class="form-seccion-titulo">👤 Cliente</div>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:normal;">
+        <input type="checkbox" id="cotClienteEsNuevo" style="width:auto;" onchange="toggleClienteCotizacion()"> Cliente no registrado (ingresar datos manualmente)
+      </label>
+      <div id="wrapperCotClienteRegistrado" style="position:relative;">
+        <label>Cliente:</label>
+        <input type="text" id="cotClienteBuscador" placeholder="Escribe el nombre del cliente..." autocomplete="off"
+          oninput="filtrarClientesCotizacion()" onfocus="filtrarClientesCotizacion()" onblur="setTimeout(()=>document.getElementById('cotClienteResultados').classList.remove('abierto'),150)">
+        <input type="hidden" id="cotCliente">
+        <div id="cotClienteResultados" class="autocomplete-resultados"></div>
+      </div>
+      <div id="wrapperCotClienteManual" style="display:none;">
+        <div class="field-row">
+          <div><label>Nombre:</label><input type="text" id="cotClienteManualNombre" placeholder="Nombre completo"></div>
+          <div><label>Teléfono:</label><input type="text" id="cotClienteManualTelefono" placeholder="Teléfono (para WhatsApp)"></div>
+          <div><label>Correo:</label><input type="email" id="cotClienteManualEmail" placeholder="correo@ejemplo.com"></div>
+          <div><label>Documento:</label><input type="text" id="cotClienteManualDocumento" placeholder="NIT / Cédula (opcional)"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-seccion">
+      <div class="form-seccion-titulo">📦 Ítems</div>
+      <div class="field-row">
+        <div style="flex:2;"><select id="cotItemSelect"></select></div>
+        <div><input type="number" id="cotItemCantidad" value="1" min="1"></div>
+        <button class="btn-custom btn-sm-custom" onclick="agregarItemFormCotizacionFactura('cot')">+ Agregar</button>
+      </div>
+      <div class="field-row">
+        <div style="flex:2;"><input type="text" id="cotItemLibreDesc" placeholder="O escribe un servicio/ítem libre (no está en inventario)..."></div>
+        <div><input type="number" id="cotItemLibrePrecio" placeholder="Precio unitario"></div>
+        <div><input type="number" id="cotItemLibreCantidad" value="1" min="1"></div>
+        <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarItemLibreFormCotizacionFactura('cot')">+ Agregar libre</button>
+      </div>
+      <table class="data-table" style="margin-top:10px;">
+        <thead><tr><th>Ítem</th><th>Cant.</th><th>Precio Unit.</th><th>Subtotal</th><th></th></tr></thead>
+        <tbody id="tablaItemsCot"></tbody>
+      </table>
+    </div>
+
+    <div class="field-row">
+      <div><label>Impuesto (%):</label><input type="number" id="cotImpuestoPorcentaje" value="0" step="0.1" oninput="actualizarPreviewCotizacionFactura('cot')"></div>
+      <div><label>Notas:</label><input type="text" id="cotNotas" placeholder="Notas u observaciones (opcional)"></div>
+    </div>
+
+    <div style="background:rgba(0,136,255,.1);border-radius:8px;padding:10px;margin:10px 0;text-align:right;font-size:14px;">
+      Subtotal: <strong id="cotPreviewSubtotal">$0</strong> &nbsp;|&nbsp;
+      Impuesto: <strong id="cotPreviewImpuesto">$0</strong> &nbsp;|&nbsp;
+      <span style="font-size:17px;">Total: <strong id="cotPreviewTotal">$0</strong></span>
+    </div>
+
+    <button class="btn-custom" style="width:100%;" onclick="conIndicadorCarga(this, guardarCotizacion)">Guardar Cotización</button>
+  </div>
+</div>
+
+<!-- MODAL: NUEVA / EDITAR FACTURA -->
+<div class="modal-overlay" id="modalFactura">
+  <div class="modal-box" style="max-width:720px;">
+    <button class="close-modal" onclick="cerrarModal('modalFactura')">✖</button>
+    <h3 id="tituloModalFactura">🧾 Nueva Factura</h3>
+    <input type="hidden" id="facId">
+    <input type="hidden" id="facCotizacionOrigenId">
+
+    <div class="form-seccion">
+      <div class="form-seccion-titulo">👤 Cliente</div>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:normal;">
+        <input type="checkbox" id="facClienteEsNuevo" style="width:auto;" onchange="toggleClienteFactura()"> Cliente no registrado (ingresar datos manualmente)
+      </label>
+      <div id="wrapperFacClienteRegistrado" style="position:relative;">
+        <label>Cliente:</label>
+        <input type="text" id="facClienteBuscador" placeholder="Escribe el nombre del cliente..." autocomplete="off"
+          oninput="filtrarClientesFactura()" onfocus="filtrarClientesFactura()" onblur="setTimeout(()=>document.getElementById('facClienteResultados').classList.remove('abierto'),150)">
+        <input type="hidden" id="facCliente">
+        <div id="facClienteResultados" class="autocomplete-resultados"></div>
+      </div>
+      <div id="wrapperFacClienteManual" style="display:none;">
+        <div class="field-row">
+          <div><label>Nombre:</label><input type="text" id="facClienteManualNombre" placeholder="Nombre completo"></div>
+          <div><label>Teléfono:</label><input type="text" id="facClienteManualTelefono" placeholder="Teléfono (para WhatsApp)"></div>
+          <div><label>Correo:</label><input type="email" id="facClienteManualEmail" placeholder="correo@ejemplo.com"></div>
+          <div><label>Documento:</label><input type="text" id="facClienteManualDocumento" placeholder="NIT / Cédula (opcional)"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-seccion">
+      <div class="form-seccion-titulo">📦 Ítems</div>
+      <div class="field-row">
+        <div style="flex:2;"><select id="facItemSelect"></select></div>
+        <div><input type="number" id="facItemCantidad" value="1" min="1"></div>
+        <button class="btn-custom btn-sm-custom" onclick="agregarItemFormCotizacionFactura('fac')">+ Agregar</button>
+      </div>
+      <div class="field-row">
+        <div style="flex:2;"><input type="text" id="facItemLibreDesc" placeholder="O escribe un servicio/ítem libre (no está en inventario)..."></div>
+        <div><input type="number" id="facItemLibrePrecio" placeholder="Precio unitario"></div>
+        <div><input type="number" id="facItemLibreCantidad" value="1" min="1"></div>
+        <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarItemLibreFormCotizacionFactura('fac')">+ Agregar libre</button>
+      </div>
+      <table class="data-table" style="margin-top:10px;">
+        <thead><tr><th>Ítem</th><th>Cant.</th><th>Precio Unit.</th><th>Subtotal</th><th></th></tr></thead>
+        <tbody id="tablaItemsFac"></tbody>
+      </table>
+    </div>
+
+    <div class="field-row">
+      <div><label>Impuesto (%):</label><input type="number" id="facImpuestoPorcentaje" value="0" step="0.1" oninput="actualizarPreviewCotizacionFactura('fac')"></div>
+      <div><label>Notas:</label><input type="text" id="facNotas" placeholder="Notas u observaciones (opcional)"></div>
+    </div>
+
+    <div style="background:rgba(0,136,255,.1);border-radius:8px;padding:10px;margin:10px 0;text-align:right;font-size:14px;">
+      Subtotal: <strong id="facPreviewSubtotal">$0</strong> &nbsp;|&nbsp;
+      Impuesto: <strong id="facPreviewImpuesto">$0</strong> &nbsp;|&nbsp;
+      <span style="font-size:17px;">Total: <strong id="facPreviewTotal">$0</strong></span>
+    </div>
+
+    <button class="btn-custom" style="width:100%;" onclick="conIndicadorCarga(this, guardarFactura)">Guardar Factura</button>
+  </div>
+</div>
 <div class="modal-overlay" id="modalComprobanteNomina">
   <div class="modal-box" style="background:#fff;color:#333;">
     <button class="close-modal" style="color:#000;" onclick="cerrarModal('modalComprobanteNomina')">✖</button>
@@ -2187,19 +2332,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=72"></script>
-<script src="utilidades-navegacion.js?v=72"></script>
-<script src="buscador-agenda.js?v=72"></script>
-<script src="ordenes.js?v=72"></script>
-<script src="equipos-trazabilidad.js?v=72"></script>
-<script src="pdf.js?v=72"></script>
-<script src="config-clientes-equipos.js?v=72"></script>
-<script src="config-plantillas-tecnicos.js?v=72"></script>
-<script src="cotizador.js?v=72"></script>
-<script src="config-general.js?v=72"></script>
-<script src="inventario.js?v=72"></script>
-<script src="tienda-admin.js?v=72"></script>
-<script src="tienda-publica.js?v=72"></script>
-<script src="kpi.js?v=72"></script>
+<script src="core.js?v=73"></script>
+<script src="utilidades-navegacion.js?v=73"></script>
+<script src="buscador-agenda.js?v=73"></script>
+<script src="ordenes.js?v=73"></script>
+<script src="equipos-trazabilidad.js?v=73"></script>
+<script src="pdf.js?v=73"></script>
+<script src="config-clientes-equipos.js?v=73"></script>
+<script src="config-plantillas-tecnicos.js?v=73"></script>
+<script src="cotizador.js?v=73"></script>
+<script src="config-general.js?v=73"></script>
+<script src="inventario.js?v=73"></script>
+<script src="tienda-admin.js?v=73"></script>
+<script src="tienda-publica.js?v=73"></script>
+<script src="kpi.js?v=73"></script>
 </body>
 </html>

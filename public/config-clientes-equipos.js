@@ -534,3 +534,96 @@ function manejarParametroQR(){
   }
 }
 
+
+/* =========================================================
+   WHATSAPP — Cotización y Factura (mismo patrón exacto que
+   enviarPorWhatsApp de Órdenes, pero sin tocar esa función)
+========================================================= */
+function enviarPorWhatsAppCotizacion(id){
+  const c = db.cotizaciones.find(x=>x.id===id);
+  if(!c) return;
+  const nombreCliente = c.clienteId ? buscarCliente(c.clienteId)?.nombre : c.clienteManual?.nombre;
+  const telefono = c.clienteId ? buscarCliente(c.clienteId)?.telefono : c.clienteManual?.telefono;
+  if(!telefono){ mostrarToast('Este cliente no tiene teléfono registrado — usa "Ver" para descargar la cotización y enviarla tú mismo.'); return; }
+  const telefonoLimpio = telefono.replace(/[^0-9]/g,'');
+  const mensaje = `Hola ${nombreCliente}, te compartimos la cotización ${c.numero} de ${db.config.nombre}. Cualquier duda, con gusto te ayudamos.`;
+  const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
+  const puedeCompartirArchivosNativo = !!(navigator.share && navigator.canShare);
+  let ventanaWhatsApp = null;
+  if(!puedeCompartirArchivosNativo){
+    ventanaWhatsApp = window.open(enlaceWhatsApp, '_blank');
+    if(!ventanaWhatsApp){ mostrarToast('⚠️ El navegador bloqueó la ventana de WhatsApp. Permítela para este sitio e intenta de nuevo.', 'error'); return; }
+  }
+  verPDFCotizacion(id);
+  const nombreArchivo = `Cotizacion_${c.numero}_${nombreCliente}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
+  const elemento = document.getElementById('pdfContenido');
+  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
+  if(typeof html2pdf === 'undefined'){
+    if(puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
+    registrarLog('Enviar WhatsApp', 'Cotizacion', `${c.numero} a ${nombreCliente} (sin PDF adjunto — sin conexión)`);
+    return;
+  }
+  html2pdf().set(opciones).from(elemento).outputPdf('blob').then(blob=>{
+    cerrarModal('modalPDF');
+    const archivoPdf = new File([blob], nombreArchivo, { type:'application/pdf' });
+    if(puedeCompartirArchivosNativo && navigator.canShare({ files:[archivoPdf] })){
+      navigator.share({ files:[archivoPdf], title:`Cotización ${c.numero}`, text: mensaje }).then(()=>{
+        registrarLog('Enviar WhatsApp', 'Cotizacion', `${c.numero} a ${nombreCliente} (compartido directo desde el celular)`);
+      }).catch(()=>{});
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const enlaceDescarga = document.createElement('a');
+    enlaceDescarga.href = url; enlaceDescarga.download = nombreArchivo; enlaceDescarga.click();
+    URL.revokeObjectURL(url);
+    mostrarToast(`Se descargó "${nombreArchivo}". WhatsApp ya está abierto: adjúntalo en el chat (📎 → Documento).`);
+    registrarLog('Enviar WhatsApp', 'Cotizacion', `${c.numero} a ${nombreCliente} (PDF descargado para adjuntar)`);
+  }).catch(()=>{
+    if(!ventanaWhatsApp && !puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
+    mostrarToast('No se pudo generar el PDF automáticamente.');
+  });
+}
+function enviarPorWhatsAppFactura(id){
+  const f = db.facturas.find(x=>x.id===id);
+  if(!f) return;
+  const nombreCliente = f.clienteId ? buscarCliente(f.clienteId)?.nombre : f.clienteManual?.nombre;
+  const telefono = f.clienteId ? buscarCliente(f.clienteId)?.telefono : f.clienteManual?.telefono;
+  if(!telefono){ mostrarToast('Este cliente no tiene teléfono registrado — usa "Ver" para descargar la factura y enviarla tú mismo.'); return; }
+  const telefonoLimpio = telefono.replace(/[^0-9]/g,'');
+  const mensaje = `Hola ${nombreCliente}, te compartimos la factura ${f.numero} de ${db.config.nombre}${f.estadoPago==='pagado'?' (ya registrada como pagada, gracias).':'. Total a pagar: '+formatoCOP(f.total)+'.'}`;
+  const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
+  const puedeCompartirArchivosNativo = !!(navigator.share && navigator.canShare);
+  let ventanaWhatsApp = null;
+  if(!puedeCompartirArchivosNativo){
+    ventanaWhatsApp = window.open(enlaceWhatsApp, '_blank');
+    if(!ventanaWhatsApp){ mostrarToast('⚠️ El navegador bloqueó la ventana de WhatsApp. Permítela para este sitio e intenta de nuevo.', 'error'); return; }
+  }
+  verPDFFactura(id);
+  const nombreArchivo = `Factura_${f.numero}_${nombreCliente}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
+  const elemento = document.getElementById('pdfContenido');
+  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
+  if(typeof html2pdf === 'undefined'){
+    if(puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
+    registrarLog('Enviar WhatsApp', 'Factura', `${f.numero} a ${nombreCliente} (sin PDF adjunto — sin conexión)`);
+    return;
+  }
+  html2pdf().set(opciones).from(elemento).outputPdf('blob').then(blob=>{
+    cerrarModal('modalPDF');
+    const archivoPdf = new File([blob], nombreArchivo, { type:'application/pdf' });
+    if(puedeCompartirArchivosNativo && navigator.canShare({ files:[archivoPdf] })){
+      navigator.share({ files:[archivoPdf], title:`Factura ${f.numero}`, text: mensaje }).then(()=>{
+        registrarLog('Enviar WhatsApp', 'Factura', `${f.numero} a ${nombreCliente} (compartido directo desde el celular)`);
+      }).catch(()=>{});
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const enlaceDescarga = document.createElement('a');
+    enlaceDescarga.href = url; enlaceDescarga.download = nombreArchivo; enlaceDescarga.click();
+    URL.revokeObjectURL(url);
+    mostrarToast(`Se descargó "${nombreArchivo}". WhatsApp ya está abierto: adjúntalo en el chat (📎 → Documento).`);
+    registrarLog('Enviar WhatsApp', 'Factura', `${f.numero} a ${nombreCliente} (PDF descargado para adjuntar)`);
+  }).catch(()=>{
+    if(!ventanaWhatsApp && !puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
+    mostrarToast('No se pudo generar el PDF automáticamente.');
+  });
+}

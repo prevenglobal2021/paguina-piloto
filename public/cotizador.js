@@ -554,6 +554,7 @@ function cambiarTabContabilidad(event, nombre){
 }
 function renderizarContabilidad(){
   db.liquidacionesNomina = db.liquidacionesNomina || []; db.gastos = db.gastos || []; db.pedidosTienda = db.pedidosTienda || []; db.ingresos = db.ingresos || [];
+  renderizarCotizacionesFacturas();
   const filtroMes = document.getElementById('contaMesFiltro');
   if(!filtroMes.value) filtroMes.value = mesActualISO();
   const mes = filtroMes.value; // "YYYY-MM"
@@ -1066,3 +1067,466 @@ function eliminarLiquidacionNomina(id){
   });
 }
 
+
+/* =========================================================
+   COTIZACIÓN Y FACTURACIÓN — Negocio / Contabilidad
+========================================================= */
+let itemsCotTemp = [];
+let itemsFacTemp = [];
+
+function itemsTempDe(prefijo){ return prefijo==='cot' ? itemsCotTemp : itemsFacTemp; }
+
+// --- Buscador de cliente (reutilizable entre Cotización y Factura) ---
+function buscarYRenderizarClientesComercial(idInput, idResultados, nombreFuncionSeleccionar){
+  const texto = document.getElementById(idInput).value.trim().toLowerCase();
+  const cont = document.getElementById(idResultados);
+  const resultados = db.clientes.filter(c=>!texto || c.nombre.toLowerCase().includes(texto)).slice(0,30);
+  if(!resultados.length){
+    cont.innerHTML = '<div class="autocomplete-item" style="cursor:default;color:#94a3b8;">Sin resultados para esa búsqueda</div>';
+  } else {
+    cont.innerHTML = resultados.map(c=>`
+      <div class="autocomplete-item" onmousedown="${nombreFuncionSeleccionar}(${c.id})">
+        <span class="autocomplete-item-avatar">${(c.nombre||'?').trim().charAt(0).toUpperCase()}</span>
+        <span style="flex:1;min-width:0;">${resaltarCoincidencia(c.nombre, texto)}</span>
+      </div>`).join('');
+  }
+  cont.classList.add('abierto');
+}
+function toggleClienteCotizacion(){
+  const esNuevo = document.getElementById('cotClienteEsNuevo').checked;
+  document.getElementById('wrapperCotClienteRegistrado').style.display = esNuevo ? 'none' : 'block';
+  document.getElementById('wrapperCotClienteManual').style.display = esNuevo ? 'block' : 'none';
+}
+function filtrarClientesCotizacion(){ buscarYRenderizarClientesComercial('cotClienteBuscador','cotClienteResultados','seleccionarClienteCotizacion'); }
+function seleccionarClienteCotizacion(clienteId){
+  const c = buscarCliente(clienteId);
+  if(!c) return;
+  document.getElementById('cotClienteBuscador').value = c.nombre;
+  document.getElementById('cotCliente').value = clienteId;
+  document.getElementById('cotClienteResultados').classList.remove('abierto');
+}
+function toggleClienteFactura(){
+  const esNuevo = document.getElementById('facClienteEsNuevo').checked;
+  document.getElementById('wrapperFacClienteRegistrado').style.display = esNuevo ? 'none' : 'block';
+  document.getElementById('wrapperFacClienteManual').style.display = esNuevo ? 'block' : 'none';
+}
+function filtrarClientesFactura(){ buscarYRenderizarClientesComercial('facClienteBuscador','facClienteResultados','seleccionarClienteFactura'); }
+function seleccionarClienteFactura(clienteId){
+  const c = buscarCliente(clienteId);
+  if(!c) return;
+  document.getElementById('facClienteBuscador').value = c.nombre;
+  document.getElementById('facCliente').value = clienteId;
+  document.getElementById('facClienteResultados').classList.remove('abierto');
+}
+
+// --- Ítems (productos/servicios del inventario, o líneas libres) ---
+function poblarSelectItemsComercial(selectId){
+  document.getElementById(selectId).innerHTML = '<option value="">Selecciona un producto/servicio del inventario...</option>' +
+    db.inventario.map(it=>`<option value="${it.id}">${it.nombre} (${formatoCOP(it.precio||0)})</option>`).join('');
+}
+function agregarItemFormCotizacionFactura(prefijo){
+  const itemId = parseInt(document.getElementById(prefijo+'ItemSelect').value);
+  const cantidad = parseInt(document.getElementById(prefijo+'ItemCantidad').value) || 1;
+  const it = db.inventario.find(x=>x.id===itemId);
+  if(!it){ mostrarToast('Selecciona un ítem del inventario.'); return; }
+  const precioUnitario = it.precio || 0;
+  itemsTempDe(prefijo).push({ tipo:'inventario', itemId, descripcion: it.nombre, cantidad, precioUnitario, subtotal: cantidad*precioUnitario });
+  document.getElementById(prefijo+'ItemCantidad').value = 1;
+  renderizarTablaItemsForm(prefijo);
+  actualizarPreviewCotizacionFactura(prefijo);
+}
+function agregarItemLibreFormCotizacionFactura(prefijo){
+  const descripcion = document.getElementById(prefijo+'ItemLibreDesc').value.trim();
+  const precioUnitario = parseFloat(document.getElementById(prefijo+'ItemLibrePrecio').value) || 0;
+  const cantidad = parseInt(document.getElementById(prefijo+'ItemLibreCantidad').value) || 1;
+  if(!descripcion){ mostrarToast('Escribe una descripción para el ítem libre.'); return; }
+  itemsTempDe(prefijo).push({ tipo:'libre', itemId:null, descripcion, cantidad, precioUnitario, subtotal: cantidad*precioUnitario });
+  document.getElementById(prefijo+'ItemLibreDesc').value=''; document.getElementById(prefijo+'ItemLibrePrecio').value=''; document.getElementById(prefijo+'ItemLibreCantidad').value=1;
+  renderizarTablaItemsForm(prefijo);
+  actualizarPreviewCotizacionFactura(prefijo);
+}
+function eliminarItemFormCotizacionFactura(prefijo, indice){
+  itemsTempDe(prefijo).splice(indice,1);
+  renderizarTablaItemsForm(prefijo);
+  actualizarPreviewCotizacionFactura(prefijo);
+}
+function renderizarTablaItemsForm(prefijo){
+  const items = itemsTempDe(prefijo);
+  const idTabla = prefijo==='cot' ? 'tablaItemsCot' : 'tablaItemsFac';
+  document.getElementById(idTabla).innerHTML = items.map((it,i)=>`
+    <tr><td>${it.descripcion}</td><td>${it.cantidad}</td><td>${formatoCOP(it.precioUnitario)}</td><td>${formatoCOP(it.subtotal)}</td>
+    <td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarItemFormCotizacionFactura('${prefijo}',${i})">✖</button></td></tr>`
+  ).join('') || '<tr><td colspan="5" class="empty-state">Sin ítems agregados todavía.</td></tr>';
+}
+function actualizarPreviewCotizacionFactura(prefijo){
+  const items = itemsTempDe(prefijo);
+  const subtotal = items.reduce((s,it)=>s+it.subtotal, 0);
+  const impuestoPorcentaje = parseFloat(document.getElementById(prefijo+'ImpuestoPorcentaje').value) || 0;
+  const impuesto = subtotal * impuestoPorcentaje / 100;
+  const total = subtotal + impuesto;
+  document.getElementById(prefijo+'PreviewSubtotal').innerText = formatoCOP(subtotal);
+  document.getElementById(prefijo+'PreviewImpuesto').innerText = formatoCOP(impuesto);
+  document.getElementById(prefijo+'PreviewTotal').innerText = formatoCOP(total);
+  return { subtotal, impuesto, total };
+}
+
+function siguienteNumeroCotizacion(){ return `COT-2026-${String((db.cotizaciones||[]).length + 1).padStart(4,'0')}`; }
+function siguienteNumeroFactura(){ return `FACT-2026-${String((db.facturas||[]).length + 1).padStart(4,'0')}`; }
+
+// --- Abrir modales ---
+function abrirModalCotizacion(cotizacionId){
+  itemsCotTemp = [];
+  document.getElementById('cotId').value = cotizacionId || '';
+  document.getElementById('cotClienteEsNuevo').checked = false;
+  toggleClienteCotizacion();
+  document.getElementById('cotClienteBuscador').value = '';
+  document.getElementById('cotCliente').value = '';
+  document.getElementById('cotClienteManualNombre').value = '';
+  document.getElementById('cotClienteManualTelefono').value = '';
+  document.getElementById('cotClienteManualEmail').value = '';
+  document.getElementById('cotClienteManualDocumento').value = '';
+  document.getElementById('cotImpuestoPorcentaje').value = 0;
+  document.getElementById('cotNotas').value = '';
+  poblarSelectItemsComercial('cotItemSelect');
+  if(cotizacionId){
+    const c = db.cotizaciones.find(x=>x.id===cotizacionId);
+    if(c){
+      document.getElementById('tituloModalCotizacion').innerText = '📝 Editar Cotización ' + c.numero;
+      if(c.clienteId){ document.getElementById('cotCliente').value = c.clienteId; const cl = buscarCliente(c.clienteId); document.getElementById('cotClienteBuscador').value = cl?cl.nombre:''; }
+      else {
+        document.getElementById('cotClienteEsNuevo').checked = true; toggleClienteCotizacion();
+        document.getElementById('cotClienteManualNombre').value = c.clienteManual?.nombre||'';
+        document.getElementById('cotClienteManualTelefono').value = c.clienteManual?.telefono||'';
+        document.getElementById('cotClienteManualEmail').value = c.clienteManual?.email||'';
+        document.getElementById('cotClienteManualDocumento').value = c.clienteManual?.documento||'';
+      }
+      itemsCotTemp = JSON.parse(JSON.stringify(c.items||[]));
+      document.getElementById('cotImpuestoPorcentaje').value = c.impuestoPorcentaje||0;
+      document.getElementById('cotNotas').value = c.notas||'';
+    }
+  } else {
+    document.getElementById('tituloModalCotizacion').innerText = '📝 Nueva Cotización';
+  }
+  renderizarTablaItemsForm('cot');
+  actualizarPreviewCotizacionFactura('cot');
+  abrirModal('modalCotizacion');
+}
+function abrirModalFactura(facturaId, cotizacionOrigen){
+  itemsFacTemp = [];
+  document.getElementById('facId').value = facturaId || '';
+  document.getElementById('facCotizacionOrigenId').value = '';
+  document.getElementById('facClienteEsNuevo').checked = false;
+  toggleClienteFactura();
+  document.getElementById('facClienteBuscador').value = '';
+  document.getElementById('facCliente').value = '';
+  document.getElementById('facClienteManualNombre').value = '';
+  document.getElementById('facClienteManualTelefono').value = '';
+  document.getElementById('facClienteManualEmail').value = '';
+  document.getElementById('facClienteManualDocumento').value = '';
+  document.getElementById('facImpuestoPorcentaje').value = 0;
+  document.getElementById('facNotas').value = '';
+  poblarSelectItemsComercial('facItemSelect');
+
+  if(facturaId){
+    const f = db.facturas.find(x=>x.id===facturaId);
+    if(f){
+      document.getElementById('tituloModalFactura').innerText = '🧾 Editar Factura ' + f.numero;
+      if(f.clienteId){ document.getElementById('facCliente').value = f.clienteId; const cl = buscarCliente(f.clienteId); document.getElementById('facClienteBuscador').value = cl?cl.nombre:''; }
+      else {
+        document.getElementById('facClienteEsNuevo').checked = true; toggleClienteFactura();
+        document.getElementById('facClienteManualNombre').value = f.clienteManual?.nombre||'';
+        document.getElementById('facClienteManualTelefono').value = f.clienteManual?.telefono||'';
+        document.getElementById('facClienteManualEmail').value = f.clienteManual?.email||'';
+        document.getElementById('facClienteManualDocumento').value = f.clienteManual?.documento||'';
+      }
+      itemsFacTemp = JSON.parse(JSON.stringify(f.items||[]));
+      document.getElementById('facImpuestoPorcentaje').value = f.impuestoPorcentaje||0;
+      document.getElementById('facNotas').value = f.notas||'';
+      document.getElementById('facCotizacionOrigenId').value = f.cotizacionOrigenId || '';
+    }
+  } else if(cotizacionOrigen){
+    document.getElementById('tituloModalFactura').innerText = '🧾 Nueva Factura (desde ' + cotizacionOrigen.numero + ')';
+    document.getElementById('facCotizacionOrigenId').value = cotizacionOrigen.id;
+    if(cotizacionOrigen.clienteId){ document.getElementById('facCliente').value = cotizacionOrigen.clienteId; const cl = buscarCliente(cotizacionOrigen.clienteId); document.getElementById('facClienteBuscador').value = cl?cl.nombre:''; }
+    else {
+      document.getElementById('facClienteEsNuevo').checked = true; toggleClienteFactura();
+      document.getElementById('facClienteManualNombre').value = cotizacionOrigen.clienteManual?.nombre||'';
+      document.getElementById('facClienteManualTelefono').value = cotizacionOrigen.clienteManual?.telefono||'';
+      document.getElementById('facClienteManualEmail').value = cotizacionOrigen.clienteManual?.email||'';
+      document.getElementById('facClienteManualDocumento').value = cotizacionOrigen.clienteManual?.documento||'';
+    }
+    itemsFacTemp = JSON.parse(JSON.stringify(cotizacionOrigen.items||[]));
+    document.getElementById('facImpuestoPorcentaje').value = cotizacionOrigen.impuestoPorcentaje||0;
+    document.getElementById('facNotas').value = cotizacionOrigen.notas||'';
+  } else {
+    document.getElementById('tituloModalFactura').innerText = '🧾 Nueva Factura';
+  }
+  renderizarTablaItemsForm('fac');
+  actualizarPreviewCotizacionFactura('fac');
+  abrirModal('modalFactura');
+}
+
+// --- Guardar ---
+async function guardarCotizacion(){
+  db.cotizaciones = db.cotizaciones || [];
+  if(!itemsCotTemp.length){ mostrarToast('Agrega al menos un ítem a la cotización.'); return; }
+  const esNuevoCliente = document.getElementById('cotClienteEsNuevo').checked;
+  let clienteId = null, clienteManual = null;
+  if(esNuevoCliente){
+    const nombre = document.getElementById('cotClienteManualNombre').value.trim();
+    if(!nombre){ mostrarToast('Escribe el nombre del cliente.'); return; }
+    clienteManual = { nombre, telefono: document.getElementById('cotClienteManualTelefono').value.trim(), email: document.getElementById('cotClienteManualEmail').value.trim(), documento: document.getElementById('cotClienteManualDocumento').value.trim() };
+  } else {
+    clienteId = parseInt(document.getElementById('cotCliente').value) || null;
+    if(!clienteId){ mostrarToast('Selecciona un cliente, o marca "Cliente no registrado".'); return; }
+  }
+  const { subtotal, impuesto, total } = actualizarPreviewCotizacionFactura('cot');
+  const idRaw = document.getElementById('cotId').value;
+  const notas = document.getElementById('cotNotas').value.trim();
+  const impuestoPorcentaje = parseFloat(document.getElementById('cotImpuestoPorcentaje').value) || 0;
+  let respaldo = null, esNuevaCot = false;
+  if(idRaw){
+    const c = db.cotizaciones.find(x=>x.id===parseInt(idRaw));
+    if(!c){ mostrarToast('No se encontró la cotización.'); return; }
+    respaldo = JSON.parse(JSON.stringify(c));
+    Object.assign(c, { clienteId, clienteManual, items: itemsCotTemp.slice(), impuestoPorcentaje, subtotal, impuestoValor:impuesto, total, notas });
+  } else {
+    esNuevaCot = true;
+    db.cotizaciones.push({ id:Date.now(), numero: siguienteNumeroCotizacion(), fecha: new Date().toISOString().slice(0,10),
+      clienteId, clienteManual, items: itemsCotTemp.slice(), impuestoPorcentaje, subtotal, impuestoValor:impuesto, total, notas,
+      estado: 'Enviada', facturaId: null });
+  }
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    if(idRaw && respaldo){ const idx=db.cotizaciones.findIndex(x=>x.id===parseInt(idRaw)); db.cotizaciones[idx]=respaldo; }
+    else if(esNuevaCot) db.cotizaciones.pop();
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
+  registrarLog(idRaw?'Editar':'Crear', 'Cotizacion', clienteId?(buscarCliente(clienteId)?.nombre||''):clienteManual.nombre);
+  mostrarToast(idRaw ? '✅ Cotización actualizada.' : '✅ Cotización creada.', 'exito');
+  cerrarModal('modalCotizacion');
+  renderizarCotizacionesFacturas();
+}
+async function guardarFactura(){
+  db.facturas = db.facturas || [];
+  if(!itemsFacTemp.length){ mostrarToast('Agrega al menos un ítem a la factura.'); return; }
+  const esNuevoCliente = document.getElementById('facClienteEsNuevo').checked;
+  let clienteId = null, clienteManual = null;
+  if(esNuevoCliente){
+    const nombre = document.getElementById('facClienteManualNombre').value.trim();
+    if(!nombre){ mostrarToast('Escribe el nombre del cliente.'); return; }
+    clienteManual = { nombre, telefono: document.getElementById('facClienteManualTelefono').value.trim(), email: document.getElementById('facClienteManualEmail').value.trim(), documento: document.getElementById('facClienteManualDocumento').value.trim() };
+  } else {
+    clienteId = parseInt(document.getElementById('facCliente').value) || null;
+    if(!clienteId){ mostrarToast('Selecciona un cliente, o marca "Cliente no registrado".'); return; }
+  }
+  const { subtotal, impuesto, total } = actualizarPreviewCotizacionFactura('fac');
+  const idRaw = document.getElementById('facId').value;
+  const cotizacionOrigenId = parseInt(document.getElementById('facCotizacionOrigenId').value) || null;
+  const notas = document.getElementById('facNotas').value.trim();
+  const impuestoPorcentaje = parseFloat(document.getElementById('facImpuestoPorcentaje').value) || 0;
+  let respaldo = null, esNuevaFac = false, nuevaFacturaId = null, respaldoFacturaIdCotizacion;
+  if(idRaw){
+    const f = db.facturas.find(x=>x.id===parseInt(idRaw));
+    if(!f){ mostrarToast('No se encontró la factura.'); return; }
+    respaldo = JSON.parse(JSON.stringify(f));
+    Object.assign(f, { clienteId, clienteManual, items: itemsFacTemp.slice(), impuestoPorcentaje, subtotal, impuestoValor:impuesto, total, notas });
+  } else {
+    esNuevaFac = true;
+    nuevaFacturaId = Date.now();
+    db.facturas.push({ id:nuevaFacturaId, numero: siguienteNumeroFactura(), fecha: new Date().toISOString().slice(0,10),
+      clienteId, clienteManual, items: itemsFacTemp.slice(), impuestoPorcentaje, subtotal, impuestoValor:impuesto, total, notas,
+      estadoPago: 'pendiente', fechaPago: null, cotizacionOrigenId, montoRegistradoComoIngreso: 0 });
+    if(cotizacionOrigenId){
+      const cot = db.cotizaciones.find(x=>x.id===cotizacionOrigenId);
+      if(cot){ respaldoFacturaIdCotizacion = cot.facturaId; cot.facturaId = nuevaFacturaId; }
+    }
+  }
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    if(idRaw && respaldo){ const idx=db.facturas.findIndex(x=>x.id===parseInt(idRaw)); db.facturas[idx]=respaldo; }
+    else if(esNuevaFac){
+      db.facturas.pop();
+      if(cotizacionOrigenId){ const cot = db.cotizaciones.find(x=>x.id===cotizacionOrigenId); if(cot) cot.facturaId = respaldoFacturaIdCotizacion; }
+    }
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
+  registrarLog(idRaw?'Editar':'Crear', 'Factura', clienteId?(buscarCliente(clienteId)?.nombre||''):clienteManual.nombre);
+  mostrarToast(idRaw ? '✅ Factura actualizada.' : '✅ Factura creada.', 'exito');
+  cerrarModal('modalFactura');
+  renderizarCotizacionesFacturas();
+}
+
+// --- Estados y conversión ---
+async function cambiarEstadoCotizacion(id, nuevoEstado){
+  const c = db.cotizaciones.find(x=>x.id===id);
+  if(!c) return;
+  const anterior = c.estado;
+  c.estado = nuevoEstado;
+  try{ await dbGuardarInmediato(); }catch(err){ c.estado = anterior; mostrarToast('⚠️ No se pudo cambiar el estado: '+err.message,'error'); renderizarCotizacionesFacturas(); return; }
+  mostrarToast(`Estado actualizado a "${nuevoEstado}".`, 'exito');
+  renderizarCotizacionesFacturas();
+}
+function convertirCotizacionAFactura(cotizacionId){
+  const c = db.cotizaciones.find(x=>x.id===cotizacionId);
+  if(!c) return;
+  if(c.estado !== 'Aprobada'){ mostrarToast('Solo se puede convertir en factura una cotización marcada como "Aprobada".'); return; }
+  if(c.facturaId){ mostrarToast('Esta cotización ya fue convertida en la factura ' + (db.facturas.find(f=>f.id===c.facturaId)?.numero||'') + '.'); return; }
+  abrirModalFactura(null, c);
+}
+
+// --- Pago de factura (con ingreso automático — mismo patrón que Nómina→Gastos) ---
+async function cambiarEstadoPagoFactura(id){
+  if(!confirm('¿Marcar esta factura como pagada?')) return;
+  const f = db.facturas.find(x=>x.id===id);
+  if(!f) return;
+  const anterior = JSON.parse(JSON.stringify(f));
+  const respaldoIngresos = db.ingresos ? db.ingresos.slice() : [];
+  f.estadoPago = 'pagado';
+  f.fechaPago = new Date().toISOString().slice(0,10);
+  sincronizarIngresoDesdeFactura(f);
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    Object.assign(f, anterior);
+    db.ingresos = respaldoIngresos;
+    mostrarToast('⚠️ No se pudo actualizar: ' + err.message, 'error');
+    return;
+  }
+  mostrarToast('✅ Factura marcada como pagada — se registró el ingreso automáticamente.', 'exito');
+  renderizarCotizacionesFacturas();
+  renderizarContabilidad();
+}
+async function revertirPagoFactura(id){
+  const f = db.facturas.find(x=>x.id===id);
+  if(!f) return;
+  if(!confirm('¿Marcar esta factura como pendiente de pago otra vez?')) return;
+  const anterior = JSON.parse(JSON.stringify(f));
+  const respaldoIngresos = db.ingresos ? db.ingresos.slice() : [];
+  f.estadoPago = 'pendiente'; f.fechaPago = null;
+  sincronizarIngresoDesdeFactura(f);
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    Object.assign(f, anterior);
+    db.ingresos = respaldoIngresos;
+    mostrarToast('⚠️ No se pudo actualizar: ' + err.message, 'error');
+    return;
+  }
+  mostrarToast('Factura marcada como pendiente.', 'exito');
+  renderizarCotizacionesFacturas();
+  renderizarContabilidad();
+}
+// Registra en Gastos... digo, en INGRESOS, solo la DIFERENCIA desde la última
+// vez que se sincronizó — igual que se hizo para Nómina→Gastos — para que
+// marcar pagada/pendiente varias veces por error nunca duplique ni sume de más.
+function sincronizarIngresoDesdeFactura(f){
+  db.ingresos = db.ingresos || [];
+  const montoObjetivo = f.estadoPago === 'pagado' ? f.total : 0;
+  const yaRegistrado = f.montoRegistradoComoIngreso || 0;
+  const delta = montoObjetivo - yaRegistrado;
+  const nombreCliente = f.clienteId ? (buscarCliente(f.clienteId)?.nombre||'Cliente') : (f.clienteManual?.nombre||'Cliente');
+  if(delta > 0){
+    db.ingresos.push({
+      id: Date.now(), concepto: `Factura ${f.numero} — ${nombreCliente}`, monto: delta,
+      fecha: f.fechaPago || new Date().toISOString().slice(0,10),
+      clienteId: f.clienteId || null, esClienteEsporadico: !f.clienteId, clienteEsporadicoNombre: f.clienteId ? null : nombreCliente,
+      origenFacturaId: f.id, origenFacturaNumero: f.numero
+    });
+    f.montoRegistradoComoIngreso = montoObjetivo;
+  } else if(delta < 0){
+    let porQuitar = -delta;
+    const vinculados = db.ingresos.filter(g=>g.origenFacturaId===f.id).sort((a,b)=>b.id-a.id);
+    for(const g of vinculados){
+      if(porQuitar<=0) break;
+      if(g.monto <= porQuitar){ porQuitar -= g.monto; db.ingresos = db.ingresos.filter(x=>x.id!==g.id); }
+      else { g.monto -= porQuitar; porQuitar = 0; }
+    }
+    f.montoRegistradoComoIngreso = montoObjetivo;
+  }
+}
+
+// --- Eliminar ---
+async function eliminarCotizacion(id){
+  if(!confirm('¿Eliminar esta cotización?')) return;
+  const respaldo = db.cotizaciones.slice();
+  db.cotizaciones = db.cotizaciones.filter(x=>x.id!==id);
+  try{ await dbGuardarInmediato(); }catch(err){ db.cotizaciones = respaldo; mostrarToast('⚠️ No se pudo eliminar: '+err.message,'error'); return; }
+  mostrarToast('Cotización eliminada.', 'exito');
+  renderizarCotizacionesFacturas();
+}
+async function eliminarFactura(id){
+  const f = db.facturas.find(x=>x.id===id);
+  if(f && f.estadoPago==='pagado'){ mostrarToast('Esta factura ya está pagada y tiene un ingreso vinculado. Márcala como "pendiente" primero si de verdad quieres eliminarla.'); return; }
+  if(!confirm('¿Eliminar esta factura?')) return;
+  const respaldo = db.facturas.slice();
+  const cotVinculada = f && f.cotizacionOrigenId ? db.cotizaciones.find(c=>c.id===f.cotizacionOrigenId) : null;
+  const respaldoFacturaIdCot = cotVinculada ? cotVinculada.facturaId : undefined;
+  db.facturas = db.facturas.filter(x=>x.id!==id);
+  if(cotVinculada) cotVinculada.facturaId = null;
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.facturas = respaldo;
+    if(cotVinculada) cotVinculada.facturaId = respaldoFacturaIdCot;
+    mostrarToast('⚠️ No se pudo eliminar: '+err.message,'error');
+    return;
+  }
+  mostrarToast('Factura eliminada.', 'exito');
+  renderizarCotizacionesFacturas();
+}
+
+// --- Render de las 2 tablas ---
+function renderizarCotizacionesFacturas(){
+  db.cotizaciones = db.cotizaciones || [];
+  db.facturas = db.facturas || [];
+  const coloresEstadoCot = {
+    'Enviada': {fondo:'#dbeafe',texto:'#1e40af'}, 'Vista':{fondo:'#e0e7ff',texto:'#4338ca'},
+    'Aprobada':{fondo:'#dcfce7',texto:'#166534'}, 'Rechazada':{fondo:'#fee2e2',texto:'#b91c1c'}, 'Vencida':{fondo:'#f1f5f9',texto:'#475569'}
+  };
+  const tablaCot = document.getElementById('tablaCotizaciones');
+  if(tablaCot){
+    tablaCot.innerHTML = db.cotizaciones.slice().reverse().map(c=>{
+      const nombreCliente = c.clienteId ? (buscarCliente(c.clienteId)?.nombre||'—') : `${c.clienteManual?.nombre||'—'} <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;">NO REGISTRADO</span>`;
+      const opcionesEstado = ['Enviada','Vista','Aprobada','Rechazada','Vencida'].map(e=>`<option value="${e}" ${c.estado===e?'selected':''}>${e}</option>`).join('');
+      const col = coloresEstadoCot[c.estado] || coloresEstadoCot['Enviada'];
+      return `<tr>
+        <td>${c.numero}</td><td>${c.fecha}</td><td>${nombreCliente}</td><td>${formatoCOP(c.total)}</td>
+        <td><select onchange="cambiarEstadoCotizacion(${c.id}, this.value)" style="background:${col.fondo};color:${col.texto};border:none;font-weight:700;font-size:11px;border-radius:8px;padding:3px 6px;">${opcionesEstado}</select></td>
+        <td style="white-space:nowrap;">
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verPDFCotizacion(${c.id})" title="Ver / Imprimir"><i class="fas fa-file-invoice"></i></button>
+          <button class="btn-custom btn-success-custom btn-sm-custom" onclick="enviarPorWhatsAppCotizacion(${c.id})" title="Enviar por WhatsApp"><i class="fab fa-whatsapp"></i></button>
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalCotizacion(${c.id})" title="Editar"><i class="fas fa-pen"></i></button>
+          ${c.estado==='Aprobada' && !c.facturaId ? `<button class="btn-custom btn-sm-custom" onclick="convertirCotizacionAFactura(${c.id})">→ Factura</button>` : ''}
+          ${c.facturaId ? `<span style="font-size:10px;color:var(--text-muted);">→ ${db.facturas.find(f=>f.id===c.facturaId)?.numero||''}</span>` : ''}
+          <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarCotizacion(${c.id})" title="Eliminar"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="6" class="empty-state">Sin cotizaciones registradas todavía.</td></tr>';
+  }
+  const tablaFac = document.getElementById('tablaFacturas');
+  if(tablaFac){
+    tablaFac.innerHTML = db.facturas.slice().reverse().map(f=>{
+      const nombreCliente = f.clienteId ? (buscarCliente(f.clienteId)?.nombre||'—') : `${f.clienteManual?.nombre||'—'} <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;">NO REGISTRADO</span>`;
+      const pagada = f.estadoPago === 'pagado';
+      const estadoHtml = pagada
+        ? `<span style="font-size:10px;font-weight:700;background:#dcfce7;color:#166534;padding:3px 10px;border-radius:12px;white-space:nowrap;"><i class="fas fa-circle-check"></i> Pagada</span>`
+        : `<span style="font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:12px;white-space:nowrap;"><i class="fas fa-clock"></i> Pendiente</span>`;
+      const origen = f.cotizacionOrigenId ? (db.cotizaciones.find(c=>c.id===f.cotizacionOrigenId)?.numero || '—') : '<span style="color:var(--text-muted);">Directa</span>';
+      return `<tr>
+        <td>${f.numero}</td><td>${f.fecha}</td><td>${nombreCliente}</td><td>${formatoCOP(f.total)}</td>
+        <td>${estadoHtml}</td><td>${origen}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verPDFFactura(${f.id})" title="Ver / Imprimir"><i class="fas fa-file-invoice"></i></button>
+          <button class="btn-custom btn-success-custom btn-sm-custom" onclick="enviarPorWhatsAppFactura(${f.id})" title="Enviar por WhatsApp"><i class="fab fa-whatsapp"></i></button>
+          ${pagada ? `<button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="revertirPagoFactura(${f.id})">Marcar pendiente</button>` : `<button class="btn-custom btn-success-custom btn-sm-custom" onclick="cambiarEstadoPagoFactura(${f.id})"><i class="fas fa-hand-holding-dollar"></i> Marcar pagada</button>`}
+          <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarFactura(${f.id})" title="Eliminar"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="7" class="empty-state">Sin facturas registradas todavía.</td></tr>';
+  }
+}
