@@ -412,8 +412,8 @@ function renderizarGaleriaFotos(contenedorId, fotos, contexto, campoId, tamanoBl
   const itemHtml = (f, idx) => `
     <div class="galeria-foto-item">
       <div class="galeria-foto-marco">
-        <img src="${f.src}">
-        <button type="button" class="galeria-foto-quitar" onclick="eliminarFotoGaleria('${contexto}',${idx}${sufijoCampo})">✖</button>
+        <img src="${f.src}" onclick="verImagenAmpliada('${f.src}')" style="cursor:zoom-in;">
+        <button type="button" class="galeria-foto-quitar" onclick="event.stopPropagation();eliminarFotoGaleria('${contexto}',${idx}${sufijoCampo})">✖</button>
       </div>
       <input type="text" class="galeria-foto-desc" placeholder="Descripción (opcional)" value="${(f.desc||'').replace(/"/g,'&quot;')}" oninput="actualizarDescripcionGaleria('${contexto}',${idx},this.value${sufijoCampo})">
     </div>`;
@@ -448,6 +448,11 @@ function obtenerArregloGaleria(contexto, campoId){
   if(contexto==='equipoModal') return fotosEquipoModalTemp;
   if(contexto==='ordenGeneral') return fotosDetalleTemp;
   if(contexto==='ordenCampo') return fotosCamposDetalleTemp[campoId];
+  if(contexto.indexOf('ordenEquipoCampo_')===0){
+    const equipoId = contexto.slice('ordenEquipoCampo_'.length);
+    return fotosCamposDetalleTempPorEquipo[equipoId] ? fotosCamposDetalleTempPorEquipo[equipoId][campoId] : null;
+  }
+  if(contexto.indexOf('ordenEquipo_')===0) return fotosDetalleTempPorEquipo[contexto.slice('ordenEquipo_'.length)];
   return null;
 }
 function rerenderizarGaleria(contexto, campoId){
@@ -456,6 +461,8 @@ function rerenderizarGaleria(contexto, campoId){
   else if(contexto==='equipoModal') renderizarFotosEquipoModalPreview();
   else if(contexto==='ordenGeneral') renderizarFotosDetallePreview();
   else if(contexto==='ordenCampo') renderizarFotoCampoDetallePreview(campoId);
+  else if(contexto.indexOf('ordenEquipoCampo_')===0) renderizarFotoCampoDetallePreviewEquipo(contexto.slice('ordenEquipoCampo_'.length), campoId);
+  else if(contexto.indexOf('ordenEquipo_')===0) renderizarFotosDetallePreviewEquipo(contexto.slice('ordenEquipo_'.length));
 }
 function eliminarFotoGaleria(contexto, idx, campoId){
   const arr = obtenerArregloGaleria(contexto, campoId);
