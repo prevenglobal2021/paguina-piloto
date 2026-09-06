@@ -104,7 +104,7 @@ function enviarPorWhatsApp(ordenId){
   // tablas), esa combinación producía saltos de página irregulares con un
   // espacio en blanco enorme antes de que apareciera el contenido. Con solo
   // 'css' el documento queda parejo de principio a fin.
-  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true,windowWidth:900}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
+  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
 
   if(typeof html2pdf === 'undefined'){
     // sin conexión para cargar la librería de PDF: igual abrimos WhatsApp, el usuario adjunta manualmente con "Ver Documento"
@@ -557,7 +557,7 @@ function enviarPorWhatsAppCotizacion(id){
   verPDFCotizacion(id);
   const nombreArchivo = `Cotizacion_${c.numero}_${nombreCliente}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
   const elemento = document.getElementById('pdfContenido');
-  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true,windowWidth:900}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
+  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
   if(typeof html2pdf === 'undefined'){
     if(puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
     registrarLog('Enviar WhatsApp', 'Cotizacion', `${c.numero} a ${nombreCliente} (sin PDF adjunto — sin conexión)`);
@@ -601,7 +601,7 @@ function enviarPorWhatsAppFactura(id){
   verPDFFactura(id);
   const nombreArchivo = `Factura_${f.numero}_${nombreCliente}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
   const elemento = document.getElementById('pdfContenido');
-  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true,windowWidth:900}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
+  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
   if(typeof html2pdf === 'undefined'){
     if(puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
     registrarLog('Enviar WhatsApp', 'Factura', `${f.numero} a ${nombreCliente} (sin PDF adjunto — sin conexión)`);

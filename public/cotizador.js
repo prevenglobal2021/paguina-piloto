@@ -406,7 +406,7 @@ function enviarComprobanteNominaPorWhatsApp(id){
   verComprobanteNomina(id); // arma el contenido del comprobante en #comprobanteNominaContenido
   const nombreArchivo = `Comprobante_${l.numero}_${t.nombre}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
   const elemento = document.getElementById('comprobanteNominaContenido');
-  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true,windowWidth:900}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
+  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
 
   if(typeof html2pdf === 'undefined'){
     if(puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
