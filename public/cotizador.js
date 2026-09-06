@@ -406,7 +406,7 @@ function enviarComprobanteNominaPorWhatsApp(id){
   verComprobanteNomina(id); // arma el contenido del comprobante en #comprobanteNominaContenido
   const nombreArchivo = `Comprobante_${l.numero}_${t.nombre}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
   const elemento = document.getElementById('comprobanteNominaContenido');
-  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
+  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true,windowWidth:900,width:900}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
 
   if(typeof html2pdf === 'undefined'){
     if(puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
@@ -1130,8 +1130,10 @@ function agregarItemFormCotizacionFactura(prefijo){
   const it = db.inventario.find(x=>x.id===itemId);
   if(!it){ mostrarToast('Selecciona un ítem del inventario.'); return; }
   const precioUnitario = it.precio || 0;
-  itemsTempDe(prefijo).push({ tipo:'inventario', itemId, descripcion: it.nombre, cantidad, precioUnitario, subtotal: cantidad*precioUnitario });
+  const descripcionExtra = document.getElementById(prefijo+'ItemDescripcionExtra').value.trim();
+  itemsTempDe(prefijo).push({ tipo:'inventario', itemId, descripcion: it.nombre, descripcionExtra, cantidad, precioUnitario, subtotal: cantidad*precioUnitario });
   document.getElementById(prefijo+'ItemCantidad').value = 1;
+  document.getElementById(prefijo+'ItemDescripcionExtra').value = '';
   renderizarTablaItemsForm(prefijo);
   actualizarPreviewCotizacionFactura(prefijo);
 }
@@ -1139,9 +1141,11 @@ function agregarItemLibreFormCotizacionFactura(prefijo){
   const descripcion = document.getElementById(prefijo+'ItemLibreDesc').value.trim();
   const precioUnitario = parseFloat(document.getElementById(prefijo+'ItemLibrePrecio').value) || 0;
   const cantidad = parseInt(document.getElementById(prefijo+'ItemLibreCantidad').value) || 1;
+  const descripcionExtra = document.getElementById(prefijo+'ItemDescripcionExtra').value.trim();
   if(!descripcion){ mostrarToast('Escribe una descripción para el ítem libre.'); return; }
-  itemsTempDe(prefijo).push({ tipo:'libre', itemId:null, descripcion, cantidad, precioUnitario, subtotal: cantidad*precioUnitario });
+  itemsTempDe(prefijo).push({ tipo:'libre', itemId:null, descripcion, descripcionExtra, cantidad, precioUnitario, subtotal: cantidad*precioUnitario });
   document.getElementById(prefijo+'ItemLibreDesc').value=''; document.getElementById(prefijo+'ItemLibrePrecio').value=''; document.getElementById(prefijo+'ItemLibreCantidad').value=1;
+  document.getElementById(prefijo+'ItemDescripcionExtra').value = '';
   renderizarTablaItemsForm(prefijo);
   actualizarPreviewCotizacionFactura(prefijo);
 }
@@ -1154,9 +1158,9 @@ function renderizarTablaItemsForm(prefijo){
   const items = itemsTempDe(prefijo);
   const idTabla = prefijo==='cot' ? 'tablaItemsCot' : 'tablaItemsFac';
   document.getElementById(idTabla).innerHTML = items.map((it,i)=>`
-    <tr><td>${it.descripcion}</td><td>${it.cantidad}</td><td>${formatoCOP(it.precioUnitario)}</td><td>${formatoCOP(it.subtotal)}</td>
+    <tr><td>${it.descripcion}</td><td style="font-size:11px;color:var(--text-muted);">${it.descripcionExtra||'—'}</td><td>${it.cantidad}</td><td>${formatoCOP(it.precioUnitario)}</td><td>${formatoCOP(it.subtotal)}</td>
     <td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarItemFormCotizacionFactura('${prefijo}',${i})">✖</button></td></tr>`
-  ).join('') || '<tr><td colspan="5" class="empty-state">Sin ítems agregados todavía.</td></tr>';
+  ).join('') || '<tr><td colspan="6" class="empty-state">Sin ítems agregados todavía.</td></tr>';
 }
 function actualizarPreviewCotizacionFactura(prefijo){
   const items = itemsTempDe(prefijo);

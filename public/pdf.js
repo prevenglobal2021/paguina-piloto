@@ -177,7 +177,7 @@ function verPDF(ordenId){
    PDF — Cotización y Factura
 ========================================================= */
 function generarFilasItemsComercial(items){
-  return items.map(it=>`<tr><td>${it.descripcion}</td><td style="text-align:center;">${it.cantidad}</td><td style="text-align:right;">${formatoCOP(it.precioUnitario)}</td><td style="text-align:right;">${formatoCOP(it.subtotal)}</td></tr>`).join('');
+  return items.map(it=>`<tr><td>${it.descripcion}${it.descripcionExtra?`<br><small style="color:#64748b;font-weight:400;">${it.descripcionExtra}</small>`:''}</td><td style="text-align:center;">${it.cantidad}</td><td style="text-align:right;">${formatoCOP(it.precioUnitario)}</td><td style="text-align:right;">${formatoCOP(it.subtotal)}</td></tr>`).join('');
 }
 function generarBloqueTotalesComercial(subtotal, impuestoPorcentaje, impuestoValor, total){
   return `<div style="display:flex;justify-content:flex-end;margin-top:10px;">

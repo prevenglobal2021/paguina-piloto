@@ -1707,8 +1707,11 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <div><input type="number" id="cotItemLibreCantidad" value="1" min="1"></div>
         <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarItemLibreFormCotizacionFactura('cot')">+ Agregar libre</button>
       </div>
+      <div class="field-row">
+        <div style="flex:1;"><input type="text" id="cotItemDescripcionExtra" placeholder="Descripción / especificaciones adicionales para el próximo ítem que agregues (opcional)"></div>
+      </div>
       <table class="data-table" style="margin-top:10px;">
-        <thead><tr><th>Ítem</th><th>Cant.</th><th>Precio Unit.</th><th>Subtotal</th><th></th></tr></thead>
+        <thead><tr><th>Ítem</th><th>Descripción</th><th>Cant.</th><th>Precio Unit.</th><th>Subtotal</th><th></th></tr></thead>
         <tbody id="tablaItemsCot"></tbody>
       </table>
     </div>
@@ -1771,8 +1774,11 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <div><input type="number" id="facItemLibreCantidad" value="1" min="1"></div>
         <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarItemLibreFormCotizacionFactura('fac')">+ Agregar libre</button>
       </div>
+      <div class="field-row">
+        <div style="flex:1;"><input type="text" id="facItemDescripcionExtra" placeholder="Descripción / especificaciones adicionales para el próximo ítem que agregues (opcional)"></div>
+      </div>
       <table class="data-table" style="margin-top:10px;">
-        <thead><tr><th>Ítem</th><th>Cant.</th><th>Precio Unit.</th><th>Subtotal</th><th></th></tr></thead>
+        <thead><tr><th>Ítem</th><th>Descripción</th><th>Cant.</th><th>Precio Unit.</th><th>Subtotal</th><th></th></tr></thead>
         <tbody id="tablaItemsFac"></tbody>
       </table>
     </div>
@@ -2356,19 +2362,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=74"></script>
-<script src="utilidades-navegacion.js?v=74"></script>
-<script src="buscador-agenda.js?v=74"></script>
-<script src="ordenes.js?v=74"></script>
-<script src="equipos-trazabilidad.js?v=74"></script>
-<script src="pdf.js?v=74"></script>
-<script src="config-clientes-equipos.js?v=74"></script>
-<script src="config-plantillas-tecnicos.js?v=74"></script>
-<script src="cotizador.js?v=74"></script>
-<script src="config-general.js?v=74"></script>
-<script src="inventario.js?v=74"></script>
-<script src="tienda-admin.js?v=74"></script>
-<script src="tienda-publica.js?v=74"></script>
-<script src="kpi.js?v=74"></script>
+<script src="core.js?v=75"></script>
+<script src="utilidades-navegacion.js?v=75"></script>
+<script src="buscador-agenda.js?v=75"></script>
+<script src="ordenes.js?v=75"></script>
+<script src="equipos-trazabilidad.js?v=75"></script>
+<script src="pdf.js?v=75"></script>
+<script src="config-clientes-equipos.js?v=75"></script>
+<script src="config-plantillas-tecnicos.js?v=75"></script>
+<script src="cotizador.js?v=75"></script>
+<script src="config-general.js?v=75"></script>
+<script src="inventario.js?v=75"></script>
+<script src="tienda-admin.js?v=75"></script>
+<script src="tienda-publica.js?v=75"></script>
+<script src="kpi.js?v=75"></script>
 </body>
 </html>
