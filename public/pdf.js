@@ -244,18 +244,27 @@ function verPDFFactura(id){
   const documentoCliente = f.clienteId ? buscarCliente(f.clienteId)?.numeroDocumento : f.clienteManual?.documento;
   const telefonoCliente = f.clienteId ? buscarCliente(f.clienteId)?.telefono : f.clienteManual?.telefono;
   const logoHtml = db.config.logo ? `<img src="${db.config.logo}">` : '';
-  const pagada = f.estadoPago === 'pagado';
-  // Misma marca de agua que ya se usa en los comprobantes de nómina, para que
-  // se vea consistente en toda la plataforma.
-  const marcaAgua = pagada ? { texto:'PAGADO', color:'22,163,74' } : null;
+  const infoPago = infoEstadoPagoFactura(f.estadoPago);
+  const coloresBanner = { pendiente:'#d97706', abonada:'#7c3aed', pagado:'#16a34a', cancelada:'#64748b' };
+  // Misma idea de marca de agua que ya se usa en los comprobantes de nómina,
+  // para que se vea consistente en toda la plataforma — ahora con las 4
+  // variantes posibles según el estado de pago.
+  const marcaAgua = f.estadoPago==='pagado' ? { texto:'PAGADO', color:'22,163,74' }
+    : f.estadoPago==='cancelada' ? { texto:'CANCELADA', color:'100,116,139' }
+    : null;
+  let textoBanner;
+  if(f.estadoPago==='pagado') textoBanner = 'Pagada el '+new Date(f.fechaPago+'T00:00:00').toLocaleDateString('es-CO');
+  else if(f.estadoPago==='cancelada') textoBanner = 'Factura cancelada';
+  else if(f.estadoPago==='abonada') textoBanner = `Abonado ${formatoCOP(f.montoAbonado||0)} de ${formatoCOP(f.total)} — saldo ${formatoCOP(f.total-(f.montoAbonado||0))}`;
+  else textoBanner = 'Pendiente por pagar';
   document.getElementById('pdfContenido').innerHTML = `
     ${marcaAgua ? `<div style="position:absolute;top:42%;left:50%;transform:translate(-50%,-50%) rotate(-22deg);font-size:52px;font-weight:900;color:rgba(${marcaAgua.color},.28);border:6px solid rgba(${marcaAgua.color},.28);padding:4px 26px;border-radius:14px;pointer-events:none;z-index:5;letter-spacing:4px;white-space:nowrap;">${marcaAgua.texto}</div>` : ''}
     <div class="pdf-header">
       <div>${logoHtml}<h2 style="color:#0088ff;margin:0;">${db.config.nombre}</h2><small>${db.config.subtitulo||''}</small>${db.config.direccion?`<br><small>${db.config.direccion}</small>`:''}</div>
       <div style="text-align:right;"><strong style="font-size:15px;">Factura de Venta</strong><br><small>N.º ${f.numero}</small><br><small>Fecha: ${new Date(f.fecha+'T00:00:00').toLocaleDateString('es-CO')}</small></div>
     </div>
-    <div style="background:${pagada?'#16a34a':'#d97706'};color:#fff;padding:8px 15px;border-radius:6px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;break-inside:avoid;page-break-inside:avoid;">
-      <span style="font-weight:700;font-size:13px;"><i class="fas ${pagada?'fa-circle-check':'fa-clock'}"></i> ${pagada ? 'Pagada el '+new Date(f.fechaPago+'T00:00:00').toLocaleDateString('es-CO') : 'Pendiente por pagar'}</span>
+    <div style="background:${coloresBanner[f.estadoPago]||coloresBanner.pendiente};color:#fff;padding:8px 15px;border-radius:6px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;break-inside:avoid;page-break-inside:avoid;">
+      <span style="font-weight:700;font-size:13px;"><i class="fas ${infoPago.icono}"></i> ${textoBanner}</span>
       <span style="font-size:11px;opacity:.9;">${f.numero}</span>
     </div>
     <div class="pdf-box"><h4>Cliente</h4>
@@ -272,7 +281,7 @@ function verPDFFactura(id){
       </table>
       ${generarBloqueTotalesComercial(f.subtotal, (f.descuentoItems||0)+(f.descuentoGeneral||0), f.impuestoPorcentaje, f.impuestoValor, f.total)}
     </div>
-    ${(!pagada && f.fechaVencimiento) ? `<p style="font-size:12px;color:#b45309;text-align:right;margin:6px 0;font-weight:700;"><strong>Fecha límite de pago:</strong> ${new Date(f.fechaVencimiento+'T00:00:00').toLocaleDateString('es-CO')}</p>` : ''}
+    ${(f.estadoPago==='pendiente' && f.fechaVencimiento) ? `<p style="font-size:12px;color:#b45309;text-align:right;margin:6px 0;font-weight:700;"><strong>Fecha límite de pago:</strong> ${new Date(f.fechaVencimiento+'T00:00:00').toLocaleDateString('es-CO')}</p>` : ''}
     ${f.notas ? `<div class="pdf-box"><h4>Notas / Términos y condiciones</h4><p style="font-size:12px;margin:0;">${f.notas}</p></div>` : ''}
     <p style="font-size:10px;color:#94a3b8;text-align:center;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:10px;">Gracias por confiar en ${db.config.nombre}.</p>`;
   abrirModal('modalPDF');

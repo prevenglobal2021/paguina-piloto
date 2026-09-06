@@ -1559,14 +1559,36 @@ function convertirCotizacionAFactura(cotizacionId){
 }
 
 // --- Pago de factura (con ingreso automático — mismo patrón que Nómina→Gastos) ---
-async function cambiarEstadoPagoFactura(id){
-  if(!confirm('¿Marcar esta factura como pagada?')) return;
+let facturaEstadoPagoActualId = null;
+function toggleMontoAbonadoFactura(){
+  document.getElementById('wrapperMontoAbonadoFactura').style.display = document.getElementById('selEstadoPagoFactura').value==='abonada' ? 'block' : 'none';
+}
+function abrirModalEstadoPagoFactura(id){
   const f = db.facturas.find(x=>x.id===id);
   if(!f) return;
+  facturaEstadoPagoActualId = id;
+  document.getElementById('lblFacturaEstadoPago').innerText = `${f.numero} — Total: ${formatoCOP(f.total)}`;
+  document.getElementById('selEstadoPagoFactura').value = f.estadoPago || 'pendiente';
+  document.getElementById('inputMontoAbonadoFactura').value = f.montoAbonado || '';
+  toggleMontoAbonadoFactura();
+  abrirModal('modalEstadoPagoFactura');
+}
+async function guardarEstadoPagoFactura(){
+  const f = db.facturas.find(x=>x.id===facturaEstadoPagoActualId);
+  if(!f) return;
+  const nuevoEstado = document.getElementById('selEstadoPagoFactura').value;
+  let montoAbonado = null;
+  if(nuevoEstado==='abonada'){
+    const montoRaw = document.getElementById('inputMontoAbonadoFactura').value;
+    montoAbonado = parseFloat(montoRaw);
+    if(!montoAbonado || montoAbonado<=0){ mostrarToast('Escribe el monto abonado hasta ahora.'); return; }
+    if(montoAbonado >= f.total){ mostrarToast('El monto abonado no puede ser igual o mayor al total — para eso usa "Pagada completa".'); return; }
+  }
   const anterior = JSON.parse(JSON.stringify(f));
   const respaldoIngresos = db.ingresos ? db.ingresos.slice() : [];
-  f.estadoPago = 'pagado';
-  f.fechaPago = new Date().toISOString().slice(0,10);
+  f.estadoPago = nuevoEstado;
+  f.montoAbonado = nuevoEstado==='abonada' ? montoAbonado : (nuevoEstado==='pagado' ? f.total : f.montoAbonado);
+  f.fechaPago = nuevoEstado==='pagado' ? new Date().toISOString().slice(0,10) : (nuevoEstado==='pendiente' ? null : f.fechaPago);
   sincronizarIngresoDesdeFactura(f);
   try{
     await dbGuardarInmediato();
@@ -1576,42 +1598,38 @@ async function cambiarEstadoPagoFactura(id){
     mostrarToast('⚠️ No se pudo actualizar: ' + err.message, 'error');
     return;
   }
-  mostrarToast('✅ Factura marcada como pagada — se registró el ingreso automáticamente.', 'exito');
+  registrarLog('Cambiar estado de pago', 'Factura', `${f.numero} → ${infoEstadoPagoFactura(nuevoEstado).etiqueta}${montoAbonado?' ('+formatoCOP(montoAbonado)+')':''}`);
+  mostrarToast('✅ Estado de pago actualizado — Trazabilidad quedó al día.', 'exito');
+  cerrarModal('modalEstadoPagoFactura');
   renderizarCotizacionesFacturas();
   renderizarContabilidad();
 }
-async function revertirPagoFactura(id){
-  const f = db.facturas.find(x=>x.id===id);
-  if(!f) return;
-  if(!confirm('¿Marcar esta factura como pendiente de pago otra vez?')) return;
-  const anterior = JSON.parse(JSON.stringify(f));
-  const respaldoIngresos = db.ingresos ? db.ingresos.slice() : [];
-  f.estadoPago = 'pendiente'; f.fechaPago = null;
-  sincronizarIngresoDesdeFactura(f);
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    Object.assign(f, anterior);
-    db.ingresos = respaldoIngresos;
-    mostrarToast('⚠️ No se pudo actualizar: ' + err.message, 'error');
-    return;
-  }
-  mostrarToast('Factura marcada como pendiente.', 'exito');
-  renderizarCotizacionesFacturas();
-  renderizarContabilidad();
+function infoEstadoPagoFactura(estado){
+  const mapa = {
+    pendiente: { etiqueta:'Pendiente por pagar', fondo:'#fef3c7', texto:'#92400e', icono:'fa-clock' },
+    abonada:   { etiqueta:'Abonada',             fondo:'#ede9fe', texto:'#5b21b6', icono:'fa-hand-holding-dollar' },
+    pagado:    { etiqueta:'Pagada completa',     fondo:'#dcfce7', texto:'#166534', icono:'fa-circle-check' },
+    cancelada: { etiqueta:'Cancelada',           fondo:'#f1f5f9', texto:'#64748b', icono:'fa-ban' }
+  };
+  return mapa[estado] || mapa.pendiente;
 }
-// Registra en Gastos... digo, en INGRESOS, solo la DIFERENCIA desde la última
-// vez que se sincronizó — igual que se hizo para Nómina→Gastos — para que
-// marcar pagada/pendiente varias veces por error nunca duplique ni sume de más.
+// Registra en Trazabilidad (Ingresos) solo la DIFERENCIA desde el último abono
+// registrado — así varios abonos sucesivos a la misma factura se van sumando
+// correctamente, sin duplicar ni perder ninguno. Al cancelar una factura, el
+// dinero que YA se había recibido no se borra (se conserva tal cual).
 function sincronizarIngresoDesdeFactura(f){
   db.ingresos = db.ingresos || [];
-  const montoObjetivo = f.estadoPago === 'pagado' ? f.total : 0;
+  let montoObjetivo;
+  if(f.estadoPago === 'pagado') montoObjetivo = f.total;
+  else if(f.estadoPago === 'abonada') montoObjetivo = f.montoAbonado || 0;
+  else if(f.estadoPago === 'cancelada') montoObjetivo = f.montoRegistradoComoIngreso || 0;
+  else montoObjetivo = 0; // pendiente
   const yaRegistrado = f.montoRegistradoComoIngreso || 0;
   const delta = montoObjetivo - yaRegistrado;
   const nombreCliente = f.clienteId ? (buscarCliente(f.clienteId)?.nombre||'Cliente') : (f.clienteManual?.nombre||'Cliente');
   if(delta > 0){
     db.ingresos.push({
-      id: Date.now(), concepto: `Factura ${f.numero} — ${nombreCliente}`, monto: delta,
+      id: Date.now(), concepto: `Factura ${f.numero} — ${nombreCliente}${f.estadoPago==='abonada'?' (abono)':''}`, monto: delta,
       fecha: f.fechaPago || new Date().toISOString().slice(0,10),
       clienteId: f.clienteId || null, esClienteEsporadico: !f.clienteId, clienteEsporadicoNombre: f.clienteId ? null : nombreCliente,
       origenFacturaId: f.id, origenFacturaNumero: f.numero
@@ -1640,7 +1658,7 @@ async function eliminarCotizacion(id){
 }
 async function eliminarFactura(id){
   const f = db.facturas.find(x=>x.id===id);
-  if(f && f.estadoPago==='pagado'){ mostrarToast('Esta factura ya está pagada y tiene un ingreso vinculado. Márcala como "pendiente" primero si de verdad quieres eliminarla.'); return; }
+  if(f && (f.montoRegistradoComoIngreso||0) > 0){ mostrarToast('Esta factura ya tiene un ingreso vinculado en Trazabilidad. Cámbiala a "Pendiente" primero si de verdad quieres eliminarla.'); return; }
   if(!confirm('¿Eliminar esta factura?')) return;
   const respaldo = db.facturas.slice();
   const cotVinculada = f && f.cotizacionOrigenId ? db.cotizaciones.find(c=>c.id===f.cotizacionOrigenId) : null;
@@ -1691,12 +1709,10 @@ function renderizarCotizacionesFacturas(){
   if(tablaFac){
     tablaFac.innerHTML = db.facturas.slice().reverse().map(f=>{
       const nombreCliente = f.clienteId ? (buscarCliente(f.clienteId)?.nombre||'—') : `${f.clienteManual?.nombre||'—'} <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;">NO REGISTRADO</span>`;
-      const pagada = f.estadoPago === 'pagado';
+      const infoPago = infoEstadoPagoFactura(f.estadoPago);
       const estadoHtml = f.esBorrador
         ? `<span style="font-size:10px;font-weight:700;background:#e2e8f0;color:#475569;padding:3px 10px;border-radius:12px;white-space:nowrap;"><i class="fas fa-pen"></i> Borrador</span>`
-        : pagada
-        ? `<span style="font-size:10px;font-weight:700;background:#dcfce7;color:#166534;padding:3px 10px;border-radius:12px;white-space:nowrap;"><i class="fas fa-circle-check"></i> Pagada</span>`
-        : `<span style="font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:12px;white-space:nowrap;"><i class="fas fa-clock"></i> Pendiente</span>`;
+        : `<span title="${f.estadoPago==='abonada' ? 'Abonado: '+formatoCOP(f.montoAbonado||0)+' de '+formatoCOP(f.total) : ''}" style="font-size:10px;font-weight:700;background:${infoPago.fondo};color:${infoPago.texto};padding:3px 10px;border-radius:12px;white-space:nowrap;"><i class="fas ${infoPago.icono}"></i> ${infoPago.etiqueta}</span>`;
       const origen = f.cotizacionOrigenId ? (db.cotizaciones.find(c=>c.id===f.cotizacionOrigenId)?.numero || '—') : '<span style="color:var(--text-muted);">Directa</span>';
       return `<tr>
         <td>${f.numero}</td><td>${f.fecha}</td><td>${nombreCliente}</td><td>${formatoCOP(f.total)}</td>
@@ -1705,7 +1721,7 @@ function renderizarCotizacionesFacturas(){
           <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verPDFFactura(${f.id})" title="Ver / Imprimir"><i class="fas fa-file-invoice"></i></button>
           <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalFactura(${f.id})" title="Editar"><i class="fas fa-pen"></i></button>
           <button class="btn-custom btn-success-custom btn-sm-custom" onclick="enviarPorWhatsAppFactura(${f.id})" title="Enviar por WhatsApp"><i class="fab fa-whatsapp"></i></button>
-          ${pagada ? `<button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="revertirPagoFactura(${f.id})">Marcar pendiente</button>` : `<button class="btn-custom btn-success-custom btn-sm-custom" onclick="cambiarEstadoPagoFactura(${f.id})"><i class="fas fa-hand-holding-dollar"></i> Marcar pagada</button>`}
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalEstadoPagoFactura(${f.id})" title="Cambiar estado de pago"><i class="fas fa-hand-holding-dollar"></i> Estado de pago</button>
           <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarFactura(${f.id})" title="Eliminar"><i class="fas fa-trash"></i></button>
         </td>
       </tr>`;
