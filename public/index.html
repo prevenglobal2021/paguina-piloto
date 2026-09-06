@@ -1668,9 +1668,9 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 
 <!-- MODAL: NUEVA / EDITAR COTIZACIÓN -->
 <div class="modal-overlay" id="modalCotizacion">
-  <div class="modal-box" style="max-width:720px;">
+  <div class="modal-box" style="max-width:760px;">
     <button class="close-modal" onclick="cerrarModal('modalCotizacion')">✖</button>
-    <h3 id="tituloModalCotizacion">📝 Nueva Cotización</h3>
+    <h3 id="tituloModalCotizacion">📝 Nueva Cotización <span id="badgeBorradorCot" style="display:none;font-size:10px;font-weight:700;background:#e2e8f0;color:#475569;padding:3px 9px;border-radius:10px;vertical-align:middle;">BORRADOR</span></h3>
     <input type="hidden" id="cotId">
 
     <div class="form-seccion">
@@ -1696,34 +1696,27 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     </div>
 
     <div class="form-seccion">
-      <div class="form-seccion-titulo">📦 Ítems</div>
-      <div class="field-row">
-        <div style="flex:2;"><select id="cotItemSelect"></select></div>
-        <div><input type="number" id="cotItemCantidad" value="1" min="1"></div>
-        <button class="btn-custom btn-sm-custom" onclick="agregarItemFormCotizacionFactura('cot')">+ Agregar</button>
+      <div class="form-seccion-titulo" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>📦 Ítems</span>
+        <button class="btn-custom btn-sm-custom" onclick="abrirModalItemComercial('cot')">+ Agregar Ítem</button>
       </div>
-      <div class="field-row">
-        <div style="flex:2;"><input type="text" id="cotItemLibreDesc" placeholder="O escribe un servicio/ítem libre (no está en inventario)..."></div>
-        <div><input type="number" id="cotItemLibrePrecio" placeholder="Precio unitario"></div>
-        <div><input type="number" id="cotItemLibreCantidad" value="1" min="1"></div>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarItemLibreFormCotizacionFactura('cot')">+ Agregar libre</button>
-      </div>
-      <div class="field-row">
-        <div style="flex:1;"><input type="text" id="cotItemDescripcionExtra" placeholder="Descripción / especificaciones adicionales para el próximo ítem que agregues (opcional)"></div>
-      </div>
-      <table class="data-table" style="margin-top:10px;">
-        <thead><tr><th>Ítem</th><th>Descripción</th><th>Cant.</th><th>Precio Unit.</th><th>Subtotal</th><th></th></tr></thead>
+      <table class="data-table" style="margin-top:6px;">
+        <thead><tr><th style="width:20px;"></th><th>Ítem</th><th>Descripción</th><th>Cant.</th><th>Precio Unit.</th><th>Desc.</th><th>Subtotal</th><th></th></tr></thead>
         <tbody id="tablaItemsCot"></tbody>
       </table>
     </div>
 
     <div class="field-row">
+      <div><label>Descuento general (%):</label><input type="number" id="cotDescuentoGeneral" value="0" step="0.1" oninput="actualizarPreviewCotizacionFactura('cot')"></div>
       <div><label>Impuesto (%):</label><input type="number" id="cotImpuestoPorcentaje" value="0" step="0.1" oninput="actualizarPreviewCotizacionFactura('cot')"></div>
-      <div><label>Notas:</label><input type="text" id="cotNotas" placeholder="Notas u observaciones (opcional)"></div>
+      <div><label>Válida hasta:</label><input type="date" id="cotFechaVencimiento"></div>
     </div>
+    <label>Notas / Términos y condiciones:</label>
+    <textarea id="cotNotas" rows="2" placeholder="Forma de pago, garantía, validez, etc. (opcional)"></textarea>
 
-    <div style="background:rgba(0,136,255,.1);border-radius:8px;padding:10px;margin:10px 0;text-align:right;font-size:14px;">
+    <div style="background:rgba(0,136,255,.1);border-radius:8px;padding:10px;margin:10px 0;text-align:right;font-size:13px;position:sticky;bottom:0;">
       Subtotal: <strong id="cotPreviewSubtotal">$0</strong> &nbsp;|&nbsp;
+      Descuentos: <strong id="cotPreviewDescuentos">$0</strong> &nbsp;|&nbsp;
       Impuesto: <strong id="cotPreviewImpuesto">$0</strong> &nbsp;|&nbsp;
       <span style="font-size:17px;">Total: <strong id="cotPreviewTotal">$0</strong></span>
     </div>
@@ -1732,11 +1725,34 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
+<!-- MODAL: AGREGAR / EDITAR ÍTEM (compartido entre Cotización y Factura) -->
+<div class="modal-overlay" id="modalItemComercial">
+  <div class="modal-box" style="max-width:540px;">
+    <button class="close-modal" onclick="cerrarModal('modalItemComercial')">✖</button>
+    <h3 id="tituloModalItemComercial">📦 Agregar Ítem</h3>
+    <input type="hidden" id="itemComPrefijo">
+    <input type="hidden" id="itemComIndice">
+    <label>Producto del inventario (opcional):</label>
+    <select id="itemComInventarioSelect" onchange="autocompletarItemComercialDesdeInventario()"></select>
+    <label>Nombre:</label><input type="text" id="itemComNombre" placeholder="Nombre del producto/servicio">
+    <label>Descripción:</label><textarea id="itemComDescripcion" rows="2" placeholder="Detalles, especificaciones (opcional)"></textarea>
+    <div class="field-row">
+      <div><label>Cantidad:</label><input type="number" id="itemComCantidad" value="1" min="1" oninput="actualizarPreviewItemComercial()"></div>
+      <div><label>Precio unitario:</label><input type="number" id="itemComPrecio" value="0" oninput="actualizarPreviewItemComercial()"></div>
+      <div><label>Descuento (%):</label><input type="number" id="itemComDescuento" value="0" step="0.1" oninput="actualizarPreviewItemComercial()"></div>
+    </div>
+    <div style="background:#eff6ff;border-radius:8px;padding:10px;margin:10px 0;text-align:right;">
+      Subtotal de este ítem: <strong id="itemComPreviewSubtotal" style="font-size:16px;">$0</strong>
+    </div>
+    <button class="btn-custom" style="width:100%;" onclick="guardarItemComercialDesdeModal()">Guardar Ítem</button>
+  </div>
+</div>
+
 <!-- MODAL: NUEVA / EDITAR FACTURA -->
 <div class="modal-overlay" id="modalFactura">
   <div class="modal-box" style="max-width:720px;">
     <button class="close-modal" onclick="cerrarModal('modalFactura')">✖</button>
-    <h3 id="tituloModalFactura">🧾 Nueva Factura</h3>
+    <h3 id="tituloModalFactura">🧾 Nueva Factura <span id="badgeBorradorFac" style="display:none;font-size:10px;font-weight:700;background:#e2e8f0;color:#475569;padding:3px 9px;border-radius:10px;vertical-align:middle;">BORRADOR</span></h3>
     <input type="hidden" id="facId">
     <input type="hidden" id="facCotizacionOrigenId">
 
@@ -1763,34 +1779,27 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     </div>
 
     <div class="form-seccion">
-      <div class="form-seccion-titulo">📦 Ítems</div>
-      <div class="field-row">
-        <div style="flex:2;"><select id="facItemSelect"></select></div>
-        <div><input type="number" id="facItemCantidad" value="1" min="1"></div>
-        <button class="btn-custom btn-sm-custom" onclick="agregarItemFormCotizacionFactura('fac')">+ Agregar</button>
+      <div class="form-seccion-titulo" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>📦 Ítems</span>
+        <button class="btn-custom btn-sm-custom" onclick="abrirModalItemComercial('fac')">+ Agregar Ítem</button>
       </div>
-      <div class="field-row">
-        <div style="flex:2;"><input type="text" id="facItemLibreDesc" placeholder="O escribe un servicio/ítem libre (no está en inventario)..."></div>
-        <div><input type="number" id="facItemLibrePrecio" placeholder="Precio unitario"></div>
-        <div><input type="number" id="facItemLibreCantidad" value="1" min="1"></div>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarItemLibreFormCotizacionFactura('fac')">+ Agregar libre</button>
-      </div>
-      <div class="field-row">
-        <div style="flex:1;"><input type="text" id="facItemDescripcionExtra" placeholder="Descripción / especificaciones adicionales para el próximo ítem que agregues (opcional)"></div>
-      </div>
-      <table class="data-table" style="margin-top:10px;">
-        <thead><tr><th>Ítem</th><th>Descripción</th><th>Cant.</th><th>Precio Unit.</th><th>Subtotal</th><th></th></tr></thead>
+      <table class="data-table" style="margin-top:6px;">
+        <thead><tr><th style="width:20px;"></th><th>Ítem</th><th>Descripción</th><th>Cant.</th><th>Precio Unit.</th><th>Desc.</th><th>Subtotal</th><th></th></tr></thead>
         <tbody id="tablaItemsFac"></tbody>
       </table>
     </div>
 
     <div class="field-row">
+      <div><label>Descuento general (%):</label><input type="number" id="facDescuentoGeneral" value="0" step="0.1" oninput="actualizarPreviewCotizacionFactura('fac')"></div>
       <div><label>Impuesto (%):</label><input type="number" id="facImpuestoPorcentaje" value="0" step="0.1" oninput="actualizarPreviewCotizacionFactura('fac')"></div>
-      <div><label>Notas:</label><input type="text" id="facNotas" placeholder="Notas u observaciones (opcional)"></div>
+      <div><label>Fecha límite de pago:</label><input type="date" id="facFechaVencimiento"></div>
     </div>
+    <label>Notas / Términos y condiciones:</label>
+    <textarea id="facNotas" rows="2" placeholder="Forma de pago, garantía, etc. (opcional)"></textarea>
 
-    <div style="background:rgba(0,136,255,.1);border-radius:8px;padding:10px;margin:10px 0;text-align:right;font-size:14px;">
+    <div style="background:rgba(0,136,255,.1);border-radius:8px;padding:10px;margin:10px 0;text-align:right;font-size:13px;position:sticky;bottom:0;">
       Subtotal: <strong id="facPreviewSubtotal">$0</strong> &nbsp;|&nbsp;
+      Descuentos: <strong id="facPreviewDescuentos">$0</strong> &nbsp;|&nbsp;
       Impuesto: <strong id="facPreviewImpuesto">$0</strong> &nbsp;|&nbsp;
       <span style="font-size:17px;">Total: <strong id="facPreviewTotal">$0</strong></span>
     </div>
@@ -2363,19 +2372,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=80"></script>
-<script src="utilidades-navegacion.js?v=80"></script>
-<script src="buscador-agenda.js?v=80"></script>
-<script src="ordenes.js?v=80"></script>
-<script src="equipos-trazabilidad.js?v=80"></script>
-<script src="pdf.js?v=80"></script>
-<script src="config-clientes-equipos.js?v=80"></script>
-<script src="config-plantillas-tecnicos.js?v=80"></script>
-<script src="cotizador.js?v=80"></script>
-<script src="config-general.js?v=80"></script>
-<script src="inventario.js?v=80"></script>
-<script src="tienda-admin.js?v=80"></script>
-<script src="tienda-publica.js?v=80"></script>
-<script src="kpi.js?v=80"></script>
+<script src="core.js?v=81"></script>
+<script src="utilidades-navegacion.js?v=81"></script>
+<script src="buscador-agenda.js?v=81"></script>
+<script src="ordenes.js?v=81"></script>
+<script src="equipos-trazabilidad.js?v=81"></script>
+<script src="pdf.js?v=81"></script>
+<script src="config-clientes-equipos.js?v=81"></script>
+<script src="config-plantillas-tecnicos.js?v=81"></script>
+<script src="cotizador.js?v=81"></script>
+<script src="config-general.js?v=81"></script>
+<script src="inventario.js?v=81"></script>
+<script src="tienda-admin.js?v=81"></script>
+<script src="tienda-publica.js?v=81"></script>
+<script src="kpi.js?v=81"></script>
 </body>
 </html>

@@ -177,12 +177,13 @@ function verPDF(ordenId){
    PDF — Cotización y Factura
 ========================================================= */
 function generarFilasItemsComercial(items){
-  return items.map(it=>`<tr><td>${it.descripcion}${it.descripcionExtra?`<br><small style="color:#64748b;font-weight:400;">${it.descripcionExtra}</small>`:''}</td><td style="text-align:center;">${it.cantidad}</td><td style="text-align:right;">${formatoCOP(it.precioUnitario)}</td><td style="text-align:right;">${formatoCOP(it.subtotal)}</td></tr>`).join('');
+  return items.map(it=>`<tr><td>${it.descripcion}${it.descripcionExtra?`<br><small style="color:#64748b;font-weight:400;">${it.descripcionExtra}</small>`:''}</td><td style="text-align:center;">${it.cantidad}</td><td style="text-align:right;">${formatoCOP(it.precioUnitario)}</td><td style="text-align:center;">${it.descuentoPorcentaje?it.descuentoPorcentaje+'%':'—'}</td><td style="text-align:right;">${formatoCOP(it.subtotal)}</td></tr>`).join('');
 }
-function generarBloqueTotalesComercial(subtotal, impuestoPorcentaje, impuestoValor, total){
+function generarBloqueTotalesComercial(subtotal, descuentosTotales, impuestoPorcentaje, impuestoValor, total){
   return `<div style="display:flex;justify-content:flex-end;margin-top:10px;">
     <table style="width:280px;font-size:13px;">
       <tr><td style="text-align:right;padding:4px 0;color:#475569;">Subtotal</td><td style="text-align:right;width:130px;padding:4px 0;">${formatoCOP(subtotal)}</td></tr>
+      ${descuentosTotales ? `<tr><td style="text-align:right;padding:4px 0;color:#b91c1c;">Descuentos</td><td style="text-align:right;padding:4px 0;color:#b91c1c;">− ${formatoCOP(descuentosTotales)}</td></tr>` : ''}
       ${impuestoPorcentaje ? `<tr><td style="text-align:right;padding:4px 0;color:#475569;">Impuesto (${impuestoPorcentaje}%)</td><td style="text-align:right;padding:4px 0;">${formatoCOP(impuestoValor)}</td></tr>` : ''}
     </table>
   </div>
@@ -222,12 +223,13 @@ function verPDFCotizacion(id){
     </div>
     <div class="pdf-box-flexible"><h4>Detalle</h4>
       <table class="pdf-tabla-datos" cellpadding="4">
-        <thead><tr><th>Ítem</th><th style="text-align:center;">Cant.</th><th style="text-align:right;">Precio Unit.</th><th style="text-align:right;">Subtotal</th></tr></thead>
+        <thead><tr><th>Ítem</th><th style="text-align:center;">Cant.</th><th style="text-align:right;">Precio Unit.</th><th style="text-align:center;">Desc.</th><th style="text-align:right;">Subtotal</th></tr></thead>
         <tbody>${generarFilasItemsComercial(c.items)}</tbody>
       </table>
-      ${generarBloqueTotalesComercial(c.subtotal, c.impuestoPorcentaje, c.impuestoValor, c.total)}
+      ${generarBloqueTotalesComercial(c.subtotal, (c.descuentoItems||0)+(c.descuentoGeneral||0), c.impuestoPorcentaje, c.impuestoValor, c.total)}
     </div>
-    ${c.notas ? `<div class="pdf-box"><h4>Notas</h4><p style="font-size:12px;margin:0;">${c.notas}</p></div>` : ''}
+    ${c.fechaVencimiento ? `<p style="font-size:12px;color:#475569;text-align:right;margin:6px 0;"><strong>Válida hasta:</strong> ${new Date(c.fechaVencimiento+'T00:00:00').toLocaleDateString('es-CO')}</p>` : ''}
+    ${c.notas ? `<div class="pdf-box"><h4>Notas / Términos y condiciones</h4><p style="font-size:12px;margin:0;">${c.notas}</p></div>` : ''}
     <p style="font-size:10px;color:#94a3b8;text-align:center;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:10px;">Esta cotización tiene una validez de 15 días a partir de la fecha de emisión, salvo que se indique lo contrario. — ${db.config.nombre}</p>`;
   abrirModal('modalPDF');
 }
@@ -263,12 +265,13 @@ function verPDFFactura(id){
     </div>
     <div class="pdf-box-flexible"><h4>Detalle</h4>
       <table class="pdf-tabla-datos" cellpadding="4">
-        <thead><tr><th>Ítem</th><th style="text-align:center;">Cant.</th><th style="text-align:right;">Precio Unit.</th><th style="text-align:right;">Subtotal</th></tr></thead>
+        <thead><tr><th>Ítem</th><th style="text-align:center;">Cant.</th><th style="text-align:right;">Precio Unit.</th><th style="text-align:center;">Desc.</th><th style="text-align:right;">Subtotal</th></tr></thead>
         <tbody>${generarFilasItemsComercial(f.items)}</tbody>
       </table>
-      ${generarBloqueTotalesComercial(f.subtotal, f.impuestoPorcentaje, f.impuestoValor, f.total)}
+      ${generarBloqueTotalesComercial(f.subtotal, (f.descuentoItems||0)+(f.descuentoGeneral||0), f.impuestoPorcentaje, f.impuestoValor, f.total)}
     </div>
-    ${f.notas ? `<div class="pdf-box"><h4>Notas</h4><p style="font-size:12px;margin:0;">${f.notas}</p></div>` : ''}
+    ${(!pagada && f.fechaVencimiento) ? `<p style="font-size:12px;color:#b45309;text-align:right;margin:6px 0;font-weight:700;"><strong>Fecha límite de pago:</strong> ${new Date(f.fechaVencimiento+'T00:00:00').toLocaleDateString('es-CO')}</p>` : ''}
+    ${f.notas ? `<div class="pdf-box"><h4>Notas / Términos y condiciones</h4><p style="font-size:12px;margin:0;">${f.notas}</p></div>` : ''}
     <p style="font-size:10px;color:#94a3b8;text-align:center;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:10px;">Gracias por confiar en ${db.config.nombre}.</p>`;
   abrirModal('modalPDF');
 }
