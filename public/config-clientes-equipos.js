@@ -112,8 +112,14 @@ function enviarPorWhatsApp(ordenId){
     registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (sin informe adjunto automático — sin conexión)`);
     return;
   }
-  html2pdf().set(opciones).from(elemento).outputPdf('blob').then(blob=>{
+  html2pdf().set(opciones).from(elemento).outputPdf('blob').then(async blob=>{
     cerrarModal('modalPDF');
+    // Dentro del APK: selector nativo de compartir de Android, el más
+    // confiable para adjuntar el archivo sin cortes ni distorsión.
+    if(await compartirArchivoNativo(blob, nombreArchivo, `Informe ${o.numero}`)){
+      registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (informe compartido nativo desde la app)`);
+      return;
+    }
     const archivoPdf = new File([blob], nombreArchivo, { type:'application/pdf' });
 
     // Celular (Android/iOS): panel nativo de compartir, con WhatsApp como una opción directa — el PDF ya va adjunto.
@@ -132,6 +138,7 @@ function enviarPorWhatsApp(ordenId){
     mostrarToast(`Se descargó el informe "${nombreArchivo}". WhatsApp ya está abierto con el mensaje listo: adjunta ese archivo en el chat (📎 → Documento) antes de enviarlo.`);
     registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (con informe PDF descargado para adjuntar)`);
   }).catch(()=>{
+    cerrarModal('modalPDF');
     if(!ventanaWhatsApp && !puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
     mostrarToast('No se pudo generar el PDF automáticamente. WhatsApp está abierto; genera el informe desde "Ver Documento" y adjúntalo manualmente.');
     registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (sin informe adjunto automático)`);
@@ -563,8 +570,12 @@ function enviarPorWhatsAppCotizacion(id){
     registrarLog('Enviar WhatsApp', 'Cotizacion', `${c.numero} a ${nombreCliente} (sin PDF adjunto — sin conexión)`);
     return;
   }
-  html2pdf().set(opciones).from(elemento).outputPdf('blob').then(blob=>{
+  html2pdf().set(opciones).from(elemento).outputPdf('blob').then(async blob=>{
     cerrarModal('modalPDF');
+    if(await compartirArchivoNativo(blob, nombreArchivo, `Cotización ${c.numero}`)){
+      registrarLog('Enviar WhatsApp', 'Cotizacion', `${c.numero} a ${nombreCliente} (compartido nativo desde la app)`);
+      return;
+    }
     const archivoPdf = new File([blob], nombreArchivo, { type:'application/pdf' });
     if(puedeCompartirArchivosNativo && navigator.canShare({ files:[archivoPdf] })){
       navigator.share({ files:[archivoPdf], title:`Cotización ${c.numero}`, text: mensaje }).then(()=>{
@@ -579,6 +590,7 @@ function enviarPorWhatsAppCotizacion(id){
     mostrarToast(`Se descargó "${nombreArchivo}". WhatsApp ya está abierto: adjúntalo en el chat (📎 → Documento).`);
     registrarLog('Enviar WhatsApp', 'Cotizacion', `${c.numero} a ${nombreCliente} (PDF descargado para adjuntar)`);
   }).catch(()=>{
+    cerrarModal('modalPDF');
     if(!ventanaWhatsApp && !puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
     mostrarToast('No se pudo generar el PDF automáticamente.');
   });
@@ -607,8 +619,12 @@ function enviarPorWhatsAppFactura(id){
     registrarLog('Enviar WhatsApp', 'Factura', `${f.numero} a ${nombreCliente} (sin PDF adjunto — sin conexión)`);
     return;
   }
-  html2pdf().set(opciones).from(elemento).outputPdf('blob').then(blob=>{
+  html2pdf().set(opciones).from(elemento).outputPdf('blob').then(async blob=>{
     cerrarModal('modalPDF');
+    if(await compartirArchivoNativo(blob, nombreArchivo, `Factura ${f.numero}`)){
+      registrarLog('Enviar WhatsApp', 'Factura', `${f.numero} a ${nombreCliente} (compartido nativo desde la app)`);
+      return;
+    }
     const archivoPdf = new File([blob], nombreArchivo, { type:'application/pdf' });
     if(puedeCompartirArchivosNativo && navigator.canShare({ files:[archivoPdf] })){
       navigator.share({ files:[archivoPdf], title:`Factura ${f.numero}`, text: mensaje }).then(()=>{
@@ -623,6 +639,7 @@ function enviarPorWhatsAppFactura(id){
     mostrarToast(`Se descargó "${nombreArchivo}". WhatsApp ya está abierto: adjúntalo en el chat (📎 → Documento).`);
     registrarLog('Enviar WhatsApp', 'Factura', `${f.numero} a ${nombreCliente} (PDF descargado para adjuntar)`);
   }).catch(()=>{
+    cerrarModal('modalPDF');
     if(!ventanaWhatsApp && !puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
     mostrarToast('No se pudo generar el PDF automáticamente.');
   });

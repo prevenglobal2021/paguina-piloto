@@ -751,6 +751,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <li><a data-sec="equipos" onclick="mostrarSeccion('equipos')"><i class="fas fa-snowflake m-r-10"></i><span>Equipos</span></a></li>
       <li><a data-sec="trazabilidad" onclick="mostrarSeccion('trazabilidad')"><i class="fas fa-stream m-r-10"></i><span>Historial y Trazabilidad</span></a></li>
       <li><a data-sec="asistencia" onclick="mostrarSeccion('asistencia')"><i class="fas fa-clock m-r-10"></i><span>Asistencia y Turnos</span></a></li>
+      <li id="enlaceConfigApp" style="display:none;"><a onclick="abrirConfigApp()"><i class="fas fa-mobile-screen-button m-r-10"></i><span>Configuración de la App</span></a></li>
       <li class="solo-admin" data-permiso="inventario_ver"><a data-sec="inventario" onclick="mostrarSeccion('inventario')"><i class="fas fa-boxes m-r-10"></i><span>Inventario</span></a></li>
       <li><a data-sec="tienda" onclick="mostrarSeccion('tienda')"><i class="fas fa-store m-r-10"></i><span>Tienda Virtual</span></a></li>
       <li class="solo-admin" data-permiso="kpi_ver"><a data-sec="kpi" onclick="mostrarSeccion('kpi')"><i class="fas fa-chart-line m-r-10"></i><span>Indicadores (KPI)</span></a></li>
@@ -941,6 +942,23 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <button class="close-modal" onclick="cerrarModal('modalFotoAsistencia')">✖</button>
         <h3>📷 Foto del registro</h3>
         <img id="fotoAsistenciaAmpliada" style="width:100%;border-radius:10px;">
+      </div>
+    </div>
+
+    <!-- MODAL: CONFIGURACIÓN DE LA APP (solo visible dentro del APK) -->
+    <div class="modal-overlay" id="modalConfigApp">
+      <div class="modal-box" style="max-width:420px;">
+        <button class="close-modal" onclick="cerrarModal('modalConfigApp')">✖</button>
+        <h3>📱 Configuración de la App</h3>
+        <div class="pdf-tabla-datos" style="margin-top:10px;">
+          <table style="width:100%;font-size:13px;" cellpadding="6">
+            <tr><td style="width:45%;"><strong>Usuario</strong></td><td id="configAppUsuario">—</td></tr>
+            <tr><td><strong>Rol</strong></td><td id="configAppRol">—</td></tr>
+            <tr><td><strong>Empresa</strong></td><td id="configAppEmpresa">—</td></tr>
+            <tr><td><strong>Versión de la app</strong></td><td id="configAppVersion">—</td></tr>
+          </table>
+        </div>
+        <button class="btn-custom btn-danger-custom" style="width:100%;margin-top:15px;" onclick="cerrarSesionDesdeConfigApp()"><i class="fas fa-right-from-bracket"></i> Cerrar sesión</button>
       </div>
     </div>
     <div class="panel seccion" id="seccion-inventario" style="display:none;">
@@ -2515,20 +2533,21 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=87"></script>
-<script src="utilidades-navegacion.js?v=87"></script>
-<script src="buscador-agenda.js?v=87"></script>
-<script src="ordenes.js?v=87"></script>
-<script src="equipos-trazabilidad.js?v=87"></script>
-<script src="pdf.js?v=87"></script>
-<script src="config-clientes-equipos.js?v=87"></script>
-<script src="config-plantillas-tecnicos.js?v=87"></script>
-<script src="cotizador.js?v=87"></script>
+<script src="core.js?v=88"></script>
+<script src="capacitor-bridge.js?v=88"></script>
+<script src="utilidades-navegacion.js?v=88"></script>
+<script src="buscador-agenda.js?v=88"></script>
+<script src="ordenes.js?v=88"></script>
+<script src="equipos-trazabilidad.js?v=88"></script>
+<script src="pdf.js?v=88"></script>
+<script src="config-clientes-equipos.js?v=88"></script>
+<script src="config-plantillas-tecnicos.js?v=88"></script>
+<script src="cotizador.js?v=88"></script>
 <script src="asistencia.js?v=1"></script>
-<script src="config-general.js?v=87"></script>
-<script src="inventario.js?v=87"></script>
-<script src="tienda-admin.js?v=87"></script>
-<script src="tienda-publica.js?v=87"></script>
-<script src="kpi.js?v=87"></script>
+<script src="config-general.js?v=88"></script>
+<script src="inventario.js?v=88"></script>
+<script src="tienda-admin.js?v=88"></script>
+<script src="tienda-publica.js?v=88"></script>
+<script src="kpi.js?v=88"></script>
 </body>
 </html>
