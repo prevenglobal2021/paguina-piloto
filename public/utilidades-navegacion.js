@@ -599,9 +599,13 @@ function mostrarSeccion(nombre){
   document.querySelectorAll('.sidebar-menu a[data-sec]').forEach(a=>a.classList.remove('active'));
   const link = document.querySelector(`.sidebar-menu a[data-sec="${nombre}"]`);
   if(link) link.classList.add('active');
+  document.querySelectorAll('.bottom-nav-item[data-nav]').forEach(a=>a.classList.remove('active'));
+  const navBtn = document.querySelector(`.bottom-nav-item[data-nav="${nombre}"]`);
+  if(navBtn) navBtn.classList.add('active');
   if(nombre==='agenda') renderizarAgenda();
   if(nombre==='equipos') renderizarEquiposGlobal('');
   if(nombre==='trazabilidad') inicializarTrazabilidad();
+  if(nombre==='asistencia') renderizarAsistencia();
   if(nombre==='inventario') renderizarInventario();
   if(nombre==='tienda') renderizarTienda();
   else {

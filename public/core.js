@@ -668,6 +668,9 @@ function aplicarRBACaUI(){
     const permiso = el.getAttribute('data-permiso');
     el.style.display = (esAdmin() || (permiso && tienePermiso(permiso))) ? '' : 'none';
   });
+  // "App de campo" móvil: solo personal técnico (no admin) ve la barra
+  // inferior en vez del menú lateral tradicional — ver CSS @media(max-width:768px).
+  document.body.classList.toggle('es-tecnico', !!sesionActual && !esAdmin());
 }
 
 let ordenReprogramarId = null;

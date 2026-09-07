@@ -607,6 +607,52 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   h3{font-size:16px;}
 }
 
+/* =========================================================
+   "APP DE CAMPO" MÓVIL PARA TÉCNICOS Y AUXILIARES
+   Capa aditiva, solo aplica en celular (≤768px) Y cuando la
+   sesión activa es de personal técnico (clase es-tecnico en
+   <body>, puesta por aplicarRBACaUI()). El administrador y la
+   vista de escritorio NO se ven afectados por nada de esto.
+========================================================= */
+.bottom-nav-movil{display:none;}
+.dia-nombre-movil{display:none;}
+@media (max-width:768px){
+  body.es-tecnico .left-sidebar{display:none !important;}
+  body.es-tecnico #btnMenuMovil{display:none !important;}
+  body.es-tecnico #sidebarBackdrop{display:none !important;}
+  body.es-tecnico .page-wrapper{margin-left:0 !important;width:100% !important;padding:12px 12px 84px 12px !important;}
+
+  body.es-tecnico .bottom-nav-movil{
+    display:flex;position:fixed;left:0;right:0;bottom:0;height:60px;z-index:1050;
+    background:linear-gradient(120deg, var(--topbar-bg-1), var(--topbar-bg-2));
+    border-top:1px solid var(--card-border);
+    box-shadow:0 -4px 14px rgba(0,0,0,.25);
+  }
+  body.es-tecnico .bottom-nav-item{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    color:var(--text-muted);text-decoration:none;font-size:10px;font-weight:600;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;transition:color .15s ease;
+  }
+  body.es-tecnico .bottom-nav-item i{font-size:18px;}
+  body.es-tecnico .bottom-nav-item.active,
+  body.es-tecnico .bottom-nav-item:active{color:var(--blue-accent);}
+  body.es-tecnico .bottom-nav-item.salir{color:var(--red-alert);}
+
+  /* Calendario: cuadrícula de 7 columnas -> lista horizontal deslizable con snap,
+     mucho más cómoda de explorar con el pulgar en un celular. */
+  body.es-tecnico #gridDiasSemana{display:none;}
+  body.es-tecnico #gridCalendario{
+    display:flex !important;grid-template-columns:none;overflow-x:auto;gap:10px;
+    scroll-snap-type:x mandatory;padding-bottom:6px;-webkit-overflow-scrolling:touch;
+  }
+  body.es-tecnico #gridCalendario .calendar-day{
+    flex:0 0 108px;scroll-snap-align:start;min-height:auto;
+  }
+  body.es-tecnico #gridCalendario .calendar-day.otro-mes{display:none;}
+  body.es-tecnico .dia-nombre-movil{display:inline;font-weight:400;color:#94a3b8;text-transform:uppercase;font-size:9px;}
+}
+
+
 @media print{
   body.imprimiendo-etiqueta *{ visibility:hidden; }
   body.imprimiendo-etiqueta #etiquetaQRPrint, body.imprimiendo-etiqueta #etiquetaQRPrint *{ visibility:visible; }
@@ -771,6 +817,14 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     </ul>
   </aside>
   <div id="sidebarBackdrop" onclick="cerrarMenuMovil()"></div>
+
+  <nav class="bottom-nav-movil" id="bottomNavMovil">
+    <a class="bottom-nav-item" data-nav="agenda" onclick="mostrarSeccion('agenda')"><i class="fas fa-calendar-check"></i><span>Órdenes</span></a>
+    <a class="bottom-nav-item" data-nav="asistencia" onclick="mostrarSeccion('asistencia')"><i class="fas fa-user-clock"></i><span>Asistencia</span></a>
+    <a class="bottom-nav-item" data-nav="equipos" onclick="mostrarSeccion('equipos')"><i class="fas fa-snowflake"></i><span>Equipos</span></a>
+    <a class="bottom-nav-item" data-nav="inventario" onclick="mostrarSeccion('inventario')"><i class="fas fa-boxes"></i><span>Inventario</span></a>
+    <a class="bottom-nav-item salir" onclick="cerrarSesion()"><i class="fas fa-power-off"></i><span>Salir</span></a>
+  </nav>
 
   <div class="page-wrapper">
     <header class="topbar">
@@ -2533,21 +2587,21 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=88"></script>
-<script src="capacitor-bridge.js?v=88"></script>
-<script src="utilidades-navegacion.js?v=88"></script>
-<script src="buscador-agenda.js?v=88"></script>
-<script src="ordenes.js?v=88"></script>
-<script src="equipos-trazabilidad.js?v=88"></script>
-<script src="pdf.js?v=88"></script>
-<script src="config-clientes-equipos.js?v=88"></script>
-<script src="config-plantillas-tecnicos.js?v=88"></script>
-<script src="cotizador.js?v=88"></script>
+<script src="core.js?v=89"></script>
+<script src="capacitor-bridge.js?v=89"></script>
+<script src="utilidades-navegacion.js?v=89"></script>
+<script src="buscador-agenda.js?v=89"></script>
+<script src="ordenes.js?v=89"></script>
+<script src="equipos-trazabilidad.js?v=89"></script>
+<script src="pdf.js?v=89"></script>
+<script src="config-clientes-equipos.js?v=89"></script>
+<script src="config-plantillas-tecnicos.js?v=89"></script>
+<script src="cotizador.js?v=89"></script>
 <script src="asistencia.js?v=1"></script>
-<script src="config-general.js?v=88"></script>
-<script src="inventario.js?v=88"></script>
-<script src="tienda-admin.js?v=88"></script>
-<script src="tienda-publica.js?v=88"></script>
-<script src="kpi.js?v=88"></script>
+<script src="config-general.js?v=89"></script>
+<script src="inventario.js?v=89"></script>
+<script src="tienda-admin.js?v=89"></script>
+<script src="tienda-publica.js?v=89"></script>
+<script src="kpi.js?v=89"></script>
 </body>
 </html>
