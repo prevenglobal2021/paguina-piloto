@@ -302,7 +302,7 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .config-content-area div[style*="background:rgba(0,0,0,.15)"]:hover{border-color:#93c5fd;box-shadow:0 6px 16px -8px rgba(15,23,42,.15);}
 .config-content-area div[style*="background:rgba(0,0,0,.2)"]{background:#f1f5f9 !important;}
 .config-modal-box label{color:#475569;}
-.config-modal-box input,.config-modal-box select,.config-modal-box textarea{background:#ffffff;color:#1e293b;border:1px solid #cbd5e1;}
+.config-modal-box input,.config-modal-box select,.config-modal-box textarea{background:#ffffff;color:#1e293b;border:1px solid var(--form-border-color, #cbd5e1);}
 .config-modal-box input::placeholder,.config-modal-box textarea::placeholder{color:#94a3b8;}
 .config-modal-box table.data-table th{background:#f1f5f9;color:#334155;}
 .config-modal-box table.data-table th,.config-modal-box table.data-table td{border-color:#e2e8f0;}
@@ -607,6 +607,60 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   h3{font-size:16px;}
 }
 
+/* =========================================================
+   "APP DE CAMPO" MÓVIL PARA TÉCNICOS Y AUXILIARES
+   Capa aditiva, solo aplica en celular (≤768px) Y cuando la
+   sesión activa es de personal técnico (clase es-tecnico en
+   <body>, puesta por aplicarRBACaUI()). El administrador y la
+   vista de escritorio NO se ven afectados por nada de esto.
+========================================================= */
+.bottom-nav-movil{display:none;}
+.dia-nombre-movil{display:none;}
+@media (max-width:768px){
+  body.es-tecnico .left-sidebar{display:none !important;}
+  body.es-tecnico #btnMenuMovil{display:none !important;}
+  body.es-tecnico #sidebarBackdrop{display:none !important;}
+  body.es-tecnico .page-wrapper{margin-left:0 !important;width:100% !important;padding:12px 12px 84px 12px !important;}
+
+  body.es-tecnico .bottom-nav-movil{
+    display:flex;position:fixed;left:0;right:0;bottom:0;height:60px;z-index:1050;
+    background:linear-gradient(120deg, var(--topbar-bg-1), var(--topbar-bg-2));
+    border-top:1px solid var(--card-border);
+    box-shadow:0 -4px 14px rgba(0,0,0,.25);
+  }
+  body.es-tecnico .bottom-nav-item{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    color:var(--text-muted);text-decoration:none;font-size:10px;font-weight:600;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;transition:color .15s ease;
+  }
+  body.es-tecnico .bottom-nav-item i{font-size:18px;}
+  body.es-tecnico .bottom-nav-item.active,
+  body.es-tecnico .bottom-nav-item:active{color:var(--blue-accent);}
+  body.es-tecnico .bottom-nav-item.salir{color:var(--red-alert);}
+
+  /* Calendario: cuadrícula de 7 columnas -> lista horizontal deslizable con snap,
+     mucho más cómoda de explorar con el pulgar en un celular. */
+  body.es-tecnico #gridDiasSemana{display:none;}
+  body.es-tecnico #gridCalendario{
+    display:flex !important;grid-template-columns:none;overflow-x:auto;gap:10px;
+    scroll-snap-type:x mandatory;padding-bottom:6px;-webkit-overflow-scrolling:touch;
+  }
+  body.es-tecnico #gridCalendario .calendar-day{
+    flex:0 0 108px;scroll-snap-align:start;min-height:auto;
+  }
+  body.es-tecnico #gridCalendario .calendar-day.otro-mes{display:none;}
+  body.es-tecnico .dia-nombre-movil{display:inline;font-weight:400;color:#94a3b8;text-transform:uppercase;font-size:9px;}
+
+  /* Cotización y Facturación vive dentro de la sección de Contabilidad,
+     pero el técnico solo debe poder ver ESA pestaña — el resto (Nómina,
+     Gastos, Trazabilidad) y las tarjetas de totales financieros del mes
+     quedan ocultos, aunque entre a la sección desde el acceso directo. */
+  body.es-tecnico .contabilidad-cards{display:none;}
+  body.es-tecnico #contaFiltroMesWrapper{display:none;}
+  body.es-tecnico .conta-tab-btn:not([data-tab="CotizacionFactura"]){display:none;}
+}
+
+
 @media print{
   body.imprimiendo-etiqueta *{ visibility:hidden; }
   body.imprimiendo-etiqueta #etiquetaQRPrint, body.imprimiendo-etiqueta #etiquetaQRPrint *{ visibility:visible; }
@@ -751,6 +805,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <li><a data-sec="equipos" onclick="mostrarSeccion('equipos')"><i class="fas fa-snowflake m-r-10"></i><span>Equipos</span></a></li>
       <li><a data-sec="trazabilidad" onclick="mostrarSeccion('trazabilidad')"><i class="fas fa-stream m-r-10"></i><span>Historial y Trazabilidad</span></a></li>
       <li><a data-sec="asistencia" onclick="mostrarSeccion('asistencia')"><i class="fas fa-clock m-r-10"></i><span>Asistencia y Turnos</span></a></li>
+      <li id="enlaceConfigApp" style="display:none;"><a onclick="abrirConfigApp()"><i class="fas fa-mobile-screen-button m-r-10"></i><span>Configuración de la App</span></a></li>
       <li class="solo-admin" data-permiso="inventario_ver"><a data-sec="inventario" onclick="mostrarSeccion('inventario')"><i class="fas fa-boxes m-r-10"></i><span>Inventario</span></a></li>
       <li><a data-sec="tienda" onclick="mostrarSeccion('tienda')"><i class="fas fa-store m-r-10"></i><span>Tienda Virtual</span></a></li>
       <li class="solo-admin" data-permiso="kpi_ver"><a data-sec="kpi" onclick="mostrarSeccion('kpi')"><i class="fas fa-chart-line m-r-10"></i><span>Indicadores (KPI)</span></a></li>
@@ -770,6 +825,15 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     </ul>
   </aside>
   <div id="sidebarBackdrop" onclick="cerrarMenuMovil()"></div>
+
+  <nav class="bottom-nav-movil" id="bottomNavMovil">
+    <a class="bottom-nav-item" data-nav="agenda" onclick="mostrarSeccion('agenda')"><i class="fas fa-calendar-check"></i><span>Órdenes</span></a>
+    <a class="bottom-nav-item" data-nav="asistencia" onclick="mostrarSeccion('asistencia')"><i class="fas fa-user-clock"></i><span>Asistencia</span></a>
+    <a class="bottom-nav-item" data-nav="inventario" onclick="mostrarSeccion('inventario')"><i class="fas fa-boxes"></i><span>Inventario</span></a>
+    <a class="bottom-nav-item" data-nav="contabilidad" onclick="abrirCotizacionDesdeMovil()"><i class="fas fa-file-invoice"></i><span>Cotizar/Facturar</span></a>
+    <a class="bottom-nav-item" data-nav="equipos" onclick="mostrarSeccion('equipos')"><i class="fas fa-snowflake"></i><span>Equipos</span></a>
+    <a class="bottom-nav-item salir" onclick="cerrarSesion()"><i class="fas fa-power-off"></i><span>Salir</span></a>
+  </nav>
 
   <div class="page-wrapper">
     <header class="topbar">
@@ -943,6 +1007,23 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <img id="fotoAsistenciaAmpliada" style="width:100%;border-radius:10px;">
       </div>
     </div>
+
+    <!-- MODAL: CONFIGURACIÓN DE LA APP (solo visible dentro del APK) -->
+    <div class="modal-overlay" id="modalConfigApp">
+      <div class="modal-box" style="max-width:420px;">
+        <button class="close-modal" onclick="cerrarModal('modalConfigApp')">✖</button>
+        <h3>📱 Configuración de la App</h3>
+        <div class="pdf-tabla-datos" style="margin-top:10px;">
+          <table style="width:100%;font-size:13px;" cellpadding="6">
+            <tr><td style="width:45%;"><strong>Usuario</strong></td><td id="configAppUsuario">—</td></tr>
+            <tr><td><strong>Rol</strong></td><td id="configAppRol">—</td></tr>
+            <tr><td><strong>Empresa</strong></td><td id="configAppEmpresa">—</td></tr>
+            <tr><td><strong>Versión de la app</strong></td><td id="configAppVersion">—</td></tr>
+          </table>
+        </div>
+        <button class="btn-custom btn-danger-custom" style="width:100%;margin-top:15px;" onclick="cerrarSesionDesdeConfigApp()"><i class="fas fa-right-from-bracket"></i> Cerrar sesión</button>
+      </div>
+    </div>
     <div class="panel seccion" id="seccion-inventario" style="display:none;">
       <div class="panel-title">
         <span>📦 Control de Inventario y Bodegas</span>
@@ -1043,7 +1124,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div class="panel seccion" id="seccion-contabilidad" style="display:none;">
       <div class="panel-title">
         <span>💼 Negocio / Contabilidad</span>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;" id="contaFiltroMesWrapper">
           <label style="margin:0;font-size:12px;">Mes:</label>
           <input type="month" id="contaMesFiltro" onchange="renderizarContabilidad()" style="width:auto;margin:0;">
         </div>
@@ -1057,11 +1138,11 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       </div>
 
       <div class="conta-tabs">
-        <button class="conta-tab-btn activo" onclick="cambiarTabContabilidad(event,'Nomina')"><i class="fas fa-file-invoice-dollar"></i> Liquidación de Nómina</button>
-        <button class="conta-tab-btn" onclick="cambiarTabContabilidad(event,'Gastos')"><i class="fas fa-money-bill-wave"></i> Registro de Gastos</button>
-        <button class="conta-tab-btn" onclick="cambiarTabContabilidad(event,'Servicio')"><i class="fas fa-calculator"></i> Agregar Servicio</button>
-        <button class="conta-tab-btn" onclick="cambiarTabContabilidad(event,'CotizacionFactura')"><i class="fas fa-file-invoice"></i> Cotización y Facturación</button>
-        <button class="conta-tab-btn" onclick="cambiarTabContabilidad(event,'Trazabilidad')"><i class="fas fa-chart-line"></i> Trazabilidad / Cuadre</button>
+        <button class="conta-tab-btn activo" data-tab="Nomina" onclick="cambiarTabContabilidad(event,'Nomina')"><i class="fas fa-file-invoice-dollar"></i> Liquidación de Nómina</button>
+        <button class="conta-tab-btn" data-tab="Gastos" onclick="cambiarTabContabilidad(event,'Gastos')"><i class="fas fa-money-bill-wave"></i> Registro de Gastos</button>
+        <button class="conta-tab-btn" data-tab="Servicio" onclick="cambiarTabContabilidad(event,'Servicio')"><i class="fas fa-calculator"></i> Agregar Servicio</button>
+        <button class="conta-tab-btn" data-tab="CotizacionFactura" onclick="cambiarTabContabilidad(event,'CotizacionFactura')"><i class="fas fa-file-invoice"></i> Cotización y Facturación</button>
+        <button class="conta-tab-btn" data-tab="Trazabilidad" onclick="cambiarTabContabilidad(event,'Trazabilidad')"><i class="fas fa-chart-line"></i> Trazabilidad / Cuadre</button>
       </div>
 
       <div id="contaTabNomina" class="conta-tab-content activo">
@@ -1676,7 +1757,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div id="pdfBotonera" style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalPDF')">Cerrar</button>
       <button class="btn-custom" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
-      <button class="btn-custom btn-success-custom solo-admin" data-permiso="enviar_whatsapp" onclick="enviarDocumentoActualPorWhatsApp()"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
+      <button class="btn-custom btn-success-custom" onclick="enviarDocumentoActualPorWhatsApp()"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
     </div>
   </div>
 </div>
@@ -1951,6 +2032,31 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalEstadoPagoNomina')">Cancelar</button>
       <button class="btn-custom" onclick="guardarEstadoPagoNomina()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ESTADO DE PAGO DE FACTURA (Pendiente / Abonada / Pagada / Cancelada) -->
+<div class="modal-overlay" id="modalEstadoPagoFactura">
+  <div class="modal-box" style="max-width:420px;">
+    <button class="close-modal" onclick="cerrarModal('modalEstadoPagoFactura')">✖</button>
+    <h3>💰 Estado de pago de la factura</h3>
+    <p id="lblFacturaEstadoPago" style="font-size:12px;color:var(--text-muted);"></p>
+    <label>Estado:</label>
+    <select id="selEstadoPagoFactura" onchange="toggleMontoAbonadoFactura()">
+      <option value="pendiente">Pendiente por pagar</option>
+      <option value="abonada">Abonada (pago parcial)</option>
+      <option value="pagado">Pagada completa</option>
+      <option value="cancelada">Cancelada</option>
+    </select>
+    <div id="wrapperMontoAbonadoFactura" style="display:none;margin-top:8px;">
+      <label>Monto abonado hasta ahora (acumulado):</label>
+      <input type="number" id="inputMontoAbonadoFactura" placeholder="Monto en COP">
+      <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Si el cliente ya había abonado antes, escribe aquí el TOTAL acumulado (no solo lo nuevo) — la plataforma calcula sola la diferencia para Trazabilidad.</p>
+    </div>
+    <div style="margin-top:15px;text-align:right;">
+      <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalEstadoPagoFactura')">Cancelar</button>
+      <button class="btn-custom" onclick="guardarEstadoPagoFactura()">Guardar</button>
     </div>
   </div>
 </div>
@@ -2490,20 +2596,21 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=85"></script>
-<script src="utilidades-navegacion.js?v=85"></script>
-<script src="buscador-agenda.js?v=85"></script>
-<script src="ordenes.js?v=85"></script>
-<script src="equipos-trazabilidad.js?v=85"></script>
-<script src="pdf.js?v=85"></script>
-<script src="config-clientes-equipos.js?v=85"></script>
-<script src="config-plantillas-tecnicos.js?v=85"></script>
-<script src="cotizador.js?v=85"></script>
-<script src="asistencia.js?v=1"></script>
-<script src="config-general.js?v=85"></script>
-<script src="inventario.js?v=85"></script>
-<script src="tienda-admin.js?v=85"></script>
-<script src="tienda-publica.js?v=85"></script>
-<script src="kpi.js?v=85"></script>
+<script src="core.js?v=90"></script>
+<script src="capacitor-bridge.js?v=90"></script>
+<script src="utilidades-navegacion.js?v=90"></script>
+<script src="buscador-agenda.js?v=90"></script>
+<script src="ordenes.js?v=90"></script>
+<script src="equipos-trazabilidad.js?v=90"></script>
+<script src="pdf.js?v=90"></script>
+<script src="config-clientes-equipos.js?v=90"></script>
+<script src="config-plantillas-tecnicos.js?v=90"></script>
+<script src="cotizador.js?v=90"></script>
+<script src="asistencia.js?v=90"></script>
+<script src="config-general.js?v=90"></script>
+<script src="inventario.js?v=90"></script>
+<script src="tienda-admin.js?v=90"></script>
+<script src="tienda-publica.js?v=90"></script>
+<script src="kpi.js?v=90"></script>
 </body>
 </html>
