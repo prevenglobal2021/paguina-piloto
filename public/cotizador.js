@@ -567,7 +567,16 @@ function cambiarTabContabilidad(event, nombre){
   document.querySelectorAll('.conta-tab-content').forEach(el=>el.classList.remove('activo'));
   document.querySelectorAll('.conta-tab-btn').forEach(el=>el.classList.remove('activo'));
   document.getElementById('contaTab'+nombre).classList.add('activo');
-  event.currentTarget.classList.add('activo');
+  const boton = event ? event.currentTarget : document.querySelector(`.conta-tab-btn[data-tab="${nombre}"]`);
+  if(boton) boton.classList.add('activo');
+}
+// Acceso directo desde la barra inferior móvil de técnicos: abre Contabilidad
+// pero deja seleccionada solo la pestaña de Cotización y Facturación — el
+// resto de pestañas (Nómina, Gastos, Trazabilidad) quedan ocultas para
+// técnico vía CSS, así que igual no podrían navegar a ellas desde ahí.
+function abrirCotizacionDesdeMovil(){
+  mostrarSeccion('contabilidad');
+  cambiarTabContabilidad(null, 'CotizacionFactura');
 }
 function renderizarContabilidad(){
   db.liquidacionesNomina = db.liquidacionesNomina || []; db.gastos = db.gastos || []; db.pedidosTienda = db.pedidosTienda || []; db.ingresos = db.ingresos || [];

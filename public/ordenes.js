@@ -289,6 +289,7 @@ function verDetalleOrden(ordenId){
   });
   document.querySelectorAll('#detPreviewFotos button, [id^="detPreviewFotoCampo"] button').forEach(b=>b.style.display = finalizada ? 'none' : '');
   document.getElementById('detAccionesEdicion').style.display = finalizada ? 'none' : 'flex';
+  document.getElementById('detBtnVerDocumentoEdicion').style.display = (!finalizada && o.cierre) ? 'inline-flex' : 'none';
   document.getElementById('detAccionesSoloLectura').style.display = finalizada ? 'block' : 'none';
   document.getElementById('detAvisoFinalizada').style.display = finalizada ? 'block' : 'none';
   document.getElementById('detAvisoEdicionForzada').style.display = (ordenDetalleEsEdicionForzada && o.estado==='Finalizado') ? 'block' : 'none';

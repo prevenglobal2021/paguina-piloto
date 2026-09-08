@@ -202,11 +202,12 @@ async function eliminarCampoConfig(id){
    CONFIGURACIÓN: PERSONAL (rol + permisos)
 ========================================================= */
 function onCambiarRolPersonal(){
-  // Solo una ayuda de conveniencia: al elegir "Administrativo" sugiere Acceso
-  // total marcado (se puede desmarcar igual para dejarlo parcial); elegir
-  // "Técnico" lo deja sin marcar por defecto. Nunca es obligatorio.
-  const rol = document.getElementById('cfgTecRol').value;
-  document.getElementById('cfgTecAccesoTotal').checked = (rol === 'administrativo');
+  // El rol (Técnico / Administrativo) ya NO marca "Acceso total" por su
+  // cuenta — antes, elegir "Administrativo" le daba a la persona acceso a
+  // todo automáticamente, aunque nunca se hubiera elegido eso a propósito.
+  // Ahora toda persona, sea cual sea su rol, solo ve lo que se le active a
+  // mano en el listado de abajo. "Acceso total" sigue existiendo como
+  // opción, pero hay que marcarla aparte, a propósito, cada vez.
   renderizarChecklistPermisosPersonal();
 }
 function renderizarChecklistPermisosPersonal(permisosActuales){
@@ -239,6 +240,7 @@ async function guardarTecnicoConfig(){
   const usuario = document.getElementById('cfgTecUsuario').value.trim();
   const password = document.getElementById('cfgTecPassword').value;
   const rol = document.getElementById('cfgTecRol').value;
+  const cargo = document.getElementById('cfgTecCargo').value;
   const accesoTotal = document.getElementById('cfgTecAccesoTotal').checked;
   const permisos = accesoTotal ? {} : leerPermisosMarcadosPersonal();
   if(!nombre){ mostrarToast('Escribe el nombre de la persona'); return; }
@@ -254,11 +256,11 @@ async function guardarTecnicoConfig(){
   if(id){
     const t = buscarTecnico(parseInt(id));
     respaldo = Object.assign({}, t);
-    t.nombre = nombre; t.telefono = telefono; t.usuario = usuario; t.rol = rol; t.accesoTotal = accesoTotal; t.permisos = permisos;
+    t.nombre = nombre; t.telefono = telefono; t.usuario = usuario; t.rol = rol; t.cargo = cargo; t.accesoTotal = accesoTotal; t.permisos = permisos;
     if(password) t.password = password;
   } else {
     esNuevo = true;
-    db.tecnicos.push({ id:Date.now(), nombre, telefono, usuario, password, activo:true, rol, accesoTotal, permisos });
+    db.tecnicos.push({ id:Date.now(), nombre, telefono, usuario, password, activo:true, rol, cargo, accesoTotal, permisos });
   }
   try{
     await dbGuardarInmediato();
@@ -283,6 +285,7 @@ function editarTecnicoConfig(id){
   document.getElementById('cfgTecPassword').value = '';
   document.getElementById('cfgTecPassword').placeholder = 'Dejar en blanco para no cambiarla';
   document.getElementById('cfgTecRol').value = t.rol || 'tecnico';
+  document.getElementById('cfgTecCargo').value = t.cargo || 'Técnico';
   document.getElementById('cfgTecAccesoTotal').checked = !!t.accesoTotal;
   renderizarChecklistPermisosPersonal(t.permisos);
   document.getElementById('btnGuardarTecnico').innerText = 'Guardar Cambios';
@@ -294,6 +297,7 @@ function cancelarEdicionTecnico(){
   document.getElementById('cfgTecUsuario').value=''; document.getElementById('cfgTecPassword').value='';
   document.getElementById('cfgTecPassword').placeholder = 'Contraseña';
   document.getElementById('cfgTecRol').value = 'tecnico';
+  document.getElementById('cfgTecCargo').value = 'Técnico';
   document.getElementById('cfgTecAccesoTotal').checked = false;
   renderizarChecklistPermisosPersonal();
   document.getElementById('btnGuardarTecnico').innerText = '+ Añadir Personal';

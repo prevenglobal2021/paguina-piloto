@@ -218,8 +218,6 @@ function renderizarAgenda(){
         </div>
         <div class="orden-card-acciones">
           <button class="btn-orden-accion btn-orden-principal" onclick="verDetalleOrden(${o.id})"><i class="fas fa-clipboard-check"></i> ${o.estado!=='Finalizado' ? 'Ver / Cerrar Orden' : 'Ver Orden'}</button>
-          ${o.cierre ? `<button class="btn-orden-accion" style="background:#25D366;color:#fff;" onclick="enviarPorWhatsApp(${o.id})"><i class="fab fa-whatsapp"></i> WhatsApp</button>` : ''}
-          ${o.cierre ? `<button class="btn-orden-accion btn-orden-secundaria" onclick="verPDF(${o.id})"><i class="fas fa-file-pdf"></i> PDF / Imprimir</button>` : ''}
           <button class="btn-orden-accion btn-orden-secundaria solo-admin" data-permiso="ordenes_reprogramar" onclick="abrirReprogramar(${o.id})"><i class="fas fa-calendar-alt"></i> Reprogramar</button>
           ${o.estado==='Finalizado' ? `<button class="btn-orden-accion btn-orden-secundaria solo-admin" data-permiso="ordenes_editar_finalizadas" onclick="editarOrdenFinalizada(${o.id})"><i class="fas fa-unlock"></i> Editar</button>` : ''}
           <button class="btn-orden-accion btn-orden-peligro solo-admin" data-permiso="ordenes_eliminar" onclick="eliminarOrden(${o.id})"><i class="fas fa-trash"></i> Eliminar</button>

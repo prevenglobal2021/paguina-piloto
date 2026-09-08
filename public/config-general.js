@@ -1,26 +1,19 @@
-// ===== config-general.js — Configuración General, Empresa, Logo Adaptable y Temas Metalizados =====
+// ===== config-general.js — extraído de prevenglobal__25_.html (líneas 4032-4234) =====
 /* =========================================================
-   CONFIGURACIÓN: EMPRESA Y PERFIL
+   CONFIGURACIÓN: EMPRESA Y PERFIL (logo, dirección, misión, visión)
 ========================================================= */
 function actualizarPreviewLoginMini(){
-  const c1 = document.getElementById('cfgLoginColor1')?.value || '#0284c7';
-  const c2 = document.getElementById('cfgLoginColor2')?.value || '#0f172a';
+  const c1 = document.getElementById('cfgLoginColor1').value || '#7c3aed';
+  const c2 = document.getElementById('cfgLoginColor2').value || '#4c1d95';
   const mini = document.getElementById('previewLoginMini');
-  if(!mini) return;
   mini.style.setProperty('--preview-login-color-1', c1);
   mini.style.setProperty('--preview-login-color-2', c2);
-  const tIzq = document.getElementById('cfgLoginTituloIzquierda');
-  const sIzq = document.getElementById('cfgLoginSubtituloIzquierda');
-  const bTit = document.getElementById('cfgLoginBienvenidaTitulo');
-  const bSub = document.getElementById('cfgLoginBienvenidaSubtitulo');
-  if(tIzq) document.getElementById('previewLoginMiniTitulo').innerText = tIzq.value || 'Domina el sistema';
-  if(sIzq) document.getElementById('previewLoginMiniSubtitulo').innerText = sIzq.value || 'Controla clientes, equipos, órdenes de servicio e inventario.';
-  if(bTit) document.getElementById('previewLoginMiniBienvenida').innerText = bTit.value || '¡Bienvenido!';
-  if(bSub) document.getElementById('previewLoginMiniSubBienvenida').innerText = bSub.value || 'Por favor inicia sesión';
-  const izq = document.getElementById('previewLoginMiniIzq');
-  if(izq) izq.style.backgroundImage = loginImagenTempBase64 ? `url('${loginImagenTempBase64}')` : 'none';
+  document.getElementById('previewLoginMiniTitulo').innerText = document.getElementById('cfgLoginTituloIzquierda').value || 'Domina el sistema';
+  document.getElementById('previewLoginMiniSubtitulo').innerText = document.getElementById('cfgLoginSubtituloIzquierda').value || 'Controla clientes, equipos, órdenes de servicio e inventario desde un solo lugar.';
+  document.getElementById('previewLoginMiniBienvenida').innerText = document.getElementById('cfgLoginBienvenidaTitulo').value || '¡Bienvenido!';
+  document.getElementById('previewLoginMiniSubBienvenida').innerText = document.getElementById('cfgLoginBienvenidaSubtitulo').value || 'Por favor inicia sesión';
+  document.getElementById('previewLoginMiniIzq').style.backgroundImage = loginImagenTempBase64 ? `url('${loginImagenTempBase64}')` : 'none';
 }
-
 let loginImagenTempBase64 = null;
 function manejarLoginImagenUpload(event){
   const file = event.target.files[0];
@@ -30,15 +23,15 @@ function manejarLoginImagenUpload(event){
   const cargandoEl = document.getElementById('loginImagenCargando');
   const btnGuardar = document.getElementById('btnGuardarAparienciaLogin');
   if(file.size > 10*1024*1024){
-    estadoEl.innerText = '⚠️ La imagen supera 10MB. Selecciona una más liviana.';
+    estadoEl.innerText = '⚠️ Esa imagen pesa más de 10MB. Elige una más liviana.';
     estadoEl.style.color = 'var(--red-alert)';
     event.target.value = '';
     return;
   }
   estadoEl.innerText = '';
   cargandoEl.style.display = 'flex';
-  inputEl.disabled = true;
-  if(btnGuardar) btnGuardar.disabled = true;
+  inputEl.disabled = true; // evita que se pueda volver a intentar subir mientras se procesa la actual
+  if(btnGuardar) btnGuardar.disabled = true; // evita guardar antes de que la imagen termine de procesarse
   const reader = new FileReader();
   reader.onload = e=>{
     fetch(API_BASE + '/api/imagenes/login-fondo', {
@@ -50,14 +43,16 @@ function manejarLoginImagenUpload(event){
       if(!r.ok) throw new Error(data.error || 'No se pudo procesar la imagen.');
       return data;
     }).then(data=>{
+      // Solo se reemplaza la imagen guardada si el procesamiento fue exitoso —
+      // si algo falla, lo que ya estaba configurado antes queda intacto.
       loginImagenTempBase64 = data.imagen;
       actualizarPreviewLoginMini();
-      estadoEl.innerText = '✅ Imagen optimizada lista. Guarda cambios para aplicar.';
+      estadoEl.innerText = '✅ Imagen lista (recortada a 1080x1920, vista previa arriba). Falta guardar los cambios.';
       estadoEl.style.color = 'var(--exito-verde,#22c55e)';
     }).catch(err=>{
       estadoEl.innerText = '⚠️ ' + err.message;
       estadoEl.style.color = 'var(--red-alert)';
-      inputEl.value = '';
+      inputEl.value = ''; // limpia la selección fallida, para que quede claro que hay que elegir otra
     }).finally(()=>{
       cargandoEl.style.display = 'none';
       inputEl.disabled = false;
@@ -65,14 +60,15 @@ function manejarLoginImagenUpload(event){
     });
   };
   reader.onerror = ()=>{
-    estadoEl.innerText = '⚠️ Error al leer archivo.';
+    estadoEl.innerText = '⚠️ No se pudo leer el archivo desde tu dispositivo. Intenta de nuevo.';
+    estadoEl.style.color = 'var(--red-alert)';
     cargandoEl.style.display = 'none';
     inputEl.disabled = false;
     if(btnGuardar) btnGuardar.disabled = false;
+    inputEl.value = '';
   };
   reader.readAsDataURL(file);
 }
-
 async function guardarAparienciaLogin(){
   db.config.loginColor1 = document.getElementById('cfgLoginColor1').value;
   db.config.loginColor2 = document.getElementById('cfgLoginColor2').value;
@@ -83,54 +79,65 @@ async function guardarAparienciaLogin(){
   db.config.loginBienvenidaSubtitulo = document.getElementById('cfgLoginBienvenidaSubtitulo').value.trim();
   try{
     await dbGuardarInmediato();
-    registrarLog('Actualizar', 'Apariencia Login', '—');
-    mostrarToast('✅ Pantalla de login guardada.', 'exito');
+    registrarLog('Actualizar', 'Apariencia del Login', '—');
+    mostrarToast('✅ Pantalla de login guardada. Se verá así la próxima vez que alguien inicie sesión.', 'exito');
   }catch(err){
     mostrarToast('⚠️ No se guardó: ' + err.message, 'error');
   }
 }
-
 function manejarLogoUpload(event){
   const file = event.target.files[0];
   if(!file) return;
   const reader = new FileReader();
   reader.onload = e=>{
-    logoTempBase64 = e.target.result;
-    const prev = document.getElementById('previewLogoConfig');
-    if(prev) { prev.src = logoTempBase64; prev.style.display='inline-block'; }
-    const ph = document.getElementById('previewLogoConfigPlaceholder');
-    if(ph) ph.style.display='none';
-    
-    // Vista previa inmediata en la barra lateral en tiempo real antes de guardar
-    actualizarLogoEnBarraLateral(logoTempBase64);
+    const img = new Image();
+    img.onload = () => {
+      // Ajuste automático: solo reduce si hace falta (nunca agranda una
+      // imagen pequeña) y siempre conserva la proporción original, para
+      // que el logo nunca se vea estirado ni deformado sin importar el
+      // tamaño o la forma del archivo que se suba. De paso, evita que
+      // fotos gigantes de celular infravioleten la base de datos.
+      const maxLado = 480;
+      let { width, height } = img;
+      if(width > maxLado || height > maxLado){
+        const escala = Math.min(maxLado / width, maxLado / height);
+        width = Math.round(width * escala);
+        height = Math.round(height * escala);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      logoTempBase64 = canvas.toDataURL('image/png'); // PNG conserva la transparencia del logo
+      const prev = document.getElementById('previewLogoConfig');
+      prev.src = logoTempBase64; prev.style.display='inline-block';
+      document.getElementById('previewLogoConfigPlaceholder').style.display='none';
+    };
+    img.onerror = () => mostrarToast('No se pudo leer esa imagen. Intenta con otro archivo.', 'error');
+    img.src = e.target.result;
   };
   reader.readAsDataURL(file);
 }
-
 function actualizarPreviewFirmaRepresentante(){
   const prev = document.getElementById('imgFirmaConfig');
   const placeholder = document.getElementById('previewFirmaConfigPlaceholder');
   if(firmaTempBase64){ prev.src = firmaTempBase64; prev.style.display='block'; placeholder.style.display='none'; }
 }
-
 async function guardarAjustesGenerales(){
   db.config.nombre = document.getElementById('cfgEmpresaNombre').value;
   db.config.subtitulo = document.getElementById('cfgEmpresaSub').value;
   db.config.direccion = document.getElementById('cfgEmpresaDireccion').value;
   db.config.mision = document.getElementById('cfgEmpresaMision').value;
   db.config.vision = document.getElementById('cfgEmpresaVision').value;
-  db.config.logo = logoTempBase64;
   db.config.nombreRepresentante = document.getElementById('cfgNombreRepresentante').value.trim();
   db.config.firmaRepresentante = firmaTempBase64;
   try{
     await dbGuardarInmediato();
     aplicarConfiguracionVisual();
-    mostrarToast('✅ Logo y configuración general guardados correctamente.', 'exito');
+    mostrarToast('✅ Perfil de empresa, representante y firma guardados.', 'exito');
   }catch(err){
     mostrarToast('⚠️ No se guardó: ' + err.message, 'error');
   }
 }
-
 async function guardarPasswordAdmin(){
   const usuario = document.getElementById('cfgAdminUsuario').value.trim();
   const nueva = document.getElementById('cfgAdminPasswordNueva').value;
@@ -142,14 +149,13 @@ async function guardarPasswordAdmin(){
     await dbGuardarInmediato();
   }catch(err){
     Object.assign(db.config, respaldo);
-    mostrarToast('⚠️ No se pudo guardar clave de admin: ' + err.message, 'error');
+    mostrarToast('⚠️ No se pudo guardar el acceso de administrador: ' + err.message, 'error');
     return;
   }
   document.getElementById('cfgAdminPasswordNueva').value = '';
   registrarLog('Actualizar acceso', 'Administrador', usuario || '—');
-  mostrarToast('✅ Acceso actualizado.', 'exito');
+  mostrarToast('✅ Acceso de administrador actualizado.', 'exito');
 }
-
 async function guardarInterruptorLogin(){
   const anterior = db.config.loginRequerido;
   db.config.loginRequerido = document.getElementById('cfgLoginRequerido').checked;
@@ -165,393 +171,222 @@ async function guardarInterruptorLogin(){
 }
 
 /* =========================================================
-   TEMAS EMPRESARIALES METALIZADOS
+   CONFIGURACIÓN: APARIENCIA (temas del dashboard)
+   Antes se podía elegir CUALQUIER color con un selector libre,
+   incluidos tonos oscuros. Ahora solo se puede elegir entre estos
+   6 temas ya armados, todos claros o metalizados claros —
+   así es imposible dejar la plataforma con un tema oscuro.
 ========================================================= */
 const TEMAS_CLAROS = [
-  { 
-    nombre: 'Azul Metalizado Claro (Acero & Platino)', 
-    esOscuro: false,
-    acento: '#0284c7', 
-    fondo: 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #f1f5f9 100%)', 
-    colorFondoSolido: '#e2e8f0',
-    texto: '#0f172a', 
-    textoMuted: '#475569',
-    sidebar1: 'linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%)', 
-    sidebar2: '#cbd5e1', 
-    topbar1: 'linear-gradient(90deg, #ffffff 0%, #e2e8f0 100%)', 
-    topbar2: '#cbd5e1', 
-    panel1: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)', 
-    panel2: '#ffffff',
-    borde: '#94a3b8'
-  },
-  { 
-    nombre: 'Titanio Cobalto (Azul Metalizado Oscuro)', 
-    esOscuro: true,
-    acento: '#38bdf8', 
-    fondo: 'linear-gradient(135deg, #0b1329 0%, #111c38 50%, #1e293b 100%)', 
-    colorFondoSolido: '#0b1329',
-    texto: '#f8fafc', 
-    textoMuted: '#94a3b8',
-    sidebar1: 'linear-gradient(180deg, #0f172a 0%, #0b1329 100%)', 
-    sidebar2: '#1e293b', 
-    topbar1: 'linear-gradient(90deg, #111c38 0%, #0f172a 100%)', 
-    topbar2: '#1e293b', 
-    panel1: 'linear-gradient(180deg, #16203c 0%, #0f172a 100%)', 
-    panel2: '#16203c',
-    borde: '#334155'
-  },
-  { 
-    nombre: 'Platino Satinado Puro (Prevenglobal Clean)', 
-    esOscuro: false,
-    acento: '#2563eb', 
-    fondo: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', 
-    colorFondoSolido: '#f1f5f9',
-    texto: '#0f172a', 
-    textoMuted: '#64748b',
-    sidebar1: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)', 
-    sidebar2: '#e2e8f0', 
-    topbar1: '#ffffff', 
-    topbar2: '#f1f5f9', 
-    panel1: '#ffffff', 
-    panel2: '#ffffff',
-    borde: '#cbd5e1'
-  },
-  { 
-    nombre: 'Acero Esmeralda HVAC (Ingeniería)', 
-    esOscuro: false,
-    acento: '#059669', 
-    fondo: 'linear-gradient(135deg, #e6f4ea 0%, #dcfce7 50%, #f0fdf4 100%)', 
-    colorFondoSolido: '#e6f4ea',
-    texto: '#064e3b', 
-    textoMuted: '#047857',
-    sidebar1: 'linear-gradient(180deg, #ffffff 0%, #dcfce7 100%)', 
-    sidebar2: '#bbf7d0', 
-    topbar1: 'linear-gradient(90deg, #ffffff 0%, #f0fdf4 100%)', 
-    topbar2: '#dcfce7', 
-    panel1: '#ffffff', 
-    panel2: '#ffffff',
-    borde: '#86efac'
-  },
-  { 
-    nombre: 'Grafito & Cobre Industrial', 
-    esOscuro: true,
-    acento: '#f59e0b', 
-    fondo: 'linear-gradient(135deg, #18181b 0%, #27272a 50%, #3f3f46 100%)', 
-    colorFondoSolido: '#18181b',
-    texto: '#fafafa', 
-    textoMuted: '#a1a1aa',
-    sidebar1: 'linear-gradient(180deg, #27272a 0%, #18181b 100%)', 
-    sidebar2: '#3f3f46', 
-    topbar1: 'linear-gradient(90deg, #27272a 0%, #18181b 100%)', 
-    topbar2: '#3f3f46', 
-    panel1: 'linear-gradient(180deg, #27272a 0%, #1f1f23 100%)', 
-    panel2: '#27272a',
-    borde: '#52525b'
-  },
-  { 
-    nombre: 'Azul Marino Ejecutivo Profundo', 
-    esOscuro: true,
-    acento: '#60a5fa', 
-    fondo: 'linear-gradient(135deg, #020617 0%, #0f172a 50%, #1e293b 100%)', 
-    colorFondoSolido: '#020617',
-    texto: '#f8fafc', 
-    textoMuted: '#94a3b8',
-    sidebar1: 'linear-gradient(180deg, #0f172a 0%, #020617 100%)', 
-    sidebar2: '#1e293b', 
-    topbar1: 'linear-gradient(90deg, #0f172a 0%, #020617 100%)', 
-    topbar2: '#1e293b', 
-    panel1: 'linear-gradient(180deg, #0f172a 0%, #090d16 100%)', 
-    panel2: '#0f172a',
-    borde: '#1e293b'
-  }
+  { nombre:'Claro Corporativo', acento:'#2563eb', fondo:'#f4f6f9', texto:'#1e293b', sidebar1:'#ffffff', sidebar2:'#f1f5f9', topbar1:'#ffffff', topbar2:'#f8fafc', panel1:'#ffffff', panel2:'#f8fafc' },
+  { nombre:'Metalizado Claro', acento:'#0d9488', fondo:'#eef3f4', texto:'#1e2b2e', sidebar1:'#e7edf0', sidebar2:'#cfdbe0', topbar1:'#f0f5f4', topbar2:'#d9e6e4', panel1:'#ffffff', panel2:'#eef3f4' },
+  { nombre:'Verde Esmeralda Claro', acento:'#16a34a', fondo:'#f0fdf4', texto:'#14532d', sidebar1:'#ffffff', sidebar2:'#dcfce7', topbar1:'#ffffff', topbar2:'#ecfdf5', panel1:'#ffffff', panel2:'#f0fdf4' },
+  { nombre:'Azul Marino Claro', acento:'#1d4ed8', fondo:'#eff6ff', texto:'#1e3a5f', sidebar1:'#ffffff', sidebar2:'#dbeafe', topbar1:'#ffffff', topbar2:'#eff6ff', panel1:'#ffffff', panel2:'#eff6ff' },
+  { nombre:'Plata Azulada Metalizada', acento:'#0369a1', fondo:'#eef2f5', texto:'#1e293b', sidebar1:'#e2e8f0', sidebar2:'#cbd5e1', topbar1:'#eef2f5', topbar2:'#dde4ea', panel1:'#ffffff', panel2:'#eef2f5' },
+  { nombre:'Menta Fresca', acento:'#0d9488', fondo:'#f0fdfa', texto:'#134e4a', sidebar1:'#ffffff', sidebar2:'#ccfbf1', topbar1:'#ffffff', topbar2:'#f0fdfa', panel1:'#ffffff', panel2:'#ecfeff' },
 ];
-
 let temaClaroSeleccionadoIdx = 0;
 function renderizarTemasClaros(){
   const cont = document.getElementById('temasClarosGrid');
   if(!cont) return;
-  const idxActual = TEMAS_CLAROS.findIndex(t => t.acento === db.config.colorAcento && t.colorFondoSolido === db.config.colorFondo);
+  // Si el tema ya guardado coincide con alguno del catálogo, lo marca como seleccionado al abrir.
+  const idxActual = TEMAS_CLAROS.findIndex(t=>t.acento===db.config.colorAcento && t.fondo===db.config.colorFondo);
   temaClaroSeleccionadoIdx = idxActual >= 0 ? idxActual : 0;
-  cont.innerHTML = TEMAS_CLAROS.map((t, idx) => `
-    <div class="tema-claro-opcion ${idx === temaClaroSeleccionadoIdx ? 'seleccionado' : ''}" data-idx="${idx}" onclick="seleccionarTemaClaro(${idx})" style="cursor:pointer;border:2px solid ${idx===temaClaroSeleccionadoIdx?t.acento:'#cbd5e1'};border-radius:8px;padding:8px;margin-bottom:8px;background:${t.colorFondoSolido};">
-      <div class="tema-claro-preview" style="background:${t.fondo};height:45px;border-radius:6px;display:flex;align-items:center;border:1px solid ${t.borde};overflow:hidden;">
-        <div style="background:${t.sidebar1};width:32%;height:100%;border-right:1px solid ${t.borde};"></div>
-        <div style="width:16px;height:16px;border-radius:50%;background:${t.acento};margin-left:12px;box-shadow:0 0 6px ${t.acento};"></div>
+  cont.innerHTML = TEMAS_CLAROS.map((t,idx)=>`
+    <div class="tema-claro-opcion ${idx===temaClaroSeleccionadoIdx?'seleccionado':''}" data-idx="${idx}" onclick="seleccionarTemaClaro(${idx})">
+      <div class="tema-claro-preview" style="background:${t.fondo};">
+        <div style="background:${t.sidebar1};width:35%;height:100%;border-right:1px solid rgba(0,0,0,.08);"></div>
+        <div style="width:14px;height:14px;border-radius:50%;background:${t.acento};margin-left:10px;"></div>
       </div>
-      <span style="color:${t.texto};font-weight:700;font-size:12.5px;margin-top:6px;display:block;">${t.nombre}</span>
+      <span>${t.nombre}</span>
     </div>`).join('');
 }
-
 function seleccionarTemaClaro(idx){
   temaClaroSeleccionadoIdx = idx;
-  document.querySelectorAll('.tema-claro-opcion').forEach(el => el.classList.toggle('seleccionado', parseInt(el.dataset.idx) === idx));
+  document.querySelectorAll('.tema-claro-opcion').forEach(el=>el.classList.toggle('seleccionado', parseInt(el.dataset.idx)===idx));
 }
-
-/* =========================================================
-   ACTUALIZACIÓN AUTOMÁTICA DEL LOGO EN TODA LA BARRA LATERAL
-========================================================= */
-function actualizarLogoEnBarraLateral(logoSrc){
-  const src = logoSrc || db.config?.logo;
-  const sidebarHeader = document.querySelector('aside > div:first-child') || document.querySelector('.sidebar-header');
-  if(!sidebarHeader) return;
-
-  let logoContenedor = sidebarHeader.querySelector('.contenedor-logo-encuadrado');
-  if(!logoContenedor){
-    sidebarHeader.innerHTML = '';
-    logoContenedor = document.createElement('div');
-    logoContenedor.className = 'contenedor-logo-encuadrado';
-    sidebarHeader.appendChild(logoContenedor);
-  }
-
-  if(src){
-    logoContenedor.innerHTML = `
-      <div class="marco-logo-encuadrado">
-        <img src="${src}" class="img-logo-barra-lateral" alt="${db.config?.nombre || 'Prevenglobal'}">
-      </div>
-      <span class="txt-nombre-empresa-barra">${db.config?.nombre || 'Prevenglobal'}</span>
-    `;
-    logoContenedor.style.display = 'flex';
-  } else {
-    logoContenedor.innerHTML = `
-      <div class="icono-reemplazo-logo"><i class="fas fa-snowflake"></i></div>
-      <span class="txt-nombre-empresa-barra">${db.config?.nombre || 'Prevenglobal'}</span>
-    `;
-  }
-}
-
-/* =========================================================
-   INYECCIÓN VISUAL TOTAL EN EL DOM
-========================================================= */
-function aplicarConfiguracionVisual(){
-  const cfg = db.config || {};
-  const tema = TEMAS_CLAROS.find(t => t.acento === cfg.colorAcento && t.colorFondoSolido === cfg.colorFondo) || TEMAS_CLAROS[0];
-  const root = document.documentElement;
-
-  root.style.setProperty('--accent-color', cfg.colorAcento || tema.acento);
-  root.style.setProperty('--bg-body', tema.colorFondoSolido);
-  root.style.setProperty('--text-main', tema.texto);
-  root.style.setProperty('--text-color', tema.texto);
-  root.style.setProperty('--text-muted', tema.textoMuted);
-  root.style.setProperty('--card-bg', tema.panel2);
-  root.style.setProperty('--panel-bg', tema.panel2);
-  root.style.setProperty('--card-border', tema.borde);
-
-  let estiloTema = document.getElementById('estiloTemaMetalizadoDinamico');
-  if(!estiloTema){
-    estiloTema = document.createElement('style');
-    estiloTema.id = 'estiloTemaMetalizadoDinamico';
-    document.head.appendChild(estiloTema);
-  }
-
-  estiloTema.innerHTML = `
-    body, html {
-      background: ${tema.fondo} !important;
-      color: ${tema.texto} !important;
-      min-height: 100vh !important;
-    }
-    aside, .sidebar {
-      background: ${tema.sidebar1} !important;
-      border-right: 1px solid ${tema.borde} !important;
-      color: ${tema.texto} !important;
-      width: 270px !important;
-    }
-
-    /* ENCUADRE TOTAL DEL LOGO EN LA BARRA LATERAL IZQUIERDA */
-    aside > div:first-child, .sidebar-header {
-      padding: 12px 14px 14px 14px !important;
-      border-bottom: 2px solid ${tema.borde} !important;
-      background: ${tema.sidebar2}22 !important;
-      width: 100% !important;
-      box-sizing: border-box !important;
-    }
-
-    .contenedor-logo-encuadrado {
-      display: flex !important;
-      flex-direction: column !important;
-      align-items: center !important;
-      justify-content: center !important;
-      width: 100% !important;
-      gap: 10px !important;
-    }
-
-    .marco-logo-encuadrado {
-      width: 100% !important;
-      height: 170px !important; /* Altura optimizada para encuadre 10x10 cm en pantalla */
-      background: ${tema.esOscuro ? '#090d16' : '#ffffff'} !important;
-      border: 2px solid ${tema.borde} !important;
-      border-radius: 12px !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      padding: 10px !important;
-      box-sizing: border-box !important;
-      box-shadow: 0 4px 14px rgba(0,0,0, ${tema.esOscuro ? '0.5' : '0.12'}) !important;
-      overflow: hidden !important;
-    }
-
-    .img-logo-barra-lateral {
-      width: 100% !important;
-      height: 100% !important;
-      object-fit: contain !important; /* Mantiene la proporción perfecta del logo sin cortarlo ni deformarlo */
-      display: block !important;
-    }
-
-    .txt-nombre-empresa-barra {
-      font-size: 15px !important;
-      font-weight: 800 !important;
-      letter-spacing: .03em !important;
-      color: ${tema.texto} !important;
-      text-transform: uppercase !important;
-      text-align: center !important;
-    }
-
-    .icono-reemplazo-logo {
-      width: 100% !important;
-      height: 120px !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      font-size: 48px !important;
-      color: ${tema.acento} !important;
-    }
-
-    aside ul li a, .sidebar a {
-      color: ${tema.texto} !important;
-    }
-    aside ul li a:hover, aside ul li a.active {
-      background: ${tema.acento}25 !important;
-      color: ${tema.acento} !important;
-    }
-    header, .topbar {
-      background: ${tema.topbar1} !important;
-      border-bottom: 1px solid ${tema.borde} !important;
-      color: ${tema.texto} !important;
-    }
-    header h2, header p, header span {
-      color: ${tema.texto} !important;
-    }
-    .panel, .orden-card, .kpi-card, .card, .dashboard-container {
-      background: ${tema.panel1} !important;
-      border: 1px solid ${tema.borde} !important;
-      color: ${tema.texto} !important;
-      box-shadow: 0 4px 14px rgba(0,0,0, ${tema.esOscuro ? '0.40' : '0.06'}) !important;
-    }
-    .orden-card-top span, .orden-card-cliente, .orden-card-datos span {
-      color: ${tema.texto} !important;
-    }
-    table {
-      color: ${tema.texto} !important;
-    }
-    table thead th {
-      background: ${tema.sidebar2} !important;
-      color: ${tema.texto} !important;
-      border-bottom: 2px solid ${tema.borde} !important;
-    }
-    table tbody td {
-      border-bottom: 1px solid ${tema.borde} !important;
-      color: ${tema.texto} !important;
-    }
-    table tbody tr:hover {
-      background: ${tema.acento}15 !important;
-    }
-    input, select, textarea {
-      background-color: ${tema.esOscuro ? '#090d16' : '#ffffff'} !important;
-      color: ${tema.texto} !important;
-      border: 1px solid ${tema.borde} !important;
-    }
-    .modal-card {
-      background: ${tema.panel2} !important;
-      color: ${tema.texto} !important;
-      border: 1px solid ${tema.borde} !important;
-    }
-  `;
-
-  // Renderizar o actualizar el logo encuadrado de inmediato
-  actualizarLogoEnBarraLateral();
-}
-
 async function guardarApariencia(){
+  db.config.logo = logoTempBase64;
   const tema = TEMAS_CLAROS[temaClaroSeleccionadoIdx] || TEMAS_CLAROS[0];
   db.config.colorAcento = tema.acento;
-  db.config.colorFondo = tema.colorFondoSolido;
+  db.config.colorFondo = tema.fondo;
+  db.config.modoClaro = true; // siempre claro, ya no existe la opción oscura
   db.config.colorTexto = tema.texto;
-  db.config.colorSidebar1 = tema.sidebar2;
-  db.config.colorTopbar1 = tema.topbar2;
-  db.config.colorPanel1 = tema.panel2;
-  db.config.formBorderColor = tema.borde;
-
+  db.config.colorSidebar1 = tema.sidebar1;
+  db.config.colorSidebar2 = tema.sidebar2;
+  db.config.colorTopbar1 = tema.topbar1;
+  db.config.colorTopbar2 = tema.topbar2;
+  db.config.colorPanel1 = tema.panel1;
+  db.config.colorPanel2 = tema.panel2;
+  db.config.tamanoLetra = document.getElementById('cfgTamanoLetra').value;
+  db.config.formRadius = document.getElementById('cfgFormRadius').value;
+  db.config.formBorderColor = document.getElementById('cfgFormBorderColor').value;
+  db.config.fontFamily = document.getElementById('cfgTipoLetra').value;
+  db.config.formTamanoBotones = document.getElementById('cfgFormTamanoBotones').value;
   try{
     await dbGuardarInmediato();
     aplicarConfiguracionVisual();
-    mostrarToast(`✅ Tema ${tema.nombre} aplicado.`, 'exito');
+    mostrarToast('✅ Apariencia guardada correctamente.', 'exito');
     cerrarModal('modalConfigCentro');
   }catch(err){
     mostrarToast('⚠️ No se guardó: ' + err.message, 'error');
   }
 }
-
 async function restablecerColorTexto(){
+  db.config.colorTexto = null;
   const tema = TEMAS_CLAROS[temaClaroSeleccionadoIdx] || TEMAS_CLAROS[0];
-  db.config.colorTexto = tema.texto;
-  try{ await dbGuardarInmediato(); }catch(err){ return; }
+  document.getElementById('cfgColorTexto').value = tema.texto;
+  try{ await dbGuardarInmediato(); }catch(err){ mostrarToast('⚠️ No se pudo restablecer: ' + err.message, 'error'); return; }
   aplicarConfiguracionVisual();
+  mostrarToast('✅ Color de letra restablecido.', 'exito');
 }
-
 async function restablecerBordeFormulario(){
-  const tema = TEMAS_CLAROS[temaClaroSeleccionadoIdx] || TEMAS_CLAROS[0];
-  db.config.formBorderColor = tema.borde;
-  try{ await dbGuardarInmediato(); }catch(err){ return; }
+  db.config.formBorderColor = null;
+  document.getElementById('cfgFormBorderColor').value = '#cbd5e1';
+  try{ await dbGuardarInmediato(); }catch(err){ mostrarToast('⚠️ No se pudo restablecer: ' + err.message, 'error'); return; }
   aplicarConfiguracionVisual();
+  mostrarToast('✅ Color de borde restablecido.', 'exito');
 }
 
 /* =========================================================
-   CONFIGURACIÓN: ETIQUETAS
+   CONFIGURACIÓN: ETIQUETAS (Tipos de Servicio / Prioridades)
 ========================================================= */
 function renderizarEtiquetas(){
   const tbodyTipo = document.getElementById('tablaEtiquetasTipo');
-  if(tbodyTipo){
-    tbodyTipo.innerHTML = (db.config.tiposServicio||[]).map((t,idx)=>`
-      <tr><td>${t}</td><td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarEtiqueta('tiposServicio',${idx})">X</button></td></tr>
-    `).join('') || '<tr><td colspan="2" class="empty-state">Sin etiquetas</td></tr>';
-  }
-  const tbodyPrioridad = document.getElementById('tablaEtiquetasPrioridad');
-  if(tbodyPrioridad){
-    tbodyPrioridad.innerHTML = (db.config.prioridades||[]).map((p,idx)=>`
-      <tr><td>${p}</td><td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarEtiqueta('prioridades',${idx})">X</button></td></tr>
-    `).join('') || '<tr><td colspan="2" class="empty-state">Sin etiquetas</td></tr>';
-  }
-}
+  tbodyTipo.innerHTML = db.config.tiposServicio.map((t,idx)=>`
+    <tr><td>${t}</td><td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarEtiqueta('tiposServicio',${idx})">X</button></td></tr>
+  `).join('') || '<tr><td colspan="2" class="empty-state">Sin etiquetas</td></tr>';
 
+  const tbodyPrioridad = document.getElementById('tablaEtiquetasPrioridad');
+  tbodyPrioridad.innerHTML = db.config.prioridades.map((p,idx)=>`
+    <tr><td>${p}</td><td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarEtiqueta('prioridades',${idx})">X</button></td></tr>
+  `).join('') || '<tr><td colspan="2" class="empty-state">Sin etiquetas</td></tr>';
+}
 async function agregarEtiqueta(lista, inputId){
   const valor = document.getElementById(inputId).value.trim();
   if(!valor){ mostrarToast('Escribe una etiqueta.'); return; }
-  db.config[lista] = db.config[lista] || [];
   if(db.config[lista].includes(valor)){ mostrarToast('Esa etiqueta ya existe.'); return; }
   db.config[lista].push(valor);
-  try{ await dbGuardarInmediato(); }catch(err){ db.config[lista].pop(); return; }
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.config[lista].pop();
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
   document.getElementById(inputId).value = '';
   renderizarEtiquetas();
 }
-
 async function eliminarEtiqueta(lista, idx){
-  if((db.config[lista]||[]).length <= 1){ mostrarToast('Debe quedar al menos una etiqueta.'); return; }
-  if(!confirm('¿Eliminar esta etiqueta?')) return;
+  if(db.config[lista].length<=1){ mostrarToast('Debe quedar al menos una etiqueta en la lista.'); return; }
+  if(!confirm('¿Eliminar esta etiqueta? Las órdenes que ya la usan conservarán el texto guardado.')) return;
+  const respaldo = db.config[lista].slice();
   db.config[lista].splice(idx,1);
-  try{ await dbGuardarInmediato(); }catch(err){ return; }
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.config[lista] = respaldo;
+    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
+    return;
+  }
+  mostrarToast('✅ Etiqueta eliminada.', 'exito');
   renderizarEtiquetas();
 }
 
 /* =========================================================
-   BACKUP Y RESTABLECIMIENTO
+   BACKUP / RESET / EXPORT
 ========================================================= */
-function exportarBaseDatosJSON(){
-  const blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `Prevenglobal_Backup_${new Date().toISOString().slice(0,10)}.json`;
-  link.click();
+async function exportarBaseDatosJSON(){
+  // Antes esto exportaba la copia local del navegador, que podría estar
+  // desactualizada o incompleta (el mismo riesgo que causó la pérdida de
+  // información). Ahora se pide directo al servidor la versión real y
+  // confirmada — así el respaldo siempre refleja lo que de verdad hay guardado.
+  try{
+    const resp = await fetchConLimite(API_BASE + '/api/backup', { headers: headersAutenticados() }, 20);
+    if(!resp.ok) throw new Error('El servidor no pudo generar el respaldo (código ' + resp.status + ').');
+    const blob = await resp.blob();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Prevenglobal_Backup_${new Date().toISOString().slice(0,10)}.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    mostrarToast('✅ Respaldo descargado — es la versión real y confirmada del servidor.', 'exito');
+  }catch(err){
+    mostrarToast('⚠️ No se pudo descargar el respaldo del servidor: ' + err.message + ' — se descargará la copia local como alternativa.', 'error');
+    const blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Prevenglobal_Backup_LOCAL_${new Date().toISOString().slice(0,10)}.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
 }
-
+function importarClientesEquipos(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async e=>{
+    try{
+      const data = JSON.parse(e.target.result);
+      if(!data.clientesNuevos || !Array.isArray(data.clientesNuevos)){
+        mostrarToast('El archivo no tiene el formato esperado (se espera { clientesNuevos: [...] }).');
+        return;
+      }
+      const nombresExistentes = new Set(db.clientes.map(c=>c.nombre.trim().toLowerCase()));
+      let agregados = 0, omitidosDuplicados = 0, equiposAgregados = 0;
+      const respaldo = db.clientes.slice();
+      data.clientesNuevos.forEach(cNuevo=>{
+        const clave = (cNuevo.nombre||'').trim().toLowerCase();
+        if(!clave || nombresExistentes.has(clave)){ omitidosDuplicados++; return; }
+        // Aseguramos IDs internos únicos y frescos (no confiar en los del archivo)
+        const clienteFinal = Object.assign({}, cNuevo, { id: Date.now() + agregados });
+        (clienteFinal.equiposSinSede || []).forEach((eq, i)=>{
+          eq.id = Date.now() + 1000000 + agregados*100 + i;
+          eq.qrId = 'EQ-' + eq.id;
+          equiposAgregados++;
+        });
+        db.clientes.push(clienteFinal);
+        nombresExistentes.add(clave);
+        agregados++;
+      });
+      try{
+        await dbGuardarInmediato();
+      }catch(err){
+        db.clientes = respaldo;
+        mostrarToast('⚠️ No se pudo guardar la importación: ' + err.message, 'error');
+        return;
+      }
+      registrarLog('Importar', 'Clientes/Equipos', `${agregados} clientes, ${equiposAgregados} equipos`);
+      mostrarToast(`✅ Importación completa: ${agregados} clientes nuevos agregados (${equiposAgregados} equipos). ${omitidosDuplicados} se omitieron por ya existir con ese nombre.`, 'exito');
+      renderizarClientesConfig();
+    }catch(err){ mostrarToast('Error al leer el archivo: ' + err.message); }
+  };
+  reader.readAsText(file);
+}
+function importarBaseDatosJSON(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async e=>{
+    try{
+      const data = JSON.parse(e.target.result);
+      if(data.clientes && data.plantillas && data.ordenes){
+        const respaldo = db;
+        db = data;
+        try{
+          await dbGuardarInmediato();
+        }catch(err){
+          db = respaldo;
+          mostrarToast('⚠️ No se pudo guardar la base de datos importada: ' + err.message, 'error');
+          return;
+        }
+        mostrarToast('✅ Base de datos importada con éxito.', 'exito');
+        location.reload();
+      } else { mostrarToast('El archivo no tiene el formato esperado.'); }
+    }catch(err){ mostrarToast('Error al leer el archivo JSON.'); }
+  };
+  reader.readAsText(file);
+}
 function restablecerFabrica(){
   if(confirm('¿Restablecer toda la base de datos a los valores iniciales? Se perderán los cambios locales.')){
     localStorage.removeItem(DB_KEY);

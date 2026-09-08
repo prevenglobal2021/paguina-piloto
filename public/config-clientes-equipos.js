@@ -22,16 +22,16 @@ function cambiarTabConfig(tab, evt){
     document.getElementById('cfgAdminUsuario').value = db.config.adminUsuario||'';
     document.getElementById('cfgLoginRequerido').checked = db.config.loginRequerido !== false;
     document.getElementById('cfgNombreRepresentante').value = db.config.nombreRepresentante||'';
-    logoTempBase64 = db.config.logo;
-    const prev = document.getElementById('previewLogoConfig');
-    const placeholder = document.getElementById('previewLogoConfigPlaceholder');
-    if(db.config.logo){ prev.src = db.config.logo; prev.style.display='inline-block'; placeholder.style.display='none'; } else { prev.style.display='none'; placeholder.style.display='block'; }
     firmaTempBase64 = db.config.firmaRepresentante;
     const prevFirma = document.getElementById('imgFirmaConfig');
     const placeholderFirma = document.getElementById('previewFirmaConfigPlaceholder');
     if(db.config.firmaRepresentante){ prevFirma.src = db.config.firmaRepresentante; prevFirma.style.display='inline-block'; placeholderFirma.style.display='none'; } else { prevFirma.style.display='none'; placeholderFirma.style.display='block'; }
   }
   if(tab==='apariencia'){
+    logoTempBase64 = db.config.logo;
+    const prevLogo = document.getElementById('previewLogoConfig');
+    const placeholderLogo = document.getElementById('previewLogoConfigPlaceholder');
+    if(db.config.logo){ prevLogo.src = db.config.logo; prevLogo.style.display='inline-block'; placeholderLogo.style.display='none'; } else { prevLogo.style.display='none'; placeholderLogo.style.display='block'; }
     document.getElementById('cfgTamanoLetra').value = db.config.tamanoLetra || 'md';
     document.getElementById('cfgColorTexto').value = db.config.colorTexto || '#1e293b';
     document.getElementById('cfgFormRadius').value = db.config.formRadius!==undefined ? db.config.formRadius : '6';
