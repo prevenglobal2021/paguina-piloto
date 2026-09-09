@@ -100,6 +100,82 @@ function esperarImagenesCargadas(elemento){
   }));
 }
 
+// =========================================================================
+// ENVÍO POR WHATSAPP — punto único para Orden de Servicio, Cotización,
+// Factura y Nómina (antes eran 4 copias separadas, cada una con su propia
+// lógica; una fuente de inconsistencias en sí misma).
+//
+// CORRECCIÓN DE FONDO sobre la versión anterior: antes, el código decidía
+// AL PRINCIPIO del clic si el navegador "podía compartir archivos" con solo
+// comprobar si existían las funciones navigator.share/canShare — pero que
+// existan no significa que vayan a poder compartir ESE archivo en concreto
+// (varía según su tamaño, el navegador, el dispositivo). Si esa suposición
+// inicial resultaba equivocada, la ventana de WhatsApp de respaldo nunca se
+// abría, y el documento simplemente se descargaba sin ningún WhatsApp
+// abierto en ningún lado — sin aviso claro. Eso, sumado a la variación del
+// tamaño del documento según cantidad de fotos, explica el "a veces sí, a
+// veces no".
+//
+// Ahora: la ventana de respaldo SIEMPRE se abre primero (en blanco, para no
+// chocar con el bloqueador de ventanas emergentes, que solo permite abrir
+// ventanas en el instante mismo del clic) — y solo se le pone contenido si
+// de verdad hace falta. Si el compartir nativo funciona, esa ventana en
+// blanco se cierra sola, sin que nadie llegue a verla.
+async function compartirDocumentoPorWhatsApp({ telefono, mensaje, generarBlob, nombreArchivo, tituloCompartir, tipoLog, detalleLog, mensajeSinTelefono }){
+  if(!telefono){ mostrarToast(mensajeSinTelefono || 'Este cliente no tiene teléfono registrado — usa "Ver" para descargar el documento y enviarlo tú mismo.'); return; }
+  const telefonoLimpio = telefono.replace(/[^0-9]/g,'');
+  const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
+  const dentroDeLaApp = typeof corriendoDentroDeLaApp === 'function' && corriendoDentroDeLaApp();
+
+  let ventanaRespaldo = null;
+  if(!dentroDeLaApp){
+    ventanaRespaldo = window.open('', '_blank');
+    if(!ventanaRespaldo){
+      mostrarToast('⚠️ El navegador bloqueó la ventana de WhatsApp. Busca el ícono de "ventana emergente bloqueada" en la barra de direcciones, permítela para este sitio, e intenta de nuevo.', 'error');
+      return;
+    }
+  }
+
+  let blob;
+  try{
+    blob = await generarBlob();
+  }catch(err){
+    if(ventanaRespaldo) ventanaRespaldo.location.href = enlaceWhatsApp;
+    mostrarToast('No se pudo generar el documento automáticamente. ' + (ventanaRespaldo ? 'WhatsApp está abierto — genera el documento desde "Ver" y adjúntalo manualmente.' : 'Intenta de nuevo.'), 'error');
+    registrarLog('Enviar WhatsApp', tipoLog, `${detalleLog} (sin documento adjunto — error al generar)`);
+    return;
+  }
+
+  // 1) Dentro del APK: selector nativo de compartir de Android — el más confiable.
+  if(dentroDeLaApp && await compartirArchivoNativo(blob, nombreArchivo, tituloCompartir)){
+    registrarLog('Enviar WhatsApp', tipoLog, `${detalleLog} (compartido nativo desde la app)`);
+    return;
+  }
+
+  // 2) Navegador con soporte real de compartir archivos: se confirma con el
+  //    ARCHIVO REAL ya generado, no solo con que la función exista.
+  const archivo = new File([blob], nombreArchivo, { type:'application/pdf' });
+  if(navigator.share && navigator.canShare && navigator.canShare({ files:[archivo] })){
+    try{
+      await navigator.share({ files:[archivo], title:tituloCompartir, text:mensaje });
+      if(ventanaRespaldo) ventanaRespaldo.close(); // ya se compartió por otra vía — se cierra sin que se note
+      registrarLog('Enviar WhatsApp', tipoLog, `${detalleLog} (compartido directo desde el celular)`);
+      return;
+    }catch(err){ /* el usuario cerró el panel de compartir sin elegir nada — seguimos con el respaldo */ }
+  }
+
+  // 3) Respaldo universal: la ventana ya abierta se navega ahora a WhatsApp,
+  //    y el documento se descarga para adjuntar manualmente.
+  if(ventanaRespaldo) ventanaRespaldo.location.href = enlaceWhatsApp;
+  else window.open(enlaceWhatsApp, '_blank'); // caso raro: dentro del APK y el nativo falló
+  const url = URL.createObjectURL(blob);
+  const enlaceDescarga = document.createElement('a');
+  enlaceDescarga.href = url; enlaceDescarga.download = nombreArchivo; enlaceDescarga.click();
+  URL.revokeObjectURL(url);
+  mostrarToast(`Se descargó "${nombreArchivo}". WhatsApp ya está abierto con el mensaje listo: adjunta ese archivo en el chat (📎 → Documento) antes de enviarlo.`);
+  registrarLog('Enviar WhatsApp', tipoLog, `${detalleLog} (documento descargado para adjuntar)`);
+}
+
 function verPDF(ordenId){
   ordenPdfActualId = ordenId;
   pdfDocumentoActualTipo = 'orden'; pdfDocumentoActualId = ordenId;

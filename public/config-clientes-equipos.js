@@ -74,74 +74,30 @@ function enviarPorWhatsApp(ordenId){
   const o = db.ordenes.find(x=>x.id===ordenId);
   if(o.esClienteNuevo){ mostrarToast('Esta orden es de un cliente nuevo (no registrado), sin teléfono guardado — usa "Ver Documento" para descargar el informe y enviarlo tú mismo.'); return; }
   const cliente = buscarCliente(o.clienteId);
-  if(!cliente || !cliente.telefono){ mostrarToast('Este cliente no tiene teléfono registrado.'); return; }
-  const telefonoLimpio = cliente.telefono.replace(/[^0-9]/g,'');
-  let mensaje = db.config.plantillaWhatsApp
-    .replace(/{nombre_cliente}/g, cliente.nombre)
+  const mensaje = db.config.plantillaWhatsApp
+    .replace(/{nombre_cliente}/g, cliente ? cliente.nombre : '')
     .replace(/{numero_orden}/g, o.numero);
-  const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
-
-  // En celular con panel nativo de compartir, el PDF se adjunta directo — no
-  // hace falta el enlace de WhatsApp aparte. En computador, WhatsApp se abre
-  // YA MISMO, en respuesta directa al clic: si se espera a que el PDF termine
-  // de generarse primero, el navegador bloquea la ventana en silencio (sin
-  // avisar nada), y por eso antes parecía que el botón "no hacía nada".
-  const puedeCompartirArchivosNativo = !!(navigator.share && navigator.canShare);
-  let ventanaWhatsApp = null;
-  if(!puedeCompartirArchivosNativo){
-    ventanaWhatsApp = window.open(enlaceWhatsApp, '_blank');
-    if(!ventanaWhatsApp){
-      mostrarToast('⚠️ El navegador bloqueó la ventana de WhatsApp. Busca el ícono de "ventana emergente bloqueada" en la barra de direcciones, permítela para este sitio, e intenta de nuevo.', 'error');
-      return;
+  const nombreArchivo = `Informe_${o.numero}_${cliente?.nombre||'cliente'}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
+  compartirDocumentoPorWhatsApp({
+    telefono: cliente?.telefono,
+    mensaje, nombreArchivo,
+    tituloCompartir: `Informe ${o.numero}`,
+    tipoLog: 'OrdenServicio',
+    detalleLog: `${o.numero} a ${cliente?.nombre||'cliente'}`,
+    generarBlob: async ()=>{
+      verPDF(ordenId); // arma el contenido del informe (ficha completa) en #pdfContenido
+      const elemento = document.getElementById('pdfContenido');
+      // Antes se combinaban los modos 'css' y 'legacy' de paginación — cuando el
+      // documento tenía varios bloques que no se podían partir a la mitad (fotos,
+      // tablas), esa combinación producía saltos de página irregulares con un
+      // espacio en blanco enorme antes de que apareciera el contenido. Con solo
+      // 'css' el documento queda parejo de principio a fin.
+      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
+      await esperarImagenesCargadas(elemento);
+      const blob = await html2pdf().set(opciones).from(elemento).outputPdf('blob');
+      cerrarModal('modalPDF');
+      return blob;
     }
-  }
-
-  verPDF(ordenId); // arma el contenido del informe (ficha completa) en #pdfContenido
-  const nombreArchivo = `Informe_${o.numero}_${cliente.nombre}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
-  const elemento = document.getElementById('pdfContenido');
-  // Antes se combinaban los modos 'css' y 'legacy' de paginación — cuando el
-  // documento tenía varios bloques que no se podían partir a la mitad (fotos,
-  // tablas), esa combinación producía saltos de página irregulares con un
-  // espacio en blanco enorme antes de que apareciera el contenido. Con solo
-  // 'css' el documento queda parejo de principio a fin.
-  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
-
-  if(typeof html2pdf === 'undefined'){
-    // sin conexión para cargar la librería de PDF: igual abrimos WhatsApp, el usuario adjunta manualmente con "Ver Documento"
-    if(puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
-    registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (sin informe adjunto automático — sin conexión)`);
-    return;
-  }
-  esperarImagenesCargadas(elemento).then(()=> html2pdf().set(opciones).from(elemento).outputPdf('blob')).then(async blob=>{
-    cerrarModal('modalPDF');
-    // Dentro del APK: selector nativo de compartir de Android, el más
-    // confiable para adjuntar el archivo sin cortes ni distorsión.
-    if(await compartirArchivoNativo(blob, nombreArchivo, `Informe ${o.numero}`)){
-      registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (informe compartido nativo desde la app)`);
-      return;
-    }
-    const archivoPdf = new File([blob], nombreArchivo, { type:'application/pdf' });
-
-    // Celular (Android/iOS): panel nativo de compartir, con WhatsApp como una opción directa — el PDF ya va adjunto.
-    if(puedeCompartirArchivosNativo && navigator.canShare({ files:[archivoPdf] })){
-      navigator.share({ files:[archivoPdf], title:`Informe ${o.numero}`, text: mensaje }).then(()=>{
-        registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (informe compartido directo desde el celular)`);
-      }).catch(()=>{ /* el usuario cerró el panel de compartir sin elegir nada: no se registra como enviado */ });
-      return;
-    }
-
-    // Escritorio (sin panel de compartir con archivos): WhatsApp ya está abierto desde el clic — solo falta descargar el PDF.
-    const url = URL.createObjectURL(blob);
-    const enlaceDescarga = document.createElement('a');
-    enlaceDescarga.href = url; enlaceDescarga.download = nombreArchivo; enlaceDescarga.click();
-    URL.revokeObjectURL(url);
-    mostrarToast(`Se descargó el informe "${nombreArchivo}". WhatsApp ya está abierto con el mensaje listo: adjunta ese archivo en el chat (📎 → Documento) antes de enviarlo.`);
-    registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (con informe PDF descargado para adjuntar)`);
-  }).catch(()=>{
-    cerrarModal('modalPDF');
-    if(!ventanaWhatsApp && !puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
-    mostrarToast('No se pudo generar el PDF automáticamente. WhatsApp está abierto; genera el informe desde "Ver Documento" y adjúntalo manualmente.');
-    registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (sin informe adjunto automático)`);
   });
 }
 
@@ -551,48 +507,22 @@ function enviarPorWhatsAppCotizacion(id){
   if(!c) return;
   const nombreCliente = c.clienteId ? buscarCliente(c.clienteId)?.nombre : c.clienteManual?.nombre;
   const telefono = c.clienteId ? buscarCliente(c.clienteId)?.telefono : c.clienteManual?.telefono;
-  if(!telefono){ mostrarToast('Este cliente no tiene teléfono registrado — usa "Ver" para descargar la cotización y enviarla tú mismo.'); return; }
-  const telefonoLimpio = telefono.replace(/[^0-9]/g,'');
   const mensaje = `Hola ${nombreCliente}, te compartimos la cotización ${c.numero} de ${db.config.nombre}. Cualquier duda, con gusto te ayudamos.`;
-  const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
-  const puedeCompartirArchivosNativo = !!(navigator.share && navigator.canShare);
-  let ventanaWhatsApp = null;
-  if(!puedeCompartirArchivosNativo){
-    ventanaWhatsApp = window.open(enlaceWhatsApp, '_blank');
-    if(!ventanaWhatsApp){ mostrarToast('⚠️ El navegador bloqueó la ventana de WhatsApp. Permítela para este sitio e intenta de nuevo.', 'error'); return; }
-  }
-  verPDFCotizacion(id);
   const nombreArchivo = `Cotizacion_${c.numero}_${nombreCliente}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
-  const elemento = document.getElementById('pdfContenido');
-  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
-  if(typeof html2pdf === 'undefined'){
-    if(puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
-    registrarLog('Enviar WhatsApp', 'Cotizacion', `${c.numero} a ${nombreCliente} (sin PDF adjunto — sin conexión)`);
-    return;
-  }
-  esperarImagenesCargadas(elemento).then(()=> html2pdf().set(opciones).from(elemento).outputPdf('blob')).then(async blob=>{
-    cerrarModal('modalPDF');
-    if(await compartirArchivoNativo(blob, nombreArchivo, `Cotización ${c.numero}`)){
-      registrarLog('Enviar WhatsApp', 'Cotizacion', `${c.numero} a ${nombreCliente} (compartido nativo desde la app)`);
-      return;
+  compartirDocumentoPorWhatsApp({
+    telefono, mensaje, nombreArchivo,
+    tituloCompartir: `Cotización ${c.numero}`,
+    tipoLog: 'Cotizacion',
+    detalleLog: `${c.numero} a ${nombreCliente}`,
+    generarBlob: async ()=>{
+      verPDFCotizacion(id);
+      const elemento = document.getElementById('pdfContenido');
+      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
+      await esperarImagenesCargadas(elemento);
+      const blob = await html2pdf().set(opciones).from(elemento).outputPdf('blob');
+      cerrarModal('modalPDF');
+      return blob;
     }
-    const archivoPdf = new File([blob], nombreArchivo, { type:'application/pdf' });
-    if(puedeCompartirArchivosNativo && navigator.canShare({ files:[archivoPdf] })){
-      navigator.share({ files:[archivoPdf], title:`Cotización ${c.numero}`, text: mensaje }).then(()=>{
-        registrarLog('Enviar WhatsApp', 'Cotizacion', `${c.numero} a ${nombreCliente} (compartido directo desde el celular)`);
-      }).catch(()=>{});
-      return;
-    }
-    const url = URL.createObjectURL(blob);
-    const enlaceDescarga = document.createElement('a');
-    enlaceDescarga.href = url; enlaceDescarga.download = nombreArchivo; enlaceDescarga.click();
-    URL.revokeObjectURL(url);
-    mostrarToast(`Se descargó "${nombreArchivo}". WhatsApp ya está abierto: adjúntalo en el chat (📎 → Documento).`);
-    registrarLog('Enviar WhatsApp', 'Cotizacion', `${c.numero} a ${nombreCliente} (PDF descargado para adjuntar)`);
-  }).catch(()=>{
-    cerrarModal('modalPDF');
-    if(!ventanaWhatsApp && !puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
-    mostrarToast('No se pudo generar el PDF automáticamente.');
   });
 }
 function enviarPorWhatsAppFactura(id){
@@ -600,47 +530,21 @@ function enviarPorWhatsAppFactura(id){
   if(!f) return;
   const nombreCliente = f.clienteId ? buscarCliente(f.clienteId)?.nombre : f.clienteManual?.nombre;
   const telefono = f.clienteId ? buscarCliente(f.clienteId)?.telefono : f.clienteManual?.telefono;
-  if(!telefono){ mostrarToast('Este cliente no tiene teléfono registrado — usa "Ver" para descargar la factura y enviarla tú mismo.'); return; }
-  const telefonoLimpio = telefono.replace(/[^0-9]/g,'');
   const mensaje = `Hola ${nombreCliente}, te compartimos la factura ${f.numero} de ${db.config.nombre}${f.estadoPago==='pagado'?' (ya registrada como pagada, gracias).':'. Total a pagar: '+formatoCOP(f.total)+'.'}`;
-  const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
-  const puedeCompartirArchivosNativo = !!(navigator.share && navigator.canShare);
-  let ventanaWhatsApp = null;
-  if(!puedeCompartirArchivosNativo){
-    ventanaWhatsApp = window.open(enlaceWhatsApp, '_blank');
-    if(!ventanaWhatsApp){ mostrarToast('⚠️ El navegador bloqueó la ventana de WhatsApp. Permítela para este sitio e intenta de nuevo.', 'error'); return; }
-  }
-  verPDFFactura(id);
   const nombreArchivo = `Factura_${f.numero}_${nombreCliente}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
-  const elemento = document.getElementById('pdfContenido');
-  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
-  if(typeof html2pdf === 'undefined'){
-    if(puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
-    registrarLog('Enviar WhatsApp', 'Factura', `${f.numero} a ${nombreCliente} (sin PDF adjunto — sin conexión)`);
-    return;
-  }
-  esperarImagenesCargadas(elemento).then(()=> html2pdf().set(opciones).from(elemento).outputPdf('blob')).then(async blob=>{
-    cerrarModal('modalPDF');
-    if(await compartirArchivoNativo(blob, nombreArchivo, `Factura ${f.numero}`)){
-      registrarLog('Enviar WhatsApp', 'Factura', `${f.numero} a ${nombreCliente} (compartido nativo desde la app)`);
-      return;
+  compartirDocumentoPorWhatsApp({
+    telefono, mensaje, nombreArchivo,
+    tituloCompartir: `Factura ${f.numero}`,
+    tipoLog: 'Factura',
+    detalleLog: `${f.numero} a ${nombreCliente}`,
+    generarBlob: async ()=>{
+      verPDFFactura(id);
+      const elemento = document.getElementById('pdfContenido');
+      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
+      await esperarImagenesCargadas(elemento);
+      const blob = await html2pdf().set(opciones).from(elemento).outputPdf('blob');
+      cerrarModal('modalPDF');
+      return blob;
     }
-    const archivoPdf = new File([blob], nombreArchivo, { type:'application/pdf' });
-    if(puedeCompartirArchivosNativo && navigator.canShare({ files:[archivoPdf] })){
-      navigator.share({ files:[archivoPdf], title:`Factura ${f.numero}`, text: mensaje }).then(()=>{
-        registrarLog('Enviar WhatsApp', 'Factura', `${f.numero} a ${nombreCliente} (compartido directo desde el celular)`);
-      }).catch(()=>{});
-      return;
-    }
-    const url = URL.createObjectURL(blob);
-    const enlaceDescarga = document.createElement('a');
-    enlaceDescarga.href = url; enlaceDescarga.download = nombreArchivo; enlaceDescarga.click();
-    URL.revokeObjectURL(url);
-    mostrarToast(`Se descargó "${nombreArchivo}". WhatsApp ya está abierto: adjúntalo en el chat (📎 → Documento).`);
-    registrarLog('Enviar WhatsApp', 'Factura', `${f.numero} a ${nombreCliente} (PDF descargado para adjuntar)`);
-  }).catch(()=>{
-    cerrarModal('modalPDF');
-    if(!ventanaWhatsApp && !puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
-    mostrarToast('No se pudo generar el PDF automáticamente.');
   });
 }

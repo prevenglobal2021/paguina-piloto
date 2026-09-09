@@ -400,66 +400,23 @@ function enviarComprobanteNominaPorWhatsApp(id){
   const l = (db.liquidacionesNomina||[]).find(x=>x.id===id);
   if(!l) return;
   const t = buscarTecnico(l.tecnicoId);
-  if(!t || !t.telefono){ mostrarToast('Esta persona no tiene teléfono registrado en su ficha de técnico.'); return; }
-  const telefonoLimpio = t.telefono.replace(/[^0-9]/g,'');
-  const mensaje = `Hola ${t.nombre}, adjuntamos tu comprobante de pago de nómina N.º ${l.numero}, correspondiente al periodo ${l.periodoDesde} a ${l.periodoHasta}. Cualquier duda con gusto la resolvemos.`;
-  const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
-
-  // En celular con panel nativo de compartir, el PDF se adjunta directo — no
-  // hace falta el enlace de WhatsApp aparte. En computador (sin ese panel),
-  // WhatsApp se abre YA MISMO, en respuesta directa al clic: si se espera a
-  // que el PDF termine de generarse primero, el navegador bloquea la ventana
-  // en silencio (sin avisar nada), y por eso antes parecía que "no hacía nada".
-  const puedeCompartirArchivosNativo = !!(navigator.share && navigator.canShare);
-  let ventanaWhatsApp = null;
-  if(!puedeCompartirArchivosNativo){
-    ventanaWhatsApp = window.open(enlaceWhatsApp, '_blank');
-    if(!ventanaWhatsApp){
-      mostrarToast('⚠️ El navegador bloqueó la ventana de WhatsApp. Busca el ícono de "ventana emergente bloqueada" en la barra de direcciones, permítela para este sitio, e intenta de nuevo.', 'error');
-      return;
+  const mensaje = `Hola ${t?.nombre||''}, adjuntamos tu comprobante de pago de nómina N.º ${l.numero}, correspondiente al periodo ${l.periodoDesde} a ${l.periodoHasta}. Cualquier duda con gusto la resolvemos.`;
+  const nombreArchivo = `Comprobante_${l.numero}_${t?.nombre||'persona'}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
+  compartirDocumentoPorWhatsApp({
+    telefono: t?.telefono, mensaje, nombreArchivo,
+    tituloCompartir: `Comprobante ${l.numero}`,
+    tipoLog: 'Nómina',
+    detalleLog: `${l.numero} a ${t?.nombre||'persona'}`,
+    mensajeSinTelefono: 'Esta persona no tiene teléfono registrado en su ficha de técnico.',
+    generarBlob: async ()=>{
+      verComprobanteNomina(id); // arma el contenido del comprobante en #comprobanteNominaContenido
+      const elemento = document.getElementById('comprobanteNominaContenido');
+      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
+      await esperarImagenesCargadas(elemento);
+      const blob = await html2pdf().set(opciones).from(elemento).outputPdf('blob');
+      cerrarModal('modalComprobanteNomina');
+      return blob;
     }
-  }
-
-  verComprobanteNomina(id); // arma el contenido del comprobante en #comprobanteNominaContenido
-  const nombreArchivo = `Comprobante_${l.numero}_${t.nombre}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
-  const elemento = document.getElementById('comprobanteNominaContenido');
-  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
-
-  if(typeof html2pdf === 'undefined'){
-    if(puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
-    registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (sin comprobante adjunto automático — sin conexión)`);
-    return;
-  }
-  esperarImagenesCargadas(elemento).then(()=> html2pdf().set(opciones).from(elemento).outputPdf('blob')).then(async blob=>{
-    cerrarModal('modalComprobanteNomina');
-    // Dentro del APK: selector nativo de compartir de Android — el mismo
-    // que ya usan Orden de Servicio, Cotización y Factura.
-    if(await compartirArchivoNativo(blob, nombreArchivo, `Comprobante ${l.numero}`)){
-      registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (comprobante compartido nativo desde la app)`);
-      return;
-    }
-    const archivoPdf = new File([blob], nombreArchivo, { type:'application/pdf' });
-
-    if(puedeCompartirArchivosNativo && navigator.canShare({ files:[archivoPdf] })){
-      navigator.share({ files:[archivoPdf], title:`Comprobante ${l.numero}`, text: mensaje }).then(()=>{
-        registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (comprobante compartido directo desde el celular)`);
-      }).catch(()=>{ /* el usuario cerró el panel de compartir sin elegir nada: no se registra como enviado */ });
-      return;
-    }
-
-    // Este dispositivo no comparte archivos de forma nativa: WhatsApp ya está
-    // abierto desde el principio del clic — solo falta descargar el PDF para adjuntarlo.
-    const url = URL.createObjectURL(blob);
-    const enlaceDescarga = document.createElement('a');
-    enlaceDescarga.href = url; enlaceDescarga.download = nombreArchivo; enlaceDescarga.click();
-    URL.revokeObjectURL(url);
-    mostrarToast(`Se descargó el comprobante "${nombreArchivo}". WhatsApp ya está abierto con el mensaje listo: adjunta ese archivo en el chat (📎 → Documento) antes de enviarlo.`);
-    registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (con comprobante PDF descargado para adjuntar)`);
-  }).catch(()=>{
-    cerrarModal('modalComprobanteNomina');
-    if(!ventanaWhatsApp && !puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
-    mostrarToast('No se pudo generar el PDF automáticamente. WhatsApp está abierto; genera el comprobante desde "Ver comprobante" y adjúntalo manualmente.');
-    registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (sin comprobante adjunto automático)`);
   });
 }
 function toggleIngresoClienteEsporadico(){
