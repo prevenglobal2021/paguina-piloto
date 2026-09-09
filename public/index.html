@@ -1738,8 +1738,15 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <video id="escanerQRVideo" autoplay playsinline muted style="width:100%;display:block;"></video>
         <div style="position:absolute;inset:0;border:3px solid rgba(255,255,255,.5);margin:15%;border-radius:10px;pointer-events:none;"></div>
       </div>
-      <p style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:8px;">Apunta la cámara a la etiqueta QR del equipo.</p>
-      <p id="escanerQRSinSoporte" style="display:none;font-size:12px;color:var(--red-alert);text-align:center;">Este navegador no puede leer códigos QR con la cámara directamente. Usa la cámara normal del celular (fuera de la app) para escanear la etiqueta — te llevará al equipo automáticamente.</p>
+      <p id="escanerQREstado" style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:8px;min-height:16px;">Apunta la cámara a la etiqueta QR del equipo.</p>
+      <p id="escanerQRSinSoporte" style="display:none;font-size:12px;color:var(--red-alert);text-align:center;">Este navegador no puede leer códigos QR con la cámara directamente. Usa la búsqueda manual de abajo, o la cámara normal del celular (fuera de la app) apuntando a la etiqueta.</p>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--card-border);">
+        <label style="font-size:12px;">¿La cámara no lee bien? Busca a mano:</label>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="escanerQRManualCodigo" placeholder="Código, nombre, marca o serie del equipo" style="margin:0;" onkeydown="if(event.key==='Enter') buscarEquipoManualQR()">
+          <button class="btn-custom btn-sm-custom" style="flex-shrink:0;" onclick="buscarEquipoManualQR()"><i class="fas fa-search"></i></button>
+        </div>
+      </div>
     </div>
     <div id="escanerQRResultado" style="display:none;"></div>
   </div>
@@ -2749,21 +2756,21 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=97"></script>
-<script src="capacitor-bridge.js?v=97"></script>
-<script src="utilidades-navegacion.js?v=97"></script>
-<script src="buscador-agenda.js?v=97"></script>
-<script src="ordenes.js?v=97"></script>
-<script src="equipos-trazabilidad.js?v=97"></script>
-<script src="pdf.js?v=97"></script>
-<script src="config-clientes-equipos.js?v=97"></script>
-<script src="config-plantillas-tecnicos.js?v=97"></script>
-<script src="cotizador.js?v=97"></script>
-<script src="asistencia.js?v=97"></script>
-<script src="config-general.js?v=97"></script>
-<script src="inventario.js?v=97"></script>
-<script src="tienda-admin.js?v=97"></script>
-<script src="tienda-publica.js?v=97"></script>
-<script src="kpi.js?v=97"></script>
+<script src="core.js?v=98"></script>
+<script src="capacitor-bridge.js?v=98"></script>
+<script src="utilidades-navegacion.js?v=98"></script>
+<script src="buscador-agenda.js?v=98"></script>
+<script src="ordenes.js?v=98"></script>
+<script src="equipos-trazabilidad.js?v=98"></script>
+<script src="pdf.js?v=98"></script>
+<script src="config-clientes-equipos.js?v=98"></script>
+<script src="config-plantillas-tecnicos.js?v=98"></script>
+<script src="cotizador.js?v=98"></script>
+<script src="asistencia.js?v=98"></script>
+<script src="config-general.js?v=98"></script>
+<script src="inventario.js?v=98"></script>
+<script src="tienda-admin.js?v=98"></script>
+<script src="tienda-publica.js?v=98"></script>
+<script src="kpi.js?v=98"></script>
 </body>
 </html>
