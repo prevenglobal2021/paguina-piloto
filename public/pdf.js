@@ -83,6 +83,23 @@ function generarBloqueInformeEquipoPDF(datosCierre, plantilla){
   return `${diagnosticoHtml}${fotosHtml}${camposSimplesBox}${camposEspecialesHtml}`;
 }
 
+// Espera a que todas las imágenes dentro de un elemento terminen de
+// decodificarse antes de "fotografiar" el documento con html2pdf — sin
+// esto, en celulares lentos o con varias fotos grandes, el PDF a veces
+// se generaba con imágenes en blanco (la causa real de "a veces
+// funciona, a veces no" al enviar por WhatsApp). Una imagen rota no
+// bloquea el resto: se resuelve igual para no trabar todo el envío.
+function esperarImagenesCargadas(elemento){
+  const imagenes = Array.from(elemento.querySelectorAll('img'));
+  return Promise.all(imagenes.map(img => {
+    if(img.complete && img.naturalWidth > 0) return Promise.resolve();
+    return new Promise(resolve => {
+      img.addEventListener('load', resolve, { once:true });
+      img.addEventListener('error', resolve, { once:true });
+    });
+  }));
+}
+
 function verPDF(ordenId){
   ordenPdfActualId = ordenId;
   pdfDocumentoActualTipo = 'orden'; pdfDocumentoActualId = ordenId;

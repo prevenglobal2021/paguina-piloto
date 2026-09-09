@@ -430,8 +430,14 @@ function enviarComprobanteNominaPorWhatsApp(id){
     registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (sin comprobante adjunto automático — sin conexión)`);
     return;
   }
-  html2pdf().set(opciones).from(elemento).outputPdf('blob').then(blob=>{
+  esperarImagenesCargadas(elemento).then(()=> html2pdf().set(opciones).from(elemento).outputPdf('blob')).then(async blob=>{
     cerrarModal('modalComprobanteNomina');
+    // Dentro del APK: selector nativo de compartir de Android — el mismo
+    // que ya usan Orden de Servicio, Cotización y Factura.
+    if(await compartirArchivoNativo(blob, nombreArchivo, `Comprobante ${l.numero}`)){
+      registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (comprobante compartido nativo desde la app)`);
+      return;
+    }
     const archivoPdf = new File([blob], nombreArchivo, { type:'application/pdf' });
 
     if(puedeCompartirArchivosNativo && navigator.canShare({ files:[archivoPdf] })){
@@ -450,6 +456,7 @@ function enviarComprobanteNominaPorWhatsApp(id){
     mostrarToast(`Se descargó el comprobante "${nombreArchivo}". WhatsApp ya está abierto con el mensaje listo: adjunta ese archivo en el chat (📎 → Documento) antes de enviarlo.`);
     registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (con comprobante PDF descargado para adjuntar)`);
   }).catch(()=>{
+    cerrarModal('modalComprobanteNomina');
     if(!ventanaWhatsApp && !puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
     mostrarToast('No se pudo generar el PDF automáticamente. WhatsApp está abierto; genera el comprobante desde "Ver comprobante" y adjúntalo manualmente.');
     registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (sin comprobante adjunto automático)`);
@@ -490,6 +497,39 @@ async function agregarIngreso(){
   renderizarContabilidad();
   mostrarToast(`✅ Ingreso registrado: ${nombreClienteLog} — ${formatoCOP(monto)}`, 'exito');
 }
+function editarIngreso(id){
+  const i = db.ingresos.find(x=>x.id===id);
+  if(!i) return;
+  document.getElementById('editIngresoId').value = i.id;
+  document.getElementById('editIngresoConcepto').value = i.concepto;
+  document.getElementById('editIngresoMonto').value = i.monto;
+  document.getElementById('editIngresoFecha').value = i.fecha;
+  abrirModal('modalEditarIngreso');
+}
+async function guardarEdicionIngreso(){
+  const id = parseFloat(document.getElementById('editIngresoId').value);
+  const i = db.ingresos.find(x=>x.id===id);
+  if(!i) return;
+  const concepto = document.getElementById('editIngresoConcepto').value.trim();
+  const monto = parseFloat(document.getElementById('editIngresoMonto').value);
+  const fecha = document.getElementById('editIngresoFecha').value;
+  if(!concepto){ mostrarToast('Escribe el concepto del ingreso.'); return; }
+  if(!monto || monto<=0){ mostrarToast('Escribe un monto válido.'); return; }
+  if(!fecha){ mostrarToast('Selecciona la fecha del ingreso.'); return; }
+  const respaldo = { concepto:i.concepto, monto:i.monto, fecha:i.fecha };
+  i.concepto = concepto; i.monto = monto; i.fecha = fecha;
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    Object.assign(i, respaldo);
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
+  registrarLog('Editar', 'Ingreso', `${i.concepto} · ${formatoCOP(i.monto)}`);
+  cerrarModal('modalEditarIngreso');
+  renderizarContabilidad();
+  mostrarToast('✅ Ingreso actualizado.', 'exito');
+}
 async function eliminarIngreso(id){
   if(!confirm('¿Eliminar este ingreso?')) return;
   const listaAnterior = db.ingresos.slice();
@@ -527,6 +567,41 @@ async function agregarGasto(){
   document.getElementById('gastoDescripcion').value=''; document.getElementById('gastoMonto').value=''; document.getElementById('gastoFecha').value='';
   renderizarContabilidad();
   mostrarToast(`✅ Gasto registrado: ${categoria} — ${formatoCOP(monto)}`, 'exito');
+}
+function editarGasto(id){
+  const g = db.gastos.find(x=>x.id===id);
+  if(!g) return;
+  document.getElementById('editGastoId').value = g.id;
+  document.getElementById('editGastoCategoria').value = g.categoria;
+  document.getElementById('editGastoDescripcion').value = g.descripcion;
+  document.getElementById('editGastoMonto').value = g.monto;
+  document.getElementById('editGastoFecha').value = g.fecha;
+  abrirModal('modalEditarGasto');
+}
+async function guardarEdicionGasto(){
+  const id = parseFloat(document.getElementById('editGastoId').value);
+  const g = db.gastos.find(x=>x.id===id);
+  if(!g) return;
+  const descripcion = document.getElementById('editGastoDescripcion').value.trim();
+  const monto = parseFloat(document.getElementById('editGastoMonto').value);
+  const fecha = document.getElementById('editGastoFecha').value;
+  if(!descripcion){ mostrarToast('Escribe una breve descripción del gasto.'); return; }
+  if(!monto || monto<=0){ mostrarToast('Escribe un monto válido.'); return; }
+  if(!fecha){ mostrarToast('Selecciona la fecha del gasto.'); return; }
+  const respaldo = { categoria:g.categoria, descripcion:g.descripcion, monto:g.monto, fecha:g.fecha };
+  g.categoria = document.getElementById('editGastoCategoria').value;
+  g.descripcion = descripcion; g.monto = monto; g.fecha = fecha;
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    Object.assign(g, respaldo);
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
+  registrarLog('Editar', 'Gasto', `${g.categoria} · ${g.descripcion} · ${formatoCOP(g.monto)}`);
+  cerrarModal('modalEditarGasto');
+  renderizarContabilidad();
+  mostrarToast('✅ Gasto actualizado.', 'exito');
 }
 async function eliminarGasto(id){
   const gasto = db.gastos.find(g=>g.id===id);
@@ -621,13 +696,13 @@ function renderizarContabilidad(){
       ? `${i.clienteEsporadicoNombre||'—'} <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;">ESPORÁDICO</span>`
       : (i.clienteId ? (buscarCliente(i.clienteId)?.nombre || '—') : '<span style="color:var(--text-muted);">General</span>');
     return `<tr><td>${i.fecha}</td><td>${nombreCliente}</td><td>${i.concepto}</td><td>${formatoCOP(i.monto)}</td>
-      <td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarIngreso(${i.id})">X</button></td></tr>`;
+      <td><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="editarIngreso(${i.id})"><i class="fas fa-pen"></i></button> <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarIngreso(${i.id})">X</button></td></tr>`;
   }).join('') || `<tr><td colspan="5" class="empty-state">${textoBusqueda ? 'Sin ingresos que coincidan con "'+document.getElementById('contaBuscarTexto').value+'".' : 'Sin ingresos manuales registrados este mes.'}</td></tr>`;
 
   document.getElementById('tablaGastos').innerHTML = gastosFiltrados.map(g=>{
     const etiquetaCategoria = g.origenNominaId ? `${g.categoria} <span title="Este gasto se generó automáticamente al marcar una nómina como pagada" style="font-size:9px;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:8px;"><i class="fas fa-link"></i> Automático</span>` : g.categoria;
     return `<tr><td>${g.fecha}</td><td>${etiquetaCategoria}</td><td>${g.descripcion}</td><td>${formatoCOP(g.monto)}</td>
-      <td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarGasto(${g.id})">X</button></td></tr>`;
+      <td>${g.origenNominaId ? '' : `<button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="editarGasto(${g.id})"><i class="fas fa-pen"></i></button> `}<button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarGasto(${g.id})">X</button></td></tr>`;
   }).join('') || `<tr><td colspan="5" class="empty-state">${textoBusqueda ? 'Sin gastos que coincidan con "'+document.getElementById('contaBuscarTexto').value+'".' : 'Sin gastos registrados este mes.'}</td></tr>`;
 
   document.getElementById('tablaPedidosTiendaConta').innerHTML = pedidosDelMes.map(p=>`

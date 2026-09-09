@@ -157,8 +157,23 @@ function ocultarSkeletonBoot(){
   const el = document.getElementById('skeletonBoot');
   if(el && el.style.display !== 'none') el.style.display = 'none';
 }
-function abrirModal(id){ document.getElementById(id).style.display='flex'; }
-function cerrarModal(id){ document.getElementById(id).style.display='none'; }
+function abrirModal(id){
+  const el = document.getElementById(id);
+  el.classList.remove('cerrando');
+  el.style.display='flex';
+}
+function cerrarModal(id){
+  const el = document.getElementById(id);
+  if(!el || el.style.display==='none') return;
+  el.classList.add('cerrando');
+  const box = el.querySelector('.modal-box');
+  if(box) box.classList.add('cerrando');
+  setTimeout(()=>{
+    el.style.display='none';
+    el.classList.remove('cerrando');
+    if(box) box.classList.remove('cerrando');
+  }, 160);
+}
 
 /* =========================================================
    AGENDA: VISTA LISTA / CALENDARIO

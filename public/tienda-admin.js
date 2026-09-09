@@ -559,6 +559,46 @@ function secTiendaData(){
   }
   return { tipo, lista: db.config.tiendaSecciones[tipo] };
 }
+let edicionItemSeccionTienda = null;
+function editarItemSeccionTienda(tipo, id){
+  const item = (db.config.tiendaSecciones[tipo]||[]).find(x=>x.id===id);
+  if(!item) return;
+  edicionItemSeccionTienda = { tipo, id };
+  document.getElementById('editSecTiendaTitulo').value = item.titulo;
+  document.getElementById('editSecTiendaSubtitulo').value = item.subtitulo || '';
+  document.getElementById('editSecTiendaImagen').value = '';
+  const preview = document.getElementById('editSecTiendaImagenActual');
+  if(item.imagen){ preview.src = item.imagen; preview.style.display = 'inline-block'; } else { preview.style.display = 'none'; }
+  abrirModal('modalEditarSeccionTienda');
+}
+function guardarEdicionItemSeccionTienda(){
+  if(!edicionItemSeccionTienda) return;
+  const { tipo, id } = edicionItemSeccionTienda;
+  const item = (db.config.tiendaSecciones[tipo]||[]).find(x=>x.id===id);
+  if(!item) return;
+  const titulo = document.getElementById('editSecTiendaTitulo').value.trim();
+  const subtitulo = document.getElementById('editSecTiendaSubtitulo').value.trim();
+  if(!titulo){ mostrarToast('Escribe al menos el título.'); return; }
+  const fileInput = document.getElementById('editSecTiendaImagen');
+  const file = fileInput.files[0];
+  const respaldo = { titulo:item.titulo, subtitulo:item.subtitulo, imagen:item.imagen };
+  const guardar = async (nuevaImagen)=>{
+    item.titulo = titulo; item.subtitulo = subtitulo;
+    if(nuevaImagen) item.imagen = nuevaImagen;
+    try{
+      await dbGuardarInmediato();
+    }catch(err){
+      Object.assign(item, respaldo);
+      mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+      return;
+    }
+    cerrarModal('modalEditarSeccionTienda');
+    renderizarListaSeccionTienda();
+    mostrarToast('✅ Elemento actualizado.', 'exito');
+  };
+  if(file) comprimirImagen(file).then(guardar);
+  else guardar(null);
+}
 function agregarItemSeccionTienda(){
   const { lista } = secTiendaData();
   const titulo = document.getElementById('secTiendaTitulo').value.trim();
@@ -604,6 +644,7 @@ function renderizarListaSeccionTienda(){
       <strong style="display:block;font-size:11px;margin-top:4px;">${item.titulo}</strong>
       <small style="color:var(--text-muted);font-size:10px;">${item.subtitulo||''}</small>
       <div style="display:flex;gap:3px;justify-content:center;margin-top:5px;">
+        <button class="btn-custom btn-secondary-custom btn-sm-custom" style="padding:2px 6px;" onclick="editarItemSeccionTienda('${tipo}',${item.id})" title="Editar"><i class="fas fa-pen"></i></button>
         <button class="btn-custom btn-secondary-custom btn-sm-custom" style="padding:2px 6px;" ${i===0?'disabled':''} onclick="moverItemSeccionTienda(${item.id},-1)" title="Mover antes"><i class="fas fa-arrow-left"></i></button>
         <button class="btn-custom btn-secondary-custom btn-sm-custom" style="padding:2px 6px;" ${i===lista.length-1?'disabled':''} onclick="moverItemSeccionTienda(${item.id},1)" title="Mover después"><i class="fas fa-arrow-right"></i></button>
       </div>
@@ -697,6 +738,36 @@ async function agregarTestimonioTienda(){
   mostrarToast('✅ Testimonio agregado.', 'exito');
   renderizarListaTestimoniosTienda();
 }
+function editarTestimonioTienda(id){
+  const t = (db.config.tiendaTestimonios||[]).find(x=>x.id===id);
+  if(!t) return;
+  document.getElementById('editTestId').value = t.id;
+  document.getElementById('editTestNombre').value = t.nombre;
+  document.getElementById('editTestComentario').value = t.comentario;
+  document.getElementById('editTestEstrellas').value = t.estrellas;
+  abrirModal('modalEditarTestimonio');
+}
+async function guardarEdicionTestimonio(){
+  const id = parseFloat(document.getElementById('editTestId').value);
+  const t = (db.config.tiendaTestimonios||[]).find(x=>x.id===id);
+  if(!t) return;
+  const nombre = document.getElementById('editTestNombre').value.trim();
+  const comentario = document.getElementById('editTestComentario').value.trim();
+  const estrellas = parseInt(document.getElementById('editTestEstrellas').value);
+  if(!nombre || !comentario){ mostrarToast('Escribe el nombre del cliente y su comentario.'); return; }
+  const respaldo = { nombre:t.nombre, comentario:t.comentario, estrellas:t.estrellas };
+  t.nombre = nombre; t.comentario = comentario; t.estrellas = estrellas;
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    Object.assign(t, respaldo);
+    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
+    return;
+  }
+  cerrarModal('modalEditarTestimonio');
+  renderizarListaTestimoniosTienda();
+  mostrarToast('✅ Testimonio actualizado.', 'exito');
+}
 async function eliminarTestimonioTienda(id){
   const respaldo = db.config.tiendaTestimonios.slice();
   db.config.tiendaTestimonios = db.config.tiendaTestimonios.filter(t=>t.id!==id);
@@ -714,6 +785,7 @@ function renderizarListaTestimoniosTienda(){
   document.getElementById('listaTestimoniosTienda').innerHTML = lista.map(t=>`
     <div style="width:220px;background:#f8fafc;border:1px solid #e2e8f0;color:#1e293b;border-radius:8px;padding:10px;position:relative;">
       <button onclick="eliminarTestimonioTienda(${t.id})" style="position:absolute;top:4px;right:4px;background:var(--red-alert);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer;">✖</button>
+      <button onclick="editarTestimonioTienda(${t.id})" style="position:absolute;top:4px;right:26px;background:var(--blue-accent);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer;"><i class="fas fa-pen"></i></button>
       <div style="color:#f59e0b;font-size:12px;">${'⭐'.repeat(t.estrellas)}</div>
       <p style="font-size:11px;font-style:italic;margin:6px 0;">"${t.comentario}"</p>
       <strong style="font-size:11px;">${t.nombre}</strong>

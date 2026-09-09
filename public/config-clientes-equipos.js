@@ -112,7 +112,7 @@ function enviarPorWhatsApp(ordenId){
     registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (sin informe adjunto automático — sin conexión)`);
     return;
   }
-  html2pdf().set(opciones).from(elemento).outputPdf('blob').then(async blob=>{
+  esperarImagenesCargadas(elemento).then(()=> html2pdf().set(opciones).from(elemento).outputPdf('blob')).then(async blob=>{
     cerrarModal('modalPDF');
     // Dentro del APK: selector nativo de compartir de Android, el más
     // confiable para adjuntar el archivo sin cortes ni distorsión.
@@ -570,7 +570,7 @@ function enviarPorWhatsAppCotizacion(id){
     registrarLog('Enviar WhatsApp', 'Cotizacion', `${c.numero} a ${nombreCliente} (sin PDF adjunto — sin conexión)`);
     return;
   }
-  html2pdf().set(opciones).from(elemento).outputPdf('blob').then(async blob=>{
+  esperarImagenesCargadas(elemento).then(()=> html2pdf().set(opciones).from(elemento).outputPdf('blob')).then(async blob=>{
     cerrarModal('modalPDF');
     if(await compartirArchivoNativo(blob, nombreArchivo, `Cotización ${c.numero}`)){
       registrarLog('Enviar WhatsApp', 'Cotizacion', `${c.numero} a ${nombreCliente} (compartido nativo desde la app)`);
@@ -619,7 +619,7 @@ function enviarPorWhatsAppFactura(id){
     registrarLog('Enviar WhatsApp', 'Factura', `${f.numero} a ${nombreCliente} (sin PDF adjunto — sin conexión)`);
     return;
   }
-  html2pdf().set(opciones).from(elemento).outputPdf('blob').then(async blob=>{
+  esperarImagenesCargadas(elemento).then(()=> html2pdf().set(opciones).from(elemento).outputPdf('blob')).then(async blob=>{
     cerrarModal('modalPDF');
     if(await compartirArchivoNativo(blob, nombreArchivo, `Factura ${f.numero}`)){
       registrarLog('Enviar WhatsApp', 'Factura', `${f.numero} a ${nombreCliente} (compartido nativo desde la app)`);

@@ -125,7 +125,7 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .preview-login-mini-input{width:85%;height:9px;background:#fff;border:1px solid #cbd5e1;border-radius:3px;margin-top:5px;}
 .preview-login-mini-boton{width:85%;height:14px;border-radius:12px;background:linear-gradient(120deg, var(--preview-login-color-1,#2563eb), var(--preview-login-color-2,#1e3a8a));margin-top:8px;color:#fff;font-size:6px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:.5px;}
 .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,.55);display:none;justify-content:center;align-items:center;z-index:1000;padding:15px;}
-.modal-box{background:color-mix(in srgb, var(--card-bg) 88%, transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--card-border);width:100%;max-width:980px;max-height:90vh;overflow-y:auto;border-radius:12px;padding:25px;position:relative;color:var(--text-main);box-shadow:0 20px 60px rgba(0,0,0,.4);animation:apareceModal .2s ease;transition:max-width .18s ease, width .18s ease, max-height .18s ease;}
+.modal-box{background:color-mix(in srgb, var(--card-bg) 88%, transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--card-border);width:100%;max-width:980px;max-height:90vh;overflow-y:auto;border-radius:12px;padding:20px;position:relative;color:var(--text-main);box-shadow:0 20px 60px rgba(0,0,0,.4);animation:apareceModal .2s ease;transition:max-width .18s ease, width .18s ease, max-height .18s ease;}
 .btn-modal-control{background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:13px;transition:background .12s ease;}
 .btn-modal-control:hover{background:#e2e8f0;}
 .modal-box.ampliado{max-width:96vw!important;width:96vw;max-height:96vh!important;height:96vh;}
@@ -137,6 +137,10 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
    factura todavía visible (atenuada) detrás. */
 #modalItemComercial{background:rgba(15,23,42,.25);z-index:1100;}
 @keyframes apareceModal{from{opacity:0;transform:translateY(8px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
+@keyframes desapareceModal{from{opacity:1;transform:translateY(0) scale(1);}to{opacity:0;transform:translateY(8px) scale(.98);}}
+.modal-box.cerrando{animation:desapareceModal .16s ease forwards;}
+.modal-overlay.cerrando{animation:desapareceOverlay .16s ease forwards;}
+@keyframes desapareceOverlay{from{opacity:1;}to{opacity:0;}}
 
 /* TOASTS (notificaciones modernas, reemplazan las ventanas mostrarToast() del navegador) */
 #toastContainer{position:fixed;top:16px;right:16px;z-index:5000;display:flex;flex-direction:column;gap:10px;max-width:340px;}
@@ -1024,6 +1028,78 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <button class="btn-custom btn-danger-custom" style="width:100%;margin-top:15px;" onclick="cerrarSesionDesdeConfigApp()"><i class="fas fa-right-from-bracket"></i> Cerrar sesión</button>
       </div>
     </div>
+
+    <!-- MODAL: EDITAR GASTO -->
+    <div class="modal-overlay" id="modalEditarGasto">
+      <div class="modal-box" style="max-width:420px;">
+        <button class="close-modal" onclick="cerrarModal('modalEditarGasto')">✖</button>
+        <h3>✏️ Editar Gasto</h3>
+        <input type="hidden" id="editGastoId">
+        <label>Categoría:</label>
+        <select id="editGastoCategoria">
+          <option>Arriendo</option><option>Servicios públicos</option><option>Insumos y repuestos</option>
+          <option>Transporte</option><option>Mantenimiento de herramientas</option><option>Impuestos</option><option>Otro</option>
+        </select>
+        <label>Descripción:</label>
+        <input type="text" id="editGastoDescripcion">
+        <label>Monto (COP):</label>
+        <input type="number" id="editGastoMonto">
+        <label>Fecha:</label>
+        <input type="date" id="editGastoFecha">
+        <button class="btn-custom" style="width:100%;margin-top:15px;" onclick="conIndicadorCarga(this, guardarEdicionGasto)"><i class="fas fa-floppy-disk"></i> Guardar cambios</button>
+      </div>
+    </div>
+
+    <!-- MODAL: EDITAR INGRESO -->
+    <div class="modal-overlay" id="modalEditarIngreso">
+      <div class="modal-box" style="max-width:420px;">
+        <button class="close-modal" onclick="cerrarModal('modalEditarIngreso')">✖</button>
+        <h3>✏️ Editar Ingreso</h3>
+        <input type="hidden" id="editIngresoId">
+        <label>Concepto:</label>
+        <input type="text" id="editIngresoConcepto">
+        <label>Monto (COP):</label>
+        <input type="number" id="editIngresoMonto">
+        <label>Fecha:</label>
+        <input type="date" id="editIngresoFecha">
+        <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0 0;">El cliente asociado no se puede cambiar aquí — si es necesario, elimina este ingreso y regístralo de nuevo con el cliente correcto.</p>
+        <button class="btn-custom" style="width:100%;margin-top:15px;" onclick="conIndicadorCarga(this, guardarEdicionIngreso)"><i class="fas fa-floppy-disk"></i> Guardar cambios</button>
+      </div>
+    </div>
+
+    <!-- MODAL: EDITAR ÍTEM DE SECCIÓN DE TIENDA (Equipo/Servicios/Proyectos/Clientes/Certificaciones) -->
+    <div class="modal-overlay" id="modalEditarSeccionTienda">
+      <div class="modal-box" style="max-width:420px;">
+        <button class="close-modal" onclick="cerrarModal('modalEditarSeccionTienda')">✖</button>
+        <h3>✏️ Editar Elemento</h3>
+        <label>Título:</label>
+        <input type="text" id="editSecTiendaTitulo">
+        <label>Subtítulo / descripción breve:</label>
+        <input type="text" id="editSecTiendaSubtitulo">
+        <label>Imagen actual:</label>
+        <div style="margin-bottom:8px;"><img id="editSecTiendaImagenActual" style="max-width:120px;max-height:90px;border-radius:6px;display:none;object-fit:cover;"></div>
+        <label>Reemplazar imagen (opcional):</label>
+        <input type="file" id="editSecTiendaImagen" accept="image/*">
+        <button class="btn-custom" style="width:100%;margin-top:15px;" onclick="conIndicadorCarga(this, guardarEdicionItemSeccionTienda)"><i class="fas fa-floppy-disk"></i> Guardar cambios</button>
+      </div>
+    </div>
+
+    <!-- MODAL: EDITAR TESTIMONIO -->
+    <div class="modal-overlay" id="modalEditarTestimonio">
+      <div class="modal-box" style="max-width:420px;">
+        <button class="close-modal" onclick="cerrarModal('modalEditarTestimonio')">✖</button>
+        <h3>✏️ Editar Testimonio</h3>
+        <input type="hidden" id="editTestId">
+        <label>Nombre del cliente:</label>
+        <input type="text" id="editTestNombre">
+        <label>Comentario:</label>
+        <input type="text" id="editTestComentario">
+        <label>Estrellas:</label>
+        <select id="editTestEstrellas"><option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option></select>
+        <button class="btn-custom" style="width:100%;margin-top:15px;" onclick="conIndicadorCarga(this, guardarEdicionTestimonio)"><i class="fas fa-floppy-disk"></i> Guardar cambios</button>
+      </div>
+    </div>
+
     <div class="panel seccion" id="seccion-inventario" style="display:none;">
       <div class="panel-title">
         <span>📦 Control de Inventario y Bodegas</span>
@@ -2008,7 +2084,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div id="comprobanteNominaBotonera" style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalComprobanteNomina')">Cerrar</button>
       <button class="btn-custom" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
-      <button class="btn-custom btn-success-custom solo-admin" data-permiso="enviar_whatsapp" onclick="enviarComprobanteNominaPorWhatsApp(comprobanteNominaActualId)"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
+      <button class="btn-custom btn-success-custom" onclick="enviarComprobanteNominaPorWhatsApp(comprobanteNominaActualId)"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
     </div>
   </div>
 </div>
@@ -2601,21 +2677,21 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=93"></script>
-<script src="capacitor-bridge.js?v=93"></script>
-<script src="utilidades-navegacion.js?v=93"></script>
-<script src="buscador-agenda.js?v=93"></script>
-<script src="ordenes.js?v=93"></script>
-<script src="equipos-trazabilidad.js?v=93"></script>
-<script src="pdf.js?v=93"></script>
-<script src="config-clientes-equipos.js?v=93"></script>
-<script src="config-plantillas-tecnicos.js?v=93"></script>
-<script src="cotizador.js?v=93"></script>
-<script src="asistencia.js?v=93"></script>
-<script src="config-general.js?v=93"></script>
-<script src="inventario.js?v=93"></script>
-<script src="tienda-admin.js?v=93"></script>
-<script src="tienda-publica.js?v=93"></script>
-<script src="kpi.js?v=93"></script>
+<script src="core.js?v=94"></script>
+<script src="capacitor-bridge.js?v=94"></script>
+<script src="utilidades-navegacion.js?v=94"></script>
+<script src="buscador-agenda.js?v=94"></script>
+<script src="ordenes.js?v=94"></script>
+<script src="equipos-trazabilidad.js?v=94"></script>
+<script src="pdf.js?v=94"></script>
+<script src="config-clientes-equipos.js?v=94"></script>
+<script src="config-plantillas-tecnicos.js?v=94"></script>
+<script src="cotizador.js?v=94"></script>
+<script src="asistencia.js?v=94"></script>
+<script src="config-general.js?v=94"></script>
+<script src="inventario.js?v=94"></script>
+<script src="tienda-admin.js?v=94"></script>
+<script src="tienda-publica.js?v=94"></script>
+<script src="kpi.js?v=94"></script>
 </body>
 </html>
