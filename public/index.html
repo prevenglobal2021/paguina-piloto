@@ -897,6 +897,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <span>❄️ Equipos registrados</span>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <input type="text" placeholder="Buscar equipo, cliente, código o serie..." style="max-width:280px;margin:0;" oninput="renderizarEquiposGlobal(this.value)">
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirEscanerQR()"><i class="fas fa-qrcode"></i> Escanear QR</button>
           <button class="btn-custom btn-sm-custom solo-admin" data-permiso="equipos_gestionar" onclick="abrirModalEquipo()">+ Registrar Equipo</button>
         </div>
       </div>
@@ -1693,11 +1694,82 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <div><label>Fecha programada:</label><input type="date" id="ordFecha"></div>
         <div><label>Hora programada:</label><input type="time" id="ordHora"></div>
       </div>
+      <label id="lblOrdRecurrente" style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;">
+        <input type="checkbox" id="ordRecurrente" onchange="toggleOrdenRecurrente()" style="width:auto;margin:0;">
+        <span style="color:var(--text-main);">🔁 ¿Programar mantenimiento recurrente para el/los equipo(s) elegido(s)?</span>
+      </label>
+      <div id="wrapperOrdenRecurrente" style="display:none;margin-top:8px;padding:10px;background:rgba(0,0,0,.15);border-radius:8px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><label>Frecuencia:</label>
+            <select id="ordRecurrenteFrecuencia">
+              <option value="semanal">Semanal</option>
+              <option value="mensual" selected>Mensual</option>
+              <option value="bimensual">Bimensual (cada 2 meses)</option>
+              <option value="trimestral">Trimestral (cada 3 meses)</option>
+              <option value="cuatrimestral">Cada 4 meses</option>
+              <option value="semestral">Cada 6 meses</option>
+            </select>
+          </div>
+          <div><label>Programar hasta:</label>
+            <select id="ordRecurrenteRango">
+              <option value="resto-anio">Resto del año actual</option>
+              <option value="2-anios">Hasta 2 años hacia adelante</option>
+            </select>
+          </div>
+        </div>
+        <p style="font-size:11px;color:var(--text-muted);margin:6px 0 0 0;">Se crean automáticamente las próximas órdenes para este equipo, visibles en el Calendario como "Programadas". Después podrás modificar o cancelar la serie sin afectar las que ya se hayan realizado.</p>
+      </div>
     </div>
 
     <div style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalNuevaOrden')">Cancelar</button>
       <button class="btn-custom" onclick="conIndicadorCarga(this, guardarNuevaOrden)">Crear Orden</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ESCANEAR QR DE EQUIPO -->
+<div class="modal-overlay" id="modalEscanerQR">
+  <div class="modal-box modal-sm">
+    <button class="close-modal" onclick="cerrarEscanerQR()">✖</button>
+    <h3>📷 Escanear QR de Equipo</h3>
+    <div id="escanerQRVistaCamara">
+      <div style="position:relative;border-radius:10px;overflow:hidden;background:#000;">
+        <video id="escanerQRVideo" autoplay playsinline muted style="width:100%;display:block;"></video>
+        <div style="position:absolute;inset:0;border:3px solid rgba(255,255,255,.5);margin:15%;border-radius:10px;pointer-events:none;"></div>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:8px;">Apunta la cámara a la etiqueta QR del equipo.</p>
+      <p id="escanerQRSinSoporte" style="display:none;font-size:12px;color:var(--red-alert);text-align:center;">Este navegador no puede leer códigos QR con la cámara directamente. Usa la cámara normal del celular (fuera de la app) para escanear la etiqueta — te llevará al equipo automáticamente.</p>
+    </div>
+    <div id="escanerQRResultado" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- MODAL: GESTIONAR RECURRENCIA -->
+<div class="modal-overlay" id="modalGestionRecurrencia">
+  <div class="modal-box modal-sm">
+    <button class="close-modal" onclick="cerrarModal('modalGestionRecurrencia')">✖</button>
+    <h3>🔁 Mantenimiento Recurrente</h3>
+    <input type="hidden" id="gestRecurrenciaOrdenId">
+    <p id="gestRecurrenciaResumen" style="font-size:12px;color:var(--text-muted);"></p>
+    <label>Frecuencia:</label>
+    <select id="gestRecurrenciaFrecuencia">
+      <option value="semanal">Semanal</option>
+      <option value="mensual">Mensual</option>
+      <option value="bimensual">Bimensual (cada 2 meses)</option>
+      <option value="trimestral">Trimestral (cada 3 meses)</option>
+      <option value="cuatrimestral">Cada 4 meses</option>
+      <option value="semestral">Cada 6 meses</option>
+    </select>
+    <label>Programar hasta:</label>
+    <select id="gestRecurrenciaRango">
+      <option value="resto-anio">Resto del año actual</option>
+      <option value="2-anios">Hasta 2 años hacia adelante</option>
+    </select>
+    <p style="font-size:11px;color:var(--text-muted);margin:6px 0 0 0;">Guardar cambios reemplaza las órdenes futuras aún pendientes de esta serie por una nueva, con la frecuencia elegida — las ya finalizadas no se tocan.</p>
+    <div style="display:flex;gap:8px;margin-top:15px;">
+      <button class="btn-custom btn-danger-custom" style="flex:1;" onclick="cancelarRecurrencia(parseInt(document.getElementById('gestRecurrenciaOrdenId').value))"><i class="fas fa-ban"></i> Cancelar Recurrencia</button>
+      <button class="btn-custom" style="flex:1;" onclick="conIndicadorCarga(this, ()=>guardarCambiosRecurrencia(parseInt(document.getElementById('gestRecurrenciaOrdenId').value)))"><i class="fas fa-floppy-disk"></i> Guardar Cambios</button>
     </div>
   </div>
 </div>
@@ -2677,21 +2749,21 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=96"></script>
-<script src="capacitor-bridge.js?v=96"></script>
-<script src="utilidades-navegacion.js?v=96"></script>
-<script src="buscador-agenda.js?v=96"></script>
-<script src="ordenes.js?v=96"></script>
-<script src="equipos-trazabilidad.js?v=96"></script>
-<script src="pdf.js?v=96"></script>
-<script src="config-clientes-equipos.js?v=96"></script>
-<script src="config-plantillas-tecnicos.js?v=96"></script>
-<script src="cotizador.js?v=96"></script>
-<script src="asistencia.js?v=96"></script>
-<script src="config-general.js?v=96"></script>
-<script src="inventario.js?v=96"></script>
-<script src="tienda-admin.js?v=96"></script>
-<script src="tienda-publica.js?v=96"></script>
-<script src="kpi.js?v=96"></script>
+<script src="core.js?v=97"></script>
+<script src="capacitor-bridge.js?v=97"></script>
+<script src="utilidades-navegacion.js?v=97"></script>
+<script src="buscador-agenda.js?v=97"></script>
+<script src="ordenes.js?v=97"></script>
+<script src="equipos-trazabilidad.js?v=97"></script>
+<script src="pdf.js?v=97"></script>
+<script src="config-clientes-equipos.js?v=97"></script>
+<script src="config-plantillas-tecnicos.js?v=97"></script>
+<script src="cotizador.js?v=97"></script>
+<script src="asistencia.js?v=97"></script>
+<script src="config-general.js?v=97"></script>
+<script src="inventario.js?v=97"></script>
+<script src="tienda-admin.js?v=97"></script>
+<script src="tienda-publica.js?v=97"></script>
+<script src="kpi.js?v=97"></script>
 </body>
 </html>

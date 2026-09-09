@@ -230,6 +230,8 @@ function renderizarAgenda(){
           <span><i class="fas fa-wrench"></i> ${o.tipo}</span>
           <span><i class="fas fa-flag"></i> ${o.prioridad}</span>
           <span><i class="fas fa-calendar-day"></i> ${o.fechaProgramada||'Sin definir'}${o.horaProgramada?` · ${o.horaProgramada}`:''}</span>
+          ${(o.recurrencia && o.recurrencia.activa) ? `<span style="cursor:pointer;color:var(--blue-accent);" onclick="abrirGestionRecurrencia(${o.id})" title="Gestionar recurrencia"><i class="fas fa-repeat"></i> ${ETIQUETA_FRECUENCIA_RECURRENCIA[o.recurrencia.frecuencia]}</span>` : ''}
+          ${o.esGeneradaPorRecurrencia ? `<span style="color:var(--text-muted);"><i class="fas fa-repeat"></i> Generada por recurrencia</span>` : ''}
         </div>
         <div class="orden-card-acciones">
           <button class="btn-orden-accion btn-orden-principal" onclick="verDetalleOrden(${o.id})"><i class="fas fa-clipboard-check"></i> ${o.estado!=='Finalizado' ? 'Ver / Cerrar Orden' : 'Ver Orden'}</button>
@@ -361,7 +363,7 @@ async function dropOrdenEnDia(event, fechaStr){
   renderizarCalendario(); renderizarAgenda();
 }
 
-function abrirModalNuevaOrden(){
+function abrirModalNuevaOrden(equipoIdPreset){
   document.getElementById('ordClienteBuscador').value = '';
   document.getElementById('ordCliente').value = '';
   document.getElementById('ordClienteNuevo').checked = false;
@@ -374,8 +376,23 @@ function abrirModalNuevaOrden(){
   document.getElementById('ordTipo').innerHTML = db.config.tiposServicio.map(t=>`<option>${t}</option>`).join('');
   document.getElementById('ordPrioridad').innerHTML = db.config.prioridades.map(p=>`<option>${p}</option>`).join('');
   document.getElementById('ordSinEquipo').checked = false;
+  document.getElementById('ordRecurrente').checked = false;
+  document.getElementById('wrapperOrdenRecurrente').style.display = 'none';
   toggleOrdenClienteNuevo();
+  // Si viene de un escaneo de QR: preselecciona el cliente dueño de ese
+  // equipo, y marca su casilla en la lista una vez esté poblada.
+  if(equipoIdPreset){
+    const info = ubicarEquipoPorId(equipoIdPreset);
+    if(info){
+      document.getElementById('ordClienteBuscador').value = info.cliente.nombre;
+      document.getElementById('ordCliente').value = info.cliente.id;
+    }
+  }
   poblarEquiposOrden();
+  if(equipoIdPreset){
+    const chk = document.querySelector(`#listaEquiposOrden .chk-equipo-orden[data-equipo="${equipoIdPreset}"]`);
+    if(chk) chk.checked = true;
+  }
   abrirModal('modalNuevaOrden');
 }
 function toggleOrdenClienteNuevo(){
@@ -448,10 +465,16 @@ function toggleOrdenSinEquipo(){
   const sinEquipo = document.getElementById('ordSinEquipo').checked;
   document.getElementById('wrapperEquiposOrden').style.display = sinEquipo ? 'none' : 'block';
   document.getElementById('wrapperPlantillaGeneral').style.display = sinEquipo ? 'block' : 'none';
+  document.getElementById('lblOrdRecurrente').style.display = sinEquipo ? 'none' : 'flex';
   if(sinEquipo){
+    document.getElementById('ordRecurrente').checked = false;
+    document.getElementById('wrapperOrdenRecurrente').style.display = 'none';
     const sel = document.getElementById('ordPlantillaGeneral');
     sel.innerHTML = '<option value="">Sin plantilla</option>' + db.plantillas.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('');
   }
+}
+function toggleOrdenRecurrente(){
+  document.getElementById('wrapperOrdenRecurrente').style.display = document.getElementById('ordRecurrente').checked ? 'block' : 'none';
 }
 function poblarEquiposOrden(){
   // Filtro dinámico: los Equipos dependen exclusivamente del Cliente seleccionado.
@@ -482,6 +505,114 @@ function poblarEquiposOrden(){
       <select class="sel-plantilla-equipo" data-equipo="${o.id}" style="width:190px;flex-shrink:0;margin:0;" title="Plantilla de formulario para este equipo">${opcionesPlantilla}</select>
     </div>`).join('');
 }
+// =========================================================================
+// MANTENIMIENTO RECURRENTE — genera automáticamente las próximas órdenes
+// de un equipo (o de un mismo grupo de equipos, si la orden tenía varios)
+// según la frecuencia elegida, hasta la fecha límite escogida.
+// =========================================================================
+function calcularFechaLimiteRecurrencia(rango, fechaBaseStr){
+  const base = new Date(fechaBaseStr + 'T00:00:00');
+  if(rango === 'resto-anio'){
+    return new Date(base.getFullYear(), 11, 31);
+  }
+  const limite = new Date(base);
+  limite.setFullYear(limite.getFullYear() + 2);
+  return limite;
+}
+const MESES_POR_FRECUENCIA_RECURRENCIA = { mensual:1, bimensual:2, trimestral:3, cuatrimestral:4, semestral:6 };
+const ETIQUETA_FRECUENCIA_RECURRENCIA = { semanal:'Semanal', mensual:'Mensual', bimensual:'Bimensual', trimestral:'Trimestral', cuatrimestral:'Cada 4 meses', semestral:'Cada 6 meses' };
+// Genera las órdenes futuras y las agrega a db.ordenes (sin guardar aún —
+// eso lo hace quien llama, en el mismo guardado que la orden origen, para
+// que todo quede atómico: o se guarda completo, o no se guarda nada).
+function generarSerieRecurrente(ordenBase, frecuencia, rango){
+  const serieId = 'serie-' + ordenBase.id;
+  const fechaLimite = calcularFechaLimiteRecurrencia(rango, ordenBase.fechaProgramada);
+  let fechaSiguiente = new Date(ordenBase.fechaProgramada + 'T00:00:00');
+  const nuevas = [];
+  let contador = 0;
+  while(contador < 104){ // límite defensivo — nunca deberían hacer falta tantas
+    if(frecuencia === 'semanal') fechaSiguiente = new Date(fechaSiguiente.getFullYear(), fechaSiguiente.getMonth(), fechaSiguiente.getDate()+7);
+    else fechaSiguiente = new Date(fechaSiguiente.getFullYear(), fechaSiguiente.getMonth()+MESES_POR_FRECUENCIA_RECURRENCIA[frecuencia], fechaSiguiente.getDate());
+    if(fechaSiguiente > fechaLimite) break;
+    contador++;
+    const generada = JSON.parse(JSON.stringify(ordenBase));
+    generada.id = ordenBase.id + contador; // consecutivo a partir del id base — único y estable
+    generada.numero = `OS-2026-${String(db.ordenes.length + nuevas.length + 1).padStart(4,'0')}`;
+    generada.fechaProgramada = fechaSiguiente.toISOString().slice(0,10);
+    generada.estado = 'Programado';
+    generada.cierre = null;
+    generada.serieId = serieId;
+    generada.esGeneradaPorRecurrencia = true;
+    delete generada.recurrencia; // solo la orden ORIGEN guarda la configuración de la serie
+    nuevas.push(generada);
+  }
+  ordenBase.recurrencia = { activa:true, frecuencia, rango, serieId };
+  ordenBase.serieId = serieId;
+  db.ordenes.push(...nuevas);
+  return nuevas.length;
+}
+// Cancela una serie: borra las órdenes futuras aún no finalizadas; las que
+// ya se hayan ejecutado/finalizado quedan intactas, como historial real.
+async function cancelarRecurrencia(ordenId){
+  const origen = db.ordenes.find(o=>o.id===ordenId);
+  if(!origen || !origen.recurrencia) return;
+  if(!confirm('¿Cancelar la recurrencia? Se eliminarán las órdenes futuras de esta serie que aún no se hayan finalizado. Las que ya se ejecutaron quedan intactas.')) return;
+  const serieId = origen.recurrencia.serieId;
+  const respaldo = db.ordenes.slice();
+  db.ordenes = db.ordenes.filter(o => !(o.serieId===serieId && o.id!==ordenId && o.estado!=='Finalizado'));
+  origen.recurrencia.activa = false;
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.ordenes = respaldo;
+    origen.recurrencia.activa = true;
+    mostrarToast('⚠️ No se pudo cancelar: ' + err.message, 'error');
+    return;
+  }
+  registrarLog('Cancelar', 'RecurrenciaOrden', origen.numero);
+  mostrarToast('✅ Recurrencia cancelada. Las órdenes futuras pendientes fueron eliminadas.', 'exito');
+  cerrarModal('modalGestionRecurrencia');
+  renderizarAgenda(); renderizarCalendario();
+}
+// Modifica una serie ya creada: cancela las pendientes actuales y genera
+// una nueva serie con la frecuencia/rango elegidos de nuevo.
+async function guardarCambiosRecurrencia(ordenId){
+  const origen = db.ordenes.find(o=>o.id===ordenId);
+  if(!origen) return;
+  const frecuencia = document.getElementById('gestRecurrenciaFrecuencia').value;
+  const rango = document.getElementById('gestRecurrenciaRango').value;
+  const respaldo = db.ordenes.slice();
+  const serieId = origen.recurrencia ? origen.recurrencia.serieId : null;
+  if(serieId){
+    db.ordenes = db.ordenes.filter(o => !(o.serieId===serieId && o.id!==ordenId && o.estado!=='Finalizado'));
+  }
+  const generadas = generarSerieRecurrente(origen, frecuencia, rango);
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.ordenes = respaldo;
+    mostrarToast('⚠️ No se pudo actualizar la recurrencia: ' + err.message, 'error');
+    return;
+  }
+  registrarLog('Editar', 'RecurrenciaOrden', `${origen.numero} (${frecuencia}, ${generadas} órdenes generadas)`);
+  mostrarToast(`✅ Recurrencia actualizada: se generaron ${generadas} órdenes nuevas.`, 'exito');
+  cerrarModal('modalGestionRecurrencia');
+  renderizarAgenda(); renderizarCalendario();
+}
+function abrirGestionRecurrencia(ordenId){
+  const o = db.ordenes.find(x=>x.id===ordenId);
+  if(!o || !o.recurrencia) return;
+  document.getElementById('gestRecurrenciaOrdenId').value = ordenId;
+  document.getElementById('gestRecurrenciaFrecuencia').value = o.recurrencia.frecuencia;
+  document.getElementById('gestRecurrenciaRango').value = o.recurrencia.rango;
+  const serieId = o.recurrencia.serieId;
+  const enLaSerie = db.ordenes.filter(x=>x.serieId===serieId);
+  const finalizadas = enLaSerie.filter(x=>x.estado==='Finalizado').length;
+  const pendientes = enLaSerie.filter(x=>x.estado!=='Finalizado').length;
+  document.getElementById('gestRecurrenciaResumen').innerText = `${enLaSerie.length} órdenes en esta serie — ${finalizadas} ya finalizadas, ${pendientes} pendientes.`;
+  abrirModal('modalGestionRecurrencia');
+}
+
 async function guardarNuevaOrden(){
   const esClienteNuevo = document.getElementById('ordClienteNuevo').checked;
   const clienteId = esClienteNuevo ? null : parseInt(document.getElementById('ordCliente').value);
@@ -567,16 +698,26 @@ async function guardarNuevaOrden(){
     };
   }
   db.ordenes.push(nueva);
+  const esRecurrente = document.getElementById('ordRecurrente').checked;
+  let generadasRecurrencia = 0;
+  if(esRecurrente && nueva.fechaProgramada){
+    const frecuencia = document.getElementById('ordRecurrenteFrecuencia').value;
+    const rango = document.getElementById('ordRecurrenteRango').value;
+    generadasRecurrencia = generarSerieRecurrente(nueva, frecuencia, rango);
+  }
   registrarLog('Crear', 'OrdenServicio', datosEquipos.length>1 ? `${nueva.numero} (${datosEquipos.length} equipos)` : nueva.numero);
   try{
     await dbGuardarInmediato();
   }catch(err){
-    db.ordenes.pop();
+    db.ordenes = db.ordenes.filter(o => o.id!==nueva.id && o.serieId!==nueva.serieId);
     mostrarToast('⚠️ No se pudo crear la orden: ' + err.message, 'error');
     return;
   }
   cerrarModal('modalNuevaOrden');
   renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
-  mostrarToast(datosEquipos.length>1 ? `✅ Orden ${nueva.numero} creada con ${datosEquipos.length} equipos.` : `✅ Orden ${nueva.numero} creada.`, 'exito');
+  let mensaje = datosEquipos.length>1 ? `✅ Orden ${nueva.numero} creada con ${datosEquipos.length} equipos.` : `✅ Orden ${nueva.numero} creada.`;
+  if(esRecurrente && !nueva.fechaProgramada) mensaje += ' (La recurrencia necesita una fecha programada — no se generó ninguna serie.)';
+  else if(generadasRecurrencia>0) mensaje += ` Se programaron ${generadasRecurrencia} órdenes más de forma recurrente.`;
+  mostrarToast(mensaje, 'exito');
 }
 

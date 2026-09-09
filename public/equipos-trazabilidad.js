@@ -165,3 +165,123 @@ function renderizarTrazabilidad(equipoIdStr){
   timeline.innerHTML = html;
 }
 
+/* =========================================================
+   ESCANEO DE QR EN VIVO — abre la cámara del celular dentro de la app,
+   lee el código QR de la etiqueta del equipo, y muestra de inmediato su
+   ficha, su orden programada (si tiene), o la opción de crear una nueva.
+========================================================= */
+let escanerQRStream = null;
+let escanerQRDetectorActivo = null;
+
+async function abrirEscanerQR(){
+  document.getElementById('escanerQRResultado').style.display = 'none';
+  document.getElementById('escanerQRResultado').innerHTML = '';
+  document.getElementById('escanerQRVistaCamara').style.display = 'block';
+  document.getElementById('escanerQRVideo').style.display = 'none';
+  document.getElementById('escanerQRSinSoporte').style.display = 'none';
+  abrirModal('modalEscanerQR');
+
+  if(!('BarcodeDetector' in window)){
+    document.getElementById('escanerQRSinSoporte').style.display = 'block';
+    return;
+  }
+  try{
+    escanerQRStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+  }catch(err){
+    mostrarToast('No se pudo acceder a la cámara: ' + err.message, 'error');
+    cerrarEscanerQR();
+    return;
+  }
+  const video = document.getElementById('escanerQRVideo');
+  video.style.display = 'block';
+  video.srcObject = escanerQRStream;
+  iniciarLecturaQR(video);
+}
+
+function iniciarLecturaQR(video){
+  const detector = new BarcodeDetector({ formats: ['qr_code'] });
+  escanerQRDetectorActivo = setInterval(async ()=>{
+    if(video.readyState < 2) return;
+    try{
+      const codigos = await detector.detect(video);
+      if(codigos.length > 0) procesarCodigoEscaneado(codigos[0].rawValue, video);
+    }catch(err){ /* fotograma ilegible — se reintenta en el próximo ciclo */ }
+  }, 400);
+}
+
+function detenerCamaraQR(){
+  if(escanerQRDetectorActivo){ clearInterval(escanerQRDetectorActivo); escanerQRDetectorActivo = null; }
+  if(escanerQRStream){ escanerQRStream.getTracks().forEach(t=>t.stop()); escanerQRStream = null; }
+}
+
+function cerrarEscanerQR(){
+  detenerCamaraQR();
+  cerrarModal('modalEscanerQR');
+}
+
+function procesarCodigoEscaneado(texto, video){
+  if(escanerQRDetectorActivo){ clearInterval(escanerQRDetectorActivo); escanerQRDetectorActivo = null; } // pausar mientras se resuelve esta lectura
+  let equipoId = null, itemId = null;
+  try{
+    const url = new URL(texto);
+    equipoId = url.searchParams.get('equipo');
+    itemId = url.searchParams.get('item');
+  }catch(err){
+    const m = texto.match(/equipo=(\d+)/);
+    if(m) equipoId = m[1];
+  }
+  if(equipoId){
+    mostrarResultadoEscaneoQR(parseInt(equipoId));
+  } else if(itemId){
+    detenerCamaraQR();
+    cerrarModal('modalEscanerQR');
+    mostrarSeccion('inventario');
+    setTimeout(()=>{ verFichaQR(parseInt(itemId)); }, 80);
+  } else {
+    mostrarToast('Ese código no corresponde a un equipo de Prevenglobal.', 'error');
+    if(video) iniciarLecturaQR(video); // seguir intentando con el siguiente código que aparezca
+  }
+}
+
+function mostrarResultadoEscaneoQR(equipoId){
+  detenerCamaraQR();
+  const info = ubicarEquipoPorId(equipoId);
+  if(!info){
+    mostrarToast('No se encontró ningún equipo con ese código.', 'error');
+    cerrarEscanerQR();
+    return;
+  }
+  document.getElementById('escanerQRVistaCamara').style.display = 'none';
+  const cont = document.getElementById('escanerQRResultado');
+  cont.style.display = 'block';
+
+  // Busca una orden pendiente (programada o en ejecución) para este equipo —
+  // ya sea de un solo equipo, o de una orden con varios equipos donde este
+  // esté incluido — y toma la más próxima en fecha.
+  const ordenesDelEquipo = db.ordenes.filter(o =>
+    (o.equipoId === equipoId || (o.equiposIds||[]).includes(equipoId)) && o.estado !== 'Finalizado'
+  ).sort((a,b) => (a.fechaProgramada||'9999').localeCompare(b.fechaProgramada||'9999'));
+  const proximaOrden = ordenesDelEquipo[0] || null;
+
+  cont.innerHTML = `
+    <div class="panel" style="margin:0;background:#f8fafc;border:1px solid #e2e8f0;color:#1e293b;">
+      <strong>${info.equipo.nombre}</strong><br>
+      <small style="color:var(--text-muted);">${info.cliente.nombre} · ${info.sede?info.sede.nombre:'Sin sede'}</small><br>
+      <small style="color:var(--text-muted);">Código: ${info.equipo.serie||info.equipo.qrId||'—'} · ${info.equipo.marca||''} ${info.equipo.modelo||''}</small>
+    </div>
+    ${proximaOrden ? `
+      <div style="margin-top:12px;padding:10px;background:rgba(37,99,235,.08);border-radius:8px;">
+        <strong style="font-size:13px;"><i class="fas fa-calendar-check"></i> Tiene una orden programada</strong><br>
+        <span style="font-size:12px;">${proximaOrden.numero} — ${proximaOrden.fechaProgramada||'Sin fecha'}${proximaOrden.horaProgramada?' · '+proximaOrden.horaProgramada:''}</span>
+        <button class="btn-custom" style="width:100%;margin-top:8px;" onclick="cerrarModal('modalEscanerQR');verDetalleOrden(${proximaOrden.id})"><i class="fas fa-clipboard-check"></i> Abrir y Llenar esta Orden</button>
+      </div>
+    ` : `
+      <div style="margin-top:12px;padding:10px;background:rgba(0,0,0,.15);border-radius:8px;">
+        <strong style="font-size:13px;">Este equipo no tiene ninguna orden programada.</strong>
+        <button class="btn-custom" style="width:100%;margin-top:8px;" onclick="cerrarModal('modalEscanerQR');abrirModalNuevaOrden(${equipoId})"><i class="fas fa-plus"></i> Crear Nueva Orden para este Equipo</button>
+      </div>
+    `}
+    <button class="btn-custom btn-secondary-custom" style="width:100%;margin-top:8px;" onclick="cerrarModal('modalEscanerQR');irATrazabilidadEquipo(${equipoId})"><i class="fas fa-history"></i> Ver Historial Completo</button>
+  `;
+}
+
