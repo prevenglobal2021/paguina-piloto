@@ -306,31 +306,49 @@ function interpretarCodigoQR(texto){
   return { equipoId, itemId };
 }
 
-// Respaldo manual: escribir el código o buscar por nombre/serie, sin
-// depender de la cámara — funciona siempre, en cualquier dispositivo.
-function buscarEquipoManualQR(){
+// Búsqueda en vivo: mientras se escribe, se muestran de inmediato los
+// equipos que coincidan (por código, nombre, marca, modelo o serie) — no
+// hace falta escribir el código completo. Reutiliza el mismo patrón visual
+// de autocompletado que ya se usa al elegir el Cliente en Nueva Orden.
+function filtrarEquiposManualQR(){
   const texto = document.getElementById('escanerQRManualCodigo').value.trim();
-  if(!texto){ mostrarToast('Escribe el código, nombre o serie del equipo.'); return; }
+  const cont = document.getElementById('escanerQRManualResultados');
   const { equipoId } = interpretarCodigoQR(texto);
-  if(equipoId){ mostrarResultadoEscaneoQR(equipoId); return; }
-  // No es un número/código — buscar por nombre, marca, modelo o serie entre todos los equipos.
-  const textoLower = texto.toLowerCase();
-  const coincidencias = [];
-  db.clientes.forEach(c=>{
-    const todos = [];
-    c.sedes.forEach(s=>s.equipos.forEach(e=>todos.push(e)));
-    equiposSinSedeDe(c).forEach(e=>todos.push(e));
-    todos.forEach(e=>{
-      if(`${e.nombre||''} ${e.marca||''} ${e.modelo||''} ${e.serie||''}`.toLowerCase().includes(textoLower)){
-        coincidencias.push(e.id);
-      }
+  let resultados = [];
+  if(equipoId){
+    const info = ubicarEquipoPorId(equipoId);
+    if(info) resultados.push({ equipo: info.equipo, cliente: info.cliente, sede: info.sede });
+  }
+  if(resultados.length === 0 && texto.length >= 2){
+    const textoLower = texto.toLowerCase();
+    db.clientes.forEach(c=>{
+      const todos = [];
+      c.sedes.forEach(s=>s.equipos.forEach(e=>todos.push({e, sede:s})));
+      equiposSinSedeDe(c).forEach(e=>todos.push({e, sede:null}));
+      todos.forEach(({e, sede})=>{
+        if(`${e.nombre||''} ${e.marca||''} ${e.modelo||''} ${e.serie||''} ${e.qrId||''}`.toLowerCase().includes(textoLower)){
+          resultados.push({ equipo:e, cliente:c, sede });
+        }
+      });
     });
-  });
-  if(coincidencias.length === 0){
-    mostrarToast('No se encontró ningún equipo que coincida con "' + texto + '".', 'error');
+  }
+  if(!texto){
+    cont.classList.remove('abierto');
     return;
   }
-  mostrarResultadoEscaneoQR(coincidencias[0]);
+  if(resultados.length === 0){
+    cont.innerHTML = '<div class="autocomplete-item" style="cursor:default;color:#94a3b8;">Sin equipos que coincidan con esa búsqueda</div>';
+  } else {
+    cont.innerHTML = resultados.slice(0,20).map(r=>`
+      <div class="autocomplete-item" onmousedown="mostrarResultadoEscaneoQR(${r.equipo.id})">
+        <span class="autocomplete-item-avatar"><i class="fas fa-snowflake"></i></span>
+        <span style="flex:1;min-width:0;">
+          ${resaltarCoincidencia(r.equipo.nombre, texto)}
+          <small>${r.cliente.nombre} · ${r.sede?r.sede.nombre:'Sin sede'}${r.equipo.serie?' · Serie: '+resaltarCoincidencia(r.equipo.serie, texto):''}</small>
+        </span>
+      </div>`).join('');
+  }
+  cont.classList.add('abierto');
 }
 
 function mostrarResultadoEscaneoQR(equipoId){
