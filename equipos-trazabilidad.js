@@ -165,3 +165,171 @@ function renderizarTrazabilidad(equipoIdStr){
   timeline.innerHTML = html;
 }
 
+/* =========================================================
+   QR DEL EQUIPO — GENERAR / IMPRIMIR
+   (mismo criterio que el QR de ítems de Inventario: se codifica
+   como una URL con ?equipo=<id>, para que también funcione si
+   alguien lo abre con la cámara normal del celular, fuera de la app)
+========================================================= */
+function verEtiquetaQR(equipoId){
+  const info = ubicarEquipoPorId(equipoId);
+  if(!info) return;
+  const equipo = info.equipo;
+
+  const wrap = document.getElementById('etiquetaQRWrap');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+
+  const urlEquipo = `${location.origin}${location.pathname}?equipo=${equipo.id}`;
+  if(typeof QRCode !== 'undefined'){
+    new QRCode(wrap, { text: urlEquipo, width: 300, height: 300, correctLevel: QRCode.CorrectLevel.H });
+  }
+
+  const lblNombre = document.getElementById('etiquetaQRNombre');
+  const lblCodigo = document.getElementById('etiquetaQRCodigo');
+  if(lblNombre) lblNombre.innerText = equipo.nombre;
+  if(lblCodigo) lblCodigo.innerText = equipo.serie || equipo.qrId || ('EQUIPO-' + equipo.id);
+
+  if(db.config && db.config.logo){
+    setTimeout(()=>{
+      const existente = wrap.querySelector('.etiqueta-logo-centro');
+      if(existente) existente.remove();
+      const logoImg = document.createElement('img');
+      logoImg.src = db.config.logo;
+      logoImg.className = 'etiqueta-logo-centro';
+      wrap.appendChild(logoImg);
+    }, 80);
+  }
+  abrirModal('modalEtiquetaQR');
+}
+
+function imprimirEtiquetaQR(){
+  // La hoja de estilos ya trae reglas @media print específicas para
+  // body.imprimiendo-etiqueta — solo hay que activarla, imprimir, y
+  // quitarla otra vez para no afectar el resto de la app.
+  document.body.classList.add('imprimiendo-etiqueta');
+  setTimeout(()=>{
+    window.print();
+    setTimeout(()=>{ document.body.classList.remove('imprimiendo-etiqueta'); }, 300);
+  }, 60);
+}
+
+/* =========================================================
+   ESCÁNER DE QR (cámara en vivo) — botón junto a "Buscar equipo"
+   Lee el código con la cámara del dispositivo y salta directo a la
+   trazabilidad completa de ese equipo (órdenes, historial, agenda).
+========================================================= */
+let escanerQRStream = null;
+let escanerQRAnimId = null;
+let escanerQRCamaraTrasera = true;
+
+function abrirEscanerQR(){
+  if(typeof jsQR === 'undefined'){
+    mostrarToast('⚠️ No se pudo cargar el lector de QR. Revisa tu conexión a internet e intenta de nuevo.', 'error');
+    return;
+  }
+  const estado = document.getElementById('escanerQREstado');
+  if(estado) estado.innerText = 'Buscando código...';
+  abrirModal('modalEscanerQR');
+  iniciarCamaraEscanerQR();
+}
+
+async function iniciarCamaraEscanerQR(){
+  detenerCamaraEscanerQR();
+  const video = document.getElementById('escanerQRVideo');
+  try{
+    escanerQRStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: escanerQRCamaraTrasera ? 'environment' : 'user' }
+    });
+    video.srcObject = escanerQRStream;
+    await video.play();
+    escanerQRAnimId = requestAnimationFrame(bucleEscanerQR);
+  }catch(err){
+    const estado = document.getElementById('escanerQREstado');
+    if(estado) estado.innerText = 'No se pudo acceder a la cámara. Revisa los permisos del navegador.';
+    mostrarToast('⚠️ No se pudo acceder a la cámara: ' + err.message, 'error');
+  }
+}
+
+function alternarCamaraEscanerQR(){
+  escanerQRCamaraTrasera = !escanerQRCamaraTrasera;
+  iniciarCamaraEscanerQR();
+}
+
+function bucleEscanerQR(){
+  const video = document.getElementById('escanerQRVideo');
+  const canvas = document.getElementById('escanerQRCanvasOculto');
+  if(!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA){
+    escanerQRAnimId = requestAnimationFrame(bucleEscanerQR);
+    return;
+  }
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const imagen = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const resultado = jsQR(imagen.data, imagen.width, imagen.height, { inversionAttempts: 'dontInvert' });
+  if(resultado && resultado.data){
+    procesarCodigoQREscaneado(resultado.data);
+    return; // detenemos el bucle; procesarCodigoQREscaneado decide qué sigue
+  }
+  escanerQRAnimId = requestAnimationFrame(bucleEscanerQR);
+}
+
+function detenerCamaraEscanerQR(){
+  if(escanerQRAnimId){ cancelAnimationFrame(escanerQRAnimId); escanerQRAnimId = null; }
+  if(escanerQRStream){
+    escanerQRStream.getTracks().forEach(t=>t.stop());
+    escanerQRStream = null;
+  }
+}
+
+function cerrarEscanerQR(){
+  detenerCamaraEscanerQR();
+  cerrarModal('modalEscanerQR');
+}
+
+function extraerIdEquipoDesdeCodigo(texto){
+  // 1) Si el código es una URL con ?equipo=<id> (nuestro propio formato), se usa directo.
+  try{
+    const url = new URL(texto);
+    const idParam = url.searchParams.get('equipo');
+    if(idParam) return parseInt(idParam) || null;
+  }catch(e){ /* no era una URL válida, seguimos con los otros métodos */ }
+
+  // 2) Si el texto es puramente numérico, se asume que es el id del equipo.
+  if(/^\d+$/.test(texto.trim())) return parseInt(texto.trim());
+
+  // 3) Si no, se busca por coincidencia exacta con el código de serie /
+  //    identificador del equipo (para etiquetas antiguas que no llevan URL).
+  const codigo = texto.trim().toLowerCase();
+  if(!codigo) return null; // evita que un texto vacío empate con equipos sin serie/qrId asignado
+  let encontrado = null;
+  db.clientes.forEach(c=>{
+    c.sedes.forEach(s=>s.equipos.forEach(e=>{
+      if(!encontrado && ((e.serie||'').toLowerCase()===codigo || (e.qrId||'').toLowerCase()===codigo)) encontrado = e.id;
+    }));
+    equiposSinSedeDe(c).forEach(e=>{
+      if(!encontrado && ((e.serie||'').toLowerCase()===codigo || (e.qrId||'').toLowerCase()===codigo)) encontrado = e.id;
+    });
+  });
+  return encontrado;
+}
+
+function procesarCodigoQREscaneado(textoLeido){
+  const estado = document.getElementById('escanerQREstado');
+  const equipoId = extraerIdEquipoDesdeCodigo(textoLeido);
+  const info = equipoId ? ubicarEquipoPorId(equipoId) : null;
+
+  if(!info){
+    if(estado) estado.innerText = 'Ese código no corresponde a ningún equipo registrado. Sigue intentando...';
+    mostrarToast('⚠️ Código QR no reconocido — no corresponde a ningún equipo registrado.', 'error');
+    // seguimos escaneando por si el usuario apunta a otro código
+    escanerQRAnimId = requestAnimationFrame(bucleEscanerQR);
+    return;
+  }
+
+  cerrarEscanerQR();
+  mostrarToast(`✅ Equipo encontrado: ${info.equipo.nombre}`, 'exito');
+  irATrazabilidadEquipo(info.equipo.id);
+}
