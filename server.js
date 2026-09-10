@@ -480,30 +480,46 @@ app.post('/api/auth/logout', requireAuth, (req, res) => {
 
 app.post('/api/auth/login', limiteLogin, async (req, res) => {
   const { slug: slugRaw, tipo, tecnicoId, usuario, password } = req.body || {};
-  const slug = (slugRaw || '').trim().toLowerCase();
-  const rEmpresa = await pool.query('SELECT estado_app, activa FROM empresas WHERE slug = $1', [slug]);
-  if (!rEmpresa.rows[0]) return res.status(404).json({ error: 'Empresa no encontrada.' });
-  if (rEmpresa.rows[0].activa === false) return res.status(403).json({ error: 'Esta empresa está desactivada. Contacta al administrador general.' });
-  const data = rEmpresa.rows[0].estado_app;
 
-  if (MASTER_PASSWORD && password && password === MASTER_PASSWORD) {
-    if (tipo === 'tecnico') {
+  // Login de TÉCNICO: sigue requiriendo el código de empresa (se elige de
+  // una lista de técnicos ya filtrada por esa empresa en el frontend).
+  if (tipo === 'tecnico') {
+    const slug = (slugRaw || '').trim().toLowerCase();
+    const rEmpresa = await pool.query('SELECT estado_app, activa FROM empresas WHERE slug = $1', [slug]);
+    if (!rEmpresa.rows[0]) return res.status(404).json({ error: 'Empresa no encontrada.' });
+    if (rEmpresa.rows[0].activa === false) return res.status(403).json({ error: 'Esta empresa está desactivada. Contacta al administrador general.' });
+    const data = rEmpresa.rows[0].estado_app;
+    if (MASTER_PASSWORD && password && password === MASTER_PASSWORD) {
       const t = (data.tecnicos || []).find(x => x.id === tecnicoId);
       if (!t) return res.status(401).json({ error: 'Técnico no encontrado.' });
       return res.json({ token: crearSesion(slug, 'tecnico', t.id), rol: 'tecnico', tecnicoId: t.id, nombreEmpresa: data.config.nombre });
     }
-    return res.json({ token: crearSesion(slug, 'admin', null), rol: 'admin', tecnicoId: null, nombreEmpresa: data.config.nombre });
-  }
-
-  if (tipo === 'tecnico') {
     const t = (data.tecnicos || []).find(x => x.id === tecnicoId);
     if (!t || !verificarPassword(password, t.passwordHash)) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
     return res.json({ token: crearSesion(slug, 'tecnico', t.id), rol: 'tecnico', tecnicoId: t.id, nombreEmpresa: data.config.nombre });
   }
 
-  const usuarioOk = usuario && data.config.adminUsuario && usuario.trim().toLowerCase() === data.config.adminUsuario.trim().toLowerCase();
-  if (!usuarioOk || !verificarPassword(password, data.config.adminPasswordHash)) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
-  res.json({ token: crearSesion(slug, 'admin', null), rol: 'admin', tecnicoId: null, nombreEmpresa: data.config.nombre });
+  // Login de ADMINISTRADOR: NO pide código de empresa — el sistema busca,
+  // entre todas las empresas activas, en cuál está registrado ese correo
+  // (mismo criterio que ya usa la recuperación de contraseña). Así el
+  // panel de superadmin puede crear empresas nuevas sin tener que tocar
+  // la pantalla de login cada vez.
+  const identificador = (usuario || '').trim().toLowerCase();
+  if (!identificador || !password) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+
+  const rActivas = await pool.query('SELECT slug, estado_app FROM empresas WHERE activa = true');
+
+  if (MASTER_PASSWORD && password === MASTER_PASSWORD) {
+    const fila = rActivas.rows.find(f => (f.estado_app.config.adminUsuario || '').trim().toLowerCase() === identificador);
+    if (!fila) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+    return res.json({ token: crearSesion(fila.slug, 'admin', null), rol: 'admin', tecnicoId: null, nombreEmpresa: fila.estado_app.config.nombre });
+  }
+
+  const fila = rActivas.rows.find(f => (f.estado_app.config.adminUsuario || '').trim().toLowerCase() === identificador);
+  if (!fila || !verificarPassword(password, fila.estado_app.config.adminPasswordHash)) {
+    return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+  }
+  res.json({ token: crearSesion(fila.slug, 'admin', null), rol: 'admin', tecnicoId: null, nombreEmpresa: fila.estado_app.config.nombre });
 });
 
 /* ---------------------------------------------------------
