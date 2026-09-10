@@ -266,7 +266,7 @@ app.post('/api/empresas', limiteLogin, async (req, res) => {
   await crearEmpresa(slug, nombre.trim(), data);
 
   const token = crearSesion(slug, 'admin', null);
-  res.status(201).json({ token, rol: 'admin', tecnicoId: null, nombreEmpresa: data.config.nombre });
+  res.status(201).json({ token, rol: 'admin', tecnicoId: null, nombreEmpresa: data.config.nombre, slug });
 });
 
 /* ---------------------------------------------------------
@@ -536,7 +536,7 @@ app.post('/api/auth/login', limiteLogin, async (req, res) => {
     if (MASTER_PASSWORD && password === MASTER_PASSWORD) {
       for (const fila of rActivas.rows) {
         const t = (fila.estado_app.tecnicos || []).find(x => (x.usuario || '').trim().toLowerCase() === identificador);
-        if (t) return res.json({ token: crearSesion(fila.slug, 'tecnico', t.id), rol: 'tecnico', tecnicoId: t.id, nombreEmpresa: fila.estado_app.config.nombre });
+        if (t) return res.json({ token: crearSesion(fila.slug, 'tecnico', t.id), rol: 'tecnico', tecnicoId: t.id, nombreEmpresa: fila.estado_app.config.nombre, slug: fila.slug });
       }
       return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
     }
@@ -545,7 +545,7 @@ app.post('/api/auth/login', limiteLogin, async (req, res) => {
       const t = (fila.estado_app.tecnicos || []).find(x => (x.usuario || '').trim().toLowerCase() === identificador);
       if (t) {
         if (!verificarPassword(password, t.passwordHash)) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
-        return res.json({ token: crearSesion(fila.slug, 'tecnico', t.id), rol: 'tecnico', tecnicoId: t.id, nombreEmpresa: fila.estado_app.config.nombre });
+        return res.json({ token: crearSesion(fila.slug, 'tecnico', t.id), rol: 'tecnico', tecnicoId: t.id, nombreEmpresa: fila.estado_app.config.nombre, slug: fila.slug });
       }
     }
     return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
@@ -564,14 +564,14 @@ app.post('/api/auth/login', limiteLogin, async (req, res) => {
   if (MASTER_PASSWORD && password === MASTER_PASSWORD) {
     const fila = rActivas.rows.find(f => (f.estado_app.config.adminUsuario || '').trim().toLowerCase() === identificador);
     if (!fila) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
-    return res.json({ token: crearSesion(fila.slug, 'admin', null), rol: 'admin', tecnicoId: null, nombreEmpresa: fila.estado_app.config.nombre });
+    return res.json({ token: crearSesion(fila.slug, 'admin', null), rol: 'admin', tecnicoId: null, nombreEmpresa: fila.estado_app.config.nombre, slug: fila.slug });
   }
 
   const fila = rActivas.rows.find(f => (f.estado_app.config.adminUsuario || '').trim().toLowerCase() === identificador);
   if (!fila || !verificarPassword(password, fila.estado_app.config.adminPasswordHash)) {
     return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
   }
-  res.json({ token: crearSesion(fila.slug, 'admin', null), rol: 'admin', tecnicoId: null, nombreEmpresa: fila.estado_app.config.nombre });
+  res.json({ token: crearSesion(fila.slug, 'admin', null), rol: 'admin', tecnicoId: null, nombreEmpresa: fila.estado_app.config.nombre, slug: fila.slug });
 });
 
 /* ---------------------------------------------------------
