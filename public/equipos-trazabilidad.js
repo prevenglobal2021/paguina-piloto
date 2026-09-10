@@ -131,7 +131,7 @@ function renderizarTrazabilidad(equipoIdStr){
   if(!equipoId){ ficha.innerHTML=''; timeline.innerHTML=''; return; }
   const info = ubicarEquipoPorId(equipoId);
   if(!info) return;
-  ficha.innerHTML = `<div class="panel" style="margin:0;background:#f8fafc;border:1px solid #e2e8f0;color:#1e293b;">
+  ficha.innerHTML = `<div class="panel" style="margin:0;background:rgba(0,0,0,.15);">
     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:flex-start;">
       <div>
         <strong>${info.equipo.nombre}</strong> — ${info.cliente.nombre} · ${info.sede ? info.sede.nombre : 'Sin sede'}<br>
@@ -166,246 +166,170 @@ function renderizarTrazabilidad(equipoIdStr){
 }
 
 /* =========================================================
-   ESCANEO DE QR EN VIVO — abre la cámara del celular dentro de la app,
-   lee el código QR de la etiqueta del equipo, y muestra de inmediato su
-   ficha, su orden programada (si tiene), o la opción de crear una nueva.
+   QR DEL EQUIPO — GENERAR / IMPRIMIR
+   (mismo criterio que el QR de ítems de Inventario: se codifica
+   como una URL con ?equipo=<id>, para que también funcione si
+   alguien lo abre con la cámara normal del celular, fuera de la app)
+========================================================= */
+function verEtiquetaQR(equipoId){
+  const info = ubicarEquipoPorId(equipoId);
+  if(!info) return;
+  const equipo = info.equipo;
 
-   Corrección de fondo: antes no había ningún candado contra detecciones
-   superpuestas — si la cámara tardaba un poco en leer un fotograma, el
-   siguiente intento (cada 400ms) arrancaba igual encima del anterior, lo
-   que podía producir varias lecturas casi simultáneas y comportamiento
-   errático ("pasa muy rápido y no muestra nada"). Ahora solo hay UNA
-   lectura a la vez, siempre se ve un texto de estado dentro de la
-   ventana (nunca queda en silencio), y se agregó una alternativa manual
-   — escribir el código o buscar por nombre/serie — que funciona sin
-   depender de la cámara, como respaldo garantizado.
+  const wrap = document.getElementById('etiquetaQRWrap');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+
+  const urlEquipo = `${location.origin}${location.pathname}?equipo=${equipo.id}`;
+  if(typeof QRCode !== 'undefined'){
+    new QRCode(wrap, { text: urlEquipo, width: 300, height: 300, correctLevel: QRCode.CorrectLevel.H });
+  }
+
+  const lblNombre = document.getElementById('etiquetaQRNombre');
+  const lblCodigo = document.getElementById('etiquetaQRCodigo');
+  if(lblNombre) lblNombre.innerText = equipo.nombre;
+  if(lblCodigo) lblCodigo.innerText = equipo.serie || equipo.qrId || ('EQUIPO-' + equipo.id);
+
+  if(db.config && db.config.logo){
+    setTimeout(()=>{
+      const existente = wrap.querySelector('.etiqueta-logo-centro');
+      if(existente) existente.remove();
+      const logoImg = document.createElement('img');
+      logoImg.src = db.config.logo;
+      logoImg.className = 'etiqueta-logo-centro';
+      wrap.appendChild(logoImg);
+    }, 80);
+  }
+  abrirModal('modalEtiquetaQR');
+}
+
+function imprimirEtiquetaQR(){
+  // La hoja de estilos ya trae reglas @media print específicas para
+  // body.imprimiendo-etiqueta — solo hay que activarla, imprimir, y
+  // quitarla otra vez para no afectar el resto de la app.
+  document.body.classList.add('imprimiendo-etiqueta');
+  setTimeout(()=>{
+    window.print();
+    setTimeout(()=>{ document.body.classList.remove('imprimiendo-etiqueta'); }, 300);
+  }, 60);
+}
+
+/* =========================================================
+   ESCÁNER DE QR (cámara en vivo) — botón junto a "Buscar equipo"
+   Lee el código con la cámara del dispositivo y salta directo a la
+   trazabilidad completa de ese equipo (órdenes, historial, agenda).
 ========================================================= */
 let escanerQRStream = null;
-let escanerQRIntervalo = null;
-let escanerQRDetector = null;
-let escanerQRLeyendo = false; // candado: nunca dos lecturas de fotograma a la vez
-let escanerQRInicioMs = 0;
+let escanerQRAnimId = null;
+let escanerQRCamaraTrasera = true;
 
-function escanerQREstado(texto){
-  const el = document.getElementById('escanerQREstado');
-  if(el){ el.innerText = texto; el.style.display = texto ? 'block' : 'none'; }
-}
-
-async function abrirEscanerQR(){
-  document.getElementById('escanerQRResultado').style.display = 'none';
-  document.getElementById('escanerQRResultado').innerHTML = '';
-  document.getElementById('escanerQRVistaCamara').style.display = 'block';
-  document.getElementById('escanerQRVideo').style.display = 'none';
-  document.getElementById('escanerQRSinSoporte').style.display = 'none';
-  document.getElementById('escanerQRManualCodigo').value = '';
-  escanerQREstado('Activando cámara...');
+function abrirEscanerQR(){
+  if(typeof jsQR === 'undefined'){
+    mostrarToast('⚠️ No se pudo cargar el lector de QR. Revisa tu conexión a internet e intenta de nuevo.', 'error');
+    return;
+  }
+  const estado = document.getElementById('escanerQREstado');
+  if(estado) estado.innerText = 'Buscando código...';
   abrirModal('modalEscanerQR');
-  escanerQRLeyendo = false;
+  iniciarCamaraEscanerQR();
+}
 
-  if(!('BarcodeDetector' in window)){
-    escanerQREstado('');
-    document.getElementById('escanerQRSinSoporte').style.display = 'block';
-    return;
-  }
-  try{
-    escanerQRDetector = new BarcodeDetector({ formats: ['qr_code'] });
-  }catch(err){
-    console.error('No se pudo crear BarcodeDetector:', err);
-    escanerQREstado('');
-    document.getElementById('escanerQRSinSoporte').style.display = 'block';
-    return;
-  }
-  try{
-    escanerQRStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-  }catch(err){
-    escanerQREstado('');
-    mostrarToast('No se pudo acceder a la cámara: ' + err.message + ' — puedes usar la búsqueda manual de abajo.', 'error');
-    return;
-  }
+async function iniciarCamaraEscanerQR(){
+  detenerCamaraEscanerQR();
   const video = document.getElementById('escanerQRVideo');
-  video.style.display = 'block';
-  video.srcObject = escanerQRStream;
-  escanerQRInicioMs = Date.now();
-  escanerQREstado('Buscando un código QR...');
-  iniciarLecturaQR(video);
+  try{
+    escanerQRStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: escanerQRCamaraTrasera ? 'environment' : 'user' }
+    });
+    video.srcObject = escanerQRStream;
+    await video.play();
+    escanerQRAnimId = requestAnimationFrame(bucleEscanerQR);
+  }catch(err){
+    const estado = document.getElementById('escanerQREstado');
+    if(estado) estado.innerText = 'No se pudo acceder a la cámara. Revisa los permisos del navegador.';
+    mostrarToast('⚠️ No se pudo acceder a la cámara: ' + err.message, 'error');
+  }
 }
 
-function iniciarLecturaQR(video){
-  if(escanerQRIntervalo) clearInterval(escanerQRIntervalo);
-  escanerQRIntervalo = setInterval(async ()=>{
-    if(escanerQRLeyendo) return; // ya hay una lectura en curso — nunca superponer
-    if(video.readyState < 2 || !video.videoWidth) return; // el video todavía no tiene un fotograma real
-    escanerQRLeyendo = true;
-    try{
-      const codigos = await escanerQRDetector.detect(video);
-      if(codigos.length > 0){
-        procesarCodigoEscaneado(codigos[0].rawValue, video);
-        return; // procesarCodigoEscaneado deja el candado como corresponda
-      }
-    }catch(err){
-      console.error('Error leyendo un fotograma del QR:', err);
-    }
-    escanerQRLeyendo = false;
-    if(Date.now() - escanerQRInicioMs > 10000){
-      escanerQREstado('Sigue intentando... acerca la cámara y asegúrate de que la etiqueta esté bien iluminada, o usa la búsqueda manual de abajo.');
-    }
-  }, 350);
+function alternarCamaraEscanerQR(){
+  escanerQRCamaraTrasera = !escanerQRCamaraTrasera;
+  iniciarCamaraEscanerQR();
 }
 
-// Pausa solo la LECTURA (para procesar un resultado) sin apagar la cámara —
-// así se puede reanudar al instante si el código no era válido, sin tener
-// que volver a pedir permiso de cámara ni sufrir el parpadeo de reabrirla.
-function pausarLecturaQR(){
-  if(escanerQRIntervalo){ clearInterval(escanerQRIntervalo); escanerQRIntervalo = null; }
-  escanerQRLeyendo = false;
+function bucleEscanerQR(){
+  const video = document.getElementById('escanerQRVideo');
+  const canvas = document.getElementById('escanerQRCanvasOculto');
+  if(!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA){
+    escanerQRAnimId = requestAnimationFrame(bucleEscanerQR);
+    return;
+  }
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const imagen = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const resultado = jsQR(imagen.data, imagen.width, imagen.height, { inversionAttempts: 'dontInvert' });
+  if(resultado && resultado.data){
+    procesarCodigoQREscaneado(resultado.data);
+    return; // detenemos el bucle; procesarCodigoQREscaneado decide qué sigue
+  }
+  escanerQRAnimId = requestAnimationFrame(bucleEscanerQR);
 }
-function detenerCamaraQR(){
-  pausarLecturaQR();
-  if(escanerQRStream){ escanerQRStream.getTracks().forEach(t=>t.stop()); escanerQRStream = null; }
+
+function detenerCamaraEscanerQR(){
+  if(escanerQRAnimId){ cancelAnimationFrame(escanerQRAnimId); escanerQRAnimId = null; }
+  if(escanerQRStream){
+    escanerQRStream.getTracks().forEach(t=>t.stop());
+    escanerQRStream = null;
+  }
 }
+
 function cerrarEscanerQR(){
-  detenerCamaraQR();
+  detenerCamaraEscanerQR();
   cerrarModal('modalEscanerQR');
 }
 
-function procesarCodigoEscaneado(texto, video){
-  pausarLecturaQR();
-  const { equipoId, itemId } = interpretarCodigoQR(texto);
-  if(equipoId){
-    mostrarResultadoEscaneoQR(equipoId);
-  } else if(itemId){
-    detenerCamaraQR();
-    cerrarModal('modalEscanerQR');
-    mostrarSeccion('inventario');
-    setTimeout(()=>{ verFichaQR(itemId); }, 80);
-  } else {
-    // Código leído, pero no es de Prevenglobal — se avisa claro DENTRO de
-    // la ventana (no solo un toast que se pueda pasar por alto), y se
-    // reanuda la lectura sobre la MISMA cámara (que nunca se apagó).
-    escanerQREstado('Ese código no corresponde a un equipo registrado — intenta con otra etiqueta, o usa la búsqueda manual de abajo.');
-    escanerQRInicioMs = Date.now();
-    if(video) iniciarLecturaQR(video);
-  }
-}
-// Interpreta el texto leído del QR (o escrito a mano): puede ser la URL
-// completa que genera la etiqueta, o solo el número del equipo.
-function interpretarCodigoQR(texto){
-  texto = (texto||'').trim();
-  let equipoId = null, itemId = null;
+function extraerIdEquipoDesdeCodigo(texto){
+  // 1) Si el código es una URL con ?equipo=<id> (nuestro propio formato), se usa directo.
   try{
     const url = new URL(texto);
-    const eq = url.searchParams.get('equipo');
-    const it = url.searchParams.get('item');
-    if(eq) equipoId = parseInt(eq);
-    if(it) itemId = parseInt(it);
-  }catch(err){
-    const m = texto.match(/equipo=(\d+)/);
-    if(m) equipoId = parseInt(m[1]);
-    else if(/^\d+$/.test(texto)) equipoId = parseInt(texto); // solo escribieron el número
-  }
-  return { equipoId, itemId };
-}
+    const idParam = url.searchParams.get('equipo');
+    if(idParam) return parseInt(idParam) || null;
+  }catch(e){ /* no era una URL válida, seguimos con los otros métodos */ }
 
-// Búsqueda en vivo: mientras se escribe, se muestran de inmediato los
-// equipos que coincidan (por código, nombre, marca, modelo o serie) — no
-// hace falta escribir el código completo. Reutiliza el mismo patrón visual
-// de autocompletado que ya se usa al elegir el Cliente en Nueva Orden.
-function filtrarEquiposManualQR(){
-  const texto = document.getElementById('escanerQRManualCodigo').value.trim();
-  const cont = document.getElementById('escanerQRManualResultados');
-  const { equipoId } = interpretarCodigoQR(texto);
-  let resultados = [];
-  if(equipoId){
-    const info = ubicarEquipoPorId(equipoId);
-    if(info) resultados.push({ equipo: info.equipo, cliente: info.cliente, sede: info.sede });
-  }
-  if(resultados.length === 0 && texto.length >= 2){
-    const textoLower = texto.toLowerCase();
-    db.clientes.forEach(c=>{
-      const todos = [];
-      c.sedes.forEach(s=>s.equipos.forEach(e=>todos.push({e, sede:s})));
-      equiposSinSedeDe(c).forEach(e=>todos.push({e, sede:null}));
-      todos.forEach(({e, sede})=>{
-        if(`${e.nombre||''} ${e.marca||''} ${e.modelo||''} ${e.serie||''} ${e.qrId||''}`.toLowerCase().includes(textoLower)){
-          resultados.push({ equipo:e, cliente:c, sede });
-        }
-      });
+  // 2) Si el texto es puramente numérico, se asume que es el id del equipo.
+  if(/^\d+$/.test(texto.trim())) return parseInt(texto.trim());
+
+  // 3) Si no, se busca por coincidencia exacta con el código de serie /
+  //    identificador del equipo (para etiquetas antiguas que no llevan URL).
+  const codigo = texto.trim().toLowerCase();
+  if(!codigo) return null; // evita que un texto vacío empate con equipos sin serie/qrId asignado
+  let encontrado = null;
+  db.clientes.forEach(c=>{
+    c.sedes.forEach(s=>s.equipos.forEach(e=>{
+      if(!encontrado && ((e.serie||'').toLowerCase()===codigo || (e.qrId||'').toLowerCase()===codigo)) encontrado = e.id;
+    }));
+    equiposSinSedeDe(c).forEach(e=>{
+      if(!encontrado && ((e.serie||'').toLowerCase()===codigo || (e.qrId||'').toLowerCase()===codigo)) encontrado = e.id;
     });
-  }
-  if(!texto){
-    cont.classList.remove('abierto');
-    return;
-  }
-  if(resultados.length === 0){
-    cont.innerHTML = '<div class="autocomplete-item" style="cursor:default;color:#94a3b8;">Sin equipos que coincidan con esa búsqueda</div>';
-  } else {
-    cont.innerHTML = resultados.slice(0,20).map(r=>`
-      <div class="autocomplete-item" onmousedown="mostrarResultadoEscaneoQR(${r.equipo.id})">
-        <span class="autocomplete-item-avatar"><i class="fas fa-snowflake"></i></span>
-        <span style="flex:1;min-width:0;">
-          ${resaltarCoincidencia(r.equipo.nombre, texto)}
-          <small>${r.cliente.nombre} · ${r.sede?r.sede.nombre:'Sin sede'}${r.equipo.serie?' · Serie: '+resaltarCoincidencia(r.equipo.serie, texto):''}</small>
-        </span>
-      </div>`).join('');
-  }
-  cont.classList.add('abierto');
+  });
+  return encontrado;
 }
 
-function mostrarResultadoEscaneoQR(equipoId){
-  detenerCamaraQR();
-  escanerQREstado('');
-  const info = ubicarEquipoPorId(equipoId);
-  document.getElementById('escanerQRVistaCamara').style.display = 'none';
-  const cont = document.getElementById('escanerQRResultado');
-  cont.style.display = 'block';
+function procesarCodigoQREscaneado(textoLeido){
+  const estado = document.getElementById('escanerQREstado');
+  const equipoId = extraerIdEquipoDesdeCodigo(textoLeido);
+  const info = equipoId ? ubicarEquipoPorId(equipoId) : null;
 
   if(!info){
-    cont.innerHTML = `
-      <div class="panel" style="margin:0;background:rgba(220,38,38,.08);border:1px solid #fca5a5;color:var(--text-main);text-align:center;">
-        <i class="fas fa-triangle-exclamation" style="font-size:24px;color:var(--red-alert);"></i>
-        <p style="margin:8px 0 0 0;font-weight:600;">Equipo no encontrado</p>
-        <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0 0;">Ese código no corresponde a ningún equipo registrado en la plataforma.</p>
-      </div>
-      <button class="btn-custom btn-secondary-custom" style="width:100%;margin-top:8px;" onclick="reintentarEscaneoQR()"><i class="fas fa-rotate"></i> Intentar de Nuevo</button>
-    `;
+    if(estado) estado.innerText = 'Ese código no corresponde a ningún equipo registrado. Sigue intentando...';
+    mostrarToast('⚠️ Código QR no reconocido — no corresponde a ningún equipo registrado.', 'error');
+    // seguimos escaneando por si el usuario apunta a otro código
+    escanerQRAnimId = requestAnimationFrame(bucleEscanerQR);
     return;
   }
 
-  // Busca una orden pendiente (programada o en ejecución) para este equipo —
-  // ya sea de un solo equipo, o de una orden con varios equipos donde este
-  // esté incluido — y toma la más próxima en fecha.
-  const ordenesDelEquipo = db.ordenes.filter(o =>
-    (o.equipoId === equipoId || (o.equiposIds||[]).includes(equipoId)) && o.estado !== 'Finalizado'
-  ).sort((a,b) => (a.fechaProgramada||'9999').localeCompare(b.fechaProgramada||'9999'));
-  const proximaOrden = ordenesDelEquipo[0] || null;
-
-  cont.innerHTML = `
-    <div class="panel" style="margin:0;background:#f8fafc;border:1px solid #e2e8f0;color:#1e293b;">
-      <strong>${info.equipo.nombre}</strong><br>
-      <small style="color:var(--text-muted);">${info.cliente.nombre} · ${info.sede?info.sede.nombre:'Sin sede'}</small><br>
-      <small style="color:var(--text-muted);">Código: ${info.equipo.serie||info.equipo.qrId||'—'} · ${info.equipo.marca||''} ${info.equipo.modelo||''}</small>
-    </div>
-    ${proximaOrden ? `
-      <div style="margin-top:12px;padding:10px;background:rgba(37,99,235,.08);border-radius:8px;">
-        <strong style="font-size:13px;"><i class="fas fa-calendar-check"></i> Tiene una orden programada</strong><br>
-        <span style="font-size:12px;">${proximaOrden.numero} — ${proximaOrden.fechaProgramada||'Sin fecha'}${proximaOrden.horaProgramada?' · '+proximaOrden.horaProgramada:''}</span>
-        <button class="btn-custom" style="width:100%;margin-top:8px;" onclick="cerrarModal('modalEscanerQR');verDetalleOrden(${proximaOrden.id})"><i class="fas fa-clipboard-check"></i> Abrir y Llenar esta Orden</button>
-      </div>
-    ` : `
-      <div style="margin-top:12px;padding:10px;background:rgba(0,0,0,.15);border-radius:8px;">
-        <strong style="font-size:13px;">Este equipo no tiene ninguna orden programada.</strong>
-        <button class="btn-custom" style="width:100%;margin-top:8px;" onclick="cerrarModal('modalEscanerQR');abrirModalNuevaOrden(${equipoId})"><i class="fas fa-plus"></i> Crear Nueva Orden para este Equipo</button>
-      </div>
-    `}
-    <button class="btn-custom btn-secondary-custom" style="width:100%;margin-top:8px;" onclick="cerrarModal('modalEscanerQR');irATrazabilidadEquipo(${equipoId})"><i class="fas fa-history"></i> Ver Historial Completo</button>
-  `;
+  cerrarEscanerQR();
+  mostrarToast(`✅ Equipo encontrado: ${info.equipo.nombre}`, 'exito');
+  irATrazabilidadEquipo(info.equipo.id);
 }
-// Vuelve a la vista de cámara tras un "Equipo no encontrado", sin cerrar
-// el modal ni tener que volver a pedir permiso de cámara.
-function reintentarEscaneoQR(){
-  document.getElementById('escanerQRResultado').style.display = 'none';
-  document.getElementById('escanerQRVistaCamara').style.display = 'block';
-  document.getElementById('escanerQRManualCodigo').value = '';
-  abrirEscanerQR();
-}
-
