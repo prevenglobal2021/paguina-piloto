@@ -309,6 +309,21 @@ app.get('/api/superadmin/empresas', requireSuperAdmin, async (req, res) => {
   res.json(r.rows);
 });
 
+// Detalle de una empresa puntual — usado para precargar el formulario de
+// edición (nombre y usuario administrador actuales; nunca la contraseña).
+app.get('/api/superadmin/empresas/:slug', requireSuperAdmin, async (req, res) => {
+  const slug = req.params.slug.toLowerCase();
+  const r = await pool.query('SELECT slug, nombre, activa, estado_app FROM empresas WHERE slug = $1', [slug]);
+  if (!r.rows[0]) return res.status(404).json({ error: 'Empresa no encontrada.' });
+  const fila = r.rows[0];
+  res.json({
+    slug: fila.slug,
+    nombre: fila.nombre,
+    activa: fila.activa,
+    adminUsuario: (fila.estado_app.config || {}).adminUsuario || ''
+  });
+});
+
 app.post('/api/superadmin/empresas', requireSuperAdmin, limiteLogin, async (req, res) => {
   const { slug: slugRaw, nombre, adminUsuario, adminPassword } = req.body || {};
   const slug = (slugRaw || '').trim().toLowerCase();
@@ -321,6 +336,31 @@ app.post('/api/superadmin/empresas', requireSuperAdmin, limiteLogin, async (req,
   const data = estadoSemilla(nombre.trim(), adminUsuario.trim(), adminPasswordHash);
   await crearEmpresa(slug, nombre.trim(), data);
   res.status(201).json({ ok: true, slug, nombre: nombre.trim() });
+});
+
+// Editar una empresa ya creada: nombre, y opcionalmente el usuario/contraseña
+// de SU administrador (para cuando el cliente perdió el acceso y el
+// superadmin necesita restablecerlo). La contraseña solo se cambia si llega
+// un valor nuevo — dejarla en blanco conserva la actual.
+app.patch('/api/superadmin/empresas/:slug', requireSuperAdmin, limiteLogin, async (req, res) => {
+  const slug = req.params.slug.toLowerCase();
+  const { nombre, adminUsuario, adminPassword } = req.body || {};
+  if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'El nombre de la empresa es obligatorio.' });
+  if (!adminUsuario || !adminUsuario.trim()) return res.status(400).json({ error: 'El usuario administrador es obligatorio.' });
+  if (adminPassword && adminPassword.length < 4) return res.status(400).json({ error: 'La nueva contraseña es muy corta.' });
+
+  const data = await leerEstadoEmpresa(slug);
+  if (!data) return res.status(404).json({ error: 'Empresa no encontrada.' });
+
+  data.config.nombre = nombre.trim();
+  data.config.adminUsuario = adminUsuario.trim();
+  if (adminPassword) data.config.adminPasswordHash = hashPassword(adminPassword);
+
+  await pool.query(
+    'UPDATE empresas SET nombre = $1, estado_app = $2, actualizado_en = now() WHERE slug = $3',
+    [nombre.trim(), JSON.stringify(data), slug]
+  );
+  res.json({ ok: true });
 });
 
 app.patch('/api/superadmin/empresas/:slug/activa', requireSuperAdmin, async (req, res) => {
