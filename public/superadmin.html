@@ -151,8 +151,9 @@
     <form id="formNuevaEmpresa">
       <label for="inputNombreEmpresa">Nombre de la empresa</label>
       <input type="text" id="inputNombreEmpresa" required>
-      <label for="inputSlugEmpresa">Código (solo minúsculas, números y guiones)</label>
+      <label for="inputSlugEmpresa">Código (se genera solo — puedes ajustarlo si quieres)</label>
       <input type="text" id="inputSlugEmpresa" pattern="[a-z0-9][a-z0-9-]{1,40}" required placeholder="ej: mi-empresa">
+      <div class="nota-campo">Este código identifica a la empresa por dentro. Se rellena automáticamente a partir del nombre.</div>
       <label for="inputAdminUsuario">Usuario administrador de esa empresa</label>
       <input type="text" id="inputAdminUsuario" required>
       <label for="inputAdminPassword">Contraseña inicial de ese administrador</label>
@@ -362,8 +363,30 @@
   });
 
   // --------- MODAL: NUEVA EMPRESA ---------
+  function generarSlugDesdeNombre(texto) {
+    return (texto || '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita tildes
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/[\s_]+/g, '-')
+      .replace(/-+/g, '-')
+      .slice(0, 40)
+      .replace(/^-+|-+$/g, '');
+  }
+
+  let slugEditadoManualmente = false;
+  document.getElementById('inputSlugEmpresa').addEventListener('input', () => {
+    slugEditadoManualmente = true;
+  });
+  document.getElementById('inputNombreEmpresa').addEventListener('input', (e) => {
+    if (slugEditadoManualmente) return;
+    document.getElementById('inputSlugEmpresa').value = generarSlugDesdeNombre(e.target.value);
+  });
+
   document.getElementById('btnNuevaEmpresa').addEventListener('click', () => {
     document.getElementById('formNuevaEmpresa').reset();
+    slugEditadoManualmente = false;
     ocultarError('errorModal');
     fondoModal.classList.remove('oculto');
   });
