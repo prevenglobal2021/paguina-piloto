@@ -106,17 +106,41 @@ function dbGuardar(){
   guardarEnLocalStorage();
   sincronizarConBackend();
 }
-function dbGuardarInmediato(){
+const MAX_REINTENTOS_GUARDADO = 4;
+function dbGuardarInmediato(intentoNumero){
   // Para acciones explícitas de "Guardar" (el usuario espera que quede guardado YA,
   // sin esperar la demora de 400ms que usa el guardado automático de fondo).
   // Devuelve la promesa real del guardado, para que quien llame pueda esperar
   // la confirmación del servidor antes de avisar que "ya quedó guardado".
+  //
+  // CORRECCIÓN DE FONDO: antes, si el guardado fallaba (mala señal), la
+  // persona tenía que darse cuenta y volver a tocar "Guardar" ella misma —
+  // si no lo hacía, la información se quedaba solo en este dispositivo,
+  // sin subir nunca. Ahora, ante una falla, se reintenta solo, con una
+  // espera cada vez un poco más larga (3s, 6s, 9s, 12s) — el tiempo
+  // típico que toma para que una señal inestable se recupere — antes de
+  // rendirse y mostrar el aviso de error con la opción de reintentar a mano.
   guardarEnLocalStorage();
   if(!empresaActual || !sesionServidor) return Promise.resolve();
+  const intento = intentoNumero || 1;
   clearTimeout(sincronizacionPendiente);
   syncEstado = 'pendiente';
+  syncIntentoActual = intento;
+  syncInicioMs = Date.now();
   actualizarBadgeConexion();
-  return enviarEstadoAlServidor().catch(err=>{ marcarErrorSync(err); throw err; });
+  return enviarEstadoAlServidor().then(()=>{
+    syncIntentoActual = 0;
+  }).catch(err=>{
+    if(intento < MAX_REINTENTOS_GUARDADO){
+      const esperaMs = intento * 3000;
+      mostrarToast(`⚠️ Conexión inestable — tu información sigue aquí en el dispositivo, reintentando en ${Math.round(esperaMs/1000)}s (intento ${intento} de ${MAX_REINTENTOS_GUARDADO})...`, 'error');
+      return new Promise(resolve=>{
+        setTimeout(()=>resolve(dbGuardarInmediato(intento+1)), esperaMs);
+      });
+    }
+    marcarErrorSync(err);
+    throw err;
+  });
 }
 
 /* ---------------------------------------------------------
@@ -141,6 +165,8 @@ function headersAutenticados(extra){
 let sincronizacionPendiente = null;
 let syncEstado = 'ok'; // 'ok' | 'pendiente' | 'error' — refleja si el servidor realmente confirmó el último guardado
 let syncReintentoTimer = null;
+let syncIntentoActual = 0; // 0 = sin reintento en curso; 1-4 = número de intento actual del reintento automático
+let syncInicioMs = 0; // marca de tiempo de cuándo empezó el intento de guardado actual, para mostrar cuánto lleva esperando
 
 // -----------------------------------------------------------------
 // FUSIÓN ADITIVA — evita que un dispositivo con datos desactualizados
@@ -396,6 +422,7 @@ function cerrarSesion(){
   const finalizarLocal = ()=>{
     localStorage.removeItem(SESION_KEY);
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_SUPERADMIN_KEY); // si se salió sin usar "Volver al panel", no debe quedar suelto
     sesionActual = null;
     sesionServidor = null;
     location.reload();
@@ -588,6 +615,117 @@ function crearEmpresaNueva(){
     completarLogin(resultado);
   }).catch(err=>{ errEl.innerText = err.message; errEl.style.display = 'block'; });
 }
+const TOKEN_SUPERADMIN_KEY = 'prevenglobal_token_superadmin_v1';
+
+function abrirPanelSuperadmin(){
+  document.getElementById('panelSuperadmin').style.display = 'block';
+  cargarListaEmpresasSuperadmin();
+}
+function cerrarSesionSuperadmin(){
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(TOKEN_SUPERADMIN_KEY);
+  sesionServidor = null;
+  location.reload();
+}
+async function cargarListaEmpresasSuperadmin(){
+  const cont = document.getElementById('listaEmpresasSuperadmin');
+  cont.innerHTML = '<p style="color:#94a3b8;font-size:13px;">Cargando empresas...</p>';
+  try{
+    const resp = await fetch(API_BASE + '/api/superadmin/empresas', { headers: headersAutenticados() });
+    const lista = await resp.json();
+    if(!resp.ok) throw new Error(lista.error || 'Error al cargar las empresas.');
+    if(!lista.length){ cont.innerHTML = '<p style="color:#94a3b8;font-size:13px;">Todavía no hay ninguna empresa registrada.</p>'; return; }
+    cont.innerHTML = lista.map(e=>{
+      const r = e.resumen || {};
+      return `<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:14px;margin-bottom:8px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <strong style="color:#fff;">${e.nombre}</strong> <span style="color:#64748b;font-size:11px;">(${e.slug})</span><br>
+          <span style="color:#94a3b8;font-size:12px;">${r.clientes||0} clientes · ${r.ordenes||0} órdenes · ${r.inventario||0} ítems · ${r.nomina||0} nóminas</span>
+        </div>
+        <button class="btn-custom" onclick="entrarAAdministrarEmpresa('${e.slug}')"><i class="fas fa-right-to-bracket"></i> Entrar a Administrar</button>
+      </div>`;
+    }).join('');
+  }catch(err){
+    cont.innerHTML = `<p style="color:var(--red-alert);font-size:13px;">${err.message}</p>`;
+  }
+}
+async function crearEmpresaDesdeSuperadmin(){
+  const errorEl = document.getElementById('saNuevaError');
+  errorEl.style.display = 'none';
+  const slug = document.getElementById('saNuevaSlug').value.trim().toLowerCase();
+  const nombre = document.getElementById('saNuevaNombre').value.trim();
+  const adminUsuario = document.getElementById('saNuevaAdminUsuario').value.trim();
+  const adminPassword = document.getElementById('saNuevaAdminPassword').value;
+  if(!slug || !nombre || !adminUsuario || !adminPassword){
+    errorEl.innerText = 'Completa todos los campos.'; errorEl.style.display='block'; return;
+  }
+  try{
+    const resp = await fetch(API_BASE + '/api/superadmin/empresas', {
+      method:'POST', headers: headersAutenticados({ 'Content-Type':'application/json' }),
+      body: JSON.stringify({ slug, nombre, adminUsuario, adminPassword })
+    });
+    const data = await resp.json();
+    if(!resp.ok) throw new Error(data.error || 'No se pudo crear la empresa.');
+    mostrarToast(`✅ Empresa "${nombre}" creada correctamente.`, 'exito');
+    ['saNuevaSlug','saNuevaNombre','saNuevaAdminUsuario','saNuevaAdminPassword'].forEach(id=>document.getElementById(id).value='');
+    cargarListaEmpresasSuperadmin();
+  }catch(err){
+    errorEl.innerText = err.message; errorEl.style.display = 'block';
+  }
+}
+async function entrarAAdministrarEmpresa(slug){
+  try{
+    const resp = await fetch(API_BASE + `/api/superadmin/entrar/${slug}`, { method:'POST', headers: headersAutenticados() });
+    const data = await resp.json();
+    if(!resp.ok) throw new Error(data.error || 'No se pudo entrar a esa empresa.');
+    // Se guarda el token de súper-admin aparte, para poder "volver al panel"
+    // sin tener que volver a ingresar usuario y contraseña.
+    localStorage.setItem(TOKEN_SUPERADMIN_KEY, JSON.stringify(sesionServidor));
+    document.getElementById('panelSuperadmin').style.display = 'none';
+    completarLogin(data);
+  }catch(err){
+    mostrarToast('⚠️ ' + err.message, 'error');
+  }
+}
+function volverAlPanelSuperadmin(){
+  const guardado = localStorage.getItem(TOKEN_SUPERADMIN_KEY);
+  if(!guardado){ mostrarToast('No se encontró la sesión de súper-administrador — inicia sesión de nuevo.', 'error'); cerrarSesionSuperadmin(); return; }
+  localStorage.setItem(TOKEN_KEY, guardado);
+  location.reload();
+}
+function mostrarPasoSuperadmin(){
+  document.getElementById('loginPasoCredenciales').style.display = 'none';
+  document.getElementById('loginPasoSuperadmin').style.display = 'block';
+  document.getElementById('loginSuperadminUsuario').value = '';
+  document.getElementById('loginSuperadminPassword').value = '';
+  document.getElementById('loginSuperadminError').style.display = 'none';
+}
+function volverACredencialesDesdeSuperadmin(){
+  document.getElementById('loginPasoSuperadmin').style.display = 'none';
+  document.getElementById('loginPasoCredenciales').style.display = 'block';
+}
+function iniciarSesionSuperadmin(){
+  const errorEl = document.getElementById('loginSuperadminError');
+  errorEl.style.display = 'none';
+  const usuario = document.getElementById('loginSuperadminUsuario').value.trim();
+  const password = document.getElementById('loginSuperadminPassword').value;
+  fetch(API_BASE + '/api/auth/login-superadmin', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usuario, password })
+  }).then(async r=>{
+    const data = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(data.error || 'Usuario o contraseña incorrectos.');
+    return data;
+  }).then(resultado=>{
+    sesionServidor = { token: resultado.token, rol: 'superadmin' };
+    localStorage.setItem(TOKEN_KEY, JSON.stringify(sesionServidor));
+    document.getElementById('loginOverlay').style.display = 'none';
+    abrirPanelSuperadmin();
+  }).catch(err=>{
+    errorEl.innerText = err.message==='Failed to fetch' ? 'No se pudo conectar con el servidor.' : err.message;
+    errorEl.style.display = 'block';
+  });
+}
 function iniciarSesionComo(rol){
   const errorEl = document.getElementById('loginError');
   errorEl.style.display = 'none';
@@ -671,6 +809,13 @@ function aplicarRBACaUI(){
   // "App de campo" móvil: solo personal técnico (no admin) ve la barra
   // inferior en vez del menú lateral tradicional — ver CSS @media(max-width:768px).
   document.body.classList.toggle('es-tecnico', !!sesionActual && !esAdmin());
+  const bannerSA = document.getElementById('bannerSuperadminActivo');
+  if(bannerSA){
+    const haySesionSuperadminGuardada = !!localStorage.getItem(TOKEN_SUPERADMIN_KEY);
+    bannerSA.style.display = haySesionSuperadminGuardada ? 'flex' : 'none';
+    if(haySesionSuperadminGuardada) bannerSA.querySelector('span').innerText = `👑 Viendo como súper-administrador: ${db.config.nombre || empresaActual}`;
+  }
+  if(typeof actualizarBadgeNotificaciones === 'function') actualizarBadgeNotificaciones();
 }
 
 let ordenReprogramarId = null;

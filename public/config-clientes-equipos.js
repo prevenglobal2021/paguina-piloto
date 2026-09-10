@@ -20,6 +20,7 @@ function cambiarTabConfig(tab, evt){
     document.getElementById('cfgEmpresaMision').value = db.config.mision||'';
     document.getElementById('cfgEmpresaVision').value = db.config.vision||'';
     document.getElementById('cfgAdminUsuario').value = db.config.adminUsuario||'';
+    verificarEstadoCorreo();
     document.getElementById('cfgLoginRequerido').checked = db.config.loginRequerido !== false;
     document.getElementById('cfgNombreRepresentante').value = db.config.nombreRepresentante||'';
     firmaTempBase64 = db.config.firmaRepresentante;
@@ -72,6 +73,25 @@ function renderizarAuditoria(){
   `).join('') || '<tr><td colspan="5" class="empty-state">Sin actividad registrada todavía.</td></tr>';
 }
 
+async function verificarEstadoCorreo(){
+  const el = document.getElementById('avisoEstadoCorreo');
+  if(!el) return;
+  el.innerText = 'Verificando configuración de correo...';
+  el.style.color = 'var(--text-muted)';
+  try{
+    const resp = await fetch(API_BASE + '/api/auth/estado-correo', { headers: headersAutenticados() });
+    const data = await resp.json();
+    if(data.configurado){
+      el.innerHTML = '🟢 Correo configurado — la recuperación de contraseña por correo está lista para usarse.';
+      el.style.color = 'var(--green-success)';
+    } else {
+      el.innerHTML = '🟠 El correo NO está configurado en el servidor (faltan las variables GMAIL_USER / GMAIL_APP_PASSWORD en Railway) — "¿Olvidó su contraseña?" no podrá enviar ningún correo hasta que se configuren.';
+      el.style.color = 'var(--orange-warning)';
+    }
+  }catch(err){
+    el.innerText = '';
+  }
+}
 async function cargarListaRespaldosServidor(){
   const cont = document.getElementById('listaRespaldosServidor');
   cont.innerHTML = '<p style="color:var(--text-muted);font-size:12px;">Cargando respaldos...</p>';

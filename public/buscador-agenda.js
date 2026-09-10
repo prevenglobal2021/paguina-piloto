@@ -19,6 +19,64 @@ document.addEventListener('keydown', e=>{
 function normalizarTexto(str){
   return (str||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 }
+/* =========================================================
+   CENTRO DE NOTIFICACIONES — revisa órdenes vencidas/próximas y
+   facturas pendientes desde hace tiempo, y las muestra en un panel
+   desplegable accesible desde la campana de la barra superior.
+========================================================= */
+function generarNotificaciones(){
+  const notifs = [];
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const hoyStr = hoy.toISOString().slice(0,10);
+  const limiteProximas = new Date(hoy.getTime() + 2*24*60*60*1000).toISOString().slice(0,10);
+
+  (db.ordenes||[]).forEach(o=>{
+    if(o.estado==='Finalizado' || !o.fechaProgramada) return;
+    if(o.fechaProgramada < hoyStr){
+      notifs.push({ prioridad:0, icono:'fa-triangle-exclamation', color:'var(--red-alert)', texto:`Orden ${o.numero} está vencida — estaba programada para ${o.fechaProgramada}`, accion:`cerrarPanelNotificaciones();verDetalleOrden(${o.id})` });
+    } else if(o.fechaProgramada <= limiteProximas){
+      const cuando = o.fechaProgramada===hoyStr ? 'hoy' : `el ${o.fechaProgramada}`;
+      notifs.push({ prioridad:1, icono:'fa-clock', color:'var(--orange-warning)', texto:`Orden ${o.numero} programada para ${cuando}`, accion:`cerrarPanelNotificaciones();verDetalleOrden(${o.id})` });
+    }
+  });
+
+  const hace30Dias = new Date(hoy.getTime() - 30*24*60*60*1000).toISOString().slice(0,10);
+  (db.facturas||[]).forEach(f=>{
+    if(f.estadoPago==='pagado' || f.estadoPago==='cancelada') return;
+    if(f.fecha && f.fecha < hace30Dias){
+      notifs.push({ prioridad:1, icono:'fa-file-invoice-dollar', color:'var(--orange-warning)', texto:`Factura ${f.numero} sigue pendiente de pago hace más de 30 días`, accion:`cerrarPanelNotificaciones();abrirModalFactura(${f.id})` });
+    }
+  });
+
+  return notifs.sort((a,b)=>a.prioridad-b.prioridad);
+}
+function actualizarBadgeNotificaciones(){
+  const notifs = generarNotificaciones();
+  const punto = document.getElementById('puntoNotificaciones');
+  if(punto) punto.style.display = notifs.length ? 'block' : 'none';
+}
+function toggleCentroNotificaciones(){
+  const panel = document.getElementById('panelNotificaciones');
+  if(!panel) return;
+  if(panel.classList.contains('abierto')){ panel.classList.remove('abierto'); return; }
+  const notifs = generarNotificaciones();
+  panel.innerHTML = notifs.length
+    ? notifs.map(n=>`<div class="autocomplete-item" onclick="${n.accion}"><i class="fas ${n.icono}" style="color:${n.color};width:20px;text-align:center;"></i><span style="flex:1;">${n.texto}</span></div>`).join('')
+    : '<div class="autocomplete-item" style="cursor:default;color:#94a3b8;">Sin avisos pendientes — todo al día.</div>';
+  panel.classList.add('abierto');
+}
+function cerrarPanelNotificaciones(){
+  const panel = document.getElementById('panelNotificaciones');
+  if(panel) panel.classList.remove('abierto');
+}
+document.addEventListener('click', (e)=>{
+  const panel = document.getElementById('panelNotificaciones');
+  const btn = document.getElementById('btnNotificaciones');
+  if(panel && panel.classList.contains('abierto') && !panel.contains(e.target) && e.target!==btn && !btn.contains(e.target)){
+    panel.classList.remove('abierto');
+  }
+});
+
 function abrirBuscadorGlobal(){
   const overlay = document.getElementById('overlayBuscadorGlobal');
   overlay.style.display = 'flex';

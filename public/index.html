@@ -826,6 +826,8 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <li class="solo-admin" data-permiso="config_auditoria"><a onclick="abrirModalConfig('auditoria')"><i class="fas fa-history m-r-10"></i><span>Auditoría</span></a></li>
       <div class="sidebar-section-title">Reportes</div>
       <li class="solo-admin" data-permiso="reportes_exportar"><a onclick="exportarExcel()"><i class="fas fa-file-excel m-r-10"></i><span>Exportar Reporte Excel</span></a></li>
+      <div class="sidebar-section-title"></div>
+      <li><a onclick="cerrarSesion()" style="color:var(--red-alert);"><i class="fas fa-power-off m-r-10"></i><span>Cerrar Sesión</span></a></li>
     </ul>
   </aside>
   <div id="sidebarBackdrop" onclick="cerrarMenuMovil()"></div>
@@ -840,6 +842,10 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </nav>
 
   <div class="page-wrapper">
+    <div id="bannerSuperadminActivo" style="display:none;background:#7c3aed;color:#fff;padding:6px 15px;font-size:12px;font-weight:600;align-items:center;justify-content:space-between;">
+      <span></span>
+      <a href="javascript:void(0)" onclick="volverAlPanelSuperadmin()" style="color:#fff;text-decoration:underline;">← Volver al panel de súper-administrador</a>
+    </div>
     <header class="topbar">
       <div style="display:flex;align-items:center;gap:12px;">
         <button id="btnMenuMovil" class="btn-custom btn-secondary-custom" style="display:none;padding:8px 12px;" onclick="toggleMenuMovil()"><i class="fas fa-bars"></i></button>
@@ -852,10 +858,11 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <button class="btn-custom btn-secondary-custom" onclick="abrirBuscadorGlobal()" style="display:flex;align-items:center;gap:8px;color:var(--text-muted);"><i class="fas fa-search"></i> <span style="font-size:12px;">Buscar en Prevenglobal...</span> <kbd style="background:rgba(255,255,255,.08);padding:1px 6px;border-radius:4px;font-size:10px;">Ctrl+K</kbd></button>
         <span id="badgeConexion" style="font-size:11px;font-weight:700;"></span>
+        <div style="position:relative;">
+          <button id="btnNotificaciones" class="btn-custom btn-secondary-custom" style="position:relative;padding:8px 12px;" onclick="toggleCentroNotificaciones()" title="Notificaciones"><i class="fas fa-bell"></i><span id="puntoNotificaciones" style="display:none;position:absolute;top:4px;right:4px;width:9px;height:9px;background:var(--red-alert);border-radius:50%;border:1.5px solid var(--card-bg);"></span></button>
+          <div id="panelNotificaciones" class="autocomplete-resultados" style="right:0;left:auto;width:340px;top:calc(100% + 6px);"></div>
+        </div>
         <span style="font-size:11px;color:var(--text-muted);">👤 <span id="lblUsuarioActual">—</span></span>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="cerrarSesion()">Cambiar usuario</button>
-        <button class="btn-terminar-sesion" onclick="cerrarSesion()" title="Terminar sesión"><i class="fas fa-power-off"></i><span class="btn-terminar-sesion-texto">Terminar sesión</span></button>
-        <button class="btn-custom btn-secondary-custom solo-admin" data-permiso="config_apariencia" onclick="abrirModalConfig('apariencia')"><i class="fas fa-palette"></i></button>
         <button class="btn-custom solo-admin" data-permiso="ordenes_crear" onclick="abrirModalNuevaOrden()">+ Nueva Orden</button>
       </div>
     </header>
@@ -1535,10 +1542,55 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <p id="loginCambiarEmpresaWrap" style="font-size:10px;color:#cbd5e1;margin-top:6px;text-align:center;display:none;">
         <a href="javascript:void(0)" onclick="mostrarPasoEmpresa()" style="color:#94a3b8;">Cambiar de empresa</a>
       </p>
+      <p style="font-size:10px;color:#cbd5e1;margin-top:14px;text-align:center;">
+        <a href="javascript:void(0)" onclick="mostrarPasoSuperadmin()" style="color:#cbd5e1;">Acceso de súper-administrador</a>
+      </p>
+    </div>
+
+    <!-- PASO 3: Acceso de súper-administrador (multiempresa) -->
+    <div id="loginPasoSuperadmin" style="display:none;">
+      <p style="font-size:22px;font-weight:700;color:#1e293b;margin:8px 0 2px;">👑 Súper-Administrador</p>
+      <p style="font-size:13px;color:#64748b;margin:0 0 18px;">Panel de administración de todas las empresas.</p>
+      <label style="text-align:left;display:block;">Usuario:</label>
+      <input type="text" id="loginSuperadminUsuario" placeholder="Usuario de súper-administrador">
+      <label style="text-align:left;display:block;">Contraseña:</label>
+      <input type="password" id="loginSuperadminPassword" placeholder="Contraseña" onkeydown="if(event.key==='Enter')iniciarSesionSuperadmin()">
+      <button class="btn-custom" style="margin-top:10px;width:100%;" onclick="iniciarSesionSuperadmin()">ENTRAR AL PANEL</button>
+      <div id="loginSuperadminError" style="color:var(--red-alert);font-size:11px;margin-top:6px;display:none;"></div>
+      <p style="font-size:11px;color:#94a3b8;margin-top:16px;text-align:center;">
+        <a href="javascript:void(0)" onclick="volverACredencialesDesdeSuperadmin()" style="color:#64748b;">← Volver al acceso normal</a>
+      </p>
     </div>
   </div>
   </div>
 </div>
+</div>
+
+<div id="panelSuperadmin" style="display:none;position:fixed;inset:0;background:var(--main-bg,#0f172a);z-index:4000;overflow-y:auto;">
+  <div style="max-width:900px;margin:0 auto;padding:30px 20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+      <div>
+        <h2 style="margin:0;color:#fff;">👑 Panel de Súper-Administrador</h2>
+        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px;">Todas las empresas administradas desde Prevenglobal.</p>
+      </div>
+      <button class="btn-custom btn-danger-custom" onclick="cerrarSesionSuperadmin()"><i class="fas fa-power-off"></i> Salir</button>
+    </div>
+
+    <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:18px;margin-bottom:20px;">
+      <h4 style="margin-top:0;color:#fff;font-size:14px;">➕ Crear Nueva Empresa</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><label style="color:#94a3b8;">Código único (sin espacios):</label><input type="text" id="saNuevaSlug" placeholder="ej. climacorp"></div>
+        <div><label style="color:#94a3b8;">Nombre de la empresa:</label><input type="text" id="saNuevaNombre" placeholder="Ej. ClimaCorp S.A.S."></div>
+        <div><label style="color:#94a3b8;">Correo del administrador:</label><input type="email" id="saNuevaAdminUsuario" placeholder="admin@empresa.com"></div>
+        <div><label style="color:#94a3b8;">Contraseña inicial:</label><input type="password" id="saNuevaAdminPassword" placeholder="Mínimo 4 caracteres"></div>
+      </div>
+      <div id="saNuevaError" style="color:var(--red-alert);font-size:12px;margin-top:8px;display:none;"></div>
+      <button class="btn-custom" style="margin-top:12px;" onclick="conIndicadorCarga(this, crearEmpresaDesdeSuperadmin)"><i class="fas fa-plus"></i> Crear Empresa</button>
+    </div>
+
+    <h4 style="color:#fff;font-size:14px;">🏢 Empresas Existentes</h4>
+    <div id="listaEmpresasSuperadmin"><p style="color:#94a3b8;font-size:13px;">Cargando empresas...</p></div>
+  </div>
 </div>
 
 <!-- MODAL: FICHA QR / CONSULTA DE ITEM -->
@@ -2468,6 +2520,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <label>Nueva contraseña:</label>
         <input type="password" id="cfgAdminPasswordNueva" placeholder="Dejar en blanco para no cambiarla">
         <button class="btn-custom" style="margin-top:12px;" onclick="guardarPasswordAdmin()">Actualizar Acceso de Administrador</button>
+        <p id="avisoEstadoCorreo" style="font-size:11px;margin:10px 0 0 0;"></p>
       </div>
       <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
         <h4 style="margin-top:0;font-size:13px;">🚪 Pantalla de Acceso (Login)</h4>
@@ -2763,21 +2816,21 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=103"></script>
-<script src="capacitor-bridge.js?v=103"></script>
-<script src="utilidades-navegacion.js?v=103"></script>
-<script src="buscador-agenda.js?v=103"></script>
-<script src="ordenes.js?v=103"></script>
-<script src="equipos-trazabilidad.js?v=103"></script>
-<script src="pdf.js?v=103"></script>
-<script src="config-clientes-equipos.js?v=103"></script>
-<script src="config-plantillas-tecnicos.js?v=103"></script>
-<script src="cotizador.js?v=103"></script>
-<script src="asistencia.js?v=103"></script>
-<script src="config-general.js?v=103"></script>
-<script src="inventario.js?v=103"></script>
-<script src="tienda-admin.js?v=103"></script>
-<script src="tienda-publica.js?v=103"></script>
-<script src="kpi.js?v=103"></script>
+<script src="core.js?v=105"></script>
+<script src="capacitor-bridge.js?v=105"></script>
+<script src="utilidades-navegacion.js?v=105"></script>
+<script src="buscador-agenda.js?v=105"></script>
+<script src="ordenes.js?v=105"></script>
+<script src="equipos-trazabilidad.js?v=105"></script>
+<script src="pdf.js?v=105"></script>
+<script src="config-clientes-equipos.js?v=105"></script>
+<script src="config-plantillas-tecnicos.js?v=105"></script>
+<script src="cotizador.js?v=105"></script>
+<script src="asistencia.js?v=105"></script>
+<script src="config-general.js?v=105"></script>
+<script src="inventario.js?v=105"></script>
+<script src="tienda-admin.js?v=105"></script>
+<script src="tienda-publica.js?v=105"></script>
+<script src="kpi.js?v=105"></script>
 </body>
 </html>
