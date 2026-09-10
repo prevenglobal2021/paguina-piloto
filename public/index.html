@@ -125,7 +125,7 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .preview-login-mini-input{width:85%;height:9px;background:#fff;border:1px solid #cbd5e1;border-radius:3px;margin-top:5px;}
 .preview-login-mini-boton{width:85%;height:14px;border-radius:12px;background:linear-gradient(120deg, var(--preview-login-color-1,#2563eb), var(--preview-login-color-2,#1e3a8a));margin-top:8px;color:#fff;font-size:6px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:.5px;}
 .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,.55);display:none;justify-content:center;align-items:center;z-index:1000;padding:15px;}
-.modal-box{background:color-mix(in srgb, var(--card-bg) 88%, transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--card-border);width:100%;max-width:980px;max-height:90vh;overflow-y:auto;border-radius:12px;padding:20px;position:relative;color:var(--text-main);box-shadow:0 20px 60px rgba(0,0,0,.4);animation:apareceModal .2s ease;transition:max-width .18s ease, width .18s ease, max-height .18s ease;}
+.modal-box{background:color-mix(in srgb, var(--card-bg) 88%, transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--card-border);width:100%;max-width:980px;max-height:90vh;overflow-y:auto;border-radius:12px;padding:25px;position:relative;color:var(--text-main);box-shadow:0 20px 60px rgba(0,0,0,.4);animation:apareceModal .2s ease;transition:max-width .18s ease, width .18s ease, max-height .18s ease;}
 .btn-modal-control{background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:13px;transition:background .12s ease;}
 .btn-modal-control:hover{background:#e2e8f0;}
 .modal-box.ampliado{max-width:96vw!important;width:96vw;max-height:96vh!important;height:96vh;}
@@ -137,10 +137,6 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
    factura todavía visible (atenuada) detrás. */
 #modalItemComercial{background:rgba(15,23,42,.25);z-index:1100;}
 @keyframes apareceModal{from{opacity:0;transform:translateY(8px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
-@keyframes desapareceModal{from{opacity:1;transform:translateY(0) scale(1);}to{opacity:0;transform:translateY(8px) scale(.98);}}
-.modal-box.cerrando{animation:desapareceModal .16s ease forwards;}
-.modal-overlay.cerrando{animation:desapareceOverlay .16s ease forwards;}
-@keyframes desapareceOverlay{from{opacity:1;}to{opacity:0;}}
 
 /* TOASTS (notificaciones modernas, reemplazan las ventanas mostrarToast() del navegador) */
 #toastContainer{position:fixed;top:16px;right:16px;z-index:5000;display:flex;flex-direction:column;gap:10px;max-width:340px;}
@@ -826,8 +822,6 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <li class="solo-admin" data-permiso="config_auditoria"><a onclick="abrirModalConfig('auditoria')"><i class="fas fa-history m-r-10"></i><span>Auditoría</span></a></li>
       <div class="sidebar-section-title">Reportes</div>
       <li class="solo-admin" data-permiso="reportes_exportar"><a onclick="exportarExcel()"><i class="fas fa-file-excel m-r-10"></i><span>Exportar Reporte Excel</span></a></li>
-      <div class="sidebar-section-title"></div>
-      <li><a onclick="cerrarSesion()" style="color:var(--red-alert);"><i class="fas fa-power-off m-r-10"></i><span>Cerrar Sesión</span></a></li>
     </ul>
   </aside>
   <div id="sidebarBackdrop" onclick="cerrarMenuMovil()"></div>
@@ -842,10 +836,6 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </nav>
 
   <div class="page-wrapper">
-    <div id="bannerSuperadminActivo" style="display:none;background:#7c3aed;color:#fff;padding:6px 15px;font-size:12px;font-weight:600;align-items:center;justify-content:space-between;">
-      <span></span>
-      <a href="javascript:void(0)" onclick="volverAlPanelSuperadmin()" style="color:#fff;text-decoration:underline;">← Volver al panel de súper-administrador</a>
-    </div>
     <header class="topbar">
       <div style="display:flex;align-items:center;gap:12px;">
         <button id="btnMenuMovil" class="btn-custom btn-secondary-custom" style="display:none;padding:8px 12px;" onclick="toggleMenuMovil()"><i class="fas fa-bars"></i></button>
@@ -858,11 +848,10 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <button class="btn-custom btn-secondary-custom" onclick="abrirBuscadorGlobal()" style="display:flex;align-items:center;gap:8px;color:var(--text-muted);"><i class="fas fa-search"></i> <span style="font-size:12px;">Buscar en Prevenglobal...</span> <kbd style="background:rgba(255,255,255,.08);padding:1px 6px;border-radius:4px;font-size:10px;">Ctrl+K</kbd></button>
         <span id="badgeConexion" style="font-size:11px;font-weight:700;"></span>
-        <div style="position:relative;">
-          <button id="btnNotificaciones" class="btn-custom btn-secondary-custom" style="position:relative;padding:8px 12px;" onclick="toggleCentroNotificaciones()" title="Notificaciones"><i class="fas fa-bell"></i><span id="puntoNotificaciones" style="display:none;position:absolute;top:4px;right:4px;width:9px;height:9px;background:var(--red-alert);border-radius:50%;border:1.5px solid var(--card-bg);"></span></button>
-          <div id="panelNotificaciones" class="autocomplete-resultados" style="right:0;left:auto;width:340px;top:calc(100% + 6px);"></div>
-        </div>
         <span style="font-size:11px;color:var(--text-muted);">👤 <span id="lblUsuarioActual">—</span></span>
+        <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="cerrarSesion()">Cambiar usuario</button>
+        <button class="btn-terminar-sesion" onclick="cerrarSesion()" title="Terminar sesión"><i class="fas fa-power-off"></i><span class="btn-terminar-sesion-texto">Terminar sesión</span></button>
+        <button class="btn-custom btn-secondary-custom solo-admin" data-permiso="config_apariencia" onclick="abrirModalConfig('apariencia')"><i class="fas fa-palette"></i></button>
         <button class="btn-custom solo-admin" data-permiso="ordenes_crear" onclick="abrirModalNuevaOrden()">+ Nueva Orden</button>
       </div>
     </header>
@@ -904,7 +893,6 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <span>❄️ Equipos registrados</span>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <input type="text" placeholder="Buscar equipo, cliente, código o serie..." style="max-width:280px;margin:0;" oninput="renderizarEquiposGlobal(this.value)">
-          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirEscanerQR()"><i class="fas fa-qrcode"></i> Escanear QR</button>
           <button class="btn-custom btn-sm-custom solo-admin" data-permiso="equipos_gestionar" onclick="abrirModalEquipo()">+ Registrar Equipo</button>
         </div>
       </div>
@@ -1036,78 +1024,6 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <button class="btn-custom btn-danger-custom" style="width:100%;margin-top:15px;" onclick="cerrarSesionDesdeConfigApp()"><i class="fas fa-right-from-bracket"></i> Cerrar sesión</button>
       </div>
     </div>
-
-    <!-- MODAL: EDITAR GASTO -->
-    <div class="modal-overlay" id="modalEditarGasto">
-      <div class="modal-box" style="max-width:420px;">
-        <button class="close-modal" onclick="cerrarModal('modalEditarGasto')">✖</button>
-        <h3>✏️ Editar Gasto</h3>
-        <input type="hidden" id="editGastoId">
-        <label>Categoría:</label>
-        <select id="editGastoCategoria">
-          <option>Arriendo</option><option>Servicios públicos</option><option>Insumos y repuestos</option>
-          <option>Transporte</option><option>Mantenimiento de herramientas</option><option>Impuestos</option><option>Otro</option>
-        </select>
-        <label>Descripción:</label>
-        <input type="text" id="editGastoDescripcion">
-        <label>Monto (COP):</label>
-        <input type="number" id="editGastoMonto">
-        <label>Fecha:</label>
-        <input type="date" id="editGastoFecha">
-        <button class="btn-custom" style="width:100%;margin-top:15px;" onclick="conIndicadorCarga(this, guardarEdicionGasto)"><i class="fas fa-floppy-disk"></i> Guardar cambios</button>
-      </div>
-    </div>
-
-    <!-- MODAL: EDITAR INGRESO -->
-    <div class="modal-overlay" id="modalEditarIngreso">
-      <div class="modal-box" style="max-width:420px;">
-        <button class="close-modal" onclick="cerrarModal('modalEditarIngreso')">✖</button>
-        <h3>✏️ Editar Ingreso</h3>
-        <input type="hidden" id="editIngresoId">
-        <label>Concepto:</label>
-        <input type="text" id="editIngresoConcepto">
-        <label>Monto (COP):</label>
-        <input type="number" id="editIngresoMonto">
-        <label>Fecha:</label>
-        <input type="date" id="editIngresoFecha">
-        <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0 0;">El cliente asociado no se puede cambiar aquí — si es necesario, elimina este ingreso y regístralo de nuevo con el cliente correcto.</p>
-        <button class="btn-custom" style="width:100%;margin-top:15px;" onclick="conIndicadorCarga(this, guardarEdicionIngreso)"><i class="fas fa-floppy-disk"></i> Guardar cambios</button>
-      </div>
-    </div>
-
-    <!-- MODAL: EDITAR ÍTEM DE SECCIÓN DE TIENDA (Equipo/Servicios/Proyectos/Clientes/Certificaciones) -->
-    <div class="modal-overlay" id="modalEditarSeccionTienda">
-      <div class="modal-box" style="max-width:420px;">
-        <button class="close-modal" onclick="cerrarModal('modalEditarSeccionTienda')">✖</button>
-        <h3>✏️ Editar Elemento</h3>
-        <label>Título:</label>
-        <input type="text" id="editSecTiendaTitulo">
-        <label>Subtítulo / descripción breve:</label>
-        <input type="text" id="editSecTiendaSubtitulo">
-        <label>Imagen actual:</label>
-        <div style="margin-bottom:8px;"><img id="editSecTiendaImagenActual" style="max-width:120px;max-height:90px;border-radius:6px;display:none;object-fit:cover;"></div>
-        <label>Reemplazar imagen (opcional):</label>
-        <input type="file" id="editSecTiendaImagen" accept="image/*">
-        <button class="btn-custom" style="width:100%;margin-top:15px;" onclick="conIndicadorCarga(this, guardarEdicionItemSeccionTienda)"><i class="fas fa-floppy-disk"></i> Guardar cambios</button>
-      </div>
-    </div>
-
-    <!-- MODAL: EDITAR TESTIMONIO -->
-    <div class="modal-overlay" id="modalEditarTestimonio">
-      <div class="modal-box" style="max-width:420px;">
-        <button class="close-modal" onclick="cerrarModal('modalEditarTestimonio')">✖</button>
-        <h3>✏️ Editar Testimonio</h3>
-        <input type="hidden" id="editTestId">
-        <label>Nombre del cliente:</label>
-        <input type="text" id="editTestNombre">
-        <label>Comentario:</label>
-        <input type="text" id="editTestComentario">
-        <label>Estrellas:</label>
-        <select id="editTestEstrellas"><option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option></select>
-        <button class="btn-custom" style="width:100%;margin-top:15px;" onclick="conIndicadorCarga(this, guardarEdicionTestimonio)"><i class="fas fa-floppy-disk"></i> Guardar cambios</button>
-      </div>
-    </div>
-
     <div class="panel seccion" id="seccion-inventario" style="display:none;">
       <div class="panel-title">
         <span>📦 Control de Inventario y Bodegas</span>
@@ -1520,8 +1436,8 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       </select>
 
       <div id="loginBloqueTecnico" style="margin-top:8px;">
-        <label style="text-align:left;display:block;">Técnico:</label>
-        <select id="loginTecnicoSelect"></select>
+        <label style="text-align:left;display:block;">Usuario técnico (correo):</label>
+        <input type="text" id="loginTecnicoUsuario" placeholder="Usuario técnico (correo)">
         <label style="text-align:left;display:block;">Contraseña:</label>
         <input type="password" id="loginTecnicoPassword" placeholder="Contraseña" onkeydown="if(event.key==='Enter')iniciarSesionComo('tecnico')">
         <button class="btn-custom" style="margin-top:10px;width:100%;" onclick="iniciarSesionComo('tecnico')">ENTRAR COMO TÉCNICO</button>
@@ -1542,55 +1458,10 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <p id="loginCambiarEmpresaWrap" style="font-size:10px;color:#cbd5e1;margin-top:6px;text-align:center;display:none;">
         <a href="javascript:void(0)" onclick="mostrarPasoEmpresa()" style="color:#94a3b8;">Cambiar de empresa</a>
       </p>
-      <p style="font-size:10px;color:#cbd5e1;margin-top:14px;text-align:center;">
-        <a href="javascript:void(0)" onclick="mostrarPasoSuperadmin()" style="color:#cbd5e1;">Acceso de súper-administrador</a>
-      </p>
-    </div>
-
-    <!-- PASO 3: Acceso de súper-administrador (multiempresa) -->
-    <div id="loginPasoSuperadmin" style="display:none;">
-      <p style="font-size:22px;font-weight:700;color:#1e293b;margin:8px 0 2px;">👑 Súper-Administrador</p>
-      <p style="font-size:13px;color:#64748b;margin:0 0 18px;">Panel de administración de todas las empresas.</p>
-      <label style="text-align:left;display:block;">Usuario:</label>
-      <input type="text" id="loginSuperadminUsuario" placeholder="Usuario de súper-administrador">
-      <label style="text-align:left;display:block;">Contraseña:</label>
-      <input type="password" id="loginSuperadminPassword" placeholder="Contraseña" onkeydown="if(event.key==='Enter')iniciarSesionSuperadmin()">
-      <button class="btn-custom" style="margin-top:10px;width:100%;" onclick="iniciarSesionSuperadmin()">ENTRAR AL PANEL</button>
-      <div id="loginSuperadminError" style="color:var(--red-alert);font-size:11px;margin-top:6px;display:none;"></div>
-      <p style="font-size:11px;color:#94a3b8;margin-top:16px;text-align:center;">
-        <a href="javascript:void(0)" onclick="volverACredencialesDesdeSuperadmin()" style="color:#64748b;">← Volver al acceso normal</a>
-      </p>
     </div>
   </div>
   </div>
 </div>
-</div>
-
-<div id="panelSuperadmin" style="display:none;position:fixed;inset:0;background:var(--main-bg,#0f172a);z-index:4000;overflow-y:auto;">
-  <div style="max-width:900px;margin:0 auto;padding:30px 20px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
-      <div>
-        <h2 style="margin:0;color:#fff;">👑 Panel de Súper-Administrador</h2>
-        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px;">Todas las empresas administradas desde Prevenglobal.</p>
-      </div>
-      <button class="btn-custom btn-danger-custom" onclick="cerrarSesionSuperadmin()"><i class="fas fa-power-off"></i> Salir</button>
-    </div>
-
-    <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:18px;margin-bottom:20px;">
-      <h4 style="margin-top:0;color:#fff;font-size:14px;">➕ Crear Nueva Empresa</h4>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div><label style="color:#94a3b8;">Código único (sin espacios):</label><input type="text" id="saNuevaSlug" placeholder="ej. climacorp"></div>
-        <div><label style="color:#94a3b8;">Nombre de la empresa:</label><input type="text" id="saNuevaNombre" placeholder="Ej. ClimaCorp S.A.S."></div>
-        <div><label style="color:#94a3b8;">Correo del administrador:</label><input type="email" id="saNuevaAdminUsuario" placeholder="admin@empresa.com"></div>
-        <div><label style="color:#94a3b8;">Contraseña inicial:</label><input type="password" id="saNuevaAdminPassword" placeholder="Mínimo 4 caracteres"></div>
-      </div>
-      <div id="saNuevaError" style="color:var(--red-alert);font-size:12px;margin-top:8px;display:none;"></div>
-      <button class="btn-custom" style="margin-top:12px;" onclick="conIndicadorCarga(this, crearEmpresaDesdeSuperadmin)"><i class="fas fa-plus"></i> Crear Empresa</button>
-    </div>
-
-    <h4 style="color:#fff;font-size:14px;">🏢 Empresas Existentes</h4>
-    <div id="listaEmpresasSuperadmin"><p style="color:#94a3b8;font-size:13px;">Cargando empresas...</p></div>
-  </div>
 </div>
 
 <!-- MODAL: FICHA QR / CONSULTA DE ITEM -->
@@ -1746,90 +1617,11 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <div><label>Fecha programada:</label><input type="date" id="ordFecha"></div>
         <div><label>Hora programada:</label><input type="time" id="ordHora"></div>
       </div>
-      <label id="lblOrdRecurrente" style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;">
-        <input type="checkbox" id="ordRecurrente" onchange="toggleOrdenRecurrente()" style="width:auto;margin:0;">
-        <span style="color:var(--text-main);">🔁 ¿Programar mantenimiento recurrente para el/los equipo(s) elegido(s)?</span>
-      </label>
-      <div id="wrapperOrdenRecurrente" style="display:none;margin-top:8px;padding:10px;background:rgba(0,0,0,.15);border-radius:8px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div><label>Frecuencia:</label>
-            <select id="ordRecurrenteFrecuencia">
-              <option value="semanal">Semanal</option>
-              <option value="mensual" selected>Mensual</option>
-              <option value="bimensual">Bimensual (cada 2 meses)</option>
-              <option value="trimestral">Trimestral (cada 3 meses)</option>
-              <option value="cuatrimestral">Cada 4 meses</option>
-              <option value="semestral">Cada 6 meses</option>
-            </select>
-          </div>
-          <div><label>Programar hasta:</label>
-            <select id="ordRecurrenteRango">
-              <option value="resto-anio">Resto del año actual</option>
-              <option value="2-anios">Hasta 2 años hacia adelante</option>
-            </select>
-          </div>
-        </div>
-        <p style="font-size:11px;color:var(--text-muted);margin:6px 0 0 0;">Se crean automáticamente las próximas órdenes para este equipo, visibles en el Calendario como "Programadas". Después podrás modificar o cancelar la serie sin afectar las que ya se hayan realizado.</p>
-      </div>
     </div>
 
     <div style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalNuevaOrden')">Cancelar</button>
       <button class="btn-custom" onclick="conIndicadorCarga(this, guardarNuevaOrden)">Crear Orden</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: ESCANEAR QR DE EQUIPO -->
-<div class="modal-overlay" id="modalEscanerQR">
-  <div class="modal-box modal-sm">
-    <button class="close-modal" onclick="cerrarEscanerQR()">✖</button>
-    <h3>📷 Escanear QR de Equipo</h3>
-    <div id="escanerQRVistaCamara">
-      <div style="position:relative;border-radius:10px;overflow:hidden;background:#000;">
-        <video id="escanerQRVideo" autoplay playsinline muted style="width:100%;display:block;"></video>
-        <div style="position:absolute;inset:0;border:3px solid rgba(255,255,255,.5);margin:15%;border-radius:10px;pointer-events:none;"></div>
-      </div>
-      <p id="escanerQREstado" style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:8px;min-height:16px;">Apunta la cámara a la etiqueta QR del equipo.</p>
-      <p id="escanerQRSinSoporte" style="display:none;font-size:12px;color:var(--red-alert);text-align:center;">Este navegador no puede leer códigos QR con la cámara directamente. Usa la búsqueda manual de abajo, o la cámara normal del celular (fuera de la app) apuntando a la etiqueta.</p>
-      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--card-border);">
-        <label style="font-size:12px;">¿La cámara no lee bien? Busca a mano:</label>
-        <div class="autocomplete-wrapper">
-          <input type="text" id="escanerQRManualCodigo" placeholder="Escribe el código, nombre, marca o serie del equipo..." autocomplete="off"
-            oninput="filtrarEquiposManualQR()" onfocus="filtrarEquiposManualQR()" onblur="setTimeout(()=>document.getElementById('escanerQRManualResultados').classList.remove('abierto'), 150)">
-          <div id="escanerQRManualResultados" class="autocomplete-resultados"></div>
-        </div>
-      </div>
-    </div>
-    <div id="escanerQRResultado" style="display:none;"></div>
-  </div>
-</div>
-
-<!-- MODAL: GESTIONAR RECURRENCIA -->
-<div class="modal-overlay" id="modalGestionRecurrencia">
-  <div class="modal-box modal-sm">
-    <button class="close-modal" onclick="cerrarModal('modalGestionRecurrencia')">✖</button>
-    <h3>🔁 Mantenimiento Recurrente</h3>
-    <input type="hidden" id="gestRecurrenciaOrdenId">
-    <p id="gestRecurrenciaResumen" style="font-size:12px;color:var(--text-muted);"></p>
-    <label>Frecuencia:</label>
-    <select id="gestRecurrenciaFrecuencia">
-      <option value="semanal">Semanal</option>
-      <option value="mensual">Mensual</option>
-      <option value="bimensual">Bimensual (cada 2 meses)</option>
-      <option value="trimestral">Trimestral (cada 3 meses)</option>
-      <option value="cuatrimestral">Cada 4 meses</option>
-      <option value="semestral">Cada 6 meses</option>
-    </select>
-    <label>Programar hasta:</label>
-    <select id="gestRecurrenciaRango">
-      <option value="resto-anio">Resto del año actual</option>
-      <option value="2-anios">Hasta 2 años hacia adelante</option>
-    </select>
-    <p style="font-size:11px;color:var(--text-muted);margin:6px 0 0 0;">Guardar cambios reemplaza las órdenes futuras aún pendientes de esta serie por una nueva, con la frecuencia elegida — las ya finalizadas no se tocan.</p>
-    <div style="display:flex;gap:8px;margin-top:15px;">
-      <button class="btn-custom btn-danger-custom" style="flex:1;" onclick="cancelarRecurrencia(parseInt(document.getElementById('gestRecurrenciaOrdenId').value))"><i class="fas fa-ban"></i> Cancelar Recurrencia</button>
-      <button class="btn-custom" style="flex:1;" onclick="conIndicadorCarga(this, ()=>guardarCambiosRecurrencia(parseInt(document.getElementById('gestRecurrenciaOrdenId').value)))"><i class="fas fa-floppy-disk"></i> Guardar Cambios</button>
     </div>
   </div>
 </div>
@@ -1946,7 +1738,6 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 
     <div id="detAccionesEdicion" style="margin-top:15px;display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;">
       <span style="font-size:11px;color:var(--text-muted);margin-right:auto;">No hace falta llenarlo todo — puedes guardar el avance y continuar después.</span>
-      <button class="btn-custom btn-secondary-custom" id="detBtnVerDocumentoEdicion" style="display:none;" onclick="verPDF(ordenDetalleId)"><i class="fas fa-file-pdf"></i> Ver Documento</button>
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalDetalleOrden')">Cancelar</button>
       <button class="btn-custom" onclick="conIndicadorCarga(this, ()=>guardarDetalleOrden(false))"><i class="fas fa-floppy-disk"></i> Guardar Avance</button>
       <button class="btn-custom btn-success-custom" onclick="conIndicadorCarga(this, confirmarFinalizarOrden)">✅ Finalizar Orden</button>
@@ -2216,7 +2007,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div id="comprobanteNominaBotonera" style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalComprobanteNomina')">Cerrar</button>
       <button class="btn-custom" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
-      <button class="btn-custom btn-success-custom" onclick="enviarComprobanteNominaPorWhatsApp(comprobanteNominaActualId)"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
+      <button class="btn-custom btn-success-custom solo-admin" data-permiso="enviar_whatsapp" onclick="enviarComprobanteNominaPorWhatsApp(comprobanteNominaActualId)"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
     </div>
   </div>
 </div>
@@ -2463,30 +2254,30 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <!-- TAB DATABASE -->
     <div id="tab-database" class="config-tab-content">
       <div style="background:rgba(0,0,0,.15);padding:20px;border-radius:8px;">
-        <h4 style="margin-top:0;font-size:14px;color:var(--blue-accent);">🛡️ Respaldos Automáticos del Servidor</h4>
-        <p style="font-size:12px;color:var(--text-muted);">Cada hora, antes de guardar un cambio, el servidor archiva una copia de cómo estaba todo justo antes — se conservan los últimos 30 días. Si algo sale mal, puedes volver a cualquiera de estos puntos tú mismo, sin depender de nadie más.</p>
-        <div id="listaRespaldosServidor" style="margin-top:12px;max-height:280px;overflow-y:auto;"><p style="color:var(--text-muted);font-size:12px;">Cargando respaldos...</p></div>
-      </div>
-      <div style="background:rgba(0,0,0,.15);padding:20px;border-radius:8px;margin-top:20px;">
-        <h4 style="margin-top:0;font-size:14px;color:var(--blue-accent);">💾 Respaldo Manual (archivo JSON)</h4>
-        <p style="font-size:12px;color:var(--text-muted);">El respaldo automático de arriba es la protección principal. Esta descarga manual es útil para guardar una copia propia fuera de la plataforma, o para mover información entre empresas.</p>
-        <p id="avisoRespaldoManual" style="font-size:12px;font-weight:600;margin:6px 0 0 0;"></p>
+        <h4 style="margin-top:0;font-size:14px;color:var(--blue-accent);">💾 Gestión de la Base de Datos Local</h4>
+        <p style="font-size:12px;color:var(--text-muted);">Toda la información se guarda en el navegador. Descarga un respaldo periódicamente (las fotos y firmas ocupan más espacio, así que respalda seguido).</p>
         <div style="display:flex;gap:15px;margin-top:20px;flex-wrap:wrap;">
           <button class="btn-custom btn-success-custom" onclick="exportarBaseDatosJSON()"><i class="fas fa-download m-r-10"></i>Descargar Respaldo JSON</button>
           <label class="btn-custom" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;">
             <i class="fas fa-upload m-r-10"></i>Importar Respaldo JSON
             <input type="file" id="importJsonFile" accept=".json" style="display:none;" onchange="importarBaseDatosJSON(event)">
           </label>
-          <button class="btn-custom btn-secondary-custom" onclick="limpiarCacheLocal()"><i class="fas fa-broom m-r-10"></i>Limpiar Caché Local de este Dispositivo</button>
+          <button class="btn-custom btn-danger-custom" onclick="restablecerFabrica()"><i class="fas fa-trash m-r-10"></i>Reiniciar Base de Datos</button>
         </div>
       </div>
     </div>
 
     <!-- TAB GENERAL / EMPRESA Y PERFIL -->
     <div id="tab-general" class="config-tab-content">
+      <div id="bannerLogoConfig" style="width:100%;height:5cm;background:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:15px;border:1px solid var(--card-border);">
+        <img id="previewLogoConfig" style="max-width:92%;max-height:92%;object-fit:contain;display:none;">
+        <span id="previewLogoConfigPlaceholder" style="color:#94a3b8;font-size:12px;"><i class="fas fa-image" style="font-size:28px;display:block;margin:0 auto 6px;"></i>Sin logo cargado</span>
+      </div>
       <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;">
         <h4 style="margin-top:0;font-size:13px;">🏢 Identidad y Perfil de la Empresa</h4>
-        <p style="font-size:11px;color:var(--text-muted);margin:0 0 10px 0;">El logo se sube y se ajusta desde <a href="javascript:void(0)" onclick="cambiarTabConfig('apariencia', event)" style="color:var(--blue-accent);">Apariencia</a>.</p>
+        <label>Logo de la empresa:</label>
+        <input type="file" id="cfgEmpresaLogoInput" accept="image/*" onchange="manejarLogoUpload(event)">
+        <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0 0;">Se muestra en grande (banner, ~5cm) aquí arriba y en el Dashboard; en el encabezado de los PDF se imprime a 5cm x 5cm.</p>
         <label>Nombre de la Empresa:</label>
         <input type="text" id="cfgEmpresaNombre">
         <label>Subtítulo Operativo:</label>
@@ -2520,7 +2311,6 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <label>Nueva contraseña:</label>
         <input type="password" id="cfgAdminPasswordNueva" placeholder="Dejar en blanco para no cambiarla">
         <button class="btn-custom" style="margin-top:12px;" onclick="guardarPasswordAdmin()">Actualizar Acceso de Administrador</button>
-        <p id="avisoEstadoCorreo" style="font-size:11px;margin:10px 0 0 0;"></p>
       </div>
       <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
         <h4 style="margin-top:0;font-size:13px;">🚪 Pantalla de Acceso (Login)</h4>
@@ -2529,22 +2319,12 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <input type="checkbox" id="cfgLoginRequerido" style="width:auto;margin:0;" onchange="guardarInterruptorLogin()">
           <span>Pedir pantalla de acceso al entrar</span>
         </label>
-        <p style="font-size:11px;color:var(--text-muted);margin:10px 0 0 0;">El logo y los colores que definas en <a href="javascript:void(0)" onclick="cambiarTabConfig('apariencia', event)" style="color:var(--blue-accent);">Apariencia</a> se aplican también en esa pantalla de acceso.</p>
+        <p style="font-size:11px;color:var(--text-muted);margin:10px 0 0 0;">El logo y los colores que definas aquí arriba y en <a href="javascript:void(0)" onclick="cambiarTabConfig('apariencia', event)" style="color:var(--blue-accent);">Apariencia</a> se aplican también en esa pantalla de acceso.</p>
       </div>
     </div>
 
     <!-- TAB APARIENCIA -->
     <div id="tab-apariencia" class="config-tab-content">
-      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-bottom:20px;">
-        <h4 style="margin-top:0;font-size:13px;">🖼️ Logo de la Empresa</h4>
-        <div id="bannerLogoConfig" style="width:100%;height:5cm;background:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:10px;border:1px solid var(--card-border);">
-          <img id="previewLogoConfig" style="max-width:92%;max-height:92%;object-fit:contain;display:none;">
-          <span id="previewLogoConfigPlaceholder" style="color:#94a3b8;font-size:12px;"><i class="fas fa-image" style="font-size:28px;display:block;margin:0 auto 6px;"></i>Sin logo cargado</span>
-        </div>
-        <label>Subir o cambiar logo:</label>
-        <input type="file" id="cfgEmpresaLogoInput" accept="image/*" onchange="manejarLogoUpload(event)">
-        <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0 0;">Sube la imagen que tengas — se ajusta sola: nunca se ve estirada ni deformada, sin importar el tamaño o la forma del archivo original.</p>
-      </div>
       <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;">
         <h4 style="margin-top:0;font-size:13px;">🎨 Tema del Dashboard</h4>
         <p style="font-size:11px;color:var(--text-muted);">Elige uno de estos temas ya armados para todo el panel (acento, fondo, menú lateral, barra superior y tarjetas). Todos son claros o metalizados claros — no hay opción de tema oscuro, para mantener siempre un look empresarial y luminoso.</p>
@@ -2816,21 +2596,21 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=105"></script>
-<script src="capacitor-bridge.js?v=105"></script>
-<script src="utilidades-navegacion.js?v=105"></script>
-<script src="buscador-agenda.js?v=105"></script>
-<script src="ordenes.js?v=105"></script>
-<script src="equipos-trazabilidad.js?v=105"></script>
-<script src="pdf.js?v=105"></script>
-<script src="config-clientes-equipos.js?v=105"></script>
-<script src="config-plantillas-tecnicos.js?v=105"></script>
-<script src="cotizador.js?v=105"></script>
-<script src="asistencia.js?v=105"></script>
-<script src="config-general.js?v=105"></script>
-<script src="inventario.js?v=105"></script>
-<script src="tienda-admin.js?v=105"></script>
-<script src="tienda-publica.js?v=105"></script>
-<script src="kpi.js?v=105"></script>
+<script src="core.js?v=90"></script>
+<script src="capacitor-bridge.js?v=90"></script>
+<script src="utilidades-navegacion.js?v=90"></script>
+<script src="buscador-agenda.js?v=90"></script>
+<script src="ordenes.js?v=90"></script>
+<script src="equipos-trazabilidad.js?v=90"></script>
+<script src="pdf.js?v=90"></script>
+<script src="config-clientes-equipos.js?v=90"></script>
+<script src="config-plantillas-tecnicos.js?v=90"></script>
+<script src="cotizador.js?v=90"></script>
+<script src="asistencia.js?v=90"></script>
+<script src="config-general.js?v=90"></script>
+<script src="inventario.js?v=90"></script>
+<script src="tienda-admin.js?v=90"></script>
+<script src="tienda-publica.js?v=90"></script>
+<script src="kpi.js?v=90"></script>
 </body>
 </html>
