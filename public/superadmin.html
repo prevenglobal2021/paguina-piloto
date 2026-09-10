@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prevenglobal — Panel General</title>
+<style>
+  :root {
+    --azul: #0b5fa5;
+    --azul-osc: #073f6e;
+    --verde: #16a34a;
+    --gris-fondo: #f1f5f9;
+    --gris-borde: #e2e8f0;
+    --gris-texto: #475569;
+    --rojo: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--gris-fondo); color: #1e293b;
+  }
+  .pantalla { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .tarjeta {
+    background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(11,95,165,0.12);
+    width: 100%; max-width: 380px; padding: 36px 32px;
+  }
+  .tarjeta h1 { font-size: 20px; margin: 0 0 4px; color: var(--azul-osc); }
+  .tarjeta p.sub { color: var(--gris-texto); font-size: 14px; margin: 0 0 24px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--gris-texto); margin: 14px 0 6px; }
+  input {
+    width: 100%; padding: 11px 12px; border: 1.5px solid var(--gris-borde); border-radius: 8px;
+    font-size: 14px; outline: none; transition: border-color .15s;
+  }
+  input:focus { border-color: var(--azul); }
+  button.principal {
+    width: 100%; margin-top: 22px; padding: 12px; border: none; border-radius: 8px;
+    background: linear-gradient(135deg, var(--azul), var(--verde)); color: #fff;
+    font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+  }
+  button.principal:disabled { opacity: .6; cursor: not-allowed; }
+  button.secundario {
+    background: none; border: 1.5px solid var(--gris-borde); color: var(--gris-texto);
+    padding: 10px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
+  }
+  .error {
+    background: #fef2f2; color: var(--rojo); border: 1px solid #fecaca; border-radius: 8px;
+    padding: 10px 12px; font-size: 13px; margin-top: 16px; display: none;
+  }
+  .aviso {
+    background: #eff6ff; color: var(--azul-osc); border: 1px solid #bfdbfe; border-radius: 8px;
+    padding: 10px 12px; font-size: 13px; margin-bottom: 16px;
+  }
+
+  /* --- Panel principal --- */
+  .oculto { display: none !important; }
+  header.panel {
+    background: #fff; border-bottom: 1px solid var(--gris-borde); padding: 14px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  header.panel .titulo { font-weight: 700; color: var(--azul-osc); font-size: 16px; }
+  header.panel .titulo span { color: var(--gris-texto); font-weight: 400; font-size: 13px; margin-left: 10px; }
+  main.panel { max-width: 1000px; margin: 0 auto; padding: 28px; }
+  .barra-superior { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .barra-superior h2 { margin: 0; font-size: 18px; color: #1e293b; }
+  table.empresas { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  table.empresas th, table.empresas td { text-align: left; padding: 12px 16px; font-size: 14px; border-bottom: 1px solid var(--gris-borde); }
+  table.empresas th { background: var(--gris-fondo); color: var(--gris-texto); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  table.empresas tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .badge.activa { background: #dcfce7; color: #15803d; }
+  .badge.inactiva { background: #fee2e2; color: #b91c1c; }
+  .btn-mini { border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .btn-mini.desactivar { background: #fee2e2; color: #b91c1c; }
+  .btn-mini.activar { background: #dcfce7; color: #15803d; }
+
+  /* --- Modal nueva empresa --- */
+  .fondo-modal {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.45);
+    display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50;
+  }
+  .modal { background: #fff; border-radius: 14px; padding: 28px; width: 100%; max-width: 420px; }
+  .modal h3 { margin: 0 0 18px; color: var(--azul-osc); }
+  .fila-modal { display: flex; gap: 10px; margin-top: 20px; }
+  .fila-modal button { flex: 1; }
+</style>
+</head>
+<body>
+
+<!-- ============ PANTALLA 1: LOGIN ============ -->
+<div id="pantallaLogin" class="pantalla">
+  <div class="tarjeta">
+    <h1>Panel General</h1>
+    <p class="sub">Acceso exclusivo del superadministrador de Prevenglobal</p>
+    <form id="formLogin">
+      <label for="inputEmail">Correo</label>
+      <input type="email" id="inputEmail" autocomplete="username" required>
+      <label for="inputPassword">Contraseña</label>
+      <input type="password" id="inputPassword" autocomplete="current-password" required>
+      <div class="error" id="errorLogin"></div>
+      <button type="submit" class="principal" id="btnLogin">Ingresar</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============ PANTALLA 2: CAMBIO DE CONTRASEÑA OBLIGATORIO ============ -->
+<div id="pantallaCambio" class="pantalla oculto">
+  <div class="tarjeta">
+    <h1>Crea tu contraseña</h1>
+    <p class="sub">Por seguridad, debes reemplazar la contraseña temporal antes de continuar.</p>
+    <div class="aviso">Mínimo 8 caracteres. Elige algo que no uses en ninguna otra parte.</div>
+    <form id="formCambio">
+      <label for="inputNuevaPassword">Nueva contraseña</label>
+      <input type="password" id="inputNuevaPassword" minlength="8" required>
+      <label for="inputConfirmarPassword">Confirmar contraseña</label>
+      <input type="password" id="inputConfirmarPassword" minlength="8" required>
+      <div class="error" id="errorCambio"></div>
+      <button type="submit" class="principal" id="btnCambio">Guardar y continuar</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============ PANTALLA 3: PANEL DE EMPRESAS ============ -->
+<div id="pantallaPanel" class="oculto">
+  <header class="panel">
+    <div class="titulo">Prevenglobal <span>Panel General</span></div>
+    <button class="secundario" id="btnSalir">Cerrar sesión</button>
+  </header>
+  <main class="panel">
+    <div class="barra-superior">
+      <h2>Empresas</h2>
+      <button class="principal" style="width:auto; margin:0; padding:10px 18px;" id="btnNuevaEmpresa">+ Nueva empresa</button>
+    </div>
+    <div class="error" id="errorPanel"></div>
+    <table class="empresas">
+      <thead>
+        <tr><th>Empresa</th><th>Código</th><th>Estado</th><th>Creada</th><th></th></tr>
+      </thead>
+      <tbody id="filasEmpresas">
+        <tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:24px;">Cargando…</td></tr>
+      </tbody>
+    </table>
+  </main>
+</div>
+
+<!-- ============ MODAL: NUEVA EMPRESA ============ -->
+<div id="fondoModal" class="fondo-modal oculto">
+  <div class="modal">
+    <h3>Nueva empresa</h3>
+    <form id="formNuevaEmpresa">
+      <label for="inputNombreEmpresa">Nombre de la empresa</label>
+      <input type="text" id="inputNombreEmpresa" required>
+      <label for="inputSlugEmpresa">Código (solo minúsculas, números y guiones)</label>
+      <input type="text" id="inputSlugEmpresa" pattern="[a-z0-9][a-z0-9-]{1,40}" required placeholder="ej: mi-empresa">
+      <label for="inputAdminUsuario">Usuario administrador de esa empresa</label>
+      <input type="text" id="inputAdminUsuario" required>
+      <label for="inputAdminPassword">Contraseña inicial de ese administrador</label>
+      <input type="password" id="inputAdminPassword" required minlength="4">
+      <div class="error" id="errorModal"></div>
+      <div class="fila-modal">
+        <button type="button" class="secundario" id="btnCancelarModal">Cancelar</button>
+        <button type="submit" class="principal" style="margin:0;" id="btnCrearEmpresa">Crear</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  const API = ''; // mismo origen (el backend sirve este archivo)
+  const LS_TOKEN = 'prevenglobal_superadmin_token';
+
+  const pantallaLogin = document.getElementById('pantallaLogin');
+  const pantallaCambio = document.getElementById('pantallaCambio');
+  const pantallaPanel = document.getElementById('pantallaPanel');
+  const fondoModal = document.getElementById('fondoModal');
+
+  function mostrarError(elId, mensaje) {
+    const el = document.getElementById(elId);
+    el.textContent = mensaje;
+    el.style.display = 'block';
+  }
+  function ocultarError(elId) {
+    document.getElementById(elId).style.display = 'none';
+  }
+  function irA(pantalla) {
+    [pantallaLogin, pantallaCambio, pantallaPanel].forEach(p => p.classList.add('oculto'));
+    pantalla.classList.remove('oculto');
+  }
+
+  async function llamar(ruta, opciones = {}) {
+    const token = localStorage.getItem(LS_TOKEN);
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, opciones.headers || {});
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const resp = await fetch(API + ruta, Object.assign({}, opciones, { headers }));
+    let cuerpo = null;
+    try { cuerpo = await resp.json(); } catch (e) { /* respuesta sin cuerpo */ }
+    if (!resp.ok) {
+      const err = new Error((cuerpo && cuerpo.error) || 'Error inesperado. Intenta de nuevo.');
+      err.status = resp.status;
+      throw err;
+    }
+    return cuerpo;
+  }
+
+  // --------- LOGIN ---------
+  document.getElementById('formLogin').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    ocultarError('errorLogin');
+    const email = document.getElementById('inputEmail').value.trim();
+    const password = document.getElementById('inputPassword').value;
+    const btn = document.getElementById('btnLogin');
+    btn.disabled = true; btn.textContent = 'Ingresando…';
+    try {
+      const r = await llamar('/api/superadmin/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      });
+      localStorage.setItem(LS_TOKEN, r.token);
+      if (r.debeCambiarPassword) {
+        irA(pantallaCambio);
+      } else {
+        await cargarPanel();
+      }
+    } catch (err) {
+      mostrarError('errorLogin', err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Ingresar';
+    }
+  });
+
+  // --------- CAMBIO DE CONTRASEÑA OBLIGATORIO ---------
+  document.getElementById('formCambio').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    ocultarError('errorCambio');
+    const nueva = document.getElementById('inputNuevaPassword').value;
+    const confirmar = document.getElementById('inputConfirmarPassword').value;
+    if (nueva !== confirmar) return mostrarError('errorCambio', 'Las dos contraseñas no coinciden.');
+    if (nueva.length < 8) return mostrarError('errorCambio', 'Debe tener al menos 8 caracteres.');
+    const btn = document.getElementById('btnCambio');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+      await llamar('/api/superadmin/cambiar-password', {
+        method: 'POST',
+        body: JSON.stringify({ nuevaPassword: nueva })
+      });
+      await cargarPanel();
+    } catch (err) {
+      mostrarError('errorCambio', err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Guardar y continuar';
+    }
+  });
+
+  // --------- PANEL: LISTAR EMPRESAS ---------
+  function badgeEstado(activa) {
+    return activa
+      ? '<span class="badge activa">Activa</span>'
+      : '<span class="badge inactiva">Desactivada</span>';
+  }
+  function formatoFecha(iso) {
+    try {
+      return new Date(iso).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch (e) { return iso; }
+  }
+
+  async function cargarPanel() {
+    ocultarError('errorPanel');
+    irA(pantallaPanel);
+    const tbody = document.getElementById('filasEmpresas');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:24px;">Cargando…</td></tr>';
+    try {
+      const empresas = await llamar('/api/superadmin/empresas');
+      if (!empresas.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:24px;">Todavía no hay empresas creadas.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = empresas.map(e => `
+        <tr data-slug="${e.slug}">
+          <td>${e.nombre}</td>
+          <td><code>${e.slug}</code></td>
+          <td>${badgeEstado(e.activa)}</td>
+          <td>${formatoFecha(e.creado_en)}</td>
+          <td>
+            <button class="btn-mini ${e.activa ? 'desactivar' : 'activar'}" data-accion="toggle" data-slug="${e.slug}" data-activa="${e.activa}">
+              ${e.activa ? 'Desactivar' : 'Activar'}
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      if (err.status === 401 || err.status === 403) return cerrarSesion();
+      mostrarError('errorPanel', err.message);
+      tbody.innerHTML = '';
+    }
+  }
+
+  document.getElementById('filasEmpresas').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-accion="toggle"]');
+    if (!btn) return;
+    const slug = btn.dataset.slug;
+    const activaActual = btn.dataset.activa === 'true';
+    const accion = activaActual ? 'desactivar' : 'activar';
+    if (!confirm(`¿Seguro que quieres ${accion} la empresa "${slug}"? ${activaActual ? 'Sus usuarios no podrán iniciar sesión mientras esté desactivada.' : ''}`)) return;
+    btn.disabled = true;
+    try {
+      await llamar(`/api/superadmin/empresas/${encodeURIComponent(slug)}/activa`, {
+        method: 'PATCH',
+        body: JSON.stringify({ activa: !activaActual })
+      });
+      await cargarPanel();
+    } catch (err) {
+      mostrarError('errorPanel', err.message);
+      btn.disabled = false;
+    }
+  });
+
+  // --------- MODAL: NUEVA EMPRESA ---------
+  document.getElementById('btnNuevaEmpresa').addEventListener('click', () => {
+    document.getElementById('formNuevaEmpresa').reset();
+    ocultarError('errorModal');
+    fondoModal.classList.remove('oculto');
+  });
+  document.getElementById('btnCancelarModal').addEventListener('click', () => {
+    fondoModal.classList.add('oculto');
+  });
+  fondoModal.addEventListener('click', (e) => {
+    if (e.target === fondoModal) fondoModal.classList.add('oculto');
+  });
+
+  document.getElementById('formNuevaEmpresa').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    ocultarError('errorModal');
+    const nombre = document.getElementById('inputNombreEmpresa').value.trim();
+    const slug = document.getElementById('inputSlugEmpresa').value.trim().toLowerCase();
+    const adminUsuario = document.getElementById('inputAdminUsuario').value.trim();
+    const adminPassword = document.getElementById('inputAdminPassword').value;
+    const btn = document.getElementById('btnCrearEmpresa');
+    btn.disabled = true; btn.textContent = 'Creando…';
+    try {
+      await llamar('/api/superadmin/empresas', {
+        method: 'POST',
+        body: JSON.stringify({ slug, nombre, adminUsuario, adminPassword })
+      });
+      fondoModal.classList.add('oculto');
+      await cargarPanel();
+    } catch (err) {
+      mostrarError('errorModal', err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Crear';
+    }
+  });
+
+  // --------- CERRAR SESIÓN ---------
+  function cerrarSesion() {
+    localStorage.removeItem(LS_TOKEN);
+    document.getElementById('formLogin').reset();
+    irA(pantallaLogin);
+  }
+  document.getElementById('btnSalir').addEventListener('click', cerrarSesion);
+
+  // --------- AL CARGAR LA PÁGINA: ¿ya hay sesión guardada? ---------
+  (async function inicio() {
+    const token = localStorage.getItem(LS_TOKEN);
+    if (!token) return irA(pantallaLogin);
+    try {
+      await cargarPanel();
+    } catch (err) {
+      cerrarSesion();
+    }
+  })();
+})();
+</script>
+</body>
+</html>
