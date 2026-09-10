@@ -1,906 +1,429 @@
+// ===== core.js — Capa de datos, Sincronización, Dashboard Fijo y Acceso Seguro =====
 /* =========================================================
-   PREVENGLOBAL — BACKEND (Node.js + Express + PostgreSQL)
-   ---------------------------------------------------------
-   Mismo comportamiento que el backend original (multiempresa,
-   estado completo por empresa, contraseña maestra opcional),
-   pero guardando cada empresa como una fila en Postgres en vez
-   de un archivo data/<slug>.json — así los datos sobreviven a
-   cada redespliegue en Railway sin necesitar volumen aparte.
-
-   Sincronización con el front-end (sin cambios respecto a antes):
-   GET  /api/state  -> devuelve el estado completo de la empresa
-                        autenticada (sin contraseñas ni hashes).
-   PUT  /api/state  -> guarda el estado completo con transacción
-                        atómica y bloqueo FOR UPDATE anti-concurrencia.
+   CATÁLOGO FIJO E INAMOVIBLE DE COLORES DE LA DASHBOARD
 ========================================================= */
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const crypto = require('crypto');
-const { Pool } = require('pg');
-const rateLimit = require('express-rate-limit');
-const sharp = require('sharp');
-const heicConvert = require('heic-convert');
-const nodemailer = require('nodemailer');
+const TEMA_DASHBOARD_FIJO = {
+  nombre: 'Titanio Plateado',
+  clave: 'titanio',
+  acento: '#0284c7',
+  fondo: '#f1f5f9',
+  sidebar1: '#e2e8f0', sidebar2: '#cbd5e1',
+  topbar1: '#f8fafc', topbar2: '#e2e8f0',
+  panel1: '#ffffff', panel2: '#f8fafc',
+  borde: '#94a3b8', texto: '#0f172a'
+};
 
-let compression;
-try {
-  compression = require('compression');
-} catch (e) {
-  compression = null;
+function ocultarSkeletonBoot() {
+  const el = document.getElementById('skeletonBoot');
+  if (el) el.style.display = 'none';
 }
 
-const app = express();
+function aplicarConfiguracionVisual(){
+  const root = document.documentElement.style;
+  const t = TEMA_DASHBOARD_FIJO;
 
-app.set('trust proxy', 1);
-process.on('unhandledRejection', (err) => {
-  console.error('[ERROR NO CONTROLADO — el servidor puede reiniciarse por esto]:', err);
-});
+  root.setProperty('--blue-accent', t.acento);
+  root.setProperty('--primary-color', t.acento);
+  root.setProperty('--bg-dark', t.fondo);
+  root.setProperty('--sidebar-bg-1', t.sidebar1);
+  root.setProperty('--sidebar-bg-2', t.sidebar2);
+  root.setProperty('--topbar-bg-1', t.topbar1);
+  root.setProperty('--topbar-bg-2', t.topbar2);
+  root.setProperty('--panel-bg-1', t.panel1);
+  root.setProperty('--panel-bg-2', t.panel2);
+  root.setProperty('--card-border', t.borde);
+  root.setProperty('--text-main', t.texto);
+  document.body.classList.add('modo-claro');
 
-if (compression) {
-  app.use(compression());
+  const cfg = (db && db.config) ? db.config : {};
+  const lblNom = document.getElementById('lblNombreEmpresa');
+  if(lblNom) lblNom.innerText = cfg.nombre || 'Prevenglobal';
+  const lblSub = document.getElementById('lblSubtituloEmpresa');
+  if(lblSub) lblSub.innerText = cfg.subtitulo || '';
+  const brand = document.getElementById('brandTitleSidebar');
+  if(brand) brand.innerText = cfg.nombre || 'Prevenglobal';
+
+  const logoNav = document.getElementById('sidebarLogo');
+  const icoNav = document.getElementById('sidebarIconoDefault');
+  if(logoNav && icoNav){
+    if(cfg.logo){ logoNav.src = cfg.logo; logoNav.style.display = 'block'; icoNav.style.display = 'none'; }
+    else { logoNav.style.display = 'none'; icoNav.style.display = 'inline'; }
+  }
 }
 
-app.use(cors());
-app.use(express.json({ limit: '80mb' }));
-app.use(express.static(path.join(__dirname, 'public'), {
-  setHeaders: (res) => { res.setHeader('Cache-Control', 'no-cache'); }
-}));
+const DB_KEY = 'prevenglobal_db_v2';
 
-const urlBaseDatos = process.env.DATABASE_URL || '';
-const esBaseLocal = /localhost|127\.0\.0\.1/.test(urlBaseDatos);
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DB_SSL === 'false' ? false : (esBaseLocal ? false : { rejectUnauthorized: false }),
-});
-
-const MASTER_PASSWORD = process.env.MASTER_PASSWORD || null;
-const SESION_HORAS = 12;
-
-const limiteLogin = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  message: { error: 'Demasiados intentos de acceso. Espera unos minutos e intenta de nuevo.' },
-  standardHeaders: true, legacyHeaders: false,
-});
-const limitePublico = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 60,
-  message: { error: 'Demasiadas solicitudes desde tu conexión. Espera unos minutos e intenta de nuevo.' },
-  standardHeaders: true, legacyHeaders: false,
-});
-
-/* ---------------------------------------------------------
-   Utilidades de contraseñas (hash con sal, sin dependencias)
---------------------------------------------------------- */
-function hashPassword(password) {
-  const sal = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(password, sal, 64).toString('hex');
-  return `${sal}:${hash}`;
-}
-function verificarPassword(password, almacenado) {
-  if (!password || !almacenado) return false;
-  const [sal, hash] = almacenado.split(':');
-  if (!sal || !hash) return false;
-  const hashIntento = crypto.scryptSync(password, sal, 64).toString('hex');
-  const bufA = Buffer.from(hash, 'hex'), bufB = Buffer.from(hashIntento, 'hex');
-  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
-}
-
-/* ---------------------------------------------------------
-   Acceso a empresas en Postgres
---------------------------------------------------------- */
-function slugValido(slug) { return /^[a-z0-9][a-z0-9-]{1,40}$/.test(slug); }
-
-async function leerEmpresas() {
-  const r = await pool.query('SELECT slug, nombre, creado_en FROM empresas ORDER BY creado_en');
-  return r.rows;
-}
-async function empresaExiste(slug) {
-  const r = await pool.query('SELECT 1 FROM empresas WHERE slug = $1', [slug]);
-  return r.rowCount > 0;
-}
-async function leerEstadoEmpresa(slug) {
-  const r = await pool.query('SELECT estado_app FROM empresas WHERE slug = $1', [slug]);
-  return r.rows[0] ? r.rows[0].estado_app : null;
-}
-async function guardarEstadoEmpresa(slug, data) {
-  const r = await pool.query(
-    'UPDATE empresas SET estado_app = $1, actualizado_en = now() WHERE slug = $2 RETURNING actualizado_en',
-    [JSON.stringify(data), slug]
-  );
-  return r.rows[0] ? r.rows[0].actualizado_en : null;
-}
-
-/* ---------------------------------------------------------
-   RESPALDOS AUTOMÁTICOS CON HISTORIAL — antes solo existía el estado
-   ACTUAL (más una descarga manual bajo demanda); si algo salía mal no
-   había forma de volver atrás en el tiempo. Ahora, cada vez que se
-   guarda algo nuevo, primero se archiva una copia del estado anterior
-   (como máximo una vez por hora, para no acumular de más), guardando
-   así un historial real de los últimos 30 días — restaurable por
-   cualquier administrador desde la propia plataforma, sin depender de
-   nadie más.
---------------------------------------------------------- */
-async function asegurarTablaRespaldos() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS respaldos_estado (
-      id SERIAL PRIMARY KEY,
-      empresa_slug TEXT NOT NULL,
-      estado_app JSONB NOT NULL,
-      creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `);
-  await pool.query(`CREATE INDEX IF NOT EXISTS idx_respaldos_empresa_fecha ON respaldos_estado(empresa_slug, creado_en DESC)`);
-}
-const RESPALDO_INTERVALO_MS = 60 * 60 * 1000; // como máximo un respaldo nuevo por hora
-const RESPALDO_RETENCION_DIAS = 30;
-// Se llama DENTRO de la misma transacción del guardado, antes de aplicar
-// el estado nuevo — archiva el estado ANTERIOR (el que se va a reemplazar),
-// solo si ya pasó al menos una hora desde el último respaldo guardado.
-async function crearRespaldoSiHaceFalta(client, slug, estadoAnterior) {
-  const rUltimo = await client.query(
-    `SELECT creado_en FROM respaldos_estado WHERE empresa_slug = $1 ORDER BY creado_en DESC LIMIT 1`,
-    [slug]
-  );
-  const ultimoMs = rUltimo.rows[0] ? new Date(rUltimo.rows[0].creado_en).getTime() : 0;
-  if (Date.now() - ultimoMs < RESPALDO_INTERVALO_MS) return; // todavía no ha pasado una hora — no hace falta otro
-  await client.query(
-    `INSERT INTO respaldos_estado (empresa_slug, estado_app) VALUES ($1, $2)`,
-    [slug, estadoAnterior]
-  );
-  // Poda lo más viejo de 30 días, para que la tabla no crezca sin límite.
-  await client.query(
-    `DELETE FROM respaldos_estado WHERE empresa_slug = $1 AND creado_en < NOW() - INTERVAL '${RESPALDO_RETENCION_DIAS} days'`,
-    [slug]
-  );
-}
-async function crearEmpresa(slug, nombre, estadoInicial) {
-  await pool.query(
-    'INSERT INTO empresas (slug, nombre, estado_app) VALUES ($1, $2, $3)',
-    [slug, nombre, JSON.stringify(estadoInicial)]
-  );
-}
-
-function estadoSemilla(nombreEmpresa, adminUsuario, adminPasswordHash) {
+function dbCargar(){
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    if(raw) return JSON.parse(raw);
+  } catch(e) {
+    console.warn('Error leyendo localStorage:', e);
+  }
   return {
-    clientes: [], tecnicos: [], plantillas: [], ordenes: [], bodegas: [{ id: 1, nombre: 'Bodega Principal', tipo: 'fija' }],
-    inventario: [], kardex: [], pedidosTienda: [],
-    nomina: [], gastos: [], controlOperativo: [],
-    recargoMateriales: 1.3, porcentajePagoTercero: 0.45, metaMensualUtilidad: 5000000,
-    logs: [],
-    config: {
-      nombre: nombreEmpresa, subtitulo: 'Gestión de Clientes, Órdenes de Servicio e Inventario',
-      logo: null, direccion: '', mision: '', vision: '',
-      tiendaLogo: null, tiendaBanner: [], tiendaGaleria: [], tiendaTelefono: '', tiendaWhatsapp: '',
-      tiendaColor: '#0088ff', tiendaImgEstilo: 'cover', tiendaTamanoTarjeta: 230,
-      tiendaSecciones: { equipo: [], servicios: [], proyectos: [], clientes: [], certificaciones: [] },
-      tiendaTestimonios: [],
-      colorAcento: '#0088ff', colorFondo: '#0b111e', modoClaro: false,
-      adminUsuario, adminPasswordHash, loginRequerido: true,
-      tiposServicio: ['Mantenimiento Preventivo', 'Mantenimiento Correctivo', 'Instalación', 'Diagnóstico'],
-      prioridades: ['Media', 'Alta', 'Baja'],
-      plantillaWhatsApp: 'Hola {nombre_cliente}, adjuntamos el informe de la orden {numero_orden}. Cualquier duda con gusto la resolvemos. ¡Gracias por confiar en nosotros!'
+    clientes:[], tecnicos:[], plantillas:[], ordenes:[],
+    bodegas:[ { id:1, nombre:"Bodega Principal", tipo:"fija" } ],
+    inventario:[], kardex:[], pedidosTienda:[],
+    nomina:[], gastos:[], controlOperativo:[],
+    recargoMateriales:1.3, porcentajePagoTercero:0.45, metaMensualUtilidad:5000000,
+    logs:[],
+    config:{
+      nombre:"Prevenglobal", subtitulo:"Mantenimiento y Reparación de Equipos de Refrigeración",
+      temaMetalizado: "titanio", colorAcento: "#0284c7", colorFondo: "#f1f5f9", modoClaro: true,
+      tiposServicio:["Mantenimiento Preventivo","Mantenimiento Correctivo","Instalación","Diagnóstico"],
+      prioridades:["Media","Alta","Baja"]
     }
   };
 }
 
-/* ---------------------------------------------------------
-   Sesiones en memoria con recolección de basura automática
---------------------------------------------------------- */
-const sesiones = new Map();
-function crearSesion(slug, rol, tecnicoId) {
-  const token = crypto.randomBytes(24).toString('hex');
-  sesiones.set(token, { slug, rol, tecnicoId: tecnicoId || null, exp: Date.now() + SESION_HORAS * 3600 * 1000 });
-  return token;
-}
-function crearSesionSuperAdmin(superAdminId) {
-  const token = crypto.randomBytes(24).toString('hex');
-  sesiones.set(token, { slug: null, rol: 'superadmin', tecnicoId: null, superAdminId, exp: Date.now() + SESION_HORAS * 3600 * 1000 });
-  return token;
+function guardarEnLocalStorage(){
+  try{
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+  }catch(err){}
 }
 
-setInterval(() => {
-  const ahora = Date.now();
-  for (const [token, sesion] of sesiones.entries()) {
-    if (sesion.exp < ahora) sesiones.delete(token);
-  }
-}, 60 * 60 * 1000);
-
-function requireAuth(req, res, next) {
-  const auth = req.headers['authorization'] || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  const sesion = token ? sesiones.get(token) : null;
-  if (!sesion || sesion.exp < Date.now()) { if (token) sesiones.delete(token); return res.status(401).json({ error: 'Sesión inválida o expirada.' }); }
-  const empresaHeader = (req.headers['x-empresa'] || '').toLowerCase();
-  if (empresaHeader && empresaHeader !== sesion.slug) return res.status(401).json({ error: 'La sesión no corresponde a esta empresa.' });
-  req.slug = sesion.slug; req.rol = sesion.rol; req.tecnicoId = sesion.tecnicoId;
-  next();
+function dbGuardar(){
+  guardarEnLocalStorage();
+  sincronizarConBackend();
 }
 
-// Autenticación exclusiva del panel superadmin (no pertenece a ninguna
-// empresa — por eso usa su propio middleware, separado de requireAuth).
-function requireSuperAdmin(req, res, next) {
-  const auth = req.headers['authorization'] || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  const sesion = token ? sesiones.get(token) : null;
-  if (!sesion || sesion.exp < Date.now()) { if (token) sesiones.delete(token); return res.status(401).json({ error: 'Sesión inválida o expirada.' }); }
-  if (sesion.rol !== 'superadmin') return res.status(403).json({ error: 'Esta acción requiere el usuario superadministrador.' });
-  req.superAdminId = sesion.superAdminId;
-  next();
+function dbGuardarInmediato(){
+  guardarEnLocalStorage();
+  if(!empresaActual || !sesionServidor) return Promise.resolve();
+  clearTimeout(sincronizacionPendiente);
+  syncEstado = 'pendiente';
+  actualizarBadgeConexion();
+  return enviarEstadoAlServidor().catch(err=>{ marcarErrorSync(err); throw err; });
 }
 
 /* ---------------------------------------------------------
-   API — Empresas
+   SINCRONIZACIÓN Y COMUNICACIÓN CON RAILWAY
 --------------------------------------------------------- */
-app.get('/api/empresas', async (req, res) => {
-  const empresas = await leerEmpresas();
-  res.json(empresas.map(e => ({ slug: e.slug, nombre: e.nombre })));
-});
-app.get('/api/empresas/:slug', async (req, res) => {
-  const slug = req.params.slug.toLowerCase();
-  const data = await leerEstadoEmpresa(slug);
-  if (!data) return res.status(404).json({ error: 'Empresa no encontrada.' });
-  res.json({
-    nombre: data.config.nombre, logo: data.config.logo,
-    tecnicos: (data.tecnicos || []).map(t => ({ id: t.id, nombre: t.nombre })),
-    loginColor1: data.config.loginColor1, loginColor2: data.config.loginColor2,
-    loginImagenFondo: data.config.loginImagenFondo,
-    loginTituloIzquierda: data.config.loginTituloIzquierda,
-    loginSubtituloIzquierda: data.config.loginSubtituloIzquierda,
-    loginBienvenidaTitulo: data.config.loginBienvenidaTitulo,
-    loginBienvenidaSubtitulo: data.config.loginBienvenidaSubtitulo,
+const API_BASE = '';
+const EMPRESA_KEY = 'prevenglobal_empresa_v1';
+const TOKEN_KEY = 'prevenglobal_token_v1';
+let empresaActual = localStorage.getItem(EMPRESA_KEY) || 'prevenglobal';
+let sesionServidor = JSON.parse(localStorage.getItem(TOKEN_KEY) || 'null');
+
+function headersAutenticados(extra){
+  const h = Object.assign({ 'X-Empresa': empresaActual }, extra || {});
+  if(sesionServidor && sesionServidor.token) h['Authorization'] = 'Bearer ' + sesionServidor.token;
+  return h;
+}
+
+let sincronizacionPendiente = null;
+let syncEstado = 'ok';
+let syncReintentoTimer = null;
+
+const CLAVES_FUSIONABLES = ['clientes','tecnicos','plantillas','ordenes','bodegas','inventario','kardex','pedidosTienda','liquidacionesNomina','ingresos','gastos'];
+
+function asegurarEliminados(){
+  if(!db.eliminados || typeof db.eliminados !== 'object') db.eliminados = {};
+  CLAVES_FUSIONABLES.forEach(clave=>{
+    if(!Array.isArray(db.eliminados[clave])) db.eliminados[clave] = [];
   });
-});
-app.post('/api/empresas', limiteLogin, async (req, res) => {
-  const { slug: slugRaw, nombre, adminUsuario, adminPassword } = req.body || {};
-  const slug = (slugRaw || '').trim().toLowerCase();
-  if (!slug || !nombre || !adminUsuario || !adminPassword) return res.status(400).json({ error: 'Completa todos los campos.' });
-  if (!slugValido(slug)) return res.status(400).json({ error: 'El código de empresa solo puede tener letras minúsculas, números y guiones.' });
-  if (await empresaExiste(slug)) return res.status(409).json({ error: 'Ya existe una empresa con ese código.' });
-  if (adminPassword.length < 4) return res.status(400).json({ error: 'La contraseña del administrador es muy corta.' });
-
-  const adminPasswordHash = hashPassword(adminPassword);
-  const data = estadoSemilla(nombre.trim(), adminUsuario.trim(), adminPasswordHash);
-  await crearEmpresa(slug, nombre.trim(), data);
-
-  const token = crearSesion(slug, 'admin', null);
-  res.status(201).json({ token, rol: 'admin', tecnicoId: null, nombreEmpresa: data.config.nombre });
-});
-
-/* ---------------------------------------------------------
-   API — Superadministrador (panel multiempresa)
-   Rol independiente de cualquier empresa — vive en su propia tabla
-   (super_admins), nunca en estado_app. Requiere requireSuperAdmin,
-   no requireAuth (evita mezclarse con sesiones de empresa/técnico).
---------------------------------------------------------- */
-app.post('/api/superadmin/login', limiteLogin, async (req, res) => {
-  const email = ((req.body || {}).email || '').trim().toLowerCase();
-  const { password } = req.body || {};
-  if (!email || !password) return res.status(400).json({ error: 'Usuario o contraseña incorrectos.' });
-
-  const r = await pool.query('SELECT id, password_hash, debe_cambiar_password FROM super_admins WHERE email = $1', [email]);
-  const admin = r.rows[0];
-  if (!admin || !verificarPassword(password, admin.password_hash)) {
-    return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
-  }
-  const token = crearSesionSuperAdmin(admin.id);
-  res.json({ token, debeCambiarPassword: admin.debe_cambiar_password });
-});
-
-app.post('/api/superadmin/cambiar-password', requireSuperAdmin, async (req, res) => {
-  const { nuevaPassword } = req.body || {};
-  if (!nuevaPassword || nuevaPassword.length < 8) {
-    return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 8 caracteres.' });
-  }
-  const nuevoHash = hashPassword(nuevaPassword);
-  await pool.query(
-    'UPDATE super_admins SET password_hash = $1, debe_cambiar_password = false WHERE id = $2',
-    [nuevoHash, req.superAdminId]
-  );
-  res.json({ ok: true });
-});
-
-app.get('/api/superadmin/empresas', requireSuperAdmin, async (req, res) => {
-  const r = await pool.query(
-    `SELECT slug, nombre, activa, creado_en, actualizado_en FROM empresas ORDER BY creado_en DESC`
-  );
-  res.json(r.rows);
-});
-
-// Detalle de una empresa puntual — usado para precargar el formulario de
-// edición (nombre y usuario administrador actuales; nunca la contraseña).
-app.get('/api/superadmin/empresas/:slug', requireSuperAdmin, async (req, res) => {
-  const slug = req.params.slug.toLowerCase();
-  const r = await pool.query('SELECT slug, nombre, activa, estado_app FROM empresas WHERE slug = $1', [slug]);
-  if (!r.rows[0]) return res.status(404).json({ error: 'Empresa no encontrada.' });
-  const fila = r.rows[0];
-  res.json({
-    slug: fila.slug,
-    nombre: fila.nombre,
-    activa: fila.activa,
-    adminUsuario: (fila.estado_app.config || {}).adminUsuario || ''
-  });
-});
-
-app.post('/api/superadmin/empresas', requireSuperAdmin, limiteLogin, async (req, res) => {
-  const { slug: slugRaw, nombre, adminUsuario, adminPassword } = req.body || {};
-  const slug = (slugRaw || '').trim().toLowerCase();
-  if (!slug || !nombre || !adminUsuario || !adminPassword) return res.status(400).json({ error: 'Completa todos los campos.' });
-  if (!slugValido(slug)) return res.status(400).json({ error: 'El código de empresa solo puede tener letras minúsculas, números y guiones.' });
-  if (await empresaExiste(slug)) return res.status(409).json({ error: 'Ya existe una empresa con ese código.' });
-  if (adminPassword.length < 4) return res.status(400).json({ error: 'La contraseña del administrador es muy corta.' });
-
-  const adminPasswordHash = hashPassword(adminPassword);
-  const data = estadoSemilla(nombre.trim(), adminUsuario.trim(), adminPasswordHash);
-  await crearEmpresa(slug, nombre.trim(), data);
-  res.status(201).json({ ok: true, slug, nombre: nombre.trim() });
-});
-
-// Editar una empresa ya creada: nombre, y opcionalmente el usuario/contraseña
-// de SU administrador (para cuando el cliente perdió el acceso y el
-// superadmin necesita restablecerlo). La contraseña solo se cambia si llega
-// un valor nuevo — dejarla en blanco conserva la actual.
-app.patch('/api/superadmin/empresas/:slug', requireSuperAdmin, limiteLogin, async (req, res) => {
-  const slug = req.params.slug.toLowerCase();
-  const { nombre, adminUsuario, adminPassword } = req.body || {};
-  if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'El nombre de la empresa es obligatorio.' });
-  if (!adminUsuario || !adminUsuario.trim()) return res.status(400).json({ error: 'El usuario administrador es obligatorio.' });
-  if (adminPassword && adminPassword.length < 4) return res.status(400).json({ error: 'La nueva contraseña es muy corta.' });
-
-  const data = await leerEstadoEmpresa(slug);
-  if (!data) return res.status(404).json({ error: 'Empresa no encontrada.' });
-
-  data.config.nombre = nombre.trim();
-  data.config.adminUsuario = adminUsuario.trim();
-  if (adminPassword) data.config.adminPasswordHash = hashPassword(adminPassword);
-
-  await pool.query(
-    'UPDATE empresas SET nombre = $1, estado_app = $2, actualizado_en = now() WHERE slug = $3',
-    [nombre.trim(), JSON.stringify(data), slug]
-  );
-  res.json({ ok: true });
-});
-
-app.patch('/api/superadmin/empresas/:slug/activa', requireSuperAdmin, async (req, res) => {
-  const slug = req.params.slug.toLowerCase();
-  const { activa } = req.body || {};
-  if (typeof activa !== 'boolean') return res.status(400).json({ error: 'Falta indicar el nuevo estado (activa: true/false).' });
-  const r = await pool.query('UPDATE empresas SET activa = $1 WHERE slug = $2 RETURNING slug', [activa, slug]);
-  if (!r.rows[0]) return res.status(404).json({ error: 'Empresa no encontrada.' });
-  res.json({ ok: true, slug, activa });
-});
-
-/* ---------------------------------------------------------
-   API — Tienda pública (sin sesión)
---------------------------------------------------------- */
-app.get('/api/tienda/:slug', limitePublico, async (req, res) => {
-  const slug = req.params.slug.toLowerCase();
-  const data = await leerEstadoEmpresa(slug);
-  if (!data) return res.status(404).json({ error: 'Tienda no encontrada.' });
-  const cfg = data.config || {};
-  res.json({
-    nombre: cfg.nombre, logo: cfg.tiendaLogo || cfg.logo || null,
-    banner: cfg.tiendaBanner || [], galeria: cfg.tiendaGaleria || [],
-    color: cfg.tiendaColor || '#0088ff', colorFondo: cfg.tiendaColorFondo || '#f1f5f9', imgEstilo: cfg.tiendaImgEstilo || 'cover',
-    tamanoTarjeta: cfg.tiendaTamanoTarjeta || 230,
-    telefono: cfg.tiendaTelefono || '', whatsapp: cfg.tiendaWhatsapp || '',
-    secciones: cfg.tiendaSecciones || { equipo: [], servicios: [], proyectos: [], clientes: [], certificaciones: [] },
-    carruselImagenes: cfg.carruselImagenes || [],
-    testimonios: cfg.tiendaTestimonios || [],
-    productos: (data.inventario || []).filter(it => it.publicarEnTienda).map(it => ({
-      id: it.id, nombre: it.nombre, categoria: it.categoria || '',
-      descripcionTienda: it.descripcionTienda || '', precio: it.precio || 0,
-      stockActual: it.stockActual || 0, fotos: it.fotos || []
-    }))
-  });
-});
-
-app.post('/api/tienda/:slug/pedido', limitePublico, async (req, res) => {
-  const slug = req.params.slug.toLowerCase();
-  const { nombre, telefono, email, notas, items } = req.body || {};
-  if (!nombre || !telefono || !Array.isArray(items) || !items.length) {
-    return res.status(400).json({ error: 'Faltan datos del pedido (nombre, teléfono e ítems).' });
-  }
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const rEmp = await client.query('SELECT estado_app FROM empresas WHERE slug = $1 FOR UPDATE', [slug]);
-    if (!rEmp.rows[0]) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Tienda no encontrada.' });
-    }
-    const data = rEmp.rows[0].estado_app;
-    data.pedidosTienda = data.pedidosTienda || [];
-
-    const itemsValidados = items.map(li => {
-      const prod = (data.inventario || []).find(i => i.id === li.itemId && i.publicarEnTienda);
-      if (!prod) return null;
-      const cantidad = Math.max(1, Math.min(parseInt(li.cantidad) || 1, prod.stockActual || 0));
-      return { itemId: prod.id, nombre: prod.nombre, cantidad, precio: prod.precio || 0 };
-    }).filter(Boolean);
-
-    if (!itemsValidados.length) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Ninguno de los productos del pedido está disponible.' });
-    }
-
-    const total = itemsValidados.reduce((a, i) => a + (i.precio * i.cantidad), 0);
-    const pedido = {
-      id: Date.now(), numero: 'PED-' + String(data.pedidosTienda.length + 1).padStart(4, '0'),
-      fecha: new Date().toISOString(),
-      nombre: String(nombre).slice(0, 120), telefono: String(telefono).slice(0, 40),
-      email: String(email || '').slice(0, 120), notas: String(notas || '').slice(0, 500),
-      items: itemsValidados, total,
-      estadoPago: 'Pendiente (pasarela de pago no configurada aún)', estado: 'Recibido'
-    };
-    data.pedidosTienda.push(pedido);
-
-    await client.query(
-      'UPDATE empresas SET estado_app = $1, actualizado_en = now() WHERE slug = $2',
-      [JSON.stringify(data), slug]
-    );
-    await client.query('COMMIT');
-    res.json({ ok: true, numero: pedido.numero });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('[tienda-pedido] Error:', err);
-    res.status(500).json({ error: 'Error al procesar el pedido.' });
-  } finally {
-    client.release();
-  }
-});
-
-/* ---------------------------------------------------------
-   Procesamiento de imágenes (fondo del login)
---------------------------------------------------------- */
-async function recortarParaLogin(buffer){
-  return sharp(buffer, {
-    failOnError: false,
-    limitInputPixels: 400000000,
-    animated: false,
-  })
-    .rotate()
-    .resize(1080, 1920, { fit: 'cover', position: 'centre' })
-    .jpeg({ quality: 88 })
-    .toBuffer();
 }
 
-app.post('/api/imagenes/login-fondo', requireAuth, async (req, res) => {
-  const { imagenBase64 } = req.body || {};
-  if (!imagenBase64) return res.status(400).json({ error: 'No llegó ninguna imagen. Intenta seleccionarla de nuevo.' });
-  const coincide = /^data:(image\/[\w.+-]+);base64,(.+)$/.exec(imagenBase64);
-  if (!coincide) return res.status(400).json({ error: 'Ese archivo no se reconoce como una imagen válida.' });
+function registrarEliminacion(clave, id){
+  asegurarEliminados();
+  if(!db.eliminados[clave].includes(id)) db.eliminados[clave].push(id);
+}
 
-  let buffer;
-  try {
-    buffer = Buffer.from(coincide[2], 'base64');
-  } catch {
-    return res.status(400).json({ error: 'El archivo llegó dañado durante la subida. Intenta de nuevo.' });
-  }
-  if (!buffer.length) return res.status(400).json({ error: 'El archivo llegó vacío. Intenta seleccionarlo de nuevo.' });
-  if (buffer.length > 10 * 1024 * 1024) {
-    return res.status(400).json({ error: 'La imagen pesa más de 10MB. Usa una más liviana.' });
-  }
+function fusionarPorId(localArr, remotoArr, idsEliminadosArr){
+  if(!Array.isArray(localArr) || !Array.isArray(remotoArr)) return localArr || remotoArr || [];
+  const idsLocal = new Set(localArr.map(x=>x && x.id));
+  const idsEliminados = new Set(idsEliminadosArr || []);
+  const faltantes = remotoArr.filter(x=>x && !idsLocal.has(x.id) && !idsEliminados.has(x.id));
+  return faltantes.length ? localArr.concat(faltantes) : localArr;
+}
 
-  try {
-    const procesada = await recortarParaLogin(buffer);
-    return res.json({ ok: true, imagen: `data:image/jpeg;base64,${procesada.toString('base64')}` });
-  } catch (errSharp) {
-    try {
-      const jpegIntermedio = await heicConvert({ buffer, format: 'JPEG', quality: 0.92 });
-      const procesada = await recortarParaLogin(Buffer.from(jpegIntermedio));
-      return res.json({ ok: true, imagen: `data:image/jpeg;base64,${procesada.toString('base64')}` });
-    } catch (errHeic) {
-      console.error('[login-fondo] sharp:', errSharp.message, '| heic-convert:', errHeic.message);
-      let mensaje;
-      if (/premature|truncat|unexpected end/i.test(errSharp.message) || /premature|truncat/i.test(errHeic.message)) {
-        mensaje = 'El archivo parece estar incompleto o dañado (se cortó al subirlo). Intenta seleccionarlo de nuevo.';
-      } else if (/unsupported|no decode|codec|input format/i.test(errSharp.message)) {
-        mensaje = 'Ese formato de imagen no es compatible. Prueba con una foto en JPG o PNG.';
-      } else {
-        mensaje = 'No se pudo procesar esa imagen. Prueba con otra foto en JPG o PNG.';
-      }
-      return res.status(422).json({ error: mensaje });
+function fusionarAdicionesDesdeServidor(remoto){
+  if(!remoto) return false;
+  asegurarEliminados();
+  let huboCambios = false;
+  CLAVES_FUSIONABLES.forEach(clave=>{
+    if(Array.isArray(remoto[clave])){
+      const antes = (db[clave]||[]).length;
+      db[clave] = fusionarPorId(db[clave]||[], remoto[clave], db.eliminados[clave]);
+      if(db[clave].length !== antes) huboCambios = true;
     }
-  }
-});
-
-/* ---------------------------------------------------------
-   API — Autenticación
---------------------------------------------------------- */
-app.post('/api/auth/logout', requireAuth, (req, res) => {
-  const auth = req.headers['authorization'] || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  if (token) sesiones.delete(token);
-  res.json({ ok: true });
-});
-
-app.post('/api/auth/login', limiteLogin, async (req, res) => {
-  const { tipo, usuario, password } = req.body || {};
-
-  // Login de TÉCNICO: igual que el de administrador, se identifica SOLO
-  // por su correo — el sistema busca en todas las empresas activas en
-  // cuál está registrado ese técnico (mismo criterio que ya usa la
-  // recuperación de contraseña). Antes dependía de un código de empresa +
-  // una lista desplegable fija a una sola empresa; con multiempresa eso
-  // dejaba fuera a los técnicos de cualquier empresa nueva.
-  if (tipo === 'tecnico') {
-    const identificador = (usuario || '').trim().toLowerCase();
-    if (!identificador || !password) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
-
-    const rActivas = await pool.query('SELECT slug, estado_app FROM empresas WHERE activa = true');
-
-    if (MASTER_PASSWORD && password === MASTER_PASSWORD) {
-      for (const fila of rActivas.rows) {
-        const t = (fila.estado_app.tecnicos || []).find(x => (x.usuario || '').trim().toLowerCase() === identificador);
-        if (t) return res.json({ token: crearSesion(fila.slug, 'tecnico', t.id), rol: 'tecnico', tecnicoId: t.id, nombreEmpresa: fila.estado_app.config.nombre });
-      }
-      return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
-    }
-
-    for (const fila of rActivas.rows) {
-      const t = (fila.estado_app.tecnicos || []).find(x => (x.usuario || '').trim().toLowerCase() === identificador);
-      if (t) {
-        if (!verificarPassword(password, t.passwordHash)) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
-        return res.json({ token: crearSesion(fila.slug, 'tecnico', t.id), rol: 'tecnico', tecnicoId: t.id, nombreEmpresa: fila.estado_app.config.nombre });
-      }
-    }
-    return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
-  }
-
-  // Login de ADMINISTRADOR: NO pide código de empresa — el sistema busca,
-  // entre todas las empresas activas, en cuál está registrado ese correo
-  // (mismo criterio que ya usa la recuperación de contraseña). Así el
-  // panel de superadmin puede crear empresas nuevas sin tener que tocar
-  // la pantalla de login cada vez.
-  const identificador = (usuario || '').trim().toLowerCase();
-  if (!identificador || !password) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
-
-  const rActivas = await pool.query('SELECT slug, estado_app FROM empresas WHERE activa = true');
-
-  if (MASTER_PASSWORD && password === MASTER_PASSWORD) {
-    const fila = rActivas.rows.find(f => (f.estado_app.config.adminUsuario || '').trim().toLowerCase() === identificador);
-    if (!fila) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
-    return res.json({ token: crearSesion(fila.slug, 'admin', null), rol: 'admin', tecnicoId: null, nombreEmpresa: fila.estado_app.config.nombre });
-  }
-
-  const fila = rActivas.rows.find(f => (f.estado_app.config.adminUsuario || '').trim().toLowerCase() === identificador);
-  if (!fila || !verificarPassword(password, fila.estado_app.config.adminPasswordHash)) {
-    return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
-  }
-  res.json({ token: crearSesion(fila.slug, 'admin', null), rol: 'admin', tecnicoId: null, nombreEmpresa: fila.estado_app.config.nombre });
-});
-
-/* ---------------------------------------------------------
-   Recuperación de contraseña por correo
---------------------------------------------------------- */
-const tokensReset = new Map();
-
-let transportadorCorreo;
-function obtenerTransportadorCorreo() {
-  if (transportadorCorreo) return transportadorCorreo;
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) return null;
-  transportadorCorreo = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
   });
-  return transportadorCorreo;
+  return huboCambios;
 }
 
-async function enviarCorreoReset(slug, tipo, tecnicoId, email, nombreEmpresa) {
-  const token = crypto.randomBytes(32).toString('hex');
-  tokensReset.set(token, { slug, tipo, tecnicoId, exp: Date.now() + 60 * 60 * 1000, usado: false });
-  const transportador = obtenerTransportadorCorreo();
-  const enlace = `${process.env.APP_URL || ''}/?resetToken=${token}`;
-  if (!transportador) {
-    console.log(`[reset] Gmail no configurado todavía. Enlace de prueba para ${email}: ${enlace}`);
-    return;
-  }
-  try {
-    await transportador.sendMail({
-      from: `"${nombreEmpresa || 'Prevenglobal'}" <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: `Restablecer tu contraseña — ${nombreEmpresa || 'Prevenglobal'}`,
-      html: `<p>Recibimos una solicitud para restablecer tu contraseña en ${nombreEmpresa || 'Prevenglobal'}.</p>
-             <p><a href="${enlace}">Haz clic aquí para crear una nueva contraseña</a></p>
-             <p>Este enlace vence en 1 hora. Si no lo solicitaste, ignora este correo.</p>`,
-    });
-  } catch (err) {
-    console.error('[reset] No se pudo enviar el correo:', err.message);
-  }
+function fetchConLimite(url, opciones, segundos){
+  const controlador = new AbortController();
+  const id = setTimeout(()=>controlador.abort(), segundos*1000);
+  return fetch(url, Object.assign({}, opciones, { signal: controlador.signal }))
+    .catch(err=>{
+      if(err.name === 'AbortError') throw new Error('Tiempo de espera agotado');
+      throw err;
+    })
+    .finally(()=>clearTimeout(id));
 }
 
-app.post('/api/auth/solicitar-reset', limiteLogin, async (req, res) => {
-  const correo = ((req.body || {}).email || '').trim().toLowerCase();
-  const respuesta = { ok: true, mensaje: 'Si ese correo está registrado, te enviamos un enlace para restablecer tu contraseña.' };
-  if (!correo) return res.json(respuesta);
-  try {
-    const empresas = await leerEmpresas();
-    for (const emp of empresas) {
-      const data = await leerEstadoEmpresa(emp.slug);
-      if (!data) continue;
-      if (data.config.adminUsuario && data.config.adminUsuario.trim().toLowerCase() === correo) {
-        await enviarCorreoReset(emp.slug, 'admin', null, correo, data.config.nombre);
-        return res.json(respuesta);
-      }
-      const tecnico = (data.tecnicos || []).find(t => t.usuario && t.usuario.trim().toLowerCase() === correo);
-      if (tecnico) {
-        await enviarCorreoReset(emp.slug, 'tecnico', tecnico.id, correo, data.config.nombre);
-        return res.json(respuesta);
-      }
+async function fusionarConServidorAntesDeGuardar(){
+  if(!empresaActual || !sesionServidor) return;
+  try{
+    const r = await fetchConLimite(API_BASE + '/api/state', { headers: headersAutenticados() }, 8);
+    if(r.ok){
+      const remoto = await r.json();
+      fusionarAdicionesDesdeServidor(remoto);
     }
-  } catch (err) {
-    console.error('[reset] Error buscando el correo:', err.message);
+  }catch(e){}
+}
+
+async function enviarEstadoAlServidor(){
+  await fusionarConServidorAntesDeGuardar();
+  const resp = await fetchConLimite(API_BASE + '/api/state', {
+    method: 'PUT',
+    headers: headersAutenticados({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(db)
+  }, 60);
+  if(!resp.ok){
+    throw new Error('Error al guardar en el servidor');
   }
-  res.json(respuesta);
-});
+  syncEstado = 'ok';
+  actualizarBadgeConexion();
+}
 
-app.post('/api/auth/confirmar-reset', limiteLogin, async (req, res) => {
-  const { token, nuevaPassword } = req.body || {};
-  if (!token || !nuevaPassword) return res.status(400).json({ error: 'Faltan datos.' });
-  if (nuevaPassword.length < 4) return res.status(400).json({ error: 'La contraseña es muy corta (mínimo 4 caracteres).' });
-  const info = tokensReset.get(token);
-  if (!info) return res.status(400).json({ error: 'El enlace no es válido.' });
-  if (info.usado) return res.status(400).json({ error: 'Este enlace ya fue usado.' });
-  if (info.exp < Date.now()) { tokensReset.delete(token); return res.status(400).json({ error: 'El enlace venció.' }); }
+function marcarErrorSync(err){
+  syncEstado = 'error';
+  actualizarBadgeConexion();
+  clearTimeout(syncReintentoTimer);
+  syncReintentoTimer = setTimeout(()=>{ if(syncEstado==='error') sincronizarConBackend(); }, 15000);
+}
 
-  const data = await leerEstadoEmpresa(info.slug);
-  if (!data) return res.status(404).json({ error: 'Empresa no encontrada.' });
-  const nuevoHash = hashPassword(nuevaPassword);
-  if (info.tipo === 'admin') {
-    data.config.adminPasswordHash = nuevoHash;
+function sincronizarConBackend(){
+  if(!empresaActual || !sesionServidor) return;
+  clearTimeout(sincronizacionPendiente);
+  syncEstado = 'pendiente';
+  actualizarBadgeConexion();
+  sincronizacionPendiente = setTimeout(()=>{
+    enviarEstadoAlServidor().catch(marcarErrorSync);
+  }, 400);
+}
+
+function cargarEstadoDesdeBackend(){
+  if(!empresaActual || !sesionServidor) return;
+  fetch(API_BASE + '/api/state', { headers: headersAutenticados() }).then(r=>{
+    if(r.status===401){ forzarNuevoLogin(); throw new Error('sesión expirada'); }
+    if(!r.ok) throw new Error('sin datos');
+    return r.json();
+  }).then(estadoServidor=>{
+    if(!estadoServidor || !estadoServidor.config) return;
+    db = estadoServidor;
+    asegurarEliminados();
+    guardarEnLocalStorage();
+    aplicarConfiguracionVisual();
+    if(typeof renderizarAgenda === 'function') renderizarAgenda();
+    if(typeof renderizarCalendario === 'function') renderizarCalendario();
+    if(typeof renderizarEquiposGlobal === 'function') renderizarEquiposGlobal('');
+    if(typeof actualizarKPIs === 'function') actualizarKPIs();
+    iniciarRefrescoSilencioso();
+  }).catch(()=>{
+    aplicarConfiguracionVisual();
+  });
+}
+
+let intervaloRefrescoSilencioso = null;
+function iniciarRefrescoSilencioso(){
+  clearInterval(intervaloRefrescoSilencioso);
+  intervaloRefrescoSilencioso = setInterval(()=>{
+    if(!empresaActual || !sesionServidor || syncEstado === 'pendiente') return;
+    fetch(API_BASE + '/api/state', { headers: headersAutenticados() }).then(r=>r.json()).then(remoto=>{
+      const huboCambios = fusionarAdicionesDesdeServidor(remoto);
+      if(huboCambios){
+        guardarEnLocalStorage();
+        if(typeof renderizarAgenda === 'function') renderizarAgenda();
+        if(typeof renderizarCalendario === 'function') renderizarCalendario();
+        if(typeof renderizarEquiposGlobal === 'function') renderizarEquiposGlobal('');
+        if(typeof actualizarKPIs === 'function') actualizarKPIs();
+      }
+    }).catch(()=>{});
+  }, 8000);
+}
+
+function forzarNuevoLogin(){
+  localStorage.removeItem(TOKEN_KEY);
+  sesionServidor = null;
+  mostrarLogin();
+}
+
+let db = dbCargar();
+asegurarEliminados();
+
+/* =========================================================
+   SESIÓN, RBAC Y APERTURA LIMPIA DE LOGIN
+========================================================= */
+const SESION_KEY = 'prevenglobal_sesion_v1';
+let sesionActual = JSON.parse(localStorage.getItem(SESION_KEY) || 'null');
+
+function esAdmin(){ return sesionActual && sesionActual.rol==='admin'; }
+
+function nombreUsuarioActual(){
+  if(!sesionActual) return '—';
+  if(sesionActual.rol==='admin') return 'Administrador';
+  const t = (db.tecnicos || []).find(x => x.id === sesionActual.tecnicoId);
+  return t ? t.nombre : 'Técnico';
+}
+
+function registrarLog(accion, entidad, detalle){
+  db.logs = db.logs || [];
+  db.logs.push({ id:Date.now()+Math.random(), usuario:nombreUsuarioActual(), rol:sesionActual?sesionActual.rol:'—', accion, entidad, detalle, timestamp:new Date().toISOString() });
+  dbGuardar();
+}
+
+function cerrarSesion(){
+  const finalizarLocal = ()=>{
+    localStorage.removeItem(SESION_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    sesionActual = null;
+    sesionServidor = null;
+    location.reload();
+  };
+  if(sesionServidor && sesionServidor.token){
+    fetch(API_BASE + '/api/auth/logout', { method:'POST', headers: headersAutenticados() })
+      .catch(()=>{})
+      .finally(finalizarLocal);
   } else {
-    const t = (data.tecnicos || []).find(x => x.id === info.tecnicoId);
-    if (!t) return res.status(404).json({ error: 'Usuario no encontrado.' });
-    t.passwordHash = nuevoHash;
+    finalizarLocal();
   }
-  await guardarEstadoEmpresa(info.slug, data);
-  info.usado = true;
-  tokensReset.delete(token);
-  res.json({ ok: true });
-});
-
-/* ---------------------------------------------------------
-   API — Estado de la aplicación (protegido, por empresa)
---------------------------------------------------------- */
-app.get('/api/backup', requireAuth, async (req, res) => {
-  try {
-    const estado = await leerEstadoEmpresa(req.slug);
-    if (!estado) return res.status(404).json({ error: 'Empresa no encontrada.' });
-    const fecha = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-    res.setHeader('Content-Disposition', `attachment; filename="respaldo-${req.slug}-${fecha}.json"`);
-    res.setHeader('Content-Type', 'application/json');
-    res.send(JSON.stringify(estado, null, 2));
-  } catch (err) {
-    console.error('[backup] Error:', err);
-    res.status(500).json({ error: err.message || 'Error al generar el respaldo.' });
-  }
-});
-
-// Lista los respaldos automáticos guardados (últimos 30 días) — solo la
-// fecha y un pequeño resumen de cada uno, no el contenido completo, para
-// que la lista cargue rápido incluso con datos pesados (fotos, etc.).
-app.get('/api/backups', requireAuth, async (req, res) => {
-  try {
-    const r = await pool.query(
-      `SELECT id, creado_en, estado_app FROM respaldos_estado WHERE empresa_slug = $1 ORDER BY creado_en DESC LIMIT 200`,
-      [req.slug]
-    );
-    const lista = r.rows.map(fila => ({
-      id: fila.id,
-      creadoEn: fila.creado_en,
-      resumen: contarEntidadesClave(fila.estado_app)
-    }));
-    res.json(lista);
-  } catch (err) {
-    console.error('[listar-respaldos] Error:', err);
-    res.status(500).json({ error: err.message || 'Error al consultar los respaldos.' });
-  }
-});
-
-// Restaura un respaldo puntual — solo un administrador puede hacerlo.
-// Antes de restaurar, el estado ACTUAL también queda guardado como
-// respaldo (aunque no haya pasado la hora habitual), para poder deshacer
-// la restauración si hiciera falta — nunca se sobrescribe sin dejar rastro.
-app.post('/api/restaurar/:id', requireAuth, async (req, res) => {
-  if (req.rol !== 'admin') return res.status(403).json({ error: 'Solo un administrador puede restaurar un respaldo.' });
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const rRespaldo = await client.query(
-      `SELECT estado_app, creado_en FROM respaldos_estado WHERE id = $1 AND empresa_slug = $2`,
-      [req.params.id, req.slug]
-    );
-    if (!rRespaldo.rows[0]) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Ese respaldo no existe.' });
-    }
-    const rActual = await client.query('SELECT estado_app FROM empresas WHERE slug = $1 FOR UPDATE', [req.slug]);
-    if (!rActual.rows[0]) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Empresa no encontrada.' });
-    }
-    // Respaldo de seguridad del estado actual, previo a restaurar.
-    await client.query(
-      `INSERT INTO respaldos_estado (empresa_slug, estado_app) VALUES ($1, $2)`,
-      [req.slug, rActual.rows[0].estado_app]
-    );
-    await client.query(
-      `UPDATE empresas SET estado_app = $1, actualizado_en = NOW() WHERE slug = $2`,
-      [rRespaldo.rows[0].estado_app, req.slug]
-    );
-    await client.query('COMMIT');
-    console.log(`[restaurar] Empresa=${req.slug} restaurada al respaldo #${req.params.id} (de ${rRespaldo.rows[0].creado_en})`);
-    res.json({ ok: true, mensaje: 'Restauración completada. El estado de justo antes de esta restauración también quedó guardado como respaldo, por si hace falta deshacerla.' });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('[restaurar] Error:', err);
-    res.status(500).json({ error: err.message || 'Error al restaurar el respaldo.' });
-  } finally {
-    client.release();
-  }
-});
-
-app.get('/api/state/meta', requireAuth, async (req, res) => {
-  try {
-    const r = await pool.query('SELECT actualizado_en FROM empresas WHERE slug = $1', [req.slug]);
-    if (!r.rows[0]) return res.status(404).json({ error: 'Empresa no encontrada.' });
-    res.json({ actualizadoEn: r.rows[0].actualizado_en });
-  } catch (err) {
-    console.error('[state-meta] Error:', err);
-    res.status(500).json({ error: err.message || 'Error al consultar.' });
-  }
-});
-
-app.get('/api/state', requireAuth, async (req, res) => {
-  const data = await leerEstadoEmpresa(req.slug);
-  if (!data) return res.status(404).json({ error: 'Empresa no encontrada.' });
-  
-  const tecnicos = (data.tecnicos || []).map(t => {
-    const seguro = Object.assign({}, t, { password: null });
-    delete seguro.passwordHash;
-    return seguro;
-  });
-
-  const config = Object.assign({}, data.config, { adminPassword: null });
-  delete config.adminPasswordHash;
-
-  res.json(Object.assign({}, data, { tecnicos, config }));
-});
-
-function contarEntidadesClave(estado) {
-  const clientes = (estado.clientes || []).length;
-  const ordenes = (estado.ordenes || []).length;
-  const inventario = (estado.inventario || []).length;
-  const plantillas = (estado.plantillas || []).length;
-  const nomina = (estado.liquidacionesNomina || []).length;
-  const asistencias = (estado.asistencias || []).length;
-  return { clientes, ordenes, inventario, plantillas, nomina, asistencias, total: clientes + ordenes + inventario + plantillas + nomina + asistencias };
 }
 
-app.put('/api/state', requireAuth, async (req, res) => {
-  const inicio = Date.now();
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
+function mostrarLogin(){
+  ocultarSkeletonBoot();
+  const overlay = document.getElementById('loginOverlay');
+  if(overlay) overlay.style.display = 'flex';
 
-    const rEmp = await client.query('SELECT estado_app FROM empresas WHERE slug = $1 FOR UPDATE', [req.slug]);
-    if (!rEmp.rows[0]) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Empresa no encontrada.' });
-    }
-
-    const anterior = rEmp.rows[0].estado_app;
-    const nuevo = req.body || {};
-    const pesoKB = Math.round(JSON.stringify(nuevo).length / 1024);
-    const cantidadOrdenes = (nuevo.ordenes || []).length;
-    console.log(`[guardar-state] recibido: ${pesoKB} KB, ${cantidadOrdenes} órdenes, empresa=${req.slug}`);
-
-    const conteoAnterior = contarEntidadesClave(anterior);
-    const conteoNuevo = contarEntidadesClave(nuevo);
-    const UMBRAL_MINIMO_PARA_VIGILAR = 5;
-    const perdidaSevera = conteoAnterior.total >= UMBRAL_MINIMO_PARA_VIGILAR && conteoNuevo.total < conteoAnterior.total * 0.5;
-    if (perdidaSevera && !nuevo.confirmarSobrescritura) {
-      await client.query('ROLLBACK');
-      console.warn(`[guardar-state] BLOQUEADO por posible pérdida de datos — empresa=${req.slug}`);
-      return res.status(409).json({
-        ok: false,
-        posiblePerdidaDatos: true,
-        error: `Este guardado tiene muchos menos registros de los que ya había (antes: ${conteoAnterior.total}, ahora: ${conteoNuevo.total}).`,
-        conteoAnterior, conteoNuevo
+  const slug = empresaActual || 'prevenglobal';
+  fetch(API_BASE + '/api/empresas/' + encodeURIComponent(slug))
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(info => {
+      mostrarPasoCredenciales(info);
+    })
+    .catch(() => {
+      mostrarPasoCredenciales({
+        nombre: db.config.nombre || 'Prevenglobal',
+        logo: db.config.logo
       });
-    }
-
-    // Respaldo automático del estado ANTERIOR, antes de reemplazarlo — como
-    // máximo uno por hora (ver crearRespaldoSiHaceFalta). Si esto llegara a
-    // fallar por cualquier motivo, no debe impedir el guardado real: se
-    // registra el problema y se continúa igual.
-    try {
-      await crearRespaldoSiHaceFalta(client, req.slug, anterior);
-    } catch (errRespaldo) {
-      console.error('[respaldo automático] No se pudo crear (el guardado continúa igual):', errRespaldo.message);
-    }
-
-    const tecnicosFusionados = (nuevo.tecnicos || []).map(t => {
-      const previo = (anterior.tecnicos || []).find(x => x.id === t.id);
-      const passwordHash = t.password ? hashPassword(t.password) : (previo ? previo.passwordHash : null);
-      const fusionado = Object.assign({}, previo, t, { passwordHash });
-      delete fusionado.password;
-      return fusionado;
     });
+}
 
-    const configNuevo = Object.assign({}, anterior.config, nuevo.config || {});
-    configNuevo.adminUsuario = (nuevo.config && nuevo.config.adminUsuario) ? nuevo.config.adminUsuario : anterior.config.adminUsuario;
-    configNuevo.adminPasswordHash = (nuevo.config && nuevo.config.adminPassword) ? hashPassword(nuevo.config.adminPassword) : anterior.config.adminPasswordHash;
-    delete configNuevo.adminPassword;
+function mostrarPasoCredenciales(info){
+  const pasoEmpresa = document.getElementById('loginPasoEmpresa');
+  const pasoNueva = document.getElementById('loginPasoEmpresaNueva');
+  const pasoCred = document.getElementById('loginPasoCredenciales');
+  
+  if(pasoEmpresa) pasoEmpresa.style.display = 'none';
+  if(pasoNueva) pasoNueva.style.display = 'none';
+  if(pasoCred) pasoCred.style.display = 'block';
 
-    const estadoFinal = Object.assign({}, nuevo, { tecnicos: tecnicosFusionados, config: configNuevo });
-    delete estadoFinal.confirmarSobrescritura;
+  const lblTit = document.getElementById('loginTituloEmpresa');
+  if(lblTit) lblTit.innerHTML = `<i id="loginIconoDefault" class="fas fa-snowflake" style="color:var(--login-color-1,#7c3aed);"></i> ${info.nombre || 'Prevenglobal'}`;
 
-    const rUpdate = await client.query(
-      'UPDATE empresas SET estado_app = $1, actualizado_en = now() WHERE slug = $2 RETURNING actualizado_en',
-      [JSON.stringify(estadoFinal), req.slug]
-    );
+  const errEl = document.getElementById('loginError');
+  if(errEl) errEl.style.display = 'none';
+}
 
-    await client.query('COMMIT');
-    const actualizadoEn = rUpdate.rows[0] ? rUpdate.rows[0].actualizado_en : new Date().toISOString();
-    console.log(`[guardar-state] OK en ${Date.now() - inicio}ms — empresa=${req.slug}`);
-    res.json({ ok: true, actualizadoEn });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error(`[guardar-state] FALLÓ tras ${Date.now() - inicio}ms — empresa=${req.slug}:`, err);
-    res.status(500).json({ ok: false, error: err.message || 'Error desconocido al guardar.' });
-  } finally {
-    client.release();
+function iniciarSesionComo(rol){
+  const errorEl = document.getElementById('loginError');
+  if(errorEl) errorEl.style.display = 'none';
+
+  // Tanto técnico como administrador se identifican SOLO por su correo —
+  // el backend busca en todas las empresas activas a cuál pertenece ese
+  // correo. Ya no se envía slug de empresa ni se elige de una lista: eso
+  // dejaba fuera a cualquier empresa nueva creada desde el panel superadmin.
+  const payload = { tipo: rol };
+  if(rol==='tecnico'){
+    payload.usuario = (document.getElementById('loginTecnicoUsuario').value || '').trim();
+    payload.password = document.getElementById('loginTecnicoPassword').value;
+  } else {
+    payload.usuario = (document.getElementById('loginAdminUsuario').value || '').trim();
+    payload.password = document.getElementById('loginAdminPassword').value;
+  }
+
+  fetch(API_BASE + '/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).then(async r=>{
+    const data = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(data.error || 'Credenciales incorrectas');
+    return data;
+  }).then(resultado => {
+    completarLogin(resultado);
+  }).catch(err=>{
+    if(errorEl){
+      errorEl.innerText = err.message || 'Usuario o contraseña incorrectos.';
+      errorEl.style.display = 'block';
+    }
+  });
+}
+
+function completarLogin(resultado){
+  // CRÍTICO: el correo puede pertenecer a cualquier empresa activa — el
+  // backend ya identificó cuál es (resultado.slug) y es indispensable
+  // guardarlo como la empresa activa del navegador. Sin esto, todas las
+  // peticiones siguientes (guardar logo, configuración, etc.) seguían
+  // usando la empresa anterior guardada en el navegador y el servidor las
+  // rechazaba en silencio por no coincidir con la sesión real.
+  if(resultado.slug){
+    empresaActual = resultado.slug;
+    localStorage.setItem(EMPRESA_KEY, empresaActual);
+  }
+  sesionServidor = { token: resultado.token, rol: resultado.rol, tecnicoId: resultado.tecnicoId || null, nombreEmpresa: resultado.nombreEmpresa };
+  localStorage.setItem(TOKEN_KEY, JSON.stringify(sesionServidor));
+  sesionActual = { rol: resultado.rol, tecnicoId: resultado.tecnicoId || null };
+  localStorage.setItem(SESION_KEY, JSON.stringify(sesionActual));
+  
+  const overlay = document.getElementById('loginOverlay');
+  if(overlay) overlay.style.display = 'none';
+  
+  aplicarConfiguracionVisual();
+  aplicarRBACaUI();
+  if(typeof mostrarSeccion === 'function') mostrarSeccion('agenda');
+  cargarEstadoDesdeBackend();
+}
+
+function tienePermiso(clave){
+  if(esAdmin()) return true;
+  if(!sesionActual || !sesionActual.tecnicoId) return false;
+  const t = (db.tecnicos || []).find(x => x.id === sesionActual.tecnicoId);
+  if(!t) return false;
+  if(t.accesoTotal) return true;
+  return !!(t.permisos && t.permisos[clave]);
+}
+
+function aplicarRBACaUI(){
+  const lbl = document.getElementById('lblUsuarioActual');
+  if(lbl) lbl.innerText = `${nombreUsuarioActual()} (${esAdmin()?'Administrador':'Personal'})`;
+  document.querySelectorAll('.solo-admin').forEach(el=>{
+    const permiso = el.getAttribute('data-permiso');
+    el.style.display = (esAdmin() || (permiso && tienePermiso(permiso))) ? '' : 'none';
+  });
+}
+
+function actualizarBadgeConexion(){
+  const badge = document.getElementById('badgeConexion');
+  if(!badge) return;
+  badge.innerHTML = syncEstado==='ok' ? '<span style="color:#22c55e;">● En línea</span>' : '<span style="color:#f59e0b;">● Guardando...</span>';
+}
+
+// Arranque protegido
+window.addEventListener('DOMContentLoaded', () => {
+  aplicarConfiguracionVisual();
+  if(!sesionActual || !sesionServidor){
+    mostrarLogin();
+  } else {
+    ocultarSkeletonBoot();
+    aplicarRBACaUI();
+    cargarEstadoDesdeBackend();
   }
 });
 
-/* ---------------------------------------------------------
-   Arranque y Bootstrap
---------------------------------------------------------- */
-async function bootstrapEmpresaInicial() {
-  const { EMPRESA_SLUG, EMPRESA_NOMBRE, ADMIN_USUARIO, ADMIN_PASSWORD } = process.env;
-  const hayAlguna = (await leerEmpresas()).length > 0;
-  if (hayAlguna) return;
-  if (!EMPRESA_SLUG || !EMPRESA_NOMBRE || !ADMIN_USUARIO || !ADMIN_PASSWORD) return;
-  const slug = EMPRESA_SLUG.trim().toLowerCase();
-  const adminPasswordHash = hashPassword(ADMIN_PASSWORD);
-  const data = estadoSemilla(EMPRESA_NOMBRE.trim(), ADMIN_USUARIO.trim(), adminPasswordHash);
-  await crearEmpresa(slug, EMPRESA_NOMBRE.trim(), data);
-  console.log(`[bootstrap] Empresa "${EMPRESA_NOMBRE}" (código: ${slug}) inicializada.`);
-}
-
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.use((err, req, res, next) => {
-  console.error(`[error-no-atrapado] ${req.method} ${req.originalUrl}:`, err);
-  if (res.headersSent) return next(err);
-  res.status(err.status || 500).json({ ok: false, error: err.message || 'Error inesperado en el servidor.' });
-});
-
-const PORT = process.env.PORT || 8080;
-pool.query('SELECT 1')
-  .then(async () => {
-    // Si esto falla (por ejemplo, por permisos insuficientes en la base de
-    // datos), NUNCA debe impedir que el resto de la plataforma funcione —
-    // solo se pierde el panel de respaldos automáticos, nada más grave.
-    try{
-      await asegurarTablaRespaldos();
-    }catch(err){
-      console.error('[respaldos] No se pudo preparar la tabla de respaldos — la plataforma sigue funcionando igual, sin este panel por ahora:', err.message);
-    }
-  })
-  .then(() => bootstrapEmpresaInicial())
-  .then(() => {
-    app.listen(PORT, () => console.log(`Prevenglobal escuchando en el puerto ${PORT}`));
-  })
-  .catch(err => {
-    console.error('No se pudo conectar a la base de datos:', err.message);
-    process.exit(1);
-  });
-
+let ordenReprogramarId = null;
+let clienteActivoId = null, sedeActivaId = null, plantillaActivaId = null;
+let mesCalendarioActual = new Date();
+let logoTempBase64 = null;
+let firmaTempBase64 = null;
