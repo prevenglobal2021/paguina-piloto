@@ -69,9 +69,11 @@
   .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
   .badge.activa { background: #dcfce7; color: #15803d; }
   .badge.inactiva { background: #fee2e2; color: #b91c1c; }
-  .btn-mini { border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .btn-mini { border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; margin-right: 6px; }
   .btn-mini.desactivar { background: #fee2e2; color: #b91c1c; }
   .btn-mini.activar { background: #dcfce7; color: #15803d; }
+  .btn-mini.editar { background: #dbeafe; color: #1d4ed8; }
+  .nota-campo { font-size: 11px; color: var(--gris-texto); margin-top: 4px; }
 
   /* --- Modal nueva empresa --- */
   .fondo-modal {
@@ -164,6 +166,28 @@
   </div>
 </div>
 
+<!-- ============ MODAL: EDITAR EMPRESA ============ -->
+<div id="fondoModalEditar" class="fondo-modal oculto">
+  <div class="modal">
+    <h3>Editar empresa</h3>
+    <form id="formEditarEmpresa">
+      <input type="hidden" id="editSlugEmpresa">
+      <label for="editNombreEmpresa">Nombre de la empresa</label>
+      <input type="text" id="editNombreEmpresa" required>
+      <label for="editAdminUsuario">Usuario administrador de esa empresa</label>
+      <input type="text" id="editAdminUsuario" required>
+      <label for="editAdminPassword">Nueva contraseña del administrador</label>
+      <input type="password" id="editAdminPassword" minlength="4">
+      <div class="nota-campo">Déjala en blanco para no cambiar la contraseña actual.</div>
+      <div class="error" id="errorModalEditar"></div>
+      <div class="fila-modal">
+        <button type="button" class="secundario" id="btnCancelarModalEditar">Cancelar</button>
+        <button type="submit" class="principal" style="margin:0;" id="btnGuardarEdicionEmpresa">Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 (function () {
   const API = ''; // mismo origen (el backend sirve este archivo)
@@ -173,6 +197,7 @@
   const pantallaCambio = document.getElementById('pantallaCambio');
   const pantallaPanel = document.getElementById('pantallaPanel');
   const fondoModal = document.getElementById('fondoModal');
+  const fondoModalEditar = document.getElementById('fondoModalEditar');
 
   function mostrarError(elId, mensaje) {
     const el = document.getElementById(elId);
@@ -281,6 +306,7 @@
           <td>${badgeEstado(e.activa)}</td>
           <td>${formatoFecha(e.creado_en)}</td>
           <td>
+            <button class="btn-mini editar" data-accion="editar" data-slug="${e.slug}">Editar</button>
             <button class="btn-mini ${e.activa ? 'desactivar' : 'activar'}" data-accion="toggle" data-slug="${e.slug}" data-activa="${e.activa}">
               ${e.activa ? 'Desactivar' : 'Activar'}
             </button>
@@ -295,22 +321,43 @@
   }
 
   document.getElementById('filasEmpresas').addEventListener('click', async (e) => {
-    const btn = e.target.closest('button[data-accion="toggle"]');
-    if (!btn) return;
-    const slug = btn.dataset.slug;
-    const activaActual = btn.dataset.activa === 'true';
-    const accion = activaActual ? 'desactivar' : 'activar';
-    if (!confirm(`¿Seguro que quieres ${accion} la empresa "${slug}"? ${activaActual ? 'Sus usuarios no podrán iniciar sesión mientras esté desactivada.' : ''}`)) return;
-    btn.disabled = true;
-    try {
-      await llamar(`/api/superadmin/empresas/${encodeURIComponent(slug)}/activa`, {
-        method: 'PATCH',
-        body: JSON.stringify({ activa: !activaActual })
-      });
-      await cargarPanel();
-    } catch (err) {
-      mostrarError('errorPanel', err.message);
-      btn.disabled = false;
+    const btnToggle = e.target.closest('button[data-accion="toggle"]');
+    if (btnToggle) {
+      const slug = btnToggle.dataset.slug;
+      const activaActual = btnToggle.dataset.activa === 'true';
+      const accion = activaActual ? 'desactivar' : 'activar';
+      if (!confirm(`¿Seguro que quieres ${accion} la empresa "${slug}"? ${activaActual ? 'Sus usuarios no podrán iniciar sesión mientras esté desactivada.' : ''}`)) return;
+      btnToggle.disabled = true;
+      try {
+        await llamar(`/api/superadmin/empresas/${encodeURIComponent(slug)}/activa`, {
+          method: 'PATCH',
+          body: JSON.stringify({ activa: !activaActual })
+        });
+        await cargarPanel();
+      } catch (err) {
+        mostrarError('errorPanel', err.message);
+        btnToggle.disabled = false;
+      }
+      return;
+    }
+
+    const btnEditar = e.target.closest('button[data-accion="editar"]');
+    if (btnEditar) {
+      const slug = btnEditar.dataset.slug;
+      btnEditar.disabled = true;
+      try {
+        const detalle = await llamar(`/api/superadmin/empresas/${encodeURIComponent(slug)}`);
+        document.getElementById('editSlugEmpresa').value = detalle.slug;
+        document.getElementById('editNombreEmpresa').value = detalle.nombre;
+        document.getElementById('editAdminUsuario').value = detalle.adminUsuario;
+        document.getElementById('editAdminPassword').value = '';
+        ocultarError('errorModalEditar');
+        fondoModalEditar.classList.remove('oculto');
+      } catch (err) {
+        mostrarError('errorPanel', err.message);
+      } finally {
+        btnEditar.disabled = false;
+      }
     }
   });
 
@@ -347,6 +394,37 @@
       mostrarError('errorModal', err.message);
     } finally {
       btn.disabled = false; btn.textContent = 'Crear';
+    }
+  });
+
+  // --------- MODAL: EDITAR EMPRESA ---------
+  document.getElementById('btnCancelarModalEditar').addEventListener('click', () => {
+    fondoModalEditar.classList.add('oculto');
+  });
+  fondoModalEditar.addEventListener('click', (e) => {
+    if (e.target === fondoModalEditar) fondoModalEditar.classList.add('oculto');
+  });
+
+  document.getElementById('formEditarEmpresa').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    ocultarError('errorModalEditar');
+    const slug = document.getElementById('editSlugEmpresa').value;
+    const nombre = document.getElementById('editNombreEmpresa').value.trim();
+    const adminUsuario = document.getElementById('editAdminUsuario').value.trim();
+    const adminPassword = document.getElementById('editAdminPassword').value;
+    const btn = document.getElementById('btnGuardarEdicionEmpresa');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+      await llamar(`/api/superadmin/empresas/${encodeURIComponent(slug)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ nombre, adminUsuario, adminPassword })
+      });
+      fondoModalEditar.classList.add('oculto');
+      await cargarPanel();
+    } catch (err) {
+      mostrarError('errorModalEditar', err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Guardar cambios';
     }
   });
 
