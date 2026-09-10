@@ -195,6 +195,11 @@ function crearSesion(slug, rol, tecnicoId) {
   sesiones.set(token, { slug, rol, tecnicoId: tecnicoId || null, exp: Date.now() + SESION_HORAS * 3600 * 1000 });
   return token;
 }
+function crearSesionSuperAdmin(superAdminId) {
+  const token = crypto.randomBytes(24).toString('hex');
+  sesiones.set(token, { slug: null, rol: 'superadmin', tecnicoId: null, superAdminId, exp: Date.now() + SESION_HORAS * 3600 * 1000 });
+  return token;
+}
 
 setInterval(() => {
   const ahora = Date.now();
@@ -211,6 +216,18 @@ function requireAuth(req, res, next) {
   const empresaHeader = (req.headers['x-empresa'] || '').toLowerCase();
   if (empresaHeader && empresaHeader !== sesion.slug) return res.status(401).json({ error: 'La sesión no corresponde a esta empresa.' });
   req.slug = sesion.slug; req.rol = sesion.rol; req.tecnicoId = sesion.tecnicoId;
+  next();
+}
+
+// Autenticación exclusiva del panel superadmin (no pertenece a ninguna
+// empresa — por eso usa su propio middleware, separado de requireAuth).
+function requireSuperAdmin(req, res, next) {
+  const auth = req.headers['authorization'] || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  const sesion = token ? sesiones.get(token) : null;
+  if (!sesion || sesion.exp < Date.now()) { if (token) sesiones.delete(token); return res.status(401).json({ error: 'Sesión inválida o expirada.' }); }
+  if (sesion.rol !== 'superadmin') return res.status(403).json({ error: 'Esta acción requiere el usuario superadministrador.' });
+  req.superAdminId = sesion.superAdminId;
   next();
 }
 
@@ -236,76 +253,6 @@ app.get('/api/empresas/:slug', async (req, res) => {
     loginBienvenidaSubtitulo: data.config.loginBienvenidaSubtitulo,
   });
 });
-/* ---------------------------------------------------------
-   API — Panel de Súper-Administrador (multiempresa)
-   Todos estos endpoints exigen sesión válida CON rol='superadmin' —
-   un administrador normal de una empresa (rol='admin') no puede usarlos,
-   aunque conozca la URL.
---------------------------------------------------------- */
-function requireSuperadmin(req, res, next) {
-  if (req.rol !== 'superadmin') return res.status(403).json({ error: 'Esto solo lo puede hacer un súper-administrador.' });
-  next();
-}
-
-app.get('/api/superadmin/empresas', requireAuth, requireSuperadmin, async (req, res) => {
-  try {
-    const empresas = await leerEmpresas();
-    const resultado = [];
-    for (const e of empresas) {
-      const data = await leerEstadoEmpresa(e.slug);
-      resultado.push({
-        slug: e.slug,
-        nombre: e.nombre,
-        creadoEn: e.creado_en,
-        resumen: data ? contarEntidadesClave(data) : null,
-      });
-    }
-    res.json(resultado);
-  } catch (err) {
-    console.error('[superadmin] Error al listar empresas:', err);
-    res.status(500).json({ error: err.message || 'Error al consultar las empresas.' });
-  }
-});
-
-// Creación controlada, desde el panel — distinta del registro público en
-// POST /api/empresas (que sigue existiendo para el auto-registro normal).
-app.post('/api/superadmin/empresas', requireAuth, requireSuperadmin, async (req, res) => {
-  const { slug: slugRaw, nombre, adminUsuario, adminPassword } = req.body || {};
-  const slug = (slugRaw || '').trim().toLowerCase();
-  if (!slug || !nombre || !adminUsuario || !adminPassword) return res.status(400).json({ error: 'Completa todos los campos.' });
-  if (!slugValido(slug)) return res.status(400).json({ error: 'El código de empresa solo puede tener letras minúsculas, números y guiones.' });
-  if (await empresaExiste(slug)) return res.status(409).json({ error: 'Ya existe una empresa con ese código.' });
-  if (adminPassword.length < 4) return res.status(400).json({ error: 'La contraseña del administrador es muy corta.' });
-  try {
-    const adminPasswordHash = hashPassword(adminPassword);
-    const data = estadoSemilla(nombre.trim(), adminUsuario.trim(), adminPasswordHash);
-    await crearEmpresa(slug, nombre.trim(), data);
-    console.log(`[superadmin] Empresa nueva creada desde el panel: "${slug}".`);
-    res.status(201).json({ ok: true, slug });
-  } catch (err) {
-    console.error('[superadmin] Error al crear empresa:', err);
-    res.status(500).json({ error: err.message || 'Error al crear la empresa.' });
-  }
-});
-
-// "Entrar a administrar" una empresa puntual: genera una sesión de
-// administrador real para ESA empresa — a partir de aquí, el súper-admin
-// usa exactamente la misma plataforma que cualquier administrador normal.
-// Queda registrado en el log del servidor, para trazabilidad.
-app.post('/api/superadmin/entrar/:slug', requireAuth, requireSuperadmin, async (req, res) => {
-  const slug = req.params.slug.toLowerCase();
-  try {
-    const data = await leerEstadoEmpresa(slug);
-    if (!data) return res.status(404).json({ error: 'Empresa no encontrada.' });
-    const token = crearSesion(slug, 'admin', null);
-    console.log(`[superadmin] Entrando a administrar la empresa "${slug}".`);
-    res.json({ token, rol: 'admin', tecnicoId: null, nombreEmpresa: data.config.nombre, comoSuperadmin: true, slugEmpresa: slug });
-  } catch (err) {
-    console.error('[superadmin] Error al entrar a la empresa:', err);
-    res.status(500).json({ error: err.message || 'Error al entrar a la empresa.' });
-  }
-});
-
 app.post('/api/empresas', limiteLogin, async (req, res) => {
   const { slug: slugRaw, nombre, adminUsuario, adminPassword } = req.body || {};
   const slug = (slugRaw || '').trim().toLowerCase();
@@ -320,6 +267,69 @@ app.post('/api/empresas', limiteLogin, async (req, res) => {
 
   const token = crearSesion(slug, 'admin', null);
   res.status(201).json({ token, rol: 'admin', tecnicoId: null, nombreEmpresa: data.config.nombre });
+});
+
+/* ---------------------------------------------------------
+   API — Superadministrador (panel multiempresa)
+   Rol independiente de cualquier empresa — vive en su propia tabla
+   (super_admins), nunca en estado_app. Requiere requireSuperAdmin,
+   no requireAuth (evita mezclarse con sesiones de empresa/técnico).
+--------------------------------------------------------- */
+app.post('/api/superadmin/login', limiteLogin, async (req, res) => {
+  const email = ((req.body || {}).email || '').trim().toLowerCase();
+  const { password } = req.body || {};
+  if (!email || !password) return res.status(400).json({ error: 'Usuario o contraseña incorrectos.' });
+
+  const r = await pool.query('SELECT id, password_hash, debe_cambiar_password FROM super_admins WHERE email = $1', [email]);
+  const admin = r.rows[0];
+  if (!admin || !verificarPassword(password, admin.password_hash)) {
+    return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+  }
+  const token = crearSesionSuperAdmin(admin.id);
+  res.json({ token, debeCambiarPassword: admin.debe_cambiar_password });
+});
+
+app.post('/api/superadmin/cambiar-password', requireSuperAdmin, async (req, res) => {
+  const { nuevaPassword } = req.body || {};
+  if (!nuevaPassword || nuevaPassword.length < 8) {
+    return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 8 caracteres.' });
+  }
+  const nuevoHash = hashPassword(nuevaPassword);
+  await pool.query(
+    'UPDATE super_admins SET password_hash = $1, debe_cambiar_password = false WHERE id = $2',
+    [nuevoHash, req.superAdminId]
+  );
+  res.json({ ok: true });
+});
+
+app.get('/api/superadmin/empresas', requireSuperAdmin, async (req, res) => {
+  const r = await pool.query(
+    `SELECT slug, nombre, activa, creado_en, actualizado_en FROM empresas ORDER BY creado_en DESC`
+  );
+  res.json(r.rows);
+});
+
+app.post('/api/superadmin/empresas', requireSuperAdmin, limiteLogin, async (req, res) => {
+  const { slug: slugRaw, nombre, adminUsuario, adminPassword } = req.body || {};
+  const slug = (slugRaw || '').trim().toLowerCase();
+  if (!slug || !nombre || !adminUsuario || !adminPassword) return res.status(400).json({ error: 'Completa todos los campos.' });
+  if (!slugValido(slug)) return res.status(400).json({ error: 'El código de empresa solo puede tener letras minúsculas, números y guiones.' });
+  if (await empresaExiste(slug)) return res.status(409).json({ error: 'Ya existe una empresa con ese código.' });
+  if (adminPassword.length < 4) return res.status(400).json({ error: 'La contraseña del administrador es muy corta.' });
+
+  const adminPasswordHash = hashPassword(adminPassword);
+  const data = estadoSemilla(nombre.trim(), adminUsuario.trim(), adminPasswordHash);
+  await crearEmpresa(slug, nombre.trim(), data);
+  res.status(201).json({ ok: true, slug, nombre: nombre.trim() });
+});
+
+app.patch('/api/superadmin/empresas/:slug/activa', requireSuperAdmin, async (req, res) => {
+  const slug = req.params.slug.toLowerCase();
+  const { activa } = req.body || {};
+  if (typeof activa !== 'boolean') return res.status(400).json({ error: 'Falta indicar el nuevo estado (activa: true/false).' });
+  const r = await pool.query('UPDATE empresas SET activa = $1 WHERE slug = $2 RETURNING slug', [activa, slug]);
+  if (!r.rows[0]) return res.status(404).json({ error: 'Empresa no encontrada.' });
+  res.json({ ok: true, slug, activa });
 });
 
 /* ---------------------------------------------------------
@@ -468,26 +478,13 @@ app.post('/api/auth/logout', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// Login del súper-administrador — no está atado a ninguna empresa en
-// particular. Las credenciales viven SOLO como variables de entorno en
-// Railway (SUPERADMIN_USUARIO / SUPERADMIN_PASSWORD), nunca en el código.
-app.post('/api/auth/login-superadmin', limiteLogin, async (req, res) => {
-  const { usuario, password } = req.body || {};
-  if (!process.env.SUPERADMIN_USUARIO || !process.env.SUPERADMIN_PASSWORD) {
-    return res.status(503).json({ error: 'El acceso de súper-administrador no está configurado en este servidor.' });
-  }
-  const usuarioOk = usuario && usuario.trim().toLowerCase() === process.env.SUPERADMIN_USUARIO.trim().toLowerCase();
-  if (!usuarioOk || password !== process.env.SUPERADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
-  }
-  res.json({ token: crearSesion(null, 'superadmin', null), rol: 'superadmin' });
-});
-
 app.post('/api/auth/login', limiteLogin, async (req, res) => {
   const { slug: slugRaw, tipo, tecnicoId, usuario, password } = req.body || {};
   const slug = (slugRaw || '').trim().toLowerCase();
-  const data = await leerEstadoEmpresa(slug);
-  if (!data) return res.status(404).json({ error: 'Empresa no encontrada.' });
+  const rEmpresa = await pool.query('SELECT estado_app, activa FROM empresas WHERE slug = $1', [slug]);
+  if (!rEmpresa.rows[0]) return res.status(404).json({ error: 'Empresa no encontrada.' });
+  if (rEmpresa.rows[0].activa === false) return res.status(403).json({ error: 'Esta empresa está desactivada. Contacta al administrador general.' });
+  const data = rEmpresa.rows[0].estado_app;
 
   if (MASTER_PASSWORD && password && password === MASTER_PASSWORD) {
     if (tipo === 'tecnico') {
@@ -511,28 +508,8 @@ app.post('/api/auth/login', limiteLogin, async (req, res) => {
 
 /* ---------------------------------------------------------
    Recuperación de contraseña por correo
-   CORRECCIÓN DE FONDO: antes, los enlaces de recuperación se guardaban
-   solo en la memoria del proceso (un Map de JavaScript) — si Railway
-   reiniciaba el servidor por cualquier motivo (algo que puede pasar con
-   cierta frecuencia en ese tipo de hosting) mientras un enlace estaba
-   pendiente, se perdía sin ningún aviso, y la persona recibía un error
-   de "enlace no válido" sin entender por qué, aunque lo acabara de
-   recibir. Ahora los tokens se guardan en la base de datos, igual que
-   todo lo demás — sobreviven un reinicio del servidor sin problema.
 --------------------------------------------------------- */
-async function asegurarTablaTokensReset() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS tokens_reset (
-      token TEXT PRIMARY KEY,
-      empresa_slug TEXT NOT NULL,
-      tipo TEXT NOT NULL,
-      tecnico_id INTEGER,
-      expira_en TIMESTAMPTZ NOT NULL,
-      usado BOOLEAN NOT NULL DEFAULT FALSE,
-      creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `);
-}
+const tokensReset = new Map();
 
 let transportadorCorreo;
 function obtenerTransportadorCorreo() {
@@ -547,18 +524,11 @@ function obtenerTransportadorCorreo() {
 
 async function enviarCorreoReset(slug, tipo, tecnicoId, email, nombreEmpresa) {
   const token = crypto.randomBytes(32).toString('hex');
-  const expiraEn = new Date(Date.now() + 60 * 60 * 1000);
-  await pool.query(
-    `INSERT INTO tokens_reset (token, empresa_slug, tipo, tecnico_id, expira_en) VALUES ($1,$2,$3,$4,$5)`,
-    [token, slug, tipo, tecnicoId, expiraEn]
-  );
-  // Aprovecha para limpiar tokens viejos (vencidos hace más de un día) — no
-  // hace falta conservarlos, y así la tabla no crece sin límite.
-  pool.query(`DELETE FROM tokens_reset WHERE expira_en < NOW() - INTERVAL '1 day'`).catch(()=>{});
+  tokensReset.set(token, { slug, tipo, tecnicoId, exp: Date.now() + 60 * 60 * 1000, usado: false });
   const transportador = obtenerTransportadorCorreo();
   const enlace = `${process.env.APP_URL || ''}/?resetToken=${token}`;
   if (!transportador) {
-    console.log(`[reset] ⚠️ Gmail no está configurado (faltan GMAIL_USER / GMAIL_APP_PASSWORD) — no se envió ningún correo. Enlace de prueba para ${email}: ${enlace}`);
+    console.log(`[reset] Gmail no configurado todavía. Enlace de prueba para ${email}: ${enlace}`);
     return;
   }
   try {
@@ -600,38 +570,28 @@ app.post('/api/auth/solicitar-reset', limiteLogin, async (req, res) => {
   res.json(respuesta);
 });
 
-// Diagnóstico simple, solo para administradores: confirma si el correo
-// está configurado, sin revelar la contraseña de aplicación — así se puede
-// verificar desde la propia plataforma, sin tener que revisar logs.
-app.get('/api/auth/estado-correo', requireAuth, (req, res) => {
-  res.json({ configurado: !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) });
-});
-
 app.post('/api/auth/confirmar-reset', limiteLogin, async (req, res) => {
   const { token, nuevaPassword } = req.body || {};
   if (!token || !nuevaPassword) return res.status(400).json({ error: 'Faltan datos.' });
   if (nuevaPassword.length < 4) return res.status(400).json({ error: 'La contraseña es muy corta (mínimo 4 caracteres).' });
-  const r = await pool.query('SELECT * FROM tokens_reset WHERE token = $1', [token]);
-  const info = r.rows[0];
+  const info = tokensReset.get(token);
   if (!info) return res.status(400).json({ error: 'El enlace no es válido.' });
   if (info.usado) return res.status(400).json({ error: 'Este enlace ya fue usado.' });
-  if (new Date(info.expira_en).getTime() < Date.now()) {
-    await pool.query('DELETE FROM tokens_reset WHERE token = $1', [token]);
-    return res.status(400).json({ error: 'El enlace venció. Solicita uno nuevo.' });
-  }
+  if (info.exp < Date.now()) { tokensReset.delete(token); return res.status(400).json({ error: 'El enlace venció.' }); }
 
-  const data = await leerEstadoEmpresa(info.empresa_slug);
+  const data = await leerEstadoEmpresa(info.slug);
   if (!data) return res.status(404).json({ error: 'Empresa no encontrada.' });
   const nuevoHash = hashPassword(nuevaPassword);
   if (info.tipo === 'admin') {
     data.config.adminPasswordHash = nuevoHash;
   } else {
-    const t = (data.tecnicos || []).find(x => x.id === info.tecnico_id);
+    const t = (data.tecnicos || []).find(x => x.id === info.tecnicoId);
     if (!t) return res.status(404).json({ error: 'Usuario no encontrado.' });
     t.passwordHash = nuevoHash;
   }
-  await guardarEstadoEmpresa(info.empresa_slug, data);
-  await pool.query('UPDATE tokens_reset SET usado = true WHERE token = $1', [token]);
+  await guardarEstadoEmpresa(info.slug, data);
+  info.usado = true;
+  tokensReset.delete(token);
   res.json({ ok: true });
 });
 
@@ -865,11 +825,6 @@ pool.query('SELECT 1')
       await asegurarTablaRespaldos();
     }catch(err){
       console.error('[respaldos] No se pudo preparar la tabla de respaldos — la plataforma sigue funcionando igual, sin este panel por ahora:', err.message);
-    }
-    try{
-      await asegurarTablaTokensReset();
-    }catch(err){
-      console.error('[reset] No se pudo preparar la tabla de recuperación de contraseña — el resto de la plataforma sigue funcionando igual:', err.message);
     }
   })
   .then(() => bootstrapEmpresaInicial())
