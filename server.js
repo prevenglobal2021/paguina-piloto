@@ -112,6 +112,50 @@ async function guardarEstadoEmpresa(slug, data) {
   );
   return r.rows[0] ? r.rows[0].actualizado_en : null;
 }
+
+/* ---------------------------------------------------------
+   RESPALDOS AUTOMÁTICOS CON HISTORIAL — antes solo existía el estado
+   ACTUAL (más una descarga manual bajo demanda); si algo salía mal no
+   había forma de volver atrás en el tiempo. Ahora, cada vez que se
+   guarda algo nuevo, primero se archiva una copia del estado anterior
+   (como máximo una vez por hora, para no acumular de más), guardando
+   así un historial real de los últimos 30 días — restaurable por
+   cualquier administrador desde la propia plataforma, sin depender de
+   nadie más.
+--------------------------------------------------------- */
+async function asegurarTablaRespaldos() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS respaldos_estado (
+      id SERIAL PRIMARY KEY,
+      empresa_slug TEXT NOT NULL,
+      estado_app JSONB NOT NULL,
+      creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_respaldos_empresa_fecha ON respaldos_estado(empresa_slug, creado_en DESC)`);
+}
+const RESPALDO_INTERVALO_MS = 60 * 60 * 1000; // como máximo un respaldo nuevo por hora
+const RESPALDO_RETENCION_DIAS = 30;
+// Se llama DENTRO de la misma transacción del guardado, antes de aplicar
+// el estado nuevo — archiva el estado ANTERIOR (el que se va a reemplazar),
+// solo si ya pasó al menos una hora desde el último respaldo guardado.
+async function crearRespaldoSiHaceFalta(client, slug, estadoAnterior) {
+  const rUltimo = await client.query(
+    `SELECT creado_en FROM respaldos_estado WHERE empresa_slug = $1 ORDER BY creado_en DESC LIMIT 1`,
+    [slug]
+  );
+  const ultimoMs = rUltimo.rows[0] ? new Date(rUltimo.rows[0].creado_en).getTime() : 0;
+  if (Date.now() - ultimoMs < RESPALDO_INTERVALO_MS) return; // todavía no ha pasado una hora — no hace falta otro
+  await client.query(
+    `INSERT INTO respaldos_estado (empresa_slug, estado_app) VALUES ($1, $2)`,
+    [slug, estadoAnterior]
+  );
+  // Poda lo más viejo de 30 días, para que la tabla no crezca sin límite.
+  await client.query(
+    `DELETE FROM respaldos_estado WHERE empresa_slug = $1 AND creado_en < NOW() - INTERVAL '${RESPALDO_RETENCION_DIAS} days'`,
+    [slug]
+  );
+}
 async function crearEmpresa(slug, nombre, estadoInicial) {
   await pool.query(
     'INSERT INTO empresas (slug, nombre, estado_app) VALUES ($1, $2, $3)',
@@ -486,6 +530,70 @@ app.get('/api/backup', requireAuth, async (req, res) => {
   }
 });
 
+// Lista los respaldos automáticos guardados (últimos 30 días) — solo la
+// fecha y un pequeño resumen de cada uno, no el contenido completo, para
+// que la lista cargue rápido incluso con datos pesados (fotos, etc.).
+app.get('/api/backups', requireAuth, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT id, creado_en, estado_app FROM respaldos_estado WHERE empresa_slug = $1 ORDER BY creado_en DESC LIMIT 200`,
+      [req.slug]
+    );
+    const lista = r.rows.map(fila => ({
+      id: fila.id,
+      creadoEn: fila.creado_en,
+      resumen: contarEntidadesClave(fila.estado_app)
+    }));
+    res.json(lista);
+  } catch (err) {
+    console.error('[listar-respaldos] Error:', err);
+    res.status(500).json({ error: err.message || 'Error al consultar los respaldos.' });
+  }
+});
+
+// Restaura un respaldo puntual — solo un administrador puede hacerlo.
+// Antes de restaurar, el estado ACTUAL también queda guardado como
+// respaldo (aunque no haya pasado la hora habitual), para poder deshacer
+// la restauración si hiciera falta — nunca se sobrescribe sin dejar rastro.
+app.post('/api/restaurar/:id', requireAuth, async (req, res) => {
+  if (req.rol !== 'admin') return res.status(403).json({ error: 'Solo un administrador puede restaurar un respaldo.' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const rRespaldo = await client.query(
+      `SELECT estado_app, creado_en FROM respaldos_estado WHERE id = $1 AND empresa_slug = $2`,
+      [req.params.id, req.slug]
+    );
+    if (!rRespaldo.rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Ese respaldo no existe.' });
+    }
+    const rActual = await client.query('SELECT estado_app FROM empresas WHERE slug = $1 FOR UPDATE', [req.slug]);
+    if (!rActual.rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Empresa no encontrada.' });
+    }
+    // Respaldo de seguridad del estado actual, previo a restaurar.
+    await client.query(
+      `INSERT INTO respaldos_estado (empresa_slug, estado_app) VALUES ($1, $2)`,
+      [req.slug, rActual.rows[0].estado_app]
+    );
+    await client.query(
+      `UPDATE empresas SET estado_app = $1, actualizado_en = NOW() WHERE slug = $2`,
+      [rRespaldo.rows[0].estado_app, req.slug]
+    );
+    await client.query('COMMIT');
+    console.log(`[restaurar] Empresa=${req.slug} restaurada al respaldo #${req.params.id} (de ${rRespaldo.rows[0].creado_en})`);
+    res.json({ ok: true, mensaje: 'Restauración completada. El estado de justo antes de esta restauración también quedó guardado como respaldo, por si hace falta deshacerla.' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[restaurar] Error:', err);
+    res.status(500).json({ error: err.message || 'Error al restaurar el respaldo.' });
+  } finally {
+    client.release();
+  }
+});
+
 app.get('/api/state/meta', requireAuth, async (req, res) => {
   try {
     const r = await pool.query('SELECT actualizado_en FROM empresas WHERE slug = $1', [req.slug]);
@@ -556,6 +664,16 @@ app.put('/api/state', requireAuth, async (req, res) => {
       });
     }
 
+    // Respaldo automático del estado ANTERIOR, antes de reemplazarlo — como
+    // máximo uno por hora (ver crearRespaldoSiHaceFalta). Si esto llegara a
+    // fallar por cualquier motivo, no debe impedir el guardado real: se
+    // registra el problema y se continúa igual.
+    try {
+      await crearRespaldoSiHaceFalta(client, req.slug, anterior);
+    } catch (errRespaldo) {
+      console.error('[respaldo automático] No se pudo crear (el guardado continúa igual):', errRespaldo.message);
+    }
+
     const tecnicosFusionados = (nuevo.tecnicos || []).map(t => {
       const previo = (anterior.tecnicos || []).find(x => x.id === t.id);
       const passwordHash = t.password ? hashPassword(t.password) : (previo ? previo.passwordHash : null);
@@ -617,6 +735,16 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 8080;
 pool.query('SELECT 1')
+  .then(async () => {
+    // Si esto falla (por ejemplo, por permisos insuficientes en la base de
+    // datos), NUNCA debe impedir que el resto de la plataforma funcione —
+    // solo se pierde el panel de respaldos automáticos, nada más grave.
+    try{
+      await asegurarTablaRespaldos();
+    }catch(err){
+      console.error('[respaldos] No se pudo preparar la tabla de respaldos — la plataforma sigue funcionando igual, sin este panel por ahora:', err.message);
+    }
+  })
   .then(() => bootstrapEmpresaInicial())
   .then(() => {
     app.listen(PORT, () => console.log(`Prevenglobal escuchando en el puerto ${PORT}`));
