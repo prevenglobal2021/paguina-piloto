@@ -48,6 +48,7 @@ function cambiarTabConfig(tab, evt){
     document.getElementById('cfgLoginBienvenidaSubtitulo').value = db.config.loginBienvenidaSubtitulo || 'Por favor inicia sesión';
     actualizarPreviewLoginMini();
   }
+  if(tab==='database'){ cargarListaRespaldosServidor(); actualizarAvisoRespaldoManual(); }
   if(tab==='etiquetas') renderizarEtiquetas();
   if(tab==='whatsapp') document.getElementById('cfgPlantillaWhatsApp').value = db.config.plantillaWhatsApp;
   if(tab==='auditoria') renderizarAuditoria();
@@ -69,6 +70,46 @@ function renderizarAuditoria(){
   tbody.innerHTML = db.logs.slice().reverse().map(l=>`
     <tr><td>${new Date(l.timestamp).toLocaleString('es-CO')}</td><td>${l.usuario}</td><td>${l.accion}</td><td>${l.entidad}</td><td>${l.detalle||''}</td></tr>
   `).join('') || '<tr><td colspan="5" class="empty-state">Sin actividad registrada todavía.</td></tr>';
+}
+
+async function cargarListaRespaldosServidor(){
+  const cont = document.getElementById('listaRespaldosServidor');
+  cont.innerHTML = '<p style="color:var(--text-muted);font-size:12px;">Cargando respaldos...</p>';
+  try{
+    const resp = await fetch(API_BASE + '/api/backups', { headers: headersAutenticados() });
+    if(!resp.ok) throw new Error('El servidor respondió con un error.');
+    const lista = await resp.json();
+    if(!lista.length){
+      cont.innerHTML = '<p style="color:var(--text-muted);font-size:12px;">Todavía no hay respaldos automáticos guardados — el primero se crea con el próximo cambio que se haga en la plataforma.</p>';
+      return;
+    }
+    cont.innerHTML = lista.map(r=>{
+      const fecha = new Date(r.creadoEn).toLocaleString('es-CO', { dateStyle:'medium', timeStyle:'short' });
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid var(--card-border);font-size:12px;">
+        <span><strong>${fecha}</strong><br><span style="color:var(--text-muted);">${r.resumen.clientes} clientes · ${r.resumen.ordenes} órdenes · ${r.resumen.inventario} ítems · ${r.resumen.nomina} nóminas</span></span>
+        <button class="btn-custom btn-secondary-custom btn-sm-custom solo-admin" data-permiso="database_restaurar" onclick="restaurarRespaldoServidor(${r.id}, '${fecha.replace(/'/g,"")}')"><i class="fas fa-clock-rotate-left"></i> Restaurar</button>
+      </div>`;
+    }).join('');
+    aplicarRBACaUI();
+  }catch(err){
+    cont.innerHTML = `<p style="color:var(--red-alert);font-size:12px;">No se pudo cargar la lista de respaldos: ${err.message}</p>`;
+  }
+}
+async function restaurarRespaldoServidor(id, fechaTexto){
+  if(!esAdmin()){ mostrarToast('Solo un administrador puede restaurar un respaldo.', 'error'); return; }
+  const primeraConfirmacion = confirm(`¿Restaurar la plataforma al estado de "${fechaTexto}"?\n\nEsto reemplaza TODA la información actual por la de ese momento. Antes de hacerlo, el estado actual también quedará guardado como respaldo, por si hace falta deshacerlo.`);
+  if(!primeraConfirmacion) return;
+  const segundaConfirmacion = confirm('Confirma una vez más: esta acción reemplaza la información actual ahora mismo. ¿Continuar?');
+  if(!segundaConfirmacion) return;
+  try{
+    const resp = await fetch(API_BASE + `/api/restaurar/${id}`, { method:'POST', headers: headersAutenticados() });
+    const cuerpo = await resp.json();
+    if(!resp.ok) throw new Error(cuerpo.error || 'El servidor rechazó la restauración.');
+    mostrarToast('✅ Restauración completada. Recargando la plataforma con la información restaurada...', 'exito');
+    setTimeout(()=>location.reload(), 1800);
+  }catch(err){
+    mostrarToast('⚠️ No se pudo restaurar: ' + err.message, 'error');
+  }
 }
 function enviarPorWhatsApp(ordenId){
   const o = db.ordenes.find(x=>x.id===ordenId);

@@ -2411,15 +2411,21 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <!-- TAB DATABASE -->
     <div id="tab-database" class="config-tab-content">
       <div style="background:rgba(0,0,0,.15);padding:20px;border-radius:8px;">
-        <h4 style="margin-top:0;font-size:14px;color:var(--blue-accent);">💾 Gestión de la Base de Datos Local</h4>
-        <p style="font-size:12px;color:var(--text-muted);">Toda la información se guarda en el navegador. Descarga un respaldo periódicamente (las fotos y firmas ocupan más espacio, así que respalda seguido).</p>
+        <h4 style="margin-top:0;font-size:14px;color:var(--blue-accent);">🛡️ Respaldos Automáticos del Servidor</h4>
+        <p style="font-size:12px;color:var(--text-muted);">Cada hora, antes de guardar un cambio, el servidor archiva una copia de cómo estaba todo justo antes — se conservan los últimos 30 días. Si algo sale mal, puedes volver a cualquiera de estos puntos tú mismo, sin depender de nadie más.</p>
+        <div id="listaRespaldosServidor" style="margin-top:12px;max-height:280px;overflow-y:auto;"><p style="color:var(--text-muted);font-size:12px;">Cargando respaldos...</p></div>
+      </div>
+      <div style="background:rgba(0,0,0,.15);padding:20px;border-radius:8px;margin-top:20px;">
+        <h4 style="margin-top:0;font-size:14px;color:var(--blue-accent);">💾 Respaldo Manual (archivo JSON)</h4>
+        <p style="font-size:12px;color:var(--text-muted);">El respaldo automático de arriba es la protección principal. Esta descarga manual es útil para guardar una copia propia fuera de la plataforma, o para mover información entre empresas.</p>
+        <p id="avisoRespaldoManual" style="font-size:12px;font-weight:600;margin:6px 0 0 0;"></p>
         <div style="display:flex;gap:15px;margin-top:20px;flex-wrap:wrap;">
           <button class="btn-custom btn-success-custom" onclick="exportarBaseDatosJSON()"><i class="fas fa-download m-r-10"></i>Descargar Respaldo JSON</button>
           <label class="btn-custom" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;">
             <i class="fas fa-upload m-r-10"></i>Importar Respaldo JSON
             <input type="file" id="importJsonFile" accept=".json" style="display:none;" onchange="importarBaseDatosJSON(event)">
           </label>
-          <button class="btn-custom btn-danger-custom" onclick="restablecerFabrica()"><i class="fas fa-trash m-r-10"></i>Reiniciar Base de Datos</button>
+          <button class="btn-custom btn-secondary-custom" onclick="limpiarCacheLocal()"><i class="fas fa-broom m-r-10"></i>Limpiar Caché Local de este Dispositivo</button>
         </div>
       </div>
     </div>
@@ -2757,21 +2763,21 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
-<script src="core.js?v=99"></script>
-<script src="capacitor-bridge.js?v=99"></script>
-<script src="utilidades-navegacion.js?v=99"></script>
-<script src="buscador-agenda.js?v=99"></script>
-<script src="ordenes.js?v=99"></script>
-<script src="equipos-trazabilidad.js?v=99"></script>
-<script src="pdf.js?v=99"></script>
-<script src="config-clientes-equipos.js?v=99"></script>
-<script src="config-plantillas-tecnicos.js?v=99"></script>
-<script src="cotizador.js?v=99"></script>
-<script src="asistencia.js?v=99"></script>
-<script src="config-general.js?v=99"></script>
-<script src="inventario.js?v=99"></script>
-<script src="tienda-admin.js?v=99"></script>
-<script src="tienda-publica.js?v=99"></script>
-<script src="kpi.js?v=99"></script>
+<script src="core.js?v=103"></script>
+<script src="capacitor-bridge.js?v=103"></script>
+<script src="utilidades-navegacion.js?v=103"></script>
+<script src="buscador-agenda.js?v=103"></script>
+<script src="ordenes.js?v=103"></script>
+<script src="equipos-trazabilidad.js?v=103"></script>
+<script src="pdf.js?v=103"></script>
+<script src="config-clientes-equipos.js?v=103"></script>
+<script src="config-plantillas-tecnicos.js?v=103"></script>
+<script src="cotizador.js?v=103"></script>
+<script src="asistencia.js?v=103"></script>
+<script src="config-general.js?v=103"></script>
+<script src="inventario.js?v=103"></script>
+<script src="tienda-admin.js?v=103"></script>
+<script src="tienda-publica.js?v=103"></script>
+<script src="kpi.js?v=103"></script>
 </body>
 </html>

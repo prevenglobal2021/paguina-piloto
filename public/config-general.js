@@ -301,6 +301,12 @@ async function exportarBaseDatosJSON(){
   // desactualizada o incompleta (el mismo riesgo que causó la pérdida de
   // información). Ahora se pide directo al servidor la versión real y
   // confirmada — así el respaldo siempre refleja lo que de verdad hay guardado.
+  //
+  // Mejora: ahora también queda registrada la fecha de este respaldo (en el
+  // servidor, visible desde cualquier dispositivo) — así la plataforma
+  // puede avisar si ya ha pasado mucho tiempo sin descargar uno, en vez de
+  // depender por completo de que alguien se acuerde de hacerlo "de vez en
+  // cuando".
   try{
     const resp = await fetchConLimite(API_BASE + '/api/backup', { headers: headersAutenticados() }, 20);
     if(!resp.ok) throw new Error('El servidor no pudo generar el respaldo (código ' + resp.status + ').');
@@ -311,6 +317,9 @@ async function exportarBaseDatosJSON(){
     link.click();
     URL.revokeObjectURL(link.href);
     mostrarToast('✅ Respaldo descargado — es la versión real y confirmada del servidor.', 'exito');
+    db.config.ultimoRespaldoManualDescargado = new Date().toISOString();
+    dbGuardarInmediato().catch(()=>{}); // no crítico: si esto falla, el respaldo ya se descargó igual, solo no queda anotada la fecha
+    actualizarAvisoRespaldoManual();
   }catch(err){
     mostrarToast('⚠️ No se pudo descargar el respaldo del servidor: ' + err.message + ' — se descargará la copia local como alternativa.', 'error');
     const blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
@@ -319,6 +328,31 @@ async function exportarBaseDatosJSON(){
     link.download = `Prevenglobal_Backup_LOCAL_${new Date().toISOString().slice(0,10)}.json`;
     link.click();
     URL.revokeObjectURL(link.href);
+  }
+}
+// Muestra cuánto tiempo lleva sin descargarse un respaldo manual, con aviso
+// de color si ya pasaron más de 14 días — para que "de vez en cuando" no
+// dependa solo de la memoria de alguien.
+function actualizarAvisoRespaldoManual(){
+  const el = document.getElementById('avisoRespaldoManual');
+  if(!el) return;
+  const fechaStr = db.config.ultimoRespaldoManualDescargado;
+  if(!fechaStr){
+    el.innerHTML = '⚪ Todavía no has descargado ningún respaldo manual.';
+    el.style.color = 'var(--text-muted)';
+    return;
+  }
+  const dias = Math.floor((Date.now() - new Date(fechaStr).getTime()) / (1000*60*60*24));
+  const fechaLegible = new Date(fechaStr).toLocaleDateString('es-CO', { day:'numeric', month:'long', year:'numeric' });
+  if(dias < 1){
+    el.innerHTML = `🟢 Último respaldo descargado: hoy (${fechaLegible}).`;
+    el.style.color = 'var(--green-success)';
+  } else if(dias <= 14){
+    el.innerHTML = `🟢 Último respaldo descargado: hace ${dias} día${dias===1?'':'s'} (${fechaLegible}).`;
+    el.style.color = 'var(--green-success)';
+  } else {
+    el.innerHTML = `🟠 Último respaldo descargado: hace ${dias} días (${fechaLegible}) — ya es un buen momento para descargar uno nuevo.`;
+    el.style.color = 'var(--orange-warning)';
   }
 }
 function importarClientesEquipos(event){
@@ -368,27 +402,58 @@ function importarBaseDatosJSON(event){
   if(!file) return;
   const reader = new FileReader();
   reader.onload = async e=>{
+    let data;
     try{
-      const data = JSON.parse(e.target.result);
-      if(data.clientes && data.plantillas && data.ordenes){
-        const respaldo = db;
-        db = data;
-        try{
-          await dbGuardarInmediato();
-        }catch(err){
-          db = respaldo;
-          mostrarToast('⚠️ No se pudo guardar la base de datos importada: ' + err.message, 'error');
-          return;
-        }
-        mostrarToast('✅ Base de datos importada con éxito.', 'exito');
-        location.reload();
-      } else { mostrarToast('El archivo no tiene el formato esperado.'); }
-    }catch(err){ mostrarToast('Error al leer el archivo JSON.'); }
+      data = JSON.parse(e.target.result);
+    }catch(err){ mostrarToast('Error al leer el archivo JSON — asegúrate de que sea un respaldo válido.', 'error'); event.target.value=''; return; }
+    if(!(data.clientes && data.plantillas && data.ordenes)){
+      mostrarToast('El archivo no tiene el formato esperado de un respaldo de Prevenglobal.', 'error');
+      event.target.value = '';
+      return;
+    }
+    // Antes esto reemplazaba TODA la base de datos al instante, sin mostrar
+    // qué había en el archivo ni pedir confirmación — bastaba con elegir el
+    // archivo equivocado por error para perder todo lo actual sin aviso.
+    // Ahora se muestra un resumen de ambos lados (lo que hay ahora vs. lo
+    // que trae el archivo) y hay que confirmar a propósito antes de seguir.
+    const contarEntidades = (estado) => ({
+      clientes: (estado.clientes||[]).length,
+      ordenes: (estado.ordenes||[]).length,
+      inventario: (estado.inventario||[]).length,
+      nomina: (estado.liquidacionesNomina||[]).length,
+    });
+    const actual = contarEntidades(db);
+    const delArchivo = contarEntidades(data);
+    const huboMenos = delArchivo.clientes < actual.clientes || delArchivo.ordenes < actual.ordenes;
+    const advertencia = huboMenos ? '\n\n⚠️ Este archivo tiene MENOS información que la actual — probablemente sea un respaldo viejo.' : '';
+    const mensaje = `Esto REEMPLAZA toda la información actual por la del archivo:\n\n`
+      + `Ahora tienes: ${actual.clientes} clientes, ${actual.ordenes} órdenes, ${actual.inventario} ítems de inventario, ${actual.nomina} liquidaciones de nómina.\n`
+      + `El archivo trae: ${delArchivo.clientes} clientes, ${delArchivo.ordenes} órdenes, ${delArchivo.inventario} ítems de inventario, ${delArchivo.nomina} liquidaciones de nómina.`
+      + advertencia
+      + `\n\n¿Continuar con el reemplazo?`;
+    if(!confirm(mensaje)){ event.target.value=''; return; }
+    const respaldo = db;
+    db = data;
+    try{
+      await dbGuardarInmediato();
+    }catch(err){
+      db = respaldo;
+      mostrarToast('⚠️ No se pudo guardar la base de datos importada: ' + err.message, 'error');
+      event.target.value = '';
+      return;
+    }
+    mostrarToast('✅ Base de datos importada con éxito.', 'exito');
+    location.reload();
   };
   reader.readAsText(file);
 }
-function restablecerFabrica(){
-  if(confirm('¿Restablecer toda la base de datos a los valores iniciales? Se perderán los cambios locales.')){
+function limpiarCacheLocal(){
+  // Antes se llamaba "Reiniciar Base de Datos", un nombre engañoso: como la
+  // información real vive en el servidor, esto nunca borró nada de verdad —
+  // solo limpia la copia guardada en este navegador y trae de nuevo la
+  // versión real del servidor. Útil si el navegador quedó con datos viejos
+  // en caché, pero no es un borrado real de ninguna información.
+  if(confirm('¿Limpiar la copia local guardada en este navegador y recargar la versión real desde el servidor? No se borra ninguna información real — solo la caché de este dispositivo.')){
     localStorage.removeItem(DB_KEY);
     location.reload();
   }
