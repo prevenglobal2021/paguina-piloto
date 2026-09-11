@@ -141,6 +141,41 @@
         <tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:24px;">Cargando…</td></tr>
       </tbody>
     </table>
+
+    <div class="barra-superior" style="margin-top:36px;">
+      <h2>Personalizar página de login</h2>
+    </div>
+    <p class="nota-campo" style="margin-bottom:16px;">Esta es la ÚNICA pantalla de acceso — la ven todos los usuarios de todas las empresas (y tú mismo) antes de identificarse. Los cambios aplican para todos de inmediato.</p>
+    <div class="error" id="errorLoginCfg"></div>
+    <form id="formLoginCfg" style="background:#fff; border-radius:12px; padding:24px; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+      <div style="display:flex; gap:24px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:220px;">
+          <label for="loginCfgLogoInput">Logo</label>
+          <input type="file" id="loginCfgLogoInput" accept="image/*">
+          <div class="nota-campo">Se muestra en círculo, arriba del formulario.</div>
+          <img id="loginCfgLogoPreview" style="display:none; max-width:90px; max-height:90px; margin-top:8px; border-radius:50%; border:1px solid var(--gris-borde);">
+        </div>
+        <div style="flex:1; min-width:220px;">
+          <label for="loginCfgImagenInput">Imagen de fondo (columna izquierda)</label>
+          <input type="file" id="loginCfgImagenInput" accept="image/*">
+          <div class="nota-campo">Recomendado: vertical, 1080 x 1920 px.</div>
+          <img id="loginCfgImagenPreview" style="display:none; max-width:100%; max-height:90px; margin-top:8px; border-radius:8px;">
+        </div>
+      </div>
+      <div style="display:flex; gap:24px; margin-top:16px; flex-wrap:wrap;">
+        <div><label for="loginCfgColor1">Color principal</label><input type="color" id="loginCfgColor1" style="width:70px; padding:2px; height:38px;"></div>
+        <div><label for="loginCfgColor2">Color secundario</label><input type="color" id="loginCfgColor2" style="width:70px; padding:2px; height:38px;"></div>
+      </div>
+      <label for="loginCfgNombrePlataforma">Nombre de la plataforma</label>
+      <input type="text" id="loginCfgNombrePlataforma" placeholder="Ej. Prevenglobal">
+      <label for="loginCfgTituloIzq">Título (columna izquierda)</label>
+      <input type="text" id="loginCfgTituloIzq" placeholder="Ej. Domina el sistema">
+      <label for="loginCfgSubtituloIzq">Descripción corta (columna izquierda)</label>
+      <input type="text" id="loginCfgSubtituloIzq" placeholder="Ej. Controla clientes, equipos, órdenes de servicio e inventario desde un solo lugar.">
+      <div class="fila-modal" style="margin-top:20px;">
+        <button type="submit" class="principal" style="margin:0;" id="btnGuardarLoginCfg">Guardar personalización</button>
+      </div>
+    </form>
   </main>
 </div>
 
@@ -292,6 +327,7 @@
   async function cargarPanel() {
     ocultarError('errorPanel');
     irA(pantallaPanel);
+    cargarLoginConfig();
     const tbody = document.getElementById('filasEmpresas');
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:24px;">Cargando…</td></tr>';
     try {
@@ -451,18 +487,117 @@
     }
   });
 
+  // --------- PERSONALIZAR PÁGINA DE LOGIN (única, global) ---------
+  let logoCfgBase64Pendiente = null;
+  let imagenCfgBase64Pendiente = null;
+
+  function archivoABase64(file) {
+    return new Promise((resolve, reject) => {
+      const lector = new FileReader();
+      lector.onload = () => resolve(lector.result);
+      lector.onerror = reject;
+      lector.readAsDataURL(file);
+    });
+  }
+
+  async function cargarLoginConfig() {
+    ocultarError('errorLoginCfg');
+    logoCfgBase64Pendiente = null;
+    imagenCfgBase64Pendiente = null;
+    try {
+      const cfg = await llamar('/api/login-config');
+      document.getElementById('loginCfgColor1').value = cfg.color1 || '#2563eb';
+      document.getElementById('loginCfgColor2').value = cfg.color2 || '#1e3a8a';
+      document.getElementById('loginCfgNombrePlataforma').value = cfg.nombrePlataforma || '';
+      document.getElementById('loginCfgTituloIzq').value = cfg.tituloIzquierda || '';
+      document.getElementById('loginCfgSubtituloIzq').value = cfg.subtituloIzquierda || '';
+      const previewLogo = document.getElementById('loginCfgLogoPreview');
+      if (cfg.logo) { previewLogo.src = cfg.logo; previewLogo.style.display = 'block'; }
+      const previewImg = document.getElementById('loginCfgImagenPreview');
+      if (cfg.imagenFondo) { previewImg.src = cfg.imagenFondo; previewImg.style.display = 'block'; }
+    } catch (err) {
+      mostrarError('errorLoginCfg', 'No se pudo cargar la personalización actual: ' + err.message);
+    }
+  }
+
+  document.getElementById('loginCfgLogoInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    logoCfgBase64Pendiente = await archivoABase64(file);
+    const preview = document.getElementById('loginCfgLogoPreview');
+    preview.src = logoCfgBase64Pendiente;
+    preview.style.display = 'block';
+  });
+
+  document.getElementById('loginCfgImagenInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    imagenCfgBase64Pendiente = await archivoABase64(file);
+    const preview = document.getElementById('loginCfgImagenPreview');
+    preview.src = imagenCfgBase64Pendiente;
+    preview.style.display = 'block';
+  });
+
+  document.getElementById('formLoginCfg').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    ocultarError('errorLoginCfg');
+    const btn = document.getElementById('btnGuardarLoginCfg');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+      await llamar('/api/superadmin/login-config', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          logo: logoCfgBase64Pendiente,
+          imagenFondo: imagenCfgBase64Pendiente,
+          color1: document.getElementById('loginCfgColor1').value,
+          color2: document.getElementById('loginCfgColor2').value,
+          nombrePlataforma: document.getElementById('loginCfgNombrePlataforma').value.trim() || null,
+          tituloIzquierda: document.getElementById('loginCfgTituloIzq').value.trim() || null,
+          subtituloIzquierda: document.getElementById('loginCfgSubtituloIzq').value.trim() || null
+        })
+      });
+      logoCfgBase64Pendiente = null;
+      imagenCfgBase64Pendiente = null;
+      mostrarError('errorLoginCfg', '✅ Guardado. Los cambios ya se ven para cualquiera que entre al login.');
+      document.getElementById('errorLoginCfg').style.background = '#f0fdf4';
+      document.getElementById('errorLoginCfg').style.color = '#15803d';
+      document.getElementById('errorLoginCfg').style.borderColor = '#bbf7d0';
+    } catch (err) {
+      const cajaError = document.getElementById('errorLoginCfg');
+      cajaError.style.background = '';
+      cajaError.style.color = '';
+      cajaError.style.borderColor = '';
+      mostrarError('errorLoginCfg', 'No se pudo guardar: ' + err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Guardar personalización';
+    }
+  });
+
   // --------- CERRAR SESIÓN ---------
   function cerrarSesion() {
     localStorage.removeItem(LS_TOKEN);
-    document.getElementById('formLogin').reset();
-    irA(pantallaLogin);
+    // Login único: ya no se muestra un formulario propio aquí — se
+    // vuelve a la pantalla de login principal de la plataforma.
+    window.location.href = 'index.html';
   }
   document.getElementById('btnSalir').addEventListener('click', cerrarSesion);
 
   // --------- AL CARGAR LA PÁGINA: ¿ya hay sesión guardada? ---------
   (async function inicio() {
     const token = localStorage.getItem(LS_TOKEN);
-    if (!token) return irA(pantallaLogin);
+    // Login único: si alguien entra directo a esta URL sin una sesión de
+    // superadmin ya guardada, se le manda al login principal (index.html)
+    // en vez de mostrarle un formulario de acceso aparte.
+    if (!token) { window.location.href = 'index.html'; return; }
+
+    // Si venía con contraseña temporal (marcado por el login unificado),
+    // se respeta el mismo paso obligatorio de cambiarla antes de entrar.
+    if (localStorage.getItem('prevenglobal_superadmin_debe_cambiar') === '1') {
+      localStorage.removeItem('prevenglobal_superadmin_debe_cambiar');
+      irA(pantallaCambio);
+      return;
+    }
+
     try {
       await cargarPanel();
     } catch (err) {
