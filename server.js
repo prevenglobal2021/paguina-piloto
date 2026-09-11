@@ -167,7 +167,9 @@ function estadoSemilla(nombreEmpresa, adminUsuario, adminPasswordHash) {
   return {
     clientes: [], tecnicos: [], plantillas: [], ordenes: [], bodegas: [{ id: 1, nombre: 'Bodega Principal', tipo: 'fija' }],
     inventario: [], kardex: [], pedidosTienda: [],
-    nomina: [], gastos: [], controlOperativo: [],
+    nomina: [], liquidacionesNomina: [], ingresos: [], gastos: [], controlOperativo: [],
+    cotizaciones: [], facturas: [],
+    eliminados: {},
     recargoMateriales: 1.3, porcentajePagoTercero: 0.45, metaMensualUtilidad: 5000000,
     logs: [],
     config: {
@@ -373,6 +375,47 @@ app.patch('/api/superadmin/empresas/:slug/activa', requireSuperAdmin, async (req
 });
 
 /* ---------------------------------------------------------
+   API — Personalización global de la pantalla de login única
+   (compartida por todas las empresas y por el superadmin, ya que se
+   ve ANTES de que el sistema sepa quién está entrando). Vive en una
+   sola fila de configuracion_login — sin sesión de por medio, la
+   lee cualquiera que abra la página de login; solo el superadmin
+   puede modificarla.
+--------------------------------------------------------- */
+app.get('/api/login-config', limitePublico, async (req, res) => {
+  const r = await pool.query('SELECT logo, color1, color2, imagen_fondo, nombre_plataforma, titulo_izquierda, subtitulo_izquierda FROM configuracion_login WHERE id = 1');
+  const fila = r.rows[0] || {};
+  res.json({
+    logo: fila.logo || null,
+    color1: fila.color1 || '#2563eb',
+    color2: fila.color2 || '#1e3a8a',
+    imagenFondo: fila.imagen_fondo || null,
+    nombrePlataforma: fila.nombre_plataforma || 'Prevenglobal',
+    tituloIzquierda: fila.titulo_izquierda || 'Domina el sistema',
+    subtituloIzquierda: fila.subtitulo_izquierda || 'Controla clientes, equipos, órdenes de servicio e inventario desde un solo lugar.'
+  });
+});
+
+app.patch('/api/superadmin/login-config', requireSuperAdmin, async (req, res) => {
+  const { logo, color1, color2, imagenFondo, nombrePlataforma, tituloIzquierda, subtituloIzquierda } = req.body || {};
+  await pool.query(
+    `INSERT INTO configuracion_login (id, logo, color1, color2, imagen_fondo, nombre_plataforma, titulo_izquierda, subtitulo_izquierda, actualizado_en)
+     VALUES (1, $1, $2, $3, $4, $5, $6, $7, now())
+     ON CONFLICT (id) DO UPDATE SET
+       logo = COALESCE($1, configuracion_login.logo),
+       color1 = COALESCE($2, configuracion_login.color1),
+       color2 = COALESCE($3, configuracion_login.color2),
+       imagen_fondo = COALESCE($4, configuracion_login.imagen_fondo),
+       nombre_plataforma = COALESCE($5, configuracion_login.nombre_plataforma),
+       titulo_izquierda = COALESCE($6, configuracion_login.titulo_izquierda),
+       subtitulo_izquierda = COALESCE($7, configuracion_login.subtitulo_izquierda),
+       actualizado_en = now()`,
+    [logo || null, color1 || null, color2 || null, imagenFondo || null, nombrePlataforma || null, tituloIzquierda || null, subtituloIzquierda || null]
+  );
+  res.json({ ok: true });
+});
+
+/* ---------------------------------------------------------
    API — Tienda pública (sin sesión)
 --------------------------------------------------------- */
 app.get('/api/tienda/:slug', limitePublico, async (req, res) => {
@@ -553,25 +596,39 @@ app.post('/api/auth/login', limiteLogin, async (req, res) => {
 
   // Login de ADMINISTRADOR: NO pide código de empresa — el sistema busca,
   // entre todas las empresas activas, en cuál está registrado ese correo
-  // (mismo criterio que ya usa la recuperación de contraseña). Así el
-  // panel de superadmin puede crear empresas nuevas sin tener que tocar
-  // la pantalla de login cada vez.
+  // (mismo criterio que ya usa la recuperación de contraseña). Si el
+  // correo no pertenece a ninguna empresa, se revisa si es el
+  // superadministrador de la plataforma antes de rechazar el acceso —
+  // así una sola pantalla de login sirve para todos, sin tener que
+  // elegir de antemano "soy superadmin" o "soy de tal empresa".
   const identificador = (usuario || '').trim().toLowerCase();
   if (!identificador || !password) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
 
   const rActivas = await pool.query('SELECT slug, estado_app FROM empresas WHERE activa = true');
 
+  async function intentarLoginSuperAdmin() {
+    const r = await pool.query('SELECT id, password_hash, debe_cambiar_password FROM super_admins WHERE email = $1', [identificador]);
+    const admin = r.rows[0];
+    if (!admin || !verificarPassword(password, admin.password_hash)) return null;
+    return { token: crearSesionSuperAdmin(admin.id), rol: 'superadmin', debeCambiarPassword: admin.debe_cambiar_password };
+  }
+
   if (MASTER_PASSWORD && password === MASTER_PASSWORD) {
     const fila = rActivas.rows.find(f => (f.estado_app.config.adminUsuario || '').trim().toLowerCase() === identificador);
-    if (!fila) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
-    return res.json({ token: crearSesion(fila.slug, 'admin', null), rol: 'admin', tecnicoId: null, nombreEmpresa: fila.estado_app.config.nombre, slug: fila.slug });
+    if (fila) return res.json({ token: crearSesion(fila.slug, 'admin', null), rol: 'admin', tecnicoId: null, nombreEmpresa: fila.estado_app.config.nombre, slug: fila.slug });
+    return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
   }
 
   const fila = rActivas.rows.find(f => (f.estado_app.config.adminUsuario || '').trim().toLowerCase() === identificador);
-  if (!fila || !verificarPassword(password, fila.estado_app.config.adminPasswordHash)) {
-    return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+  if (fila) {
+    if (!verificarPassword(password, fila.estado_app.config.adminPasswordHash)) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+    return res.json({ token: crearSesion(fila.slug, 'admin', null), rol: 'admin', tecnicoId: null, nombreEmpresa: fila.estado_app.config.nombre, slug: fila.slug });
   }
-  res.json({ token: crearSesion(fila.slug, 'admin', null), rol: 'admin', tecnicoId: null, nombreEmpresa: fila.estado_app.config.nombre, slug: fila.slug });
+
+  const comoSuperAdmin = await intentarLoginSuperAdmin();
+  if (comoSuperAdmin) return res.json(comoSuperAdmin);
+
+  return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
 });
 
 /* ---------------------------------------------------------
@@ -903,3 +960,4 @@ pool.query('SELECT 1')
     console.error('No se pudo conectar a la base de datos:', err.message);
     process.exit(1);
   });
+
