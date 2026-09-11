@@ -457,8 +457,104 @@ function actualizarBadgeConexion(){
 }
 
 // Arranque protegido
+/* =========================================================
+   RECUPERACIÓN DE CONTRASEÑA
+   Backend ya listo (/api/auth/solicitar-reset y /api/auth/confirmar-reset,
+   funciona en cualquier empresa activa, buscando el correo igual que el
+   login). Aquí solo conectamos la pantalla con esas rutas.
+========================================================= */
+function mostrarAyudaContrasena(){
+  const input = document.getElementById('resetSolicitudEmail');
+  if(input) input.value = '';
+  const msj = document.getElementById('resetSolicitudMensaje');
+  if(msj) msj.style.display = 'none';
+  abrirModal('modalSolicitarReset');
+}
+
+function enviarSolicitudReset(){
+  const input = document.getElementById('resetSolicitudEmail');
+  const msj = document.getElementById('resetSolicitudMensaje');
+  const email = (input ? input.value : '').trim();
+  if(!email){
+    if(msj){ msj.style.color = 'var(--red-alert)'; msj.innerText = 'Escribe tu correo primero.'; msj.style.display = 'block'; }
+    return;
+  }
+  fetch(API_BASE + '/api/auth/solicitar-reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  }).then(r => r.json()).then(data => {
+    if(msj){
+      msj.style.color = 'var(--green-success)';
+      msj.innerText = data.mensaje || 'Si ese correo está registrado, te enviamos un enlace para restablecer tu contraseña.';
+      msj.style.display = 'block';
+    }
+  }).catch(() => {
+    if(msj){ msj.style.color = 'var(--red-alert)'; msj.innerText = 'No se pudo enviar la solicitud. Intenta de nuevo.'; msj.style.display = 'block'; }
+  });
+}
+
+let tokenResetActual = null;
+
+function detectarEnlaceDeReset(){
+  const params = new URLSearchParams(location.search);
+  const token = params.get('resetToken');
+  if(!token) return false;
+  tokenResetActual = token;
+
+  ocultarSkeletonBoot();
+  const overlay = document.getElementById('loginOverlay');
+  if(overlay) overlay.style.display = 'none';
+  const resetOverlay = document.getElementById('resetPasswordOverlay');
+  if(resetOverlay) resetOverlay.style.display = 'flex';
+
+  // Limpia el token de la URL para que no quede visible ni se reintente
+  // si la persona recarga la página después de cambiarla.
+  const urlLimpia = location.origin + location.pathname;
+  window.history.replaceState({}, document.title, urlLimpia);
+  return true;
+}
+
+function confirmarNuevaPassword(){
+  const msj = document.getElementById('resetConfirmarMensaje');
+  const nueva = (document.getElementById('resetNuevaPassword').value || '');
+  const confirmar = (document.getElementById('resetConfirmarPassword').value || '');
+
+  const mostrarMensaje = (texto, esError) => {
+    if(!msj) return;
+    msj.style.color = esError ? 'var(--red-alert)' : 'var(--green-success)';
+    msj.innerText = texto;
+    msj.style.display = 'block';
+  };
+
+  if(nueva.length < 4) return mostrarMensaje('La contraseña debe tener al menos 4 caracteres.', true);
+  if(nueva !== confirmar) return mostrarMensaje('Las dos contraseñas no coinciden.', true);
+  if(!tokenResetActual) return mostrarMensaje('El enlace no es válido. Solicita uno nuevo desde el login.', true);
+
+  fetch(API_BASE + '/api/auth/confirmar-reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: tokenResetActual, nuevaPassword: nueva })
+  }).then(async r=>{
+    const data = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(data.error || 'No se pudo cambiar la contraseña.');
+    return data;
+  }).then(() => {
+    mostrarMensaje('✅ Contraseña actualizada. Ya puedes iniciar sesión con ella.', false);
+    setTimeout(() => {
+      const resetOverlay = document.getElementById('resetPasswordOverlay');
+      if(resetOverlay) resetOverlay.style.display = 'none';
+      tokenResetActual = null;
+      mostrarLogin();
+    }, 1800);
+  }).catch(err => {
+    mostrarMensaje(err.message || 'El enlace venció o ya fue usado. Solicita uno nuevo.', true);
+  });
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   aplicarConfiguracionVisual();
+  if(detectarEnlaceDeReset()) return; // pantalla de "crear nueva contraseña", no el login normal
   if(!sesionActual || !sesionServidor){
     mostrarLogin();
   } else {
