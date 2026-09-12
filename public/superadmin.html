@@ -176,6 +176,21 @@
         <button type="submit" class="principal" style="margin:0;" id="btnGuardarLoginCfg">Guardar personalización</button>
       </div>
     </form>
+
+    <div class="barra-superior" style="margin-top:36px;">
+      <h2>Respaldos semanales descargables</h2>
+      <button class="principal" style="width:auto; margin:0; padding:10px 18px;" id="btnGenerarRespaldoAhora">Generar respaldo ahora</button>
+    </div>
+    <p class="nota-campo" style="margin-bottom:16px;">Se genera solo, automáticamente, todos los domingos a la medianoche (hora de Colombia). Incluye todas las empresas. Se conservan los últimos 10 (unas 10 semanas) — los más viejos se depuran solos.</p>
+    <div class="error" id="errorRespaldos"></div>
+    <table class="empresas">
+      <thead>
+        <tr><th>Archivo</th><th>Generado</th><th>Tamaño</th><th></th></tr>
+      </thead>
+      <tbody id="filasRespaldos">
+        <tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:24px;">Cargando…</td></tr>
+      </tbody>
+    </table>
   </main>
 </div>
 
@@ -328,6 +343,7 @@
     ocultarError('errorPanel');
     irA(pantallaPanel);
     cargarLoginConfig();
+    cargarRespaldosSemanales();
     const tbody = document.getElementById('filasEmpresas');
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:24px;">Cargando…</td></tr>';
     try {
@@ -570,6 +586,75 @@
       mostrarError('errorLoginCfg', 'No se pudo guardar: ' + err.message);
     } finally {
       btn.disabled = false; btn.textContent = 'Guardar personalización';
+    }
+  });
+
+  // --------- RESPALDOS SEMANALES DESCARGABLES ---------
+  function formatoTamano(bytes) {
+    if (!bytes) return '—';
+    const kb = bytes / 1024;
+    if (kb < 1024) return `${kb.toFixed(0)} KB`;
+    return `${(kb / 1024).toFixed(1)} MB`;
+  }
+
+  async function cargarRespaldosSemanales() {
+    ocultarError('errorRespaldos');
+    const tbody = document.getElementById('filasRespaldos');
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:24px;">Cargando…</td></tr>';
+    try {
+      const respaldos = await llamar('/api/superadmin/respaldos-semanales');
+      if (!respaldos.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:24px;">Todavía no se ha generado ningún respaldo semanal.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = respaldos.map(r => `
+        <tr>
+          <td><code>${r.nombre_archivo}</code></td>
+          <td>${formatoFecha(r.creado_en)}</td>
+          <td>${formatoTamano(r.tamano_bytes)}</td>
+          <td><button class="btn-mini editar" data-accion="descargar-respaldo" data-id="${r.id}">Descargar</button></td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      mostrarError('errorRespaldos', err.message);
+      tbody.innerHTML = '';
+    }
+  }
+
+  document.getElementById('filasRespaldos').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-accion="descargar-respaldo"]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const token = localStorage.getItem(LS_TOKEN);
+    // Descarga directa vía fetch (no un simple <a href>) porque la ruta
+    // requiere el token de superadmin en el encabezado Authorization.
+    fetch(`${API}/api/superadmin/respaldos-semanales/${id}/descargar`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    }).then(async (resp) => {
+      if (!resp.ok) throw new Error('No se pudo descargar el respaldo.');
+      const disposicion = resp.headers.get('Content-Disposition') || '';
+      const coincide = disposicion.match(/filename="([^"]+)"/);
+      const nombreArchivo = coincide ? coincide[1] : 'respaldo-semanal.json';
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = nombreArchivo;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }).catch(err => mostrarError('errorRespaldos', err.message));
+  });
+
+  document.getElementById('btnGenerarRespaldoAhora').addEventListener('click', async () => {
+    ocultarError('errorRespaldos');
+    const btn = document.getElementById('btnGenerarRespaldoAhora');
+    btn.disabled = true; btn.textContent = 'Generando…';
+    try {
+      await llamar('/api/superadmin/respaldos-semanales/generar-ahora', { method: 'POST' });
+      await cargarRespaldosSemanales();
+    } catch (err) {
+      mostrarError('errorRespaldos', err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Generar respaldo ahora';
     }
   });
 
