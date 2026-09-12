@@ -350,6 +350,20 @@ function mostrarPasoCredenciales(info){
 
   const errEl = document.getElementById('loginError');
   if(errEl) errEl.style.display = 'none';
+
+  // Asegura que el formulario visible coincida con lo que diga el menú
+  // desplegable (por si el navegador recordó una selección previa).
+  if(typeof cambiarModoAccesoLogin === 'function') cambiarModoAccesoLogin();
+}
+
+function cambiarModoAccesoLogin(){
+  const modo = document.getElementById('loginModoAcceso').value;
+  const bloqueTecnico = document.getElementById('loginBloqueTecnico');
+  const bloqueAdmin = document.getElementById('loginBloqueAdmin');
+  if(bloqueTecnico) bloqueTecnico.style.display = (modo === 'tecnico') ? 'block' : 'none';
+  if(bloqueAdmin) bloqueAdmin.style.display = (modo === 'admin') ? 'block' : 'none';
+  const errorEl = document.getElementById('loginError');
+  if(errorEl) errorEl.style.display = 'none';
 }
 
 function iniciarSesionComo(rol){
