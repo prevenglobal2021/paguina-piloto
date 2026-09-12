@@ -675,8 +675,9 @@ app.post('/api/auth/solicitar-reset', limiteLogin, async (req, res) => {
   const respuesta = { ok: true, mensaje: 'Si ese correo está registrado, te enviamos un enlace para restablecer tu contraseña.' };
   if (!correo) return res.json(respuesta);
   try {
-    const empresas = await leerEmpresas();
-    for (const emp of empresas) {
+    const rActivas = await pool.query('SELECT slug FROM empresas WHERE activa = true');
+    for (const fila of rActivas.rows) {
+      const emp = fila;
       const data = await leerEstadoEmpresa(emp.slug);
       if (!data) continue;
       if (data.config.adminUsuario && data.config.adminUsuario.trim().toLowerCase() === correo) {
@@ -960,4 +961,3 @@ pool.query('SELECT 1')
     console.error('No se pudo conectar a la base de datos:', err.message);
     process.exit(1);
   });
-
