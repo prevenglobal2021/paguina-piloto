@@ -156,6 +156,99 @@ async function crearRespaldoSiHaceFalta(client, slug, estadoAnterior) {
     [slug]
   );
 }
+
+/* ---------------------------------------------------------
+   RESPALDO SEMANAL DESCARGABLE (todas las empresas juntas)
+   ---------------------------------------------------------
+   Distinto del respaldo anterior (que es POR EMPRESA, cada hora,
+   automático e invisible para el usuario, pensado para deshacer un
+   error reciente). Este es un respaldo GENERAL de toda la plataforma
+   (todas las empresas), pensado para que el superadmin se lo lleve
+   fuera de Railway — una sola función central genera el contenido,
+   reutilizable también por el futuro respaldo diario a OneDrive
+   (misma fuente de datos, solo cambia el destino final).
+--------------------------------------------------------- */
+async function asegurarTablaRespaldosSemanales() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS respaldos_semanales (
+      id SERIAL PRIMARY KEY,
+      nombre_archivo TEXT NOT NULL,
+      contenido JSONB NOT NULL,
+      creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_respaldos_semanales_creado_en ON respaldos_semanales (creado_en DESC)`);
+}
+
+// ÚNICA fuente de verdad para armar un respaldo completo de la
+// plataforma (todas las empresas). Cualquier modalidad de respaldo
+// general — este descargable semanal, o el futuro envío diario a
+// OneDrive — debe llamar a esta misma función, nunca duplicar la
+// lógica de qué se exporta.
+async function generarContenidoRespaldoCompleto() {
+  const r = await pool.query(
+    `SELECT slug, nombre, activa, estado_app, creado_en, actualizado_en FROM empresas ORDER BY slug`
+  );
+  return {
+    generadoEn: new Date().toISOString(),
+    version: 1,
+    empresas: r.rows
+  };
+}
+
+function nombreArchivoRespaldoSemanal(fecha) {
+  // Se usa la fecha en hora de Colombia (UTC-5) para que el nombre
+  // coincida con el día real en el que el usuario lo ve generarse,
+  // sin depender de en qué huso horario corra el servidor.
+  const co = new Date(fecha.getTime() - 5 * 60 * 60 * 1000);
+  const yyyy = co.getUTCFullYear();
+  const mm = String(co.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(co.getUTCDate()).padStart(2, '0');
+  return `backup-semanal-${yyyy}-${mm}-${dd}.json`;
+}
+
+const RESPALDO_SEMANAL_RETENCION_CANTIDAD = 10; // últimas ~10 semanas
+
+async function ejecutarRespaldoSemanal() {
+  const contenido = await generarContenidoRespaldoCompleto();
+  const nombreArchivo = nombreArchivoRespaldoSemanal(new Date());
+  await pool.query(
+    'INSERT INTO respaldos_semanales (nombre_archivo, contenido) VALUES ($1, $2)',
+    [nombreArchivo, JSON.stringify(contenido)]
+  );
+  // Poda los más viejos, dejando solo los últimos N — evita acumular
+  // archivos indefinidamente.
+  await pool.query(`
+    DELETE FROM respaldos_semanales
+    WHERE id NOT IN (
+      SELECT id FROM respaldos_semanales ORDER BY creado_en DESC LIMIT $1
+    )
+  `, [RESPALDO_SEMANAL_RETENCION_CANTIDAD]);
+  return nombreArchivo;
+}
+
+// Revisa una vez por hora si ya toca el respaldo semanal (domingo a
+// medianoche, hora de Colombia) y si no se ha generado uno todavía en
+// las últimas 20 horas (para no duplicarlo si el chequeo corre varias
+// veces dentro de esa misma ventana de una hora).
+async function tocaRespaldoSemanalAhora() {
+  const co = new Date(Date.now() - 5 * 60 * 60 * 1000);
+  const esDomingoMedianoche = co.getUTCDay() === 0 && co.getUTCHours() === 0;
+  if (!esDomingoMedianoche) return false;
+  const r = await pool.query(`SELECT 1 FROM respaldos_semanales WHERE creado_en > now() - interval '20 hours' LIMIT 1`);
+  return r.rows.length === 0;
+}
+
+async function cicloRespaldoSemanal() {
+  try {
+    if (await tocaRespaldoSemanalAhora()) {
+      const nombreArchivo = await ejecutarRespaldoSemanal();
+      console.log(`[respaldo-semanal] Generado correctamente: ${nombreArchivo}`);
+    }
+  } catch (err) {
+    console.error('[respaldo-semanal] Error generando el respaldo automático:', err.message);
+  }
+}
 async function crearEmpresa(slug, nombre, estadoInicial) {
   await pool.query(
     'INSERT INTO empresas (slug, nombre, estado_app) VALUES ($1, $2, $3)',
@@ -413,6 +506,38 @@ app.patch('/api/superadmin/login-config', requireSuperAdmin, async (req, res) =>
     [logo || null, color1 || null, color2 || null, imagenFondo || null, nombrePlataforma || null, tituloIzquierda || null, subtituloIzquierda || null]
   );
   res.json({ ok: true });
+});
+
+/* ---------------------------------------------------------
+   API — Respaldo semanal descargable (todas las empresas)
+--------------------------------------------------------- */
+app.get('/api/superadmin/respaldos-semanales', requireSuperAdmin, async (req, res) => {
+  const r = await pool.query(
+    `SELECT id, nombre_archivo, creado_en, pg_column_size(contenido) AS tamano_bytes
+     FROM respaldos_semanales ORDER BY creado_en DESC`
+  );
+  res.json(r.rows);
+});
+
+app.get('/api/superadmin/respaldos-semanales/:id/descargar', requireSuperAdmin, async (req, res) => {
+  const id = parseInt(req.params.id);
+  const r = await pool.query('SELECT nombre_archivo, contenido FROM respaldos_semanales WHERE id = $1', [id]);
+  if (!r.rows[0]) return res.status(404).json({ error: 'Ese respaldo ya no existe (puede que haya sido depurado por antigüedad).' });
+  const fila = r.rows[0];
+  res.setHeader('Content-Disposition', `attachment; filename="${fila.nombre_archivo}"`);
+  res.setHeader('Content-Type', 'application/json');
+  res.send(JSON.stringify(fila.contenido, null, 2));
+});
+
+// Fuerza la generación inmediata — útil para probar sin esperar al
+// domingo, o para sacar un respaldo puntual antes de un cambio grande.
+app.post('/api/superadmin/respaldos-semanales/generar-ahora', requireSuperAdmin, async (req, res) => {
+  try {
+    const nombreArchivo = await ejecutarRespaldoSemanal();
+    res.json({ ok: true, nombreArchivo });
+  } catch (err) {
+    res.status(500).json({ error: 'No se pudo generar el respaldo: ' + err.message });
+  }
 });
 
 /* ---------------------------------------------------------
@@ -951,6 +1076,13 @@ pool.query('SELECT 1')
       await asegurarTablaRespaldos();
     }catch(err){
       console.error('[respaldos] No se pudo preparar la tabla de respaldos — la plataforma sigue funcionando igual, sin este panel por ahora:', err.message);
+    }
+    try{
+      await asegurarTablaRespaldosSemanales();
+      cicloRespaldoSemanal(); // revisa de inmediato al arrancar (por si el servidor estaba caído justo el domingo a medianoche)
+      setInterval(cicloRespaldoSemanal, 60 * 60 * 1000); // y luego revisa una vez por hora
+    }catch(err){
+      console.error('[respaldo-semanal] No se pudo preparar — la plataforma sigue funcionando igual, sin este respaldo por ahora:', err.message);
     }
   })
   .then(() => bootstrapEmpresaInicial())
