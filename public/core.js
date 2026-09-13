@@ -45,17 +45,67 @@ function aplicarConfiguracionVisual(){
 
   const logoNav = document.getElementById('sidebarLogo');
   const icoNav = document.getElementById('sidebarIconoDefault');
+  const icoPersonalizado = document.getElementById('sidebarIconoGlobalPersonalizado');
   if(logoNav && icoNav){
-    if(cfg.logo){ logoNav.src = cfg.logo; logoNav.style.display = 'block'; icoNav.style.display = 'none'; }
-    else { logoNav.style.display = 'none'; icoNav.style.display = 'inline'; }
+    if(cfg.logo){
+      // El logo propio de la empresa siempre manda sobre cualquier ícono
+      // genérico de la plataforma (el de la nieve, o el personalizado global).
+      logoNav.src = cfg.logo; logoNav.style.display = 'block';
+      icoNav.style.display = 'none';
+      if(icoPersonalizado) icoPersonalizado.style.display = 'none';
+    } else {
+      logoNav.style.display = 'none';
+      if(bannerLateralIconoGlobalCache && icoPersonalizado){
+        icoNav.style.display = 'none';
+        icoPersonalizado.style.display = 'inline-block';
+      } else {
+        icoNav.style.display = 'inline';
+        if(icoPersonalizado) icoPersonalizado.style.display = 'none';
+      }
+    }
   }
 }
 
-const DB_KEY = 'prevenglobal_db_v2';
+// Identidad visual GLOBAL de la plataforma (configurable solo desde
+// SuperAdmin, aplica a todas las empresas por igual): banner del menú
+// lateral y su ícono. Es información pública, así que se trae una sola
+// vez al arrancar, sin importar si ya hay sesión iniciada o no — para
+// que esté lista desde el primer instante en que se vea el menú.
+let bannerLateralIconoGlobalCache = null;
+function cargarYAplicarBannerLateralGlobal(){
+  fetch(API_BASE + '/api/login-config')
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(cfg => {
+      const wrap = document.getElementById('bannerLateralGlobalWrap');
+      const img = document.getElementById('bannerLateralGlobalImg');
+      if(cfg.bannerLateral && wrap && img){
+        img.src = cfg.bannerLateral;
+        wrap.style.display = 'block';
+      }
+      if(cfg.bannerLateralIcono){
+        bannerLateralIconoGlobalCache = cfg.bannerLateralIcono;
+        const icoPersonalizado = document.getElementById('sidebarIconoGlobalPersonalizado');
+        if(icoPersonalizado) icoPersonalizado.src = cfg.bannerLateralIcono;
+        aplicarConfiguracionVisual(); // reaplica ahora que ya se sabe si hay ícono global
+      }
+    })
+    .catch(()=>{}); // sin conexión momentánea: se queda con el ícono/menú por defecto, nada se rompe
+}
+
+const DB_KEY_PREFIJO = 'prevenglobal_db_v2';
+// CRÍTICO: antes esta llave era una sola, fija, para TODAS las empresas
+// ('prevenglobal_db_v2') — si en el mismo navegador antes había entrado
+// alguien de otra empresa, sus datos completos (clientes, órdenes, todo)
+// quedaban ahí guardados y se reutilizaban por error. Ahora cada empresa
+// tiene su propia llave, separada — la de una nunca pisa ni se mezcla con
+// la de otra.
+function claveDbLocal(){
+  return empresaActual ? `${DB_KEY_PREFIJO}__${empresaActual}` : `${DB_KEY_PREFIJO}__sin_empresa`;
+}
 
 function dbCargar(){
   try {
-    const raw = localStorage.getItem(DB_KEY);
+    const raw = localStorage.getItem(claveDbLocal());
     if(raw) return JSON.parse(raw);
   } catch(e) {
     console.warn('Error leyendo localStorage:', e);
@@ -78,7 +128,7 @@ function dbCargar(){
 
 function guardarEnLocalStorage(){
   try{
-    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    localStorage.setItem(claveDbLocal(), JSON.stringify(db));
   }catch(err){}
 }
 
@@ -216,6 +266,7 @@ function cargarEstadoDesdeBackend(){
     asegurarEliminados();
     guardarEnLocalStorage();
     aplicarConfiguracionVisual();
+    aplicarRBACaUI(); // con los datos reales ya en mano, se recalculan permisos y la barra móvil
     if(typeof renderizarAgenda === 'function') renderizarAgenda();
     if(typeof renderizarCalendario === 'function') renderizarCalendario();
     if(typeof renderizarEquiposGlobal === 'function') renderizarEquiposGlobal('');
@@ -432,6 +483,15 @@ function completarLogin(resultado){
     empresaActual = resultado.slug;
     localStorage.setItem(EMPRESA_KEY, empresaActual);
   }
+  // CRÍTICO: justo aquí, con empresaActual ya actualizado a la empresa
+  // correcta, se descarta cualquier dato que hubiera en memoria (que podía
+  // ser de otra empresa usada antes en este mismo navegador) y se recarga
+  // SOLO lo que corresponde a esta empresa (su propio caché local, o vacío
+  // si es la primera vez) — así nunca se llega a mostrar, ni por un
+  // instante, información de otra cuenta antes de que lleguen los datos
+  // reales del servidor.
+  db = dbCargar();
+
   sesionServidor = { token: resultado.token, rol: resultado.rol, tecnicoId: resultado.tecnicoId || null, nombreEmpresa: resultado.nombreEmpresa };
   localStorage.setItem(TOKEN_KEY, JSON.stringify(sesionServidor));
   sesionActual = { rol: resultado.rol, tecnicoId: resultado.tecnicoId || null };
@@ -462,6 +522,50 @@ function aplicarRBACaUI(){
     const permiso = el.getAttribute('data-permiso');
     el.style.display = (esAdmin() || (permiso && tienePermiso(permiso))) ? '' : 'none';
   });
+  renderizarBottomNavMovil();
+}
+
+/* =========================================================
+   BARRA INFERIOR DE LA APP MÓVIL (APK) — reorganizada para dejar
+   ÚNICAMENTE estas 4 funciones, cada una mostrada solo si el usuario
+   (administrador o técnico) tiene ese módulo autorizado. Se reutiliza
+   el mismo sistema de permisos (tienePermiso) que ya usa el resto de
+   la plataforma — nada nuevo que mantener por separado.
+========================================================= */
+const TABS_APP_MOVIL = [
+  { id:'ordenes',    permiso:'ordenes_crear',     icono:'fa-calendar-check', etiqueta:'Órdenes',        accion:'mostrarSeccion(\'agenda\')' },
+  { id:'facturas',   permiso:'contabilidad_ver',  icono:'fa-file-invoice',   etiqueta:'Facturas',       accion:'abrirCotizacionDesdeMovil()' },
+  { id:'buscar-qr',  permiso:null,                icono:'fa-qrcode',        etiqueta:'Buscar QR',      accion:'irAEquiposYAbrirEscaner()' },
+  { id:'agregar-eq', permiso:'equipos_gestionar', icono:'fa-plus-circle',   etiqueta:'Agregar Equipo', accion:'irAEquiposYAbrirNuevo()' }
+];
+
+function irAEquiposYAbrirEscaner(){
+  mostrarSeccion('equipos');
+  if(typeof abrirEscanerQR === 'function') abrirEscanerQR();
+}
+function irAEquiposYAbrirNuevo(){
+  mostrarSeccion('equipos');
+  if(typeof abrirModalEquipo === 'function') abrirModalEquipo();
+}
+
+function renderizarBottomNavMovil(){
+  const nav = document.getElementById('bottomNavMovil');
+  const aviso = document.getElementById('avisoSinModulosMovil');
+  if(!nav) return; // esta pantalla (ej. login) todavía no tiene la barra en el DOM
+
+  const disponibles = TABS_APP_MOVIL.filter(t => !t.permiso || tienePermiso(t.permiso));
+
+  if(!disponibles.length){
+    nav.style.display = 'none';
+    nav.innerHTML = '';
+    if(aviso) aviso.style.display = 'flex';
+    return;
+  }
+  if(aviso) aviso.style.display = 'none';
+  nav.style.display = '';
+  nav.innerHTML = disponibles.map(t => `
+    <a class="bottom-nav-item" data-nav="${t.id}" onclick="${t.accion}"><i class="fas ${t.icono}"></i><span>${t.etiqueta}</span></a>
+  `).join('') + `<a class="bottom-nav-item salir" onclick="cerrarSesion()"><i class="fas fa-power-off"></i><span>Salir</span></a>`;
 }
 
 function actualizarBadgeConexion(){
@@ -567,6 +671,15 @@ function confirmarNuevaPassword(){
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  // Detección de si esto corre dentro del APK real (Capacitor) o en un
+  // navegador normal — solo el APK debe activar la barra inferior de 4
+  // funciones reorganizada; la web (PC o celular) sigue igual que siempre,
+  // con todos los módulos, sin este cambio.
+  const esAppNativa = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+  if(esAppNativa) document.body.classList.add('modo-app-movil');
+
+  cargarYAplicarBannerLateralGlobal();
+
   aplicarConfiguracionVisual();
   if(detectarEnlaceDeReset()) return; // pantalla de "crear nueva contraseña", no el login normal
   if(!sesionActual || !sesionServidor){
