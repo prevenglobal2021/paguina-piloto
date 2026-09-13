@@ -19,64 +19,6 @@ document.addEventListener('keydown', e=>{
 function normalizarTexto(str){
   return (str||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 }
-/* =========================================================
-   CENTRO DE NOTIFICACIONES — revisa órdenes vencidas/próximas y
-   facturas pendientes desde hace tiempo, y las muestra en un panel
-   desplegable accesible desde la campana de la barra superior.
-========================================================= */
-function generarNotificaciones(){
-  const notifs = [];
-  const hoy = new Date(); hoy.setHours(0,0,0,0);
-  const hoyStr = hoy.toISOString().slice(0,10);
-  const limiteProximas = new Date(hoy.getTime() + 2*24*60*60*1000).toISOString().slice(0,10);
-
-  (db.ordenes||[]).forEach(o=>{
-    if(o.estado==='Finalizado' || !o.fechaProgramada) return;
-    if(o.fechaProgramada < hoyStr){
-      notifs.push({ prioridad:0, icono:'fa-triangle-exclamation', color:'var(--red-alert)', texto:`Orden ${o.numero} está vencida — estaba programada para ${o.fechaProgramada}`, accion:`cerrarPanelNotificaciones();verDetalleOrden(${o.id})` });
-    } else if(o.fechaProgramada <= limiteProximas){
-      const cuando = o.fechaProgramada===hoyStr ? 'hoy' : `el ${o.fechaProgramada}`;
-      notifs.push({ prioridad:1, icono:'fa-clock', color:'var(--orange-warning)', texto:`Orden ${o.numero} programada para ${cuando}`, accion:`cerrarPanelNotificaciones();verDetalleOrden(${o.id})` });
-    }
-  });
-
-  const hace30Dias = new Date(hoy.getTime() - 30*24*60*60*1000).toISOString().slice(0,10);
-  (db.facturas||[]).forEach(f=>{
-    if(f.estadoPago==='pagado' || f.estadoPago==='cancelada') return;
-    if(f.fecha && f.fecha < hace30Dias){
-      notifs.push({ prioridad:1, icono:'fa-file-invoice-dollar', color:'var(--orange-warning)', texto:`Factura ${f.numero} sigue pendiente de pago hace más de 30 días`, accion:`cerrarPanelNotificaciones();abrirModalFactura(${f.id})` });
-    }
-  });
-
-  return notifs.sort((a,b)=>a.prioridad-b.prioridad);
-}
-function actualizarBadgeNotificaciones(){
-  const notifs = generarNotificaciones();
-  const punto = document.getElementById('puntoNotificaciones');
-  if(punto) punto.style.display = notifs.length ? 'block' : 'none';
-}
-function toggleCentroNotificaciones(){
-  const panel = document.getElementById('panelNotificaciones');
-  if(!panel) return;
-  if(panel.classList.contains('abierto')){ panel.classList.remove('abierto'); return; }
-  const notifs = generarNotificaciones();
-  panel.innerHTML = notifs.length
-    ? notifs.map(n=>`<div class="autocomplete-item" onclick="${n.accion}"><i class="fas ${n.icono}" style="color:${n.color};width:20px;text-align:center;"></i><span style="flex:1;">${n.texto}</span></div>`).join('')
-    : '<div class="autocomplete-item" style="cursor:default;color:#94a3b8;">Sin avisos pendientes — todo al día.</div>';
-  panel.classList.add('abierto');
-}
-function cerrarPanelNotificaciones(){
-  const panel = document.getElementById('panelNotificaciones');
-  if(panel) panel.classList.remove('abierto');
-}
-document.addEventListener('click', (e)=>{
-  const panel = document.getElementById('panelNotificaciones');
-  const btn = document.getElementById('btnNotificaciones');
-  if(panel && panel.classList.contains('abierto') && !panel.contains(e.target) && e.target!==btn && !btn.contains(e.target)){
-    panel.classList.remove('abierto');
-  }
-});
-
 function abrirBuscadorGlobal(){
   const overlay = document.getElementById('overlayBuscadorGlobal');
   overlay.style.display = 'flex';
@@ -90,7 +32,6 @@ function cerrarBuscadorGlobal(){
 }
 function construirIndiceBusqueda(){
   const indice = [];
-  // Secciones / accesos directos de la app
   const secciones = [
     { slug:'agenda', nombre:'Agenda / Órdenes', icono:'fa-calendar-alt' },
     { slug:'equipos', nombre:'Equipos', icono:'fa-snowflake' },
@@ -102,13 +43,11 @@ function construirIndiceBusqueda(){
   ];
   secciones.forEach(s=>indice.push({ tipo:'Sección', icono:s.icono, titulo:s.nombre, subtitulo:'Ir a esta sección', accion:()=>mostrarSeccion(s.slug) }));
 
-  // Clientes
   (db.clientes||[]).forEach(c=>{
     indice.push({ tipo:'Cliente', icono:'fa-user-tie', titulo:c.nombre, subtitulo:c.telefono || c.numeroDocumento || 'Cliente',
       accion:()=>{ abrirModalConfig('clientes'); setTimeout(()=>editarClienteConfig(c.id), 150); } });
   });
 
-  // Equipos (con sede y sin sede)
   (db.clientes||[]).forEach(c=>{
     c.sedes.forEach(s=>s.equipos.forEach(e=>{
       indice.push({ tipo:'Equipo', icono:'fa-snowflake', titulo:`${e.nombre}${e.serie?' ('+e.serie+')':''}`, subtitulo:`${c.nombre} — ${s.nombre}`,
@@ -120,25 +59,21 @@ function construirIndiceBusqueda(){
     });
   });
 
-  // Órdenes de servicio
   (db.ordenes||[]).forEach(o=>{
     indice.push({ tipo:'Orden', icono:'fa-clipboard-list', titulo:o.numero, subtitulo:`${nombreClienteOrden(o)} · ${o.estado}`,
       accion:()=>{ mostrarSeccion('agenda'); setTimeout(()=>verDetalleOrden(o.id), 150); } });
   });
 
-  // Técnicos
   (db.tecnicos||[]).forEach(t=>{
     indice.push({ tipo:'Técnico', icono:'fa-user-hard-hat', titulo:t.nombre, subtitulo:t.activo===false?'Inactivo':'Activo',
       accion:()=>abrirModalConfig('tecnicos') });
   });
 
-  // Productos de inventario / tienda
   (db.inventario||[]).forEach(it=>{
     indice.push({ tipo:'Producto', icono:'fa-box-open', titulo:it.nombre, subtitulo:it.categoria || 'Inventario',
       accion:()=>mostrarSeccion('inventario') });
   });
 
-  // Pestañas de Configuración
   const tabsConfig = [
     ['clientes','Clientes y Sedes'], ['plantillas','Plantillas de Formularios'], ['tecnicos','Técnicos'],
     ['etiquetas','Etiquetas (tipos y prioridades)'], ['general','Empresa y Perfil'], ['apariencia','Apariencia'],
@@ -215,23 +150,8 @@ function ocultarSkeletonBoot(){
   const el = document.getElementById('skeletonBoot');
   if(el && el.style.display !== 'none') el.style.display = 'none';
 }
-function abrirModal(id){
-  const el = document.getElementById(id);
-  el.classList.remove('cerrando');
-  el.style.display='flex';
-}
-function cerrarModal(id){
-  const el = document.getElementById(id);
-  if(!el || el.style.display==='none') return;
-  el.classList.add('cerrando');
-  const box = el.querySelector('.modal-box');
-  if(box) box.classList.add('cerrando');
-  setTimeout(()=>{
-    el.style.display='none';
-    el.classList.remove('cerrando');
-    if(box) box.classList.remove('cerrando');
-  }, 160);
-}
+function abrirModal(id){ document.getElementById(id).style.display='flex'; }
+function cerrarModal(id){ document.getElementById(id).style.display='none'; }
 
 /* =========================================================
    AGENDA: VISTA LISTA / CALENDARIO
@@ -247,7 +167,7 @@ function cambiarVistaAgenda(vista){
 function ordenesVisiblesParaSesion(){
   if(esAdmin() || !sesionActual) return db.ordenes;
   const t = sesionActual.tecnicoId ? buscarTecnico(sesionActual.tecnicoId) : null;
-  if(t && t.accesoTotal) return db.ordenes; // personal con Acceso total ve la agenda completa, para poder coordinar
+  if(t && t.accesoTotal) return db.ordenes;
   return db.ordenes.filter(o=>o.tecnicoId===sesionActual.tecnicoId);
 }
 function renderizarAgenda(){
@@ -259,20 +179,18 @@ function renderizarAgenda(){
     const sede = buscarSede(o.clienteId, o.sedeId);
     const equipo = buscarEquipo(o.clienteId, o.sedeId, o.equipoId);
     const claseEstado = o.estado==='Finalizado' ? 'finalizado' : (o.estado==='En Ejecución' ? 'ejecucion' : 'programado');
-    // Semaforización: verde = cerrada, amarillo = en proceso, rojo = fuera de
-    // horario (ya pasó la fecha/hora programada y todavía no se finalizó) —
-    // el rojo tiene prioridad sobre los demás, porque es lo más urgente de ver.
-    // Una sola etiqueta (no dos), que cambia de texto y color según el caso.
     const ahora = new Date();
     const fechaHoraProgramada = o.fechaProgramada ? new Date(`${o.fechaProgramada}T${o.horaProgramada||'23:59'}`) : null;
     const fueraDeHorario = o.estado!=='Finalizado' && fechaHoraProgramada && fechaHoraProgramada < ahora;
-    const colorBorde = o.estado==='Finalizado' ? '#22c55e' : (fueraDeHorario ? '#ef4444' : (o.estado==='En Ejecución' ? '#eab308' : '#f59e0b'));
+    // Semáforo simple, de un solo vistazo: verde = ya se ejecutó (Finalizado),
+    // naranja = en ejecución ahora mismo, rojo = todavía no se ha ejecutado
+    // (Programado) — sin importar si ya se pasó la hora o no, sigue siendo rojo.
+    const colorBorde = o.estado==='Finalizado' ? '#22c55e' : (o.estado==='En Ejecución' ? '#f97316' : '#ef4444');
     const textoBadge = fueraDeHorario ? 'Fuera de horario' : o.estado;
     const estiloBadge = o.estado==='Finalizado' ? 'background:#dcfce7;color:#166534;'
-      : fueraDeHorario ? 'background:#fee2e2;color:#b91c1c;'
-      : o.estado==='En Ejecución' ? 'background:#fef9c3;color:#854d0e;'
-      : 'background:#fef3c7;color:#92400e;';
-    const iconoBadge = o.estado==='Finalizado' ? 'fa-circle-check' : fueraDeHorario ? 'fa-triangle-exclamation' : (o.estado==='En Ejecución' ? 'fa-hourglass-half' : 'fa-clock');
+      : o.estado==='En Ejecución' ? 'background:#ffedd5;color:#9a3412;'
+      : 'background:#fee2e2;color:#b91c1c;';
+    const iconoBadge = o.estado==='Finalizado' ? 'fa-circle-check' : (o.estado==='En Ejecución' ? 'fa-hourglass-half' : (fueraDeHorario ? 'fa-triangle-exclamation' : 'fa-clock'));
     const lineaSedeEquipo = o.esClienteNuevo
       ? `<span><i class="fas fa-map-marker-alt"></i> ${o.clienteNuevoDireccion || '—'}</span>`
       : `<span><i class="fas fa-building"></i> ${sede?sede.nombre:'—'}</span><span><i class="fas fa-snowflake"></i> ${equipo?equipo.nombre:'—'}</span>`;
@@ -288,11 +206,10 @@ function renderizarAgenda(){
           <span><i class="fas fa-wrench"></i> ${o.tipo}</span>
           <span><i class="fas fa-flag"></i> ${o.prioridad}</span>
           <span><i class="fas fa-calendar-day"></i> ${o.fechaProgramada||'Sin definir'}${o.horaProgramada?` · ${o.horaProgramada}`:''}</span>
-          ${(o.recurrencia && o.recurrencia.activa) ? `<span style="cursor:pointer;color:var(--blue-accent);" onclick="abrirGestionRecurrencia(${o.id})" title="Gestionar recurrencia"><i class="fas fa-repeat"></i> ${ETIQUETA_FRECUENCIA_RECURRENCIA[o.recurrencia.frecuencia]}</span>` : ''}
-          ${o.esGeneradaPorRecurrencia ? `<span style="color:var(--text-muted);"><i class="fas fa-repeat"></i> Generada por recurrencia</span>` : ''}
         </div>
         <div class="orden-card-acciones">
           <button class="btn-orden-accion btn-orden-principal" onclick="verDetalleOrden(${o.id})"><i class="fas fa-clipboard-check"></i> ${o.estado!=='Finalizado' ? 'Ver / Cerrar Orden' : 'Ver Orden'}</button>
+          ${o.cierre ? `<button class="btn-orden-accion btn-orden-secundaria" onclick="verPDF(${o.id})"><i class="fas fa-file-pdf"></i> PDF / Imprimir</button>` : ''}
           <button class="btn-orden-accion btn-orden-secundaria solo-admin" data-permiso="ordenes_reprogramar" onclick="abrirReprogramar(${o.id})"><i class="fas fa-calendar-alt"></i> Reprogramar</button>
           ${o.estado==='Finalizado' ? `<button class="btn-orden-accion btn-orden-secundaria solo-admin" data-permiso="ordenes_editar_finalizadas" onclick="editarOrdenFinalizada(${o.id})"><i class="fas fa-unlock"></i> Editar</button>` : ''}
           <button class="btn-orden-accion btn-orden-peligro solo-admin" data-permiso="ordenes_eliminar" onclick="eliminarOrden(${o.id})"><i class="fas fa-trash"></i> Eliminar</button>
@@ -320,7 +237,6 @@ async function eliminarOrden(id){
   renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
 }
 
-/* --- Reprogramación --- */
 function abrirReprogramar(ordenId){
   ordenReprogramarId = ordenId;
   const o = db.ordenes.find(x=>x.id===ordenId);
@@ -350,7 +266,6 @@ async function guardarReprogramacion(){
   renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
 }
 
-/* --- Calendario --- */
 function cambiarMesCalendario(delta){
   mesCalendarioActual.setMonth(mesCalendarioActual.getMonth()+delta);
   renderizarCalendario();
@@ -421,7 +336,7 @@ async function dropOrdenEnDia(event, fechaStr){
   renderizarCalendario(); renderizarAgenda();
 }
 
-function abrirModalNuevaOrden(equipoIdPreset){
+function abrirModalNuevaOrden(){
   document.getElementById('ordClienteBuscador').value = '';
   document.getElementById('ordCliente').value = '';
   document.getElementById('ordClienteNuevo').checked = false;
@@ -434,23 +349,10 @@ function abrirModalNuevaOrden(equipoIdPreset){
   document.getElementById('ordTipo').innerHTML = db.config.tiposServicio.map(t=>`<option>${t}</option>`).join('');
   document.getElementById('ordPrioridad').innerHTML = db.config.prioridades.map(p=>`<option>${p}</option>`).join('');
   document.getElementById('ordSinEquipo').checked = false;
-  document.getElementById('ordRecurrente').checked = false;
-  document.getElementById('wrapperOrdenRecurrente').style.display = 'none';
   toggleOrdenClienteNuevo();
-  // Si viene de un escaneo de QR: preselecciona el cliente dueño de ese
-  // equipo, y marca su casilla en la lista una vez esté poblada.
-  if(equipoIdPreset){
-    const info = ubicarEquipoPorId(equipoIdPreset);
-    if(info){
-      document.getElementById('ordClienteBuscador').value = info.cliente.nombre;
-      document.getElementById('ordCliente').value = info.cliente.id;
-    }
-  }
   poblarEquiposOrden();
-  if(equipoIdPreset){
-    const chk = document.querySelector(`#listaEquiposOrden .chk-equipo-orden[data-equipo="${equipoIdPreset}"]`);
-    if(chk) chk.checked = true;
-  }
+  const selFrec = document.getElementById('ordFrecuenciaRepeticion');
+  if(selFrec){ selFrec.value = ''; toggleRepeticionOrden(); }
   abrirModal('modalNuevaOrden');
 }
 function toggleOrdenClienteNuevo(){
@@ -467,10 +369,6 @@ function toggleOrdenClienteNuevo(){
   }
   toggleOrdenSinEquipo();
 }
-// Busca clientes por su propio nombre, o por el nombre/marca/modelo/serie de
-// cualquiera de sus equipos — así, si te acuerdas del equipo pero no del
-// cliente, igual lo encuentras. Sin escribir nada, muestra todos (como el
-// selector de antes).
 function resaltarCoincidencia(texto, busqueda){
   if(!busqueda) return texto;
   const idx = texto.toLowerCase().indexOf(busqueda.toLowerCase());
@@ -523,22 +421,38 @@ function toggleOrdenSinEquipo(){
   const sinEquipo = document.getElementById('ordSinEquipo').checked;
   document.getElementById('wrapperEquiposOrden').style.display = sinEquipo ? 'none' : 'block';
   document.getElementById('wrapperPlantillaGeneral').style.display = sinEquipo ? 'block' : 'none';
-  document.getElementById('lblOrdRecurrente').style.display = sinEquipo ? 'none' : 'flex';
   if(sinEquipo){
-    document.getElementById('ordRecurrente').checked = false;
-    document.getElementById('wrapperOrdenRecurrente').style.display = 'none';
     const sel = document.getElementById('ordPlantillaGeneral');
     sel.innerHTML = '<option value="">Sin plantilla</option>' + db.plantillas.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('');
   }
 }
-function toggleOrdenRecurrente(){
-  document.getElementById('wrapperOrdenRecurrente').style.display = document.getElementById('ordRecurrente').checked ? 'block' : 'none';
+
+// Repetición de la orden (mensual, bimensual, trimestral...) — al guardar,
+// se crean de una vez todas las órdenes futuras, cada una independiente.
+function toggleRepeticionOrden(){
+  const sel = document.getElementById('ordFrecuenciaRepeticion');
+  if(!sel) return;
+  const frecuencia = sel.value;
+  const wrapCantidad = document.getElementById('wrapperCantidadRepeticionesOrden');
+  const nota = document.getElementById('notaRepeticionOrden');
+  if(wrapCantidad) wrapCantidad.style.display = frecuencia ? 'block' : 'none';
+  if(nota) nota.style.display = frecuencia ? 'block' : 'none';
+}
+const MESES_POR_FRECUENCIA_ORDEN = { mensual:1, bimensual:2, trimestral:3, semestral:6, anual:12 };
+function sumarMesesFecha(fechaISO, meses){
+  // OJO: no usar Date.setMonth() directo con el día original — si el mes de
+  // destino no tiene ese día (ej. 31 de enero + 1 mes), JavaScript "desborda"
+  // al mes siguiente (da 1 de marzo en vez de 28 de febrero). Se corrige
+  // retrocediendo al último día real del mes de destino en ese caso.
+  const [anio, mes, dia] = fechaISO.split('-').map(Number);
+  const d = new Date(anio, mes - 1 + meses, dia);
+  if(d.getDate() !== dia) d.setDate(0);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 function poblarEquiposOrden(){
-  // Filtro dinámico: los Equipos dependen exclusivamente del Cliente seleccionado.
-  // Incluye los equipos de todas las sedes del cliente y los que no tienen sede asignada.
-  // Cada equipo se puede marcar de forma independiente y llevar su propia plantilla
-  // y su propio tipo de mantenimiento (Preventivo/Correctivo/etc.).
   const clienteId = parseInt(document.getElementById('ordCliente').value);
   const c = clienteId ? buscarCliente(clienteId) : null;
   const cont = document.getElementById('listaEquiposOrden');
@@ -563,114 +477,6 @@ function poblarEquiposOrden(){
       <select class="sel-plantilla-equipo" data-equipo="${o.id}" style="width:190px;flex-shrink:0;margin:0;" title="Plantilla de formulario para este equipo">${opcionesPlantilla}</select>
     </div>`).join('');
 }
-// =========================================================================
-// MANTENIMIENTO RECURRENTE — genera automáticamente las próximas órdenes
-// de un equipo (o de un mismo grupo de equipos, si la orden tenía varios)
-// según la frecuencia elegida, hasta la fecha límite escogida.
-// =========================================================================
-function calcularFechaLimiteRecurrencia(rango, fechaBaseStr){
-  const base = new Date(fechaBaseStr + 'T00:00:00');
-  if(rango === 'resto-anio'){
-    return new Date(base.getFullYear(), 11, 31);
-  }
-  const limite = new Date(base);
-  limite.setFullYear(limite.getFullYear() + 2);
-  return limite;
-}
-const MESES_POR_FRECUENCIA_RECURRENCIA = { mensual:1, bimensual:2, trimestral:3, cuatrimestral:4, semestral:6 };
-const ETIQUETA_FRECUENCIA_RECURRENCIA = { semanal:'Semanal', mensual:'Mensual', bimensual:'Bimensual', trimestral:'Trimestral', cuatrimestral:'Cada 4 meses', semestral:'Cada 6 meses' };
-// Genera las órdenes futuras y las agrega a db.ordenes (sin guardar aún —
-// eso lo hace quien llama, en el mismo guardado que la orden origen, para
-// que todo quede atómico: o se guarda completo, o no se guarda nada).
-function generarSerieRecurrente(ordenBase, frecuencia, rango){
-  const serieId = 'serie-' + ordenBase.id;
-  const fechaLimite = calcularFechaLimiteRecurrencia(rango, ordenBase.fechaProgramada);
-  let fechaSiguiente = new Date(ordenBase.fechaProgramada + 'T00:00:00');
-  const nuevas = [];
-  let contador = 0;
-  while(contador < 104){ // límite defensivo — nunca deberían hacer falta tantas
-    if(frecuencia === 'semanal') fechaSiguiente = new Date(fechaSiguiente.getFullYear(), fechaSiguiente.getMonth(), fechaSiguiente.getDate()+7);
-    else fechaSiguiente = new Date(fechaSiguiente.getFullYear(), fechaSiguiente.getMonth()+MESES_POR_FRECUENCIA_RECURRENCIA[frecuencia], fechaSiguiente.getDate());
-    if(fechaSiguiente > fechaLimite) break;
-    contador++;
-    const generada = JSON.parse(JSON.stringify(ordenBase));
-    generada.id = ordenBase.id + contador; // consecutivo a partir del id base — único y estable
-    generada.numero = `OS-2026-${String(db.ordenes.length + nuevas.length + 1).padStart(4,'0')}`;
-    generada.fechaProgramada = fechaSiguiente.toISOString().slice(0,10);
-    generada.estado = 'Programado';
-    generada.cierre = null;
-    generada.serieId = serieId;
-    generada.esGeneradaPorRecurrencia = true;
-    delete generada.recurrencia; // solo la orden ORIGEN guarda la configuración de la serie
-    nuevas.push(generada);
-  }
-  ordenBase.recurrencia = { activa:true, frecuencia, rango, serieId };
-  ordenBase.serieId = serieId;
-  db.ordenes.push(...nuevas);
-  return nuevas.length;
-}
-// Cancela una serie: borra las órdenes futuras aún no finalizadas; las que
-// ya se hayan ejecutado/finalizado quedan intactas, como historial real.
-async function cancelarRecurrencia(ordenId){
-  const origen = db.ordenes.find(o=>o.id===ordenId);
-  if(!origen || !origen.recurrencia) return;
-  if(!confirm('¿Cancelar la recurrencia? Se eliminarán las órdenes futuras de esta serie que aún no se hayan finalizado. Las que ya se ejecutaron quedan intactas.')) return;
-  const serieId = origen.recurrencia.serieId;
-  const respaldo = db.ordenes.slice();
-  db.ordenes = db.ordenes.filter(o => !(o.serieId===serieId && o.id!==ordenId && o.estado!=='Finalizado'));
-  origen.recurrencia.activa = false;
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    db.ordenes = respaldo;
-    origen.recurrencia.activa = true;
-    mostrarToast('⚠️ No se pudo cancelar: ' + err.message, 'error');
-    return;
-  }
-  registrarLog('Cancelar', 'RecurrenciaOrden', origen.numero);
-  mostrarToast('✅ Recurrencia cancelada. Las órdenes futuras pendientes fueron eliminadas.', 'exito');
-  cerrarModal('modalGestionRecurrencia');
-  renderizarAgenda(); renderizarCalendario();
-}
-// Modifica una serie ya creada: cancela las pendientes actuales y genera
-// una nueva serie con la frecuencia/rango elegidos de nuevo.
-async function guardarCambiosRecurrencia(ordenId){
-  const origen = db.ordenes.find(o=>o.id===ordenId);
-  if(!origen) return;
-  const frecuencia = document.getElementById('gestRecurrenciaFrecuencia').value;
-  const rango = document.getElementById('gestRecurrenciaRango').value;
-  const respaldo = db.ordenes.slice();
-  const serieId = origen.recurrencia ? origen.recurrencia.serieId : null;
-  if(serieId){
-    db.ordenes = db.ordenes.filter(o => !(o.serieId===serieId && o.id!==ordenId && o.estado!=='Finalizado'));
-  }
-  const generadas = generarSerieRecurrente(origen, frecuencia, rango);
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    db.ordenes = respaldo;
-    mostrarToast('⚠️ No se pudo actualizar la recurrencia: ' + err.message, 'error');
-    return;
-  }
-  registrarLog('Editar', 'RecurrenciaOrden', `${origen.numero} (${frecuencia}, ${generadas} órdenes generadas)`);
-  mostrarToast(`✅ Recurrencia actualizada: se generaron ${generadas} órdenes nuevas.`, 'exito');
-  cerrarModal('modalGestionRecurrencia');
-  renderizarAgenda(); renderizarCalendario();
-}
-function abrirGestionRecurrencia(ordenId){
-  const o = db.ordenes.find(x=>x.id===ordenId);
-  if(!o || !o.recurrencia) return;
-  document.getElementById('gestRecurrenciaOrdenId').value = ordenId;
-  document.getElementById('gestRecurrenciaFrecuencia').value = o.recurrencia.frecuencia;
-  document.getElementById('gestRecurrenciaRango').value = o.recurrencia.rango;
-  const serieId = o.recurrencia.serieId;
-  const enLaSerie = db.ordenes.filter(x=>x.serieId===serieId);
-  const finalizadas = enLaSerie.filter(x=>x.estado==='Finalizado').length;
-  const pendientes = enLaSerie.filter(x=>x.estado!=='Finalizado').length;
-  document.getElementById('gestRecurrenciaResumen').innerText = `${enLaSerie.length} órdenes en esta serie — ${finalizadas} ya finalizadas, ${pendientes} pendientes.`;
-  abrirModal('modalGestionRecurrencia');
-}
-
 async function guardarNuevaOrden(){
   const esClienteNuevo = document.getElementById('ordClienteNuevo').checked;
   const clienteId = esClienteNuevo ? null : parseInt(document.getElementById('ordCliente').value);
@@ -689,28 +495,45 @@ async function guardarNuevaOrden(){
   const sinEquipo = document.getElementById('ordSinEquipo').checked;
   const notas = document.getElementById('ordNotas').value.trim() || null;
 
+  const selFrecuencia = document.getElementById('ordFrecuenciaRepeticion');
+  const frecuenciaRepeticion = selFrecuencia ? selFrecuencia.value : '';
+  let cantidadRepeticiones = 1;
+  if(frecuenciaRepeticion){
+    if(!fechaProgramada){ mostrarToast('Para que un servicio se repita, primero define su fecha programada inicial.'); return; }
+    cantidadRepeticiones = parseInt(document.getElementById('ordCantidadRepeticiones').value) || 1;
+    if(cantidadRepeticiones < 2){ mostrarToast('Escribe cuántas veces en total se debe repetir (mínimo 2).'); return; }
+  }
+  const grupoRecurrenciaId = frecuenciaRepeticion ? Date.now() : null;
+  function fechaRepeticion(i){
+    return (i===0 || !frecuenciaRepeticion) ? fechaProgramada : sumarMesesFecha(fechaProgramada, MESES_POR_FRECUENCIA_ORDEN[frecuenciaRepeticion]*i);
+  }
+
   if(sinEquipo){
     const plantillaId = document.getElementById('ordPlantillaGeneral').value ? parseInt(document.getElementById('ordPlantillaGeneral').value) : null;
-    const consecutivo = db.ordenes.length + 1;
-    const nueva = {
-      id: Date.now(), numero: `OS-2026-${String(consecutivo).padStart(4,'0')}`,
-      clienteId, sedeId: null, equipoId: null, tecnicoId: tecnicoId||null,
-      esClienteNuevo, clienteNuevoNombre, clienteNuevoDireccion,
-      tipo, prioridad, plantillaId, notas,
-      estado: 'Programado', fechaProgramada, horaProgramada, cierre: null
-    };
-    db.ordenes.push(nueva);
-    registrarLog('Crear', 'OrdenServicio', esClienteNuevo ? `${nueva.numero} (cliente nuevo: ${clienteNuevoNombre})` : `${nueva.numero} (servicio general, sin equipo)`);
+    const nuevas = [];
+    for(let i=0;i<cantidadRepeticiones;i++){
+      const consecutivo = db.ordenes.length + 1 + nuevas.length;
+      nuevas.push({
+        id: Date.now()+i, numero: `OS-2026-${String(consecutivo).padStart(4,'0')}`,
+        clienteId, sedeId: null, equipoId: null, tecnicoId: tecnicoId||null,
+        esClienteNuevo, clienteNuevoNombre, clienteNuevoDireccion,
+        tipo, prioridad, plantillaId, notas,
+        estado: 'Programado', fechaProgramada: fechaRepeticion(i), horaProgramada, cierre: null,
+        grupoRecurrenciaId, frecuenciaRepeticion: frecuenciaRepeticion || null
+      });
+    }
+    db.ordenes.push(...nuevas);
+    registrarLog('Crear', 'OrdenServicio', `${nuevas[0].numero}${nuevas.length>1?' (+'+(nuevas.length-1)+' futuras)':''}${esClienteNuevo ? ' (cliente nuevo: '+clienteNuevoNombre+')' : ' (servicio general, sin equipo)'}`);
     try{
       await dbGuardarInmediato();
     }catch(err){
-      db.ordenes.pop();
+      nuevas.forEach(n=>{ const i=db.ordenes.indexOf(n); if(i>-1) db.ordenes.splice(i,1); });
       mostrarToast('⚠️ No se pudo crear la orden: ' + err.message, 'error');
       return;
     }
     cerrarModal('modalNuevaOrden');
     renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
-    mostrarToast(esClienteNuevo ? `Orden ${nueva.numero} creada para el cliente nuevo "${clienteNuevoNombre}".` : `Orden ${nueva.numero} creada como servicio general, sin equipo asociado.`);
+    mostrarToast(esClienteNuevo ? `Orden ${nuevas[0].numero} creada para el cliente nuevo "${clienteNuevoNombre}".` : `Orden ${nuevas[0].numero} creada como servicio general, sin equipo asociado.`);
     return;
   }
 
@@ -719,9 +542,6 @@ async function guardarNuevaOrden(){
 
   const datosEquipos = filasSeleccionadas.map(chk=>{
     const equipoId = parseInt(chk.dataset.equipo);
-    // La sede viene directamente de la fila (ya filtrada por este Cliente al construir
-    // la lista), en vez de volver a buscarla de forma global por ID — así se evita que
-    // una orden se salte en silencio si algún otro equipo del sistema comparte el mismo ID.
     const sedeId = chk.dataset.sede ? parseInt(chk.dataset.sede) : null;
     const selPlant = document.querySelector(`#listaEquiposOrden .sel-plantilla-equipo[data-equipo="${equipoId}"]`);
     const plantillaId = selPlant && selPlant.value ? parseInt(selPlant.value) : null;
@@ -730,52 +550,45 @@ async function guardarNuevaOrden(){
     return { equipoId, sedeId, plantillaId, tipo: tipoEquipo };
   });
 
-  const consecutivo = db.ordenes.length + 1;
-  let nueva;
-  if(datosEquipos.length === 1){
-    // Un solo equipo: exactamente el mismo comportamiento de siempre.
-    const d = datosEquipos[0];
-    nueva = {
-      id: Date.now(), numero: `OS-2026-${String(consecutivo).padStart(4,'0')}`,
-      clienteId, sedeId: d.sedeId, equipoId: d.equipoId, tecnicoId: tecnicoId||null,
-      tipo: d.tipo, prioridad, plantillaId: d.plantillaId, notas,
-      estado: 'Programado', fechaProgramada, horaProgramada, cierre: null
-    };
-  } else {
-    // Varios equipos marcados: UNA sola orden, donde cada equipo queda como
-    // un bloque independiente (su propio tipo/plantilla desde la creación, y
-    // más adelante sus propias fotos/informe/actividades al cerrar la orden)
-    // — antes esto creaba una orden separada por cada equipo marcado.
-    nueva = {
-      id: Date.now(), numero: `OS-2026-${String(consecutivo).padStart(4,'0')}`,
-      clienteId, sedeId: datosEquipos[0].sedeId, equipoId: null,
-      equiposIds: datosEquipos.map(d=>d.equipoId), equiposDatos: datosEquipos,
-      tecnicoId: tecnicoId||null,
-      tipo, prioridad, plantillaId: null, notas,
-      estado: 'Programado', fechaProgramada, horaProgramada, cierre: null
-    };
+  const consecutivoBase = db.ordenes.length + 1;
+  const nuevas = [];
+  for(let i=0;i<cantidadRepeticiones;i++){
+    const consecutivo = consecutivoBase + i;
+    let nueva;
+    if(datosEquipos.length === 1){
+      const d = datosEquipos[0];
+      nueva = {
+        id: Date.now()+i, numero: `OS-2026-${String(consecutivo).padStart(4,'0')}`,
+        clienteId, sedeId: d.sedeId, equipoId: d.equipoId, tecnicoId: tecnicoId||null,
+        tipo: d.tipo, prioridad, plantillaId: d.plantillaId, notas,
+        estado: 'Programado', fechaProgramada: fechaRepeticion(i), horaProgramada, cierre: null,
+        grupoRecurrenciaId, frecuenciaRepeticion: frecuenciaRepeticion || null
+      };
+    } else {
+      nueva = {
+        id: Date.now()+i, numero: `OS-2026-${String(consecutivo).padStart(4,'0')}`,
+        clienteId, sedeId: datosEquipos[0].sedeId, equipoId: null,
+        equiposIds: datosEquipos.map(d=>d.equipoId), equiposDatos: datosEquipos.map(d=>Object.assign({}, d)),
+        tecnicoId: tecnicoId||null,
+        tipo, prioridad, plantillaId: null, notas,
+        estado: 'Programado', fechaProgramada: fechaRepeticion(i), horaProgramada, cierre: null,
+        grupoRecurrenciaId, frecuenciaRepeticion: frecuenciaRepeticion || null
+      };
+    }
+    nuevas.push(nueva);
   }
-  db.ordenes.push(nueva);
-  const esRecurrente = document.getElementById('ordRecurrente').checked;
-  let generadasRecurrencia = 0;
-  if(esRecurrente && nueva.fechaProgramada){
-    const frecuencia = document.getElementById('ordRecurrenteFrecuencia').value;
-    const rango = document.getElementById('ordRecurrenteRango').value;
-    generadasRecurrencia = generarSerieRecurrente(nueva, frecuencia, rango);
-  }
-  registrarLog('Crear', 'OrdenServicio', datosEquipos.length>1 ? `${nueva.numero} (${datosEquipos.length} equipos)` : nueva.numero);
+  db.ordenes.push(...nuevas);
+  registrarLog('Crear', 'OrdenServicio', `${nuevas[0].numero}${nuevas.length>1?' (+'+(nuevas.length-1)+' futuras)':''}${datosEquipos.length>1 ? ' ('+datosEquipos.length+' equipos)' : ''}`);
   try{
     await dbGuardarInmediato();
   }catch(err){
-    db.ordenes = db.ordenes.filter(o => o.id!==nueva.id && o.serieId!==nueva.serieId);
+    nuevas.forEach(n=>{ const i=db.ordenes.indexOf(n); if(i>-1) db.ordenes.splice(i,1); });
     mostrarToast('⚠️ No se pudo crear la orden: ' + err.message, 'error');
     return;
   }
   cerrarModal('modalNuevaOrden');
   renderizarAgenda(); renderizarCalendario(); actualizarKPIs();
-  let mensaje = datosEquipos.length>1 ? `✅ Orden ${nueva.numero} creada con ${datosEquipos.length} equipos.` : `✅ Orden ${nueva.numero} creada.`;
-  if(esRecurrente && !nueva.fechaProgramada) mensaje += ' (La recurrencia necesita una fecha programada — no se generó ninguna serie.)';
-  else if(generadasRecurrencia>0) mensaje += ` Se programaron ${generadasRecurrencia} órdenes más de forma recurrente.`;
-  mostrarToast(mensaje, 'exito');
+  mostrarToast(nuevas.length>1
+    ? `✅ Se crearon ${nuevas.length} órdenes (${nuevas[0].numero} y sus repeticiones futuras).`
+    : (datosEquipos.length>1 ? `✅ Orden ${nuevas[0].numero} creada con ${datosEquipos.length} equipos.` : `✅ Orden ${nuevas[0].numero} creada.`), 'exito');
 }
-
