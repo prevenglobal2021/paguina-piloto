@@ -409,6 +409,45 @@ app.post('/api/superadmin/cambiar-password', requireSuperAdmin, async (req, res)
   res.json({ ok: true });
 });
 
+// Cambio VOLUNTARIO de correo y/o contraseña, desde dentro del panel (no el
+// cambio obligatorio de la contraseña temporal) — por seguridad, siempre
+// pide la contraseña ACTUAL para confirmar, sin importar qué se esté
+// cambiando (solo el correo, solo la contraseña, o ambos a la vez).
+app.patch('/api/superadmin/mi-cuenta', requireSuperAdmin, async (req, res) => {
+  const { passwordActual, nuevoCorreo, nuevaPassword } = req.body || {};
+  if (!passwordActual) return res.status(400).json({ error: 'Escribe tu contraseña actual para confirmar el cambio.' });
+
+  const r = await pool.query('SELECT password_hash FROM super_admins WHERE id = $1', [req.superAdminId]);
+  const admin = r.rows[0];
+  if (!admin || !verificarPassword(passwordActual, admin.password_hash)) {
+    return res.status(401).json({ error: 'La contraseña actual no es correcta.' });
+  }
+
+  const correoNuevoLimpio = nuevoCorreo ? nuevoCorreo.trim().toLowerCase() : null;
+  if (correoNuevoLimpio) {
+    if (!correoNuevoLimpio.includes('@')) return res.status(400).json({ error: 'El correo nuevo no parece válido.' });
+    // Igual que en el login: si este correo coincidiera con el administrador
+    // de una empresa, el acceso al panel de superadmin quedaría bloqueado
+    // (el login siempre revisa primero las empresas) — se evita de raíz.
+    const rEmpresas = await pool.query('SELECT slug, estado_app FROM empresas');
+    const choca = rEmpresas.rows.find(f => ((f.estado_app.config || {}).adminUsuario || '').trim().toLowerCase() === correoNuevoLimpio);
+    if (choca) return res.status(400).json({ error: `Ese correo ya es el administrador de la empresa "${choca.slug}". Elige uno distinto.` });
+  }
+  if (nuevaPassword && nuevaPassword.length < 8) {
+    return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 8 caracteres.' });
+  }
+
+  const nuevoHash = nuevaPassword ? hashPassword(nuevaPassword) : null;
+  await pool.query(
+    `UPDATE super_admins SET
+       email = COALESCE($1, email),
+       password_hash = COALESCE($2, password_hash)
+     WHERE id = $3`,
+    [correoNuevoLimpio, nuevoHash, req.superAdminId]
+  );
+  res.json({ ok: true, correo: correoNuevoLimpio || undefined });
+});
+
 app.get('/api/superadmin/empresas', requireSuperAdmin, async (req, res) => {
   const r = await pool.query(
     `SELECT slug, nombre, activa, creado_en, actualizado_en FROM empresas ORDER BY creado_en DESC`
@@ -488,7 +527,7 @@ app.patch('/api/superadmin/empresas/:slug/activa', requireSuperAdmin, async (req
    puede modificarla.
 --------------------------------------------------------- */
 app.get('/api/login-config', limitePublico, async (req, res) => {
-  const r = await pool.query('SELECT logo, color1, color2, imagen_fondo, nombre_plataforma, titulo_izquierda, subtitulo_izquierda FROM configuracion_login WHERE id = 1');
+  const r = await pool.query('SELECT logo, color1, color2, imagen_fondo, nombre_plataforma, titulo_izquierda, subtitulo_izquierda, banner_lateral, banner_lateral_icono FROM configuracion_login WHERE id = 1');
   const fila = r.rows[0] || {};
   res.json({
     logo: fila.logo || null,
@@ -497,15 +536,17 @@ app.get('/api/login-config', limitePublico, async (req, res) => {
     imagenFondo: fila.imagen_fondo || null,
     nombrePlataforma: fila.nombre_plataforma || 'Prevenglobal',
     tituloIzquierda: fila.titulo_izquierda || 'Domina el sistema',
-    subtituloIzquierda: fila.subtitulo_izquierda || 'Controla clientes, equipos, órdenes de servicio e inventario desde un solo lugar.'
+    subtituloIzquierda: fila.subtitulo_izquierda || 'Controla clientes, equipos, órdenes de servicio e inventario desde un solo lugar.',
+    bannerLateral: fila.banner_lateral || null,
+    bannerLateralIcono: fila.banner_lateral_icono || null
   });
 });
 
 app.patch('/api/superadmin/login-config', requireSuperAdmin, async (req, res) => {
-  const { logo, color1, color2, imagenFondo, nombrePlataforma, tituloIzquierda, subtituloIzquierda } = req.body || {};
+  const { logo, color1, color2, imagenFondo, nombrePlataforma, tituloIzquierda, subtituloIzquierda, bannerLateral, bannerLateralIcono } = req.body || {};
   await pool.query(
-    `INSERT INTO configuracion_login (id, logo, color1, color2, imagen_fondo, nombre_plataforma, titulo_izquierda, subtitulo_izquierda, actualizado_en)
-     VALUES (1, $1, $2, $3, $4, $5, $6, $7, now())
+    `INSERT INTO configuracion_login (id, logo, color1, color2, imagen_fondo, nombre_plataforma, titulo_izquierda, subtitulo_izquierda, banner_lateral, banner_lateral_icono, actualizado_en)
+     VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, now())
      ON CONFLICT (id) DO UPDATE SET
        logo = COALESCE($1, configuracion_login.logo),
        color1 = COALESCE($2, configuracion_login.color1),
@@ -514,8 +555,10 @@ app.patch('/api/superadmin/login-config', requireSuperAdmin, async (req, res) =>
        nombre_plataforma = COALESCE($5, configuracion_login.nombre_plataforma),
        titulo_izquierda = COALESCE($6, configuracion_login.titulo_izquierda),
        subtitulo_izquierda = COALESCE($7, configuracion_login.subtitulo_izquierda),
+       banner_lateral = COALESCE($8, configuracion_login.banner_lateral),
+       banner_lateral_icono = COALESCE($9, configuracion_login.banner_lateral_icono),
        actualizado_en = now()`,
-    [logo || null, color1 || null, color2 || null, imagenFondo || null, nombrePlataforma || null, tituloIzquierda || null, subtituloIzquierda || null]
+    [logo || null, color1 || null, color2 || null, imagenFondo || null, nombrePlataforma || null, tituloIzquierda || null, subtituloIzquierda || null, bannerLateral || null, bannerLateralIcono || null]
   );
   res.json({ ok: true });
 });
