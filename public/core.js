@@ -1,70 +1,14 @@
 // ===== core.js — Capa de datos, Sincronización, Dashboard Fijo y Acceso Seguro =====
-/* =========================================================
-   CATÁLOGO FIJO E INAMOVIBLE DE COLORES DE LA DASHBOARD
-========================================================= */
-const TEMA_DASHBOARD_FIJO = {
-  nombre: 'Titanio Plateado',
-  clave: 'titanio',
-  acento: '#0284c7',
-  fondo: '#f1f5f9',
-  sidebar1: '#e2e8f0', sidebar2: '#cbd5e1',
-  topbar1: '#f8fafc', topbar2: '#e2e8f0',
-  panel1: '#ffffff', panel2: '#f8fafc',
-  borde: '#94a3b8', texto: '#0f172a'
-};
 
 function ocultarSkeletonBoot() {
   const el = document.getElementById('skeletonBoot');
   if (el) el.style.display = 'none';
 }
 
-function aplicarConfiguracionVisual(){
-  const root = document.documentElement.style;
-  const t = TEMA_DASHBOARD_FIJO;
-
-  root.setProperty('--blue-accent', t.acento);
-  root.setProperty('--primary-color', t.acento);
-  root.setProperty('--bg-dark', t.fondo);
-  root.setProperty('--sidebar-bg-1', t.sidebar1);
-  root.setProperty('--sidebar-bg-2', t.sidebar2);
-  root.setProperty('--topbar-bg-1', t.topbar1);
-  root.setProperty('--topbar-bg-2', t.topbar2);
-  root.setProperty('--panel-bg-1', t.panel1);
-  root.setProperty('--panel-bg-2', t.panel2);
-  root.setProperty('--card-border', t.borde);
-  root.setProperty('--text-main', t.texto);
-  document.body.classList.add('modo-claro');
-
-  const cfg = (db && db.config) ? db.config : {};
-  const lblNom = document.getElementById('lblNombreEmpresa');
-  if(lblNom) lblNom.innerText = cfg.nombre || 'Prevenglobal';
-  const lblSub = document.getElementById('lblSubtituloEmpresa');
-  if(lblSub) lblSub.innerText = cfg.subtitulo || '';
-  const brand = document.getElementById('brandTitleSidebar');
-  if(brand) brand.innerText = cfg.nombre || 'Prevenglobal';
-
-  const logoNav = document.getElementById('sidebarLogo');
-  const icoNav = document.getElementById('sidebarIconoDefault');
-  const icoPersonalizado = document.getElementById('sidebarIconoGlobalPersonalizado');
-  if(logoNav && icoNav){
-    if(cfg.logo){
-      // El logo propio de la empresa siempre manda sobre cualquier ícono
-      // genérico de la plataforma (el de la nieve, o el personalizado global).
-      logoNav.src = cfg.logo; logoNav.style.display = 'block';
-      icoNav.style.display = 'none';
-      if(icoPersonalizado) icoPersonalizado.style.display = 'none';
-    } else {
-      logoNav.style.display = 'none';
-      if(bannerLateralIconoGlobalCache && icoPersonalizado){
-        icoNav.style.display = 'none';
-        icoPersonalizado.style.display = 'inline-block';
-      } else {
-        icoNav.style.display = 'inline';
-        if(icoPersonalizado) icoPersonalizado.style.display = 'none';
-      }
-    }
-  }
-}
+// NOTA: aplicarConfiguracionVisual() vive en config-general.js (se cargaba
+// también, con el mismo nombre, aquí en core.js — dos funciones iguales en
+// archivos distintos, y la que se carga después en la página es la que de
+// verdad se ejecuta siempre. Se dejó una sola versión, completa, allá.
 
 // Identidad visual GLOBAL de la plataforma (configurable solo desde
 // SuperAdmin, aplica a todas las empresas por igual): banner del menú
@@ -84,9 +28,7 @@ function cargarYAplicarBannerLateralGlobal(){
       }
       if(cfg.bannerLateralIcono){
         bannerLateralIconoGlobalCache = cfg.bannerLateralIcono;
-        const icoPersonalizado = document.getElementById('sidebarIconoGlobalPersonalizado');
-        if(icoPersonalizado) icoPersonalizado.src = cfg.bannerLateralIcono;
-        aplicarConfiguracionVisual(); // reaplica ahora que ya se sabe si hay ícono global
+        if(typeof aplicarConfiguracionVisual === 'function') aplicarConfiguracionVisual(); // reaplica ahora que ya se sabe si hay ícono global
       }
     })
     .catch(()=>{}); // sin conexión momentánea: se queda con el ícono/menú por defecto, nada se rompe
