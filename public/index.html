@@ -618,47 +618,47 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 .bottom-nav-movil{display:none;}
 .dia-nombre-movil{display:none;}
 @media (max-width:768px){
-  body.es-tecnico, body.modo-app-movil .left-sidebar{display:none !important;}
-  body.es-tecnico, body.modo-app-movil #btnMenuMovil{display:none !important;}
-  body.es-tecnico, body.modo-app-movil #sidebarBackdrop{display:none !important;}
-  body.es-tecnico, body.modo-app-movil .page-wrapper{margin-left:0 !important;width:100% !important;padding:12px 12px 84px 12px !important;}
+  body.es-tecnico .left-sidebar, body.modo-app-movil .left-sidebar{display:none !important;}
+  body.es-tecnico #btnMenuMovil, body.modo-app-movil #btnMenuMovil{display:none !important;}
+  body.es-tecnico #sidebarBackdrop, body.modo-app-movil #sidebarBackdrop{display:none !important;}
+  body.es-tecnico .page-wrapper, body.modo-app-movil .page-wrapper{margin-left:0 !important;width:100% !important;padding:12px 12px 84px 12px !important;}
 
-  body.es-tecnico, body.modo-app-movil .bottom-nav-movil{
+  body.es-tecnico .bottom-nav-movil, body.modo-app-movil .bottom-nav-movil{
     display:flex;position:fixed;left:0;right:0;bottom:0;height:60px;z-index:1050;
     background:linear-gradient(120deg, var(--topbar-bg-1), var(--topbar-bg-2));
     border-top:1px solid var(--card-border);
     box-shadow:0 -4px 14px rgba(0,0,0,.25);
   }
-  body.es-tecnico, body.modo-app-movil .bottom-nav-item{
+  body.es-tecnico .bottom-nav-item, body.modo-app-movil .bottom-nav-item{
     flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
     color:var(--text-muted);text-decoration:none;font-size:10px;font-weight:600;cursor:pointer;
     -webkit-tap-highlight-color:transparent;transition:color .15s ease;
   }
-  body.es-tecnico, body.modo-app-movil .bottom-nav-item i{font-size:18px;}
-  body.es-tecnico, body.modo-app-movil .bottom-nav-item.active,
-  body.es-tecnico, body.modo-app-movil .bottom-nav-item:active{color:var(--blue-accent);}
-  body.es-tecnico, body.modo-app-movil .bottom-nav-item.salir{color:var(--red-alert);}
+  body.es-tecnico .bottom-nav-item i, body.modo-app-movil .bottom-nav-item i{font-size:18px;}
+  body.es-tecnico .bottom-nav-item.active, body.es-tecnico .bottom-nav-item:active,
+  body.modo-app-movil .bottom-nav-item.active, body.modo-app-movil .bottom-nav-item:active{color:var(--blue-accent);}
+  body.es-tecnico .bottom-nav-item.salir, body.modo-app-movil .bottom-nav-item.salir{color:var(--red-alert);}
 
   /* Calendario: cuadrícula de 7 columnas -> lista horizontal deslizable con snap,
      mucho más cómoda de explorar con el pulgar en un celular. */
-  body.es-tecnico, body.modo-app-movil #gridDiasSemana{display:none;}
-  body.es-tecnico, body.modo-app-movil #gridCalendario{
+  body.es-tecnico #gridDiasSemana, body.modo-app-movil #gridDiasSemana{display:none;}
+  body.es-tecnico #gridCalendario, body.modo-app-movil #gridCalendario{
     display:flex !important;grid-template-columns:none;overflow-x:auto;gap:10px;
     scroll-snap-type:x mandatory;padding-bottom:6px;-webkit-overflow-scrolling:touch;
   }
-  body.es-tecnico, body.modo-app-movil #gridCalendario .calendar-day{
+  body.es-tecnico #gridCalendario .calendar-day, body.modo-app-movil #gridCalendario .calendar-day{
     flex:0 0 108px;scroll-snap-align:start;min-height:auto;
   }
-  body.es-tecnico, body.modo-app-movil #gridCalendario .calendar-day.otro-mes{display:none;}
-  body.es-tecnico, body.modo-app-movil .dia-nombre-movil{display:inline;font-weight:400;color:#94a3b8;text-transform:uppercase;font-size:9px;}
+  body.es-tecnico #gridCalendario .calendar-day.otro-mes, body.modo-app-movil #gridCalendario .calendar-day.otro-mes{display:none;}
+  body.es-tecnico .dia-nombre-movil, body.modo-app-movil .dia-nombre-movil{display:inline;font-weight:400;color:#94a3b8;text-transform:uppercase;font-size:9px;}
 
   /* Cotización y Facturación vive dentro de la sección de Contabilidad,
      pero el técnico solo debe poder ver ESA pestaña — el resto (Nómina,
      Gastos, Trazabilidad) y las tarjetas de totales financieros del mes
      quedan ocultos, aunque entre a la sección desde el acceso directo. */
-  body.es-tecnico, body.modo-app-movil .contabilidad-cards{display:none;}
-  body.es-tecnico, body.modo-app-movil #contaFiltroMesWrapper{display:none;}
-  body.es-tecnico, body.modo-app-movil .conta-tab-btn:not([data-tab="CotizacionFactura"]){display:none;}
+  body.es-tecnico .contabilidad-cards, body.modo-app-movil .contabilidad-cards{display:none;}
+  body.es-tecnico #contaFiltroMesWrapper, body.modo-app-movil #contaFiltroMesWrapper{display:none;}
+  body.es-tecnico .conta-tab-btn:not([data-tab="CotizacionFactura"]), body.modo-app-movil .conta-tab-btn:not([data-tab="CotizacionFactura"]){display:none;}
 }
 
 
