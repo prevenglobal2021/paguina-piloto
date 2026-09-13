@@ -1619,6 +1619,24 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <div><label>Fecha programada:</label><input type="date" id="ordFecha"></div>
         <div><label>Hora programada:</label><input type="time" id="ordHora"></div>
       </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;">
+        <div>
+          <label>¿Se repite este servicio?</label>
+          <select id="ordFrecuenciaRepeticion" onchange="toggleRepeticionOrden()">
+            <option value="">No, es única</option>
+            <option value="mensual">Mensual</option>
+            <option value="bimensual">Bimensual (cada 2 meses)</option>
+            <option value="trimestral">Trimestral (cada 3 meses)</option>
+            <option value="semestral">Semestral (cada 6 meses)</option>
+            <option value="anual">Anual</option>
+          </select>
+        </div>
+        <div id="wrapperCantidadRepeticionesOrden" style="display:none;">
+          <label>¿Cuántas veces en total?</label>
+          <input type="number" id="ordCantidadRepeticiones" min="2" max="36" value="12">
+        </div>
+      </div>
+      <p id="notaRepeticionOrden" style="font-size:11px;color:#64748b;margin:4px 0 0;display:none;">Se crearán de una vez todas las órdenes futuras con esa frecuencia, a partir de la fecha programada de arriba — cada una queda independiente (puedes editar, reprogramar o cancelar cualquiera por separado, sin afectar a las demás).</p>
     </div>
 
     <div style="margin-top:15px;text-align:right;">

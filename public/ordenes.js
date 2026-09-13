@@ -497,3 +497,262 @@ async function confirmarFinalizarOrden(){
   await guardarDetalleOrden(true);
 }
 
+/* =========================================================
+   CREAR NUEVA ORDEN DE SERVICIO
+   Esta sección se reconstruyó por completo: el botón "+ Nueva Orden" y el
+   formulario del modal ya existían en index.html, pero las funciones que
+   los hacían funcionar (abrirModalNuevaOrden, guardarNuevaOrden, y las de
+   apoyo del formulario) no existían en ningún archivo — por eso el botón
+   no hacía nada. Sigue el mismo estilo del resto del archivo: buscador de
+   cliente con autocompletar, selección de uno o varios equipos (cada uno
+   con su propio tipo de mantenimiento y plantilla), y guardado con
+   respaldo/reversa si el servidor rechaza el cambio.
+========================================================= */
+function siguienteNumeroOrden(){
+  db.config.consecutivoOrden = (db.config.consecutivoOrden || 0) + 1;
+  return 'ORD-' + new Date().getFullYear() + '-' + String(db.config.consecutivoOrden).padStart(4,'0');
+}
+
+function abrirModalNuevaOrden(){
+  document.getElementById('ordClienteNuevo').checked = false;
+  document.getElementById('ordClienteNuevo').disabled = false;
+  toggleOrdenClienteNuevo();
+  document.getElementById('ordClienteNuevoNombre').value = '';
+  document.getElementById('ordClienteNuevoDireccion').value = '';
+  document.getElementById('ordClienteBuscador').value = '';
+  document.getElementById('ordCliente').value = '';
+  document.getElementById('ordClienteResultados').innerHTML = '';
+  document.getElementById('ordClienteResultados').classList.remove('abierto');
+
+  document.getElementById('ordSinEquipo').checked = false;
+  toggleOrdenSinEquipo();
+  document.getElementById('listaEquiposOrden').innerHTML = '<p class="empty-state">Selecciona un cliente primero.</p>';
+  document.getElementById('ordPlantillaGeneral').innerHTML = '<option value="">Sin plantilla</option>' + db.plantillas.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('');
+
+  document.getElementById('ordTecnico').innerHTML = '<option value="">Sin asignar</option>' + db.tecnicos.filter(t=>t.activo!==false).map(t=>`<option value="${t.id}">${t.nombre}</option>`).join('');
+  document.getElementById('ordTipo').innerHTML = db.config.tiposServicio.map(t=>`<option>${t}</option>`).join('');
+  document.getElementById('ordPrioridad').innerHTML = db.config.prioridades.map(p=>`<option>${p}</option>`).join('');
+  document.getElementById('ordNotas').value = '';
+  document.getElementById('ordFecha').value = '';
+  document.getElementById('ordHora').value = '';
+  document.getElementById('ordFrecuenciaRepeticion').value = '';
+  document.getElementById('ordCantidadRepeticiones').value = 12;
+  toggleRepeticionOrden();
+
+  abrirModal('modalNuevaOrden');
+}
+
+function toggleOrdenClienteNuevo(){
+  const esNuevo = document.getElementById('ordClienteNuevo').checked;
+  document.getElementById('wrapperClienteNuevo').style.display = esNuevo ? 'block' : 'none';
+  document.getElementById('wrapperClienteExistente').style.display = esNuevo ? 'none' : 'block';
+  const chkSinEquipo = document.getElementById('ordSinEquipo');
+  const lblSinEquipo = document.getElementById('lblOrdSinEquipo');
+  if(esNuevo){
+    // Un cliente nuevo (todavía no registrado) no tiene equipos guardados
+    // en el sistema — se fuerza "servicio general", sin dejar elegir equipo.
+    chkSinEquipo.checked = true;
+    chkSinEquipo.disabled = true;
+    if(lblSinEquipo) lblSinEquipo.style.opacity = '0.6';
+  } else {
+    chkSinEquipo.disabled = false;
+    if(lblSinEquipo) lblSinEquipo.style.opacity = '1';
+  }
+  toggleOrdenSinEquipo();
+}
+
+function toggleOrdenSinEquipo(){
+  const sinEquipo = document.getElementById('ordSinEquipo').checked;
+  document.getElementById('wrapperEquiposOrden').style.display = sinEquipo ? 'none' : 'block';
+  document.getElementById('wrapperPlantillaGeneral').style.display = sinEquipo ? 'block' : 'none';
+}
+
+function toggleRepeticionOrden(){
+  const frecuencia = document.getElementById('ordFrecuenciaRepeticion').value;
+  document.getElementById('wrapperCantidadRepeticionesOrden').style.display = frecuencia ? 'block' : 'none';
+  document.getElementById('notaRepeticionOrden').style.display = frecuencia ? 'block' : 'none';
+}
+
+const MESES_POR_FRECUENCIA_ORDEN = { mensual:1, bimensual:2, trimestral:3, semestral:6, anual:12 };
+function sumarMesesFecha(fechaISO, meses){
+  // OJO: no usar Date.setMonth() directo con el día original — si el mes de
+  // destino no tiene ese día (ej. 31 de enero + 1 mes), JavaScript "desborda"
+  // al mes siguiente (da 1 de marzo en vez de 28 de febrero). Aquí se corrige
+  // retrocediendo al último día real del mes de destino en ese caso.
+  const [anio, mes, dia] = fechaISO.split('-').map(Number);
+  const d = new Date(anio, mes - 1 + meses, dia);
+  if(d.getDate() !== dia){
+    d.setDate(0);
+  }
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function filtrarClientesOrden(){
+  const texto = document.getElementById('ordClienteBuscador').value.trim().toLowerCase();
+  const cont = document.getElementById('ordClienteResultados');
+  const resultados = db.clientes.filter(c=>{
+    if(!texto) return true;
+    if((c.nombre||'').toLowerCase().includes(texto)) return true;
+    const equipos = [...(c.sedes||[]).flatMap(s=>s.equipos||[]), ...equiposSinSedeDe(c)];
+    return equipos.some(e => (e.nombre||'').toLowerCase().includes(texto) || (e.serie||'').toLowerCase().includes(texto));
+  }).slice(0,30);
+  if(!resultados.length){
+    cont.innerHTML = '<div class="autocomplete-item" style="cursor:default;color:#94a3b8;">Sin resultados para esa búsqueda</div>';
+  } else {
+    cont.innerHTML = resultados.map(c=>`
+      <div class="autocomplete-item" onmousedown="seleccionarClienteOrden(${c.id})">
+        <span class="autocomplete-item-avatar">${(c.nombre||'?').trim().charAt(0).toUpperCase()}</span>
+        <span style="flex:1;min-width:0;">${resaltarCoincidencia(c.nombre, texto)}</span>
+      </div>`).join('');
+  }
+  cont.classList.add('abierto');
+}
+function cerrarListaClientesOrden(){
+  document.getElementById('ordClienteResultados').classList.remove('abierto');
+}
+function seleccionarClienteOrden(clienteId){
+  const c = buscarCliente(clienteId);
+  if(!c) return;
+  document.getElementById('ordClienteBuscador').value = c.nombre;
+  document.getElementById('ordCliente').value = clienteId;
+  document.getElementById('ordClienteResultados').classList.remove('abierto');
+  renderizarListaEquiposOrden(clienteId);
+}
+
+function renderizarListaEquiposOrden(clienteId){
+  const c = buscarCliente(clienteId);
+  const cont = document.getElementById('listaEquiposOrden');
+  if(!c){ cont.innerHTML = '<p class="empty-state">Selecciona un cliente primero.</p>'; return; }
+  const equipos = [];
+  (c.sedes||[]).forEach(s=>(s.equipos||[]).forEach(e=>equipos.push(Object.assign({}, e, { sedeNombre: s.nombre }))));
+  equiposSinSedeDe(c).forEach(e=>equipos.push(Object.assign({}, e, { sedeNombre: null })));
+  if(!equipos.length){
+    cont.innerHTML = '<p class="empty-state">Este cliente no tiene equipos registrados — marca "servicio general" arriba.</p>';
+    return;
+  }
+  const opcionesTipo = db.config.tiposServicio.map(t=>`<option>${t}</option>`).join('');
+  const opcionesPlantilla = '<option value="">Sin plantilla</option>' + db.plantillas.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('');
+  cont.innerHTML = equipos.map(e=>`
+    <div style="display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid #f1f5f9;">
+      <input type="checkbox" id="ordEqChk_${e.id}" style="width:20px;margin:0;" onchange="toggleEquipoOrden(${e.id})">
+      <span style="flex:1;min-width:140px;font-size:12px;">${e.nombre}${e.serie?' ('+e.serie+')':''}${e.sedeNombre?' — '+e.sedeNombre:''}</span>
+      <select id="ordEqTipo_${e.id}" style="width:170px;" disabled>${opcionesTipo}</select>
+      <select id="ordEqPlantilla_${e.id}" style="width:190px;" disabled>${opcionesPlantilla}</select>
+    </div>`).join('');
+}
+function toggleEquipoOrden(equipoId){
+  const marcado = document.getElementById('ordEqChk_'+equipoId).checked;
+  document.getElementById('ordEqTipo_'+equipoId).disabled = !marcado;
+  document.getElementById('ordEqPlantilla_'+equipoId).disabled = !marcado;
+}
+
+async function guardarNuevaOrden(){
+  const esClienteNuevo = document.getElementById('ordClienteNuevo').checked;
+  let clienteId = null, clienteNuevoNombre = null, clienteNuevoDireccion = null;
+
+  if(esClienteNuevo){
+    clienteNuevoNombre = document.getElementById('ordClienteNuevoNombre').value.trim();
+    clienteNuevoDireccion = document.getElementById('ordClienteNuevoDireccion').value.trim();
+    if(!clienteNuevoNombre){ mostrarToast('Escribe el nombre del cliente nuevo.'); return; }
+  } else {
+    clienteId = parseInt(document.getElementById('ordCliente').value) || null;
+    if(!clienteId){ mostrarToast('Selecciona un cliente, o marca "Cliente nuevo".'); return; }
+  }
+
+  const sinEquipo = document.getElementById('ordSinEquipo').checked;
+  let equiposIds = [], equiposDatos = [], equipoId = null, sedeId = null, plantillaId = null, tipoOrden;
+
+  if(!sinEquipo && !esClienteNuevo){
+    const c = buscarCliente(clienteId);
+    const todosEquipos = [];
+    (c.sedes||[]).forEach(s=>(s.equipos||[]).forEach(e=>todosEquipos.push(Object.assign({}, e, { sedeId: s.id }))));
+    equiposSinSedeDe(c).forEach(e=>todosEquipos.push(Object.assign({}, e, { sedeId: null })));
+    todosEquipos.forEach(e=>{
+      const chk = document.getElementById('ordEqChk_'+e.id);
+      if(chk && chk.checked){
+        equiposIds.push(e.id);
+        equiposDatos.push({
+          equipoId: e.id,
+          tipo: document.getElementById('ordEqTipo_'+e.id).value,
+          plantillaId: parseInt(document.getElementById('ordEqPlantilla_'+e.id).value) || null
+        });
+      }
+    });
+    if(!equiposIds.length){ mostrarToast('Marca al menos un equipo, o marca "servicio general" si no aplica a un equipo puntual.'); return; }
+    if(equiposIds.length === 1){
+      equipoId = equiposIds[0];
+      const infoEquipo = ubicarEquipoPorId(equipoId);
+      sedeId = infoEquipo && infoEquipo.sede ? infoEquipo.sede.id : null;
+      plantillaId = equiposDatos[0].plantillaId;
+      tipoOrden = equiposDatos[0].tipo;
+    } else {
+      tipoOrden = document.getElementById('ordTipo').value; // valor general/informativo cuando hay varios equipos con tipos distintos
+    }
+  } else {
+    tipoOrden = document.getElementById('ordTipo').value;
+    plantillaId = sinEquipo ? (parseInt(document.getElementById('ordPlantillaGeneral').value) || null) : null;
+  }
+
+  const tecnicoIdRaw = document.getElementById('ordTecnico').value;
+  const prioridad = document.getElementById('ordPrioridad').value;
+  const notas = document.getElementById('ordNotas').value.trim();
+  const fechaProgramada = document.getElementById('ordFecha').value || null;
+  const horaProgramada = document.getElementById('ordHora').value || null;
+
+  const frecuenciaRepeticion = document.getElementById('ordFrecuenciaRepeticion').value;
+  let cantidadRepeticiones = 1;
+  if(frecuenciaRepeticion){
+    if(!fechaProgramada){ mostrarToast('Para que un servicio se repita, primero define su fecha programada inicial.'); return; }
+    cantidadRepeticiones = parseInt(document.getElementById('ordCantidadRepeticiones').value) || 1;
+    if(cantidadRepeticiones < 2){ mostrarToast('Escribe cuántas veces en total se debe repetir (mínimo 2).'); return; }
+  }
+
+  db.ordenes = db.ordenes || [];
+  const grupoRecurrenciaId = frecuenciaRepeticion ? Date.now() : null;
+  const nuevasOrdenes = [];
+  for(let i = 0; i < cantidadRepeticiones; i++){
+    const fechaDeEstaOrden = (i === 0 || !frecuenciaRepeticion)
+      ? fechaProgramada
+      : sumarMesesFecha(fechaProgramada, MESES_POR_FRECUENCIA_ORDEN[frecuenciaRepeticion] * i);
+    nuevasOrdenes.push({
+      id: Date.now() + i,
+      numero: siguienteNumeroOrden(),
+      clienteId, esClienteNuevo, clienteNuevoNombre, clienteNuevoDireccion,
+      sedeId, equipoId,
+      equiposIds: equiposIds.length > 1 ? equiposIds : null,
+      equiposDatos: equiposIds.length > 1 ? equiposDatos.map(d=>Object.assign({}, d)) : null,
+      tecnicoId: tecnicoIdRaw ? parseInt(tecnicoIdRaw) : null,
+      tipo: tipoOrden, prioridad, notas,
+      fechaProgramada: fechaDeEstaOrden, horaProgramada,
+      plantillaId,
+      estado: 'Programado',
+      cierre: null,
+      grupoRecurrenciaId,
+      frecuenciaRepeticion: frecuenciaRepeticion || null,
+      creadoEn: new Date().toISOString()
+    });
+  }
+
+  db.ordenes.push(...nuevasOrdenes);
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    nuevasOrdenes.forEach(n=>{ const i = db.ordenes.indexOf(n); if(i>-1) db.ordenes.splice(i,1); });
+    mostrarToast('⚠️ No se pudo crear la orden: ' + err.message, 'error');
+    return;
+  }
+  const nombreClienteLog = esClienteNuevo ? clienteNuevoNombre : (buscarCliente(clienteId)?.nombre||'');
+  registrarLog('Crear', 'OrdenServicio', `${nuevasOrdenes[0].numero}${cantidadRepeticiones>1?' (+'+(cantidadRepeticiones-1)+' futuras, '+frecuenciaRepeticion+')':''} — ${nombreClienteLog}`);
+  cerrarModal('modalNuevaOrden');
+  mostrarToast(cantidadRepeticiones > 1
+    ? `✅ Se crearon ${cantidadRepeticiones} órdenes (${nuevasOrdenes[0].numero} y sus repeticiones futuras).`
+    : `✅ Orden ${nuevasOrdenes[0].numero} creada correctamente.`, 'exito');
+  if(typeof renderizarAgenda === 'function') renderizarAgenda();
+  if(typeof renderizarCalendario === 'function') renderizarCalendario();
+  if(typeof actualizarKPIs === 'function') actualizarKPIs();
+}
+
+
