@@ -397,6 +397,7 @@
             <button class="btn-mini ${e.activa ? 'desactivar' : 'activar'}" data-accion="toggle" data-slug="${e.slug}" data-activa="${e.activa}">
               ${e.activa ? 'Desactivar' : 'Activar'}
             </button>
+            <button class="btn-mini desactivar" data-accion="eliminar" data-slug="${e.slug}" data-nombre="${e.nombre}">Eliminar</button>
           </td>
         </tr>
       `).join('');
@@ -428,9 +429,29 @@
       return;
     }
 
+    const btnEliminar = e.target.closest('button[data-accion="eliminar"]');
+    if (btnEliminar) {
+      const slug = btnEliminar.dataset.slug;
+      const nombre = btnEliminar.dataset.nombre;
+      const escrito = prompt(`⚠️ Esto elimina PARA SIEMPRE a "${nombre}" y TODOS sus datos (clientes, órdenes, facturas, todo) — no se puede deshacer.\n\nPara confirmar, escribe exactamente el código de la empresa: ${slug}`);
+      if (escrito === null) return; // canceló
+      if (escrito.trim() !== slug) {
+        mostrarError('errorPanel', 'No coincide con el código de la empresa — no se eliminó nada.');
+        return;
+      }
+      btnEliminar.disabled = true;
+      try {
+        await llamar(`/api/superadmin/empresas/${encodeURIComponent(slug)}`, { method: 'DELETE' });
+        await cargarPanel();
+      } catch (err) {
+        mostrarError('errorPanel', err.message);
+        btnEliminar.disabled = false;
+      }
+      return;
+    }
+
     const btnEditar = e.target.closest('button[data-accion="editar"]');
-    if (btnEditar) {
-      const slug = btnEditar.dataset.slug;
+    if (btnEditar) {const slug = btnEditar.dataset.slug;
       btnEditar.disabled = true;
       try {
         const detalle = await llamar(`/api/superadmin/empresas/${encodeURIComponent(slug)}`);
@@ -794,3 +815,4 @@
 </script>
 </body>
 </html>
+
