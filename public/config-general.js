@@ -19,6 +19,22 @@ function manejarLogoUpload(event){
   reader.readAsDataURL(file);
 }
 
+// Quita el logo actual (sin necesidad de subir otra imagen encima) —
+// vuelve al ícono/banner por defecto. Se refleja de inmediato en la
+// vista previa, pero igual que subir un logo nuevo, solo queda guardado
+// de verdad al presionar "Guardar" (botón de guardarAjustesGenerales).
+function quitarLogoEmpresa(){
+  if(!confirm('¿Quitar el logo actual de esta empresa? Se aplicará al presionar "Guardar".')) return;
+  logoTempBase64 = null;
+  const inputEl = document.getElementById('cfgEmpresaLogoInput');
+  if(inputEl) inputEl.value = '';
+  const prev = document.getElementById('previewLogoConfig');
+  if(prev){ prev.src = ''; prev.style.display = 'none'; }
+  const ph = document.getElementById('previewLogoConfigPlaceholder');
+  if(ph) ph.style.display = 'block';
+  actualizarLogoEnBarraLateral(null, true); // true = "quitar de verdad", no "usar el guardado"
+}
+
 function actualizarPreviewFirmaRepresentante(){
   const prev = document.getElementById('imgFirmaConfig');
   const placeholder = document.getElementById('previewFirmaConfigPlaceholder');
@@ -206,8 +222,8 @@ function seleccionarTemaClaro(idx){
    el logo de la EMPRESA siempre manda sobre ese ícono global cuando
    ambos existen — ver el final de esta función.
 ========================================================= */
-function actualizarLogoEnBarraLateral(logoSrc){
-  const src = logoSrc || db.config?.logo;
+function actualizarLogoEnBarraLateral(logoSrc, forzarQuitar){
+  const src = forzarQuitar ? null : (logoSrc || db.config?.logo);
   const sidebarHeader = document.querySelector('aside > div:first-child') || document.querySelector('.sidebar-header');
   if(!sidebarHeader) return;
 

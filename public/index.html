@@ -2324,6 +2324,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <h4 style="margin-top:0;font-size:13px;">🏢 Identidad y Perfil de la Empresa</h4>
         <label>Logo de la empresa:</label>
         <input type="file" id="cfgEmpresaLogoInput" accept="image/*" onchange="manejarLogoUpload(event)">
+        <button type="button" class="btn-custom btn-danger-custom btn-sm-custom" id="btnQuitarLogo" style="margin-top:6px;" onclick="quitarLogoEmpresa()">Quitar logo actual</button>
         <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0 0;">Se muestra en grande (banner, ~5cm) aquí arriba y en el Dashboard; en el encabezado de los PDF se imprime a 5cm x 5cm.</p>
         <label>Nombre de la Empresa:</label>
         <input type="text" id="cfgEmpresaNombre">
