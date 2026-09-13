@@ -1,25 +1,12 @@
 // ===== cotizador.js — extraído de prevenglobal__25_.html (líneas 3782-4031) =====
 /* =========================================================
    MÓDULO DE NEGOCIO / CONTABILIDAD
-   Nómina de técnicos, gastos generales del negocio, e ingresos
-   provenientes de los pedidos de la Tienda Virtual. Es la base
-   para ir ampliando el tema contable poco a poco.
 ========================================================= */
 function mesActualISO(){
   const hoy = new Date();
   return hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0');
 }
-/* =========================================================
-   NÓMINA — liquidación completa con comprobante en PDF
-   Reemplaza el formulario simple anterior (un solo monto suelto)
-   por un flujo de liquidación real: selección de personas, días
-   laborados, ajustes/descuentos con nota, y comprobante numerado
-   por persona. El balance mensual de Contabilidad ahora se calcula
-   desde este nuevo registro (db.liquidacionesNomina) en vez del
-   arreglo viejo db.nomina.
-========================================================= */
-let liquidacionEstado = {}; // { [id]: {esOcasional, nombreOcasional, tipoPago:'dias'|'horas', dias, valorDia, horas, valorHora, ajustes:[], descuentos:[]} }
-                             // El id es el id numérico del técnico (como texto), o "oc-<...>" para personal ocasional.
+let liquidacionEstado = {};
 let contadorOcasional = 0;
 
 function abrirModalLiquidacionNomina(){
@@ -47,9 +34,6 @@ function toggleTecnicoLiquidacion(tecnicoId, marcado){
   const id = String(tecnicoId);
   if(marcado){
     const persona = nuevaPersonaLiquidacionVacia();
-    // Si el módulo de Asistencia y Turnos tiene registros de este técnico en
-    // el período que se está liquidando, se precargan solos los días y las
-    // horas — el administrador igual puede ajustarlos a mano después.
     if(typeof precargarAsistenciaEnNomina === 'function'){
       const desde = document.getElementById('liqPeriodoDesde').value;
       const hasta = document.getElementById('liqPeriodoHasta').value;
@@ -153,10 +137,6 @@ function actualizarResumenGeneralLiquidacion(){
   const totalGeneral = ids.reduce((suma,id)=>suma + calcularTotalesPersonaLiquidacion(liquidacionEstado[id]).totalNeto, 0);
   document.getElementById('liqResumenTexto').innerText = ids.length ? `${ids.length} persona(s) seleccionada(s) · Total a pagar: ${formatoCOP(totalGeneral)}` : '';
 }
-// Actualiza SOLO los números ya calculados de una tarjeta (valor base y total neto),
-// sin reconstruir el HTML de la tarjeta — así el campo donde se está escribiendo
-// nunca se destruye ni se vuelve a crear, y se puede escribir de forma fluida,
-// sin que el cursor salte ni se pierda el foco en cada tecla.
 function actualizarTotalesVisualesPersona(id){
   const persona = liquidacionEstado[id];
   if(!persona) return;
@@ -172,23 +152,23 @@ function actualizarCampoLiquidacion(id, campo, valor){
   actualizarTotalesVisualesPersona(id);
 }
 function actualizarNombreOcasional(id, valor){
-  liquidacionEstado[id].nombreOcasional = valor; // el campo ya quedó escrito solo, no hace falta redibujar nada
+  liquidacionEstado[id].nombreOcasional = valor;
 }
 function cambiarTipoPagoOcasional(id, valor){
   liquidacionEstado[id].tipoPago = valor;
-  renderizarDetallesLiquidacion(); // este sí cambia qué campos se muestran (días↔horas), toca redibujar esa tarjeta
+  renderizarDetallesLiquidacion();
 }
 function agregarItemLiquidacion(id, tipo){
   liquidacionEstado[id][tipo].push({ concepto:'', monto:0, nota:'' });
-  renderizarDetallesLiquidacion(); // agrega una fila nueva: sí cambia la estructura, toca redibujar
+  renderizarDetallesLiquidacion();
 }
 function quitarItemLiquidacion(id, tipo, idx){
   liquidacionEstado[id][tipo].splice(idx,1);
-  renderizarDetallesLiquidacion(); // quita una fila: sí cambia la estructura, toca redibujar
+  renderizarDetallesLiquidacion();
 }
 function actualizarItemLiquidacion(id, tipo, idx, campo, valor){
   liquidacionEstado[id][tipo][idx][campo] = (campo==='monto') ? (parseFloat(valor)||0) : valor;
-  if(campo==='monto') actualizarTotalesVisualesPersona(id); // solo actualiza los números, no redibuja la fila donde se escribe
+  if(campo==='monto') actualizarTotalesVisualesPersona(id);
 }
 function siguienteConsecutivoNomina(){
   db.config.consecutivoNomina = (db.config.consecutivoNomina || 0) + 1;
@@ -256,7 +236,7 @@ function poblarFiltroTecnicoNomina(){
   const sel = document.getElementById('nomFiltroTecnico');
   const valorActual = sel.value;
   sel.innerHTML = '<option value="">Todos</option>' + db.tecnicos.map(t=>`<option value="${t.id}">${t.nombre}</option>`).join('');
-  sel.value = valorActual; // conserva la selección hecha, si esa persona sigue existiendo
+  sel.value = valorActual;
 }
 function renderizarHistorialNomina(){
   db.liquidacionesNomina = db.liquidacionesNomina || [];
@@ -278,14 +258,8 @@ function renderizarHistorialNomina(){
     return true;
   });
 
-  // Orden explícito y siempre confiable: más reciente primero por fecha de
-  // liquidación, y si dos quedaron el mismo día, por el momento exacto en que
-  // se crearon — ya no depende del orden en que casualmente quedaron guardadas.
   lista = lista.sort((a,b)=> b.fecha.localeCompare(a.fecha) || b.id - a.id);
 
-  // Una paleta fija de colores para distinguir cada período/corte a simple
-  // vista — se asigna siempre en el mismo orden según la fecha del período,
-  // así el mismo corte se ve siempre del mismo color entre sesiones.
   const PALETA_PERIODOS_NOMINA = [
     { fondo:'#eff6ff', borde:'#bfdbfe', texto:'#1e3a5f', barra:'#3b82f6' },
     { fondo:'#f0fdf4', borde:'#bbf7d0', texto:'#166534', barra:'#22c55e' },
@@ -294,8 +268,6 @@ function renderizarHistorialNomina(){
     { fondo:'#ecfeff', borde:'#a5f3fc', texto:'#155e75', barra:'#06b6d4' },
     { fondo:'#fff1f2', borde:'#fecdd3', texto:'#9f1239', barra:'#f43f5e' },
   ];
-  // Agrupa las liquidaciones ya filtradas/ordenadas por su período exacto
-  // (mismo "Desde" y "Hasta"), conservando el orden (más reciente primero).
   const gruposPorPeriodo = [];
   const indicePorClave = {};
   lista.forEach(l=>{
@@ -337,9 +309,6 @@ function renderizarHistorialNomina(){
     return filaEncabezado + filas;
   }).join('') || '<tr><td colspan="6" class="empty-state">Sin liquidaciones que coincidan con la búsqueda.</td></tr>';
 
-  // Total general de TODOS los períodos juntos — separado y con menor
-  // protagonismo que los totales individuales de cada período, que ya se
-  // ven arriba en su propio encabezado de color.
   const totalGeneral = lista.reduce((suma,l)=>suma + l.totalNeto, 0);
   const pieTabla = document.getElementById('pieTotalNomina');
   if(pieTabla){
@@ -400,23 +369,52 @@ function enviarComprobanteNominaPorWhatsApp(id){
   const l = (db.liquidacionesNomina||[]).find(x=>x.id===id);
   if(!l) return;
   const t = buscarTecnico(l.tecnicoId);
-  const mensaje = `Hola ${t?.nombre||''}, adjuntamos tu comprobante de pago de nómina N.º ${l.numero}, correspondiente al periodo ${l.periodoDesde} a ${l.periodoHasta}. Cualquier duda con gusto la resolvemos.`;
-  const nombreArchivo = `Comprobante_${l.numero}_${t?.nombre||'persona'}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
-  compartirDocumentoPorWhatsApp({
-    telefono: t?.telefono, mensaje, nombreArchivo,
-    tituloCompartir: `Comprobante ${l.numero}`,
-    tipoLog: 'Nómina',
-    detalleLog: `${l.numero} a ${t?.nombre||'persona'}`,
-    mensajeSinTelefono: 'Esta persona no tiene teléfono registrado en su ficha de técnico.',
-    generarBlob: async ()=>{
-      verComprobanteNomina(id); // arma el contenido del comprobante en #comprobanteNominaContenido
-      const elemento = document.getElementById('comprobanteNominaContenido');
-      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
-      await esperarImagenesCargadas(elemento);
-      const blob = await html2pdf().set(opciones).from(elemento).outputPdf('blob');
-      cerrarModal('modalComprobanteNomina');
-      return blob;
+  if(!t || !t.telefono){ mostrarToast('Esta persona no tiene teléfono registrado en su ficha de técnico.'); return; }
+  const telefonoLimpio = t.telefono.replace(/[^0-9]/g,'');
+  const mensaje = `Hola ${t.nombre}, adjuntamos tu comprobante de pago de nómina N.º ${l.numero}, correspondiente al periodo ${l.periodoDesde} a ${l.periodoHasta}. Cualquier duda con gusto la resolvemos.`;
+  const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
+
+  const puedeCompartirArchivosNativo = !!(navigator.share && navigator.canShare);
+  let ventanaWhatsApp = null;
+  if(!puedeCompartirArchivosNativo){
+    ventanaWhatsApp = window.open(enlaceWhatsApp, '_blank');
+    if(!ventanaWhatsApp){
+      mostrarToast('⚠️ El navegador bloqueó la ventana de WhatsApp. Busca el ícono de "ventana emergente bloqueada" en la barra de direcciones, permítela para este sitio, e intenta de nuevo.', 'error');
+      return;
     }
+  }
+
+  verComprobanteNomina(id);
+  const nombreArchivo = `Comprobante_${l.numero}_${t.nombre}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
+  const elemento = document.getElementById('comprobanteNominaContenido');
+  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
+
+  if(typeof html2pdf === 'undefined'){
+    if(puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
+    registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (sin comprobante adjunto automático — sin conexión)`);
+    return;
+  }
+  html2pdf().set(opciones).from(elemento).outputPdf('blob').then(blob=>{
+    cerrarModal('modalComprobanteNomina');
+    const archivoPdf = new File([blob], nombreArchivo, { type:'application/pdf' });
+
+    if(puedeCompartirArchivosNativo && navigator.canShare({ files:[archivoPdf] })){
+      navigator.share({ files:[archivoPdf], title:`Comprobante ${l.numero}`, text: mensaje }).then(()=>{
+        registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (comprobante compartido directo desde el celular)`);
+      }).catch(()=>{ });
+      return;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const enlaceDescarga = document.createElement('a');
+    enlaceDescarga.href = url; enlaceDescarga.download = nombreArchivo; enlaceDescarga.click();
+    URL.revokeObjectURL(url);
+    mostrarToast(`Se descargó el comprobante "${nombreArchivo}". WhatsApp ya está abierto con el mensaje listo: adjunta ese archivo en el chat (📎 → Documento) antes de enviarlo.`);
+    registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (con comprobante PDF descargado para adjuntar)`);
+  }).catch(()=>{
+    if(!ventanaWhatsApp && !puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
+    mostrarToast('No se pudo generar el PDF automáticamente. WhatsApp está abierto; genera el comprobante desde "Ver comprobante" y adjúntalo manualmente.');
+    registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (sin comprobante adjunto automático)`);
   });
 }
 function toggleIngresoClienteEsporadico(){
@@ -450,42 +448,9 @@ async function agregarIngreso(){
   registrarLog('Crear', 'Ingreso', `${nombreClienteLog} · ${concepto} · ${formatoCOP(monto)}`);
   document.getElementById('ingresoConcepto').value=''; document.getElementById('ingresoMonto').value=''; document.getElementById('ingresoFecha').value='';
   document.getElementById('ingresoClienteEsporadico').checked = false; toggleIngresoClienteEsporadico();
-  document.getElementById('contaMesFiltro').value = fecha.slice(0,7); // así siempre se ve de inmediato lo que se acaba de registrar
+  document.getElementById('contaMesFiltro').value = fecha.slice(0,7);
   renderizarContabilidad();
   mostrarToast(`✅ Ingreso registrado: ${nombreClienteLog} — ${formatoCOP(monto)}`, 'exito');
-}
-function editarIngreso(id){
-  const i = db.ingresos.find(x=>x.id===id);
-  if(!i) return;
-  document.getElementById('editIngresoId').value = i.id;
-  document.getElementById('editIngresoConcepto').value = i.concepto;
-  document.getElementById('editIngresoMonto').value = i.monto;
-  document.getElementById('editIngresoFecha').value = i.fecha;
-  abrirModal('modalEditarIngreso');
-}
-async function guardarEdicionIngreso(){
-  const id = parseFloat(document.getElementById('editIngresoId').value);
-  const i = db.ingresos.find(x=>x.id===id);
-  if(!i) return;
-  const concepto = document.getElementById('editIngresoConcepto').value.trim();
-  const monto = parseFloat(document.getElementById('editIngresoMonto').value);
-  const fecha = document.getElementById('editIngresoFecha').value;
-  if(!concepto){ mostrarToast('Escribe el concepto del ingreso.'); return; }
-  if(!monto || monto<=0){ mostrarToast('Escribe un monto válido.'); return; }
-  if(!fecha){ mostrarToast('Selecciona la fecha del ingreso.'); return; }
-  const respaldo = { concepto:i.concepto, monto:i.monto, fecha:i.fecha };
-  i.concepto = concepto; i.monto = monto; i.fecha = fecha;
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    Object.assign(i, respaldo);
-    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
-    return;
-  }
-  registrarLog('Editar', 'Ingreso', `${i.concepto} · ${formatoCOP(i.monto)}`);
-  cerrarModal('modalEditarIngreso');
-  renderizarContabilidad();
-  mostrarToast('✅ Ingreso actualizado.', 'exito');
 }
 async function eliminarIngreso(id){
   if(!confirm('¿Eliminar este ingreso?')) return;
@@ -525,41 +490,6 @@ async function agregarGasto(){
   renderizarContabilidad();
   mostrarToast(`✅ Gasto registrado: ${categoria} — ${formatoCOP(monto)}`, 'exito');
 }
-function editarGasto(id){
-  const g = db.gastos.find(x=>x.id===id);
-  if(!g) return;
-  document.getElementById('editGastoId').value = g.id;
-  document.getElementById('editGastoCategoria').value = g.categoria;
-  document.getElementById('editGastoDescripcion').value = g.descripcion;
-  document.getElementById('editGastoMonto').value = g.monto;
-  document.getElementById('editGastoFecha').value = g.fecha;
-  abrirModal('modalEditarGasto');
-}
-async function guardarEdicionGasto(){
-  const id = parseFloat(document.getElementById('editGastoId').value);
-  const g = db.gastos.find(x=>x.id===id);
-  if(!g) return;
-  const descripcion = document.getElementById('editGastoDescripcion').value.trim();
-  const monto = parseFloat(document.getElementById('editGastoMonto').value);
-  const fecha = document.getElementById('editGastoFecha').value;
-  if(!descripcion){ mostrarToast('Escribe una breve descripción del gasto.'); return; }
-  if(!monto || monto<=0){ mostrarToast('Escribe un monto válido.'); return; }
-  if(!fecha){ mostrarToast('Selecciona la fecha del gasto.'); return; }
-  const respaldo = { categoria:g.categoria, descripcion:g.descripcion, monto:g.monto, fecha:g.fecha };
-  g.categoria = document.getElementById('editGastoCategoria').value;
-  g.descripcion = descripcion; g.monto = monto; g.fecha = fecha;
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    Object.assign(g, respaldo);
-    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
-    return;
-  }
-  registrarLog('Editar', 'Gasto', `${g.categoria} · ${g.descripcion} · ${formatoCOP(g.monto)}`);
-  cerrarModal('modalEditarGasto');
-  renderizarContabilidad();
-  mostrarToast('✅ Gasto actualizado.', 'exito');
-}
 async function eliminarGasto(id){
   const gasto = db.gastos.find(g=>g.id===id);
   const mensaje = gasto && gasto.origenNominaId
@@ -568,9 +498,6 @@ async function eliminarGasto(id){
   if(!confirm(mensaje)) return;
   const listaAnterior = db.gastos.slice();
   db.gastos = db.gastos.filter(g=>g.id!==id);
-  // Si el gasto venía de una nómina, se ajusta el rastreo de esa nómina para
-  // que, si más adelante se vuelve a tocar su estado de pago, no se pierda
-  // la cuenta de lo que ya se había reflejado en Gastos.
   let liquidacionAfectada = null, montoAnteriorLiquidacion = null;
   if(gasto && gasto.origenNominaId){
     liquidacionAfectada = (db.liquidacionesNomina||[]).find(l=>l.id===gasto.origenNominaId);
@@ -591,10 +518,6 @@ async function eliminarGasto(id){
   mostrarToast('✅ Gasto eliminado.', 'exito');
   renderizarContabilidad();
 }
-// Cambia entre las 4 pestañas del módulo de Negocio/Contabilidad. Todo el
-// contenido de cada pestaña ya existe en la página (nunca se destruye ni se
-// vuelve a crear al cambiar) — esto solo cambia cuál está visible, por eso
-// el cambio es instantáneo y ningún dato ni función se ve afectada.
 function cambiarTabContabilidad(event, nombre){
   document.querySelectorAll('.conta-tab-content').forEach(el=>el.classList.remove('activo'));
   document.querySelectorAll('.conta-tab-btn').forEach(el=>el.classList.remove('activo'));
@@ -602,10 +525,6 @@ function cambiarTabContabilidad(event, nombre){
   const boton = event ? event.currentTarget : document.querySelector(`.conta-tab-btn[data-tab="${nombre}"]`);
   if(boton) boton.classList.add('activo');
 }
-// Acceso directo desde la barra inferior móvil de técnicos: abre Contabilidad
-// pero deja seleccionada solo la pestaña de Cotización y Facturación — el
-// resto de pestañas (Nómina, Gastos, Trazabilidad) quedan ocultas para
-// técnico vía CSS, así que igual no podrían navegar a ellas desde ahí.
 function abrirCotizacionDesdeMovil(){
   mostrarSeccion('contabilidad');
   cambiarTabContabilidad(null, 'CotizacionFactura');
@@ -615,7 +534,7 @@ function renderizarContabilidad(){
   renderizarCotizacionesFacturas();
   const filtroMes = document.getElementById('contaMesFiltro');
   if(!filtroMes.value) filtroMes.value = mesActualISO();
-  const mes = filtroMes.value; // "YYYY-MM"
+  const mes = filtroMes.value;
 
   const nominaDelMes = db.liquidacionesNomina.filter(l=>l.fecha && l.fecha.startsWith(mes));
   const gastosDelMes = db.gastos.filter(g=>g.fecha && g.fecha.startsWith(mes));
@@ -653,13 +572,13 @@ function renderizarContabilidad(){
       ? `${i.clienteEsporadicoNombre||'—'} <span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:8px;">ESPORÁDICO</span>`
       : (i.clienteId ? (buscarCliente(i.clienteId)?.nombre || '—') : '<span style="color:var(--text-muted);">General</span>');
     return `<tr><td>${i.fecha}</td><td>${nombreCliente}</td><td>${i.concepto}</td><td>${formatoCOP(i.monto)}</td>
-      <td><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="editarIngreso(${i.id})"><i class="fas fa-pen"></i></button> <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarIngreso(${i.id})">X</button></td></tr>`;
+      <td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarIngreso(${i.id})">X</button></td></tr>`;
   }).join('') || `<tr><td colspan="5" class="empty-state">${textoBusqueda ? 'Sin ingresos que coincidan con "'+document.getElementById('contaBuscarTexto').value+'".' : 'Sin ingresos manuales registrados este mes.'}</td></tr>`;
 
   document.getElementById('tablaGastos').innerHTML = gastosFiltrados.map(g=>{
     const etiquetaCategoria = g.origenNominaId ? `${g.categoria} <span title="Este gasto se generó automáticamente al marcar una nómina como pagada" style="font-size:9px;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:8px;"><i class="fas fa-link"></i> Automático</span>` : g.categoria;
     return `<tr><td>${g.fecha}</td><td>${etiquetaCategoria}</td><td>${g.descripcion}</td><td>${formatoCOP(g.monto)}</td>
-      <td>${g.origenNominaId ? '' : `<button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="editarGasto(${g.id})"><i class="fas fa-pen"></i></button> `}<button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarGasto(${g.id})">X</button></td></tr>`;
+      <td><button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarGasto(${g.id})">X</button></td></tr>`;
   }).join('') || `<tr><td colspan="5" class="empty-state">${textoBusqueda ? 'Sin gastos que coincidan con "'+document.getElementById('contaBuscarTexto').value+'".' : 'Sin gastos registrados este mes.'}</td></tr>`;
 
   document.getElementById('tablaPedidosTiendaConta').innerHTML = pedidosDelMes.map(p=>`
@@ -748,7 +667,7 @@ async function agregarControlOperativo(){
     await dbGuardarInmediato();
   }catch(err){
     mostrarToast('⚠️ No se pudo guardar el servicio: ' + err.message, 'error');
-    db.controlOperativo.pop(); // no dejar el registro "fantasma" en pantalla si el servidor lo rechazó
+    db.controlOperativo.pop();
     return;
   }
   registrarLog('Crear', 'ControlOperativo', `${servicioCliente} · ${formatoCOP(precioCliente)}`);
@@ -757,10 +676,6 @@ async function agregarControlOperativo(){
   document.getElementById('coMateriales').value=0; document.getElementById('coLogistica').value=0; document.getElementById('coPagoTecnico').value=0;
   document.getElementById('coDineroAbonado').value=0;
   actualizarPreviewCotizador();
-  // Antes, si la fecha del servicio no caía en el mes que se estaba viendo en el
-  // filtro de arriba, el registro se guardaba bien pero desaparecía de la tabla —
-  // parecía que "no había hecho nada". Ahora el filtro se ajusta solo al mes del
-  // servicio que se acaba de crear, para que siempre se vea de inmediato.
   document.getElementById('contaMesFiltro').value = fecha.slice(0,7);
   renderizarContabilidad();
   mostrarToast(`✅ Servicio agregado: ${servicioCliente} — ${formatoCOP(precioCliente)}`, 'exito');
@@ -876,21 +791,28 @@ async function eliminarTecnicoConfig(id){
    EDITAR / ELIMINAR liquidaciones de nómina — por ser
    información de pagos, se pide la clave de administrador cada
    vez, aunque ya se haya iniciado sesión como admin. Se valida
-   contra el servidor real (el mismo login de siempre), nunca en
-   el navegador.
+   contra el servidor real, nunca en el navegador.
+   ---------------------------------------------------------
+   CORREGIDO: antes esto llamaba a /api/auth/login (el mismo
+   endpoint del login real), que solo permite 20 intentos cada 15
+   minutos por conexión — usar Nómina varias veces seguidas agotaba
+   ese límite SIN QUERER, y entonces el login real también quedaba
+   bloqueado durante ese rato ("no puedo volver a entrar al
+   sistema"). Ahora usa un endpoint propio, separado, pensado para
+   esto — no comparte el límite con el login público.
 --------------------------------------------------------- */
 function verificarClaveAdminYEjecutar(accion){
   const clave = prompt('Escribe la clave de administrador para continuar:');
   if(clave===null) return; // canceló, no hace nada
   if(!clave){ mostrarToast('Escribe la clave de administrador.'); return; }
-  fetch(API_BASE + '/api/auth/login', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slug: empresaActual, tipo:'admin', usuario: db.config.adminUsuario, password: clave })
+  fetch(API_BASE + '/api/auth/verificar-mi-password', {
+    method: 'POST', headers: headersAutenticados({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ password: clave })
   }).then(r=> r.ok ? accion() : Promise.reject())
     .catch(()=> mostrarToast('Clave de administrador incorrecta.'));
 }
 
-let edicionLiquidacion = null; // {id, tipoPago, dias, valorDia, horas, valorHora, ajustes:[], descuentos:[]}
+let edicionLiquidacion = null;
 function editarLiquidacionNomina(id){
   verificarClaveAdminYEjecutar(()=>abrirModalEditarLiquidacion(id));
 }
@@ -948,8 +870,6 @@ function renderizarEdicionLiquidacion(){
       Total neto a pagar: ${formatoCOP(totales.totalNeto)}
     </div>`;
 }
-// Igual que en la creación: actualiza solo los números, sin reconstruir el HTML,
-// para que el campo donde se está escribiendo no pierda el foco ni el cursor.
 function actualizarTotalesVisualesEdicion(){
   const totales = calcularTotalesPersonaLiquidacion(edicionLiquidacion);
   const elBase = document.getElementById('editValorBase');
@@ -967,8 +887,6 @@ function actualizarItemEdicion(tipo, idx, campo, valor){
   edicionLiquidacion[tipo][idx][campo] = (campo==='monto') ? (parseFloat(valor)||0) : valor;
   if(campo==='monto') actualizarTotalesVisualesEdicion();
 }
-// Un solo lugar con la info visual de cada estado de pago posible — así
-// cualquier ajuste futuro a colores/textos se hace en un solo sitio.
 function infoEstadoPagoNomina(estado){
   const mapa = {
     pendiente: { etiqueta:'Pendiente por pagar', fondo:'#fef3c7', texto:'#92400e', icono:'fa-clock' },
@@ -980,9 +898,6 @@ function infoEstadoPagoNomina(estado){
 }
 let nominaEstadoPagoActualId = null;
 function cambiarEstadoPagoNomina(id){
-  // Cambiar el estado de pago (o el monto abonado) siempre pide la clave de
-  // administrador primero — igual que Editar liquidación — antes de mostrar
-  // siquiera el selector, para que nadie lo cambie por accidente o sin permiso.
   verificarClaveAdminYEjecutar(()=>abrirModalEstadoPagoNomina(id));
 }
 function abrirModalEstadoPagoNomina(id){
@@ -1000,27 +915,17 @@ function toggleMontoAbonadoNomina(){
   const estado = document.getElementById('selEstadoPagoNomina').value;
   document.getElementById('wrapperMontoAbonadoNomina').style.display = (estado==='parcial' || estado==='abonado') ? 'block' : 'none';
 }
-// Mantiene sincronizado el Registro de Gastos con el estado de pago real de
-// cada nómina — sin importar cuántas veces se cambie el estado (marcar,
-// desmarcar, abonar más, completar después), nunca queda un gasto duplicado
-// ni de más: siempre se ajusta a la diferencia exacta desde el último cambio.
 function sincronizarGastoDesdeNomina(l){
   const yaRegistrado = l.montoRegistradoComoGasto || 0;
   const debeEstarPagado = l.estadoPago==='pagado' ? l.totalNeto : (l.estadoPago==='parcial'||l.estadoPago==='abonado') ? (l.montoAbonado||0) : 0;
-  if(debeEstarPagado === yaRegistrado) return; // nada cambió realmente, no hay nada que sincronizar
+  if(debeEstarPagado === yaRegistrado) return;
 
   const nombrePersona = l.esOcasional ? (l.personalOcasionalNombre||'—') : (buscarTecnico(l.tecnicoId)?.nombre||'—');
   db.gastos = db.gastos || [];
 
   if(debeEstarPagado === 0){
-    // Se volvió a marcar como "Pendiente" — se retira por completo el/los
-    // gasto(s) que se habían generado para esta nómina, para que no quede
-    // reflejado un pago que en realidad no se hizo (o ya no está confirmado).
     db.gastos = db.gastos.filter(g=>g.origenNominaId !== l.id);
   } else if(debeEstarPagado > yaRegistrado){
-    // Aumentó lo pagado (primer pago, o un abono adicional, o se completó
-    // después de un abono) — se agrega SOLO la diferencia como un gasto
-    // nuevo, nunca el total de nuevo.
     const diferencia = debeEstarPagado - yaRegistrado;
     db.gastos.push({
       id: Date.now() + Math.floor(Math.random()*1000),
@@ -1031,9 +936,6 @@ function sincronizarGastoDesdeNomina(l){
       origenNominaId: l.id
     });
   } else {
-    // Disminuyó lo pagado (por ejemplo, se corrigió un abono hacia abajo) —
-    // se retiran los gastos previos de esta nómina y se registra uno solo
-    // con el monto correcto y actualizado, para no dejar cifras de más.
     db.gastos = db.gastos.filter(g=>g.origenNominaId !== l.id);
     db.gastos.push({
       id: Date.now() + Math.floor(Math.random()*1000),
@@ -1084,7 +986,7 @@ async function guardarEdicionLiquidacionNomina(){
   const periodoHasta = document.getElementById('editLiqPeriodoHasta').value;
   if(!periodoDesde || !periodoHasta){ mostrarToast('Define el periodo (desde/hasta).'); return; }
   const totales = calcularTotalesPersonaLiquidacion(edicionLiquidacion);
-  const respaldo = JSON.parse(JSON.stringify(l)); // por si el guardado falla, se puede restaurar
+  const respaldo = JSON.parse(JSON.stringify(l));
   l.periodoDesde = periodoDesde; l.periodoHasta = periodoHasta;
   l.diasLaborados = edicionLiquidacion.dias; l.valorDia = edicionLiquidacion.valorDia;
   l.horasLaboradas = edicionLiquidacion.horas; l.valorHora = edicionLiquidacion.valorHora;
@@ -1134,7 +1036,6 @@ let itemsFacTemp = [];
 
 function itemsTempDe(prefijo){ return prefijo==='cot' ? itemsCotTemp : itemsFacTemp; }
 
-// --- Buscador de cliente (reutilizable entre Cotización y Factura) ---
 function buscarYRenderizarClientesComercial(idInput, idResultados, nombreFuncionSeleccionar){
   const texto = document.getElementById(idInput).value.trim().toLowerCase();
   const cont = document.getElementById(idResultados);
@@ -1177,7 +1078,6 @@ function seleccionarClienteFactura(clienteId){
   document.getElementById('facClienteResultados').classList.remove('abierto');
 }
 
-// --- Ítems (productos/servicios del inventario, o líneas libres) ---
 function poblarSelectItemsComercial(selectId){
   document.getElementById(selectId).innerHTML = '<option value="">-- Ítem esporádico: escribir manualmente (no se guarda en el catálogo) --</option>' +
     db.inventario.map(it=>`<option value="${it.id}">${it.nombre} (${formatoCOP(it.precio||0)})</option>`).join('');
@@ -1188,12 +1088,13 @@ function calcularSubtotalItem(cantidad, precioUnitario, descuentoPorcentaje){
   return bruto - descuento;
 }
 
-// --- Modal de ítem (agregar o editar) — compartido entre Cotización y Factura ---
 function abrirModalItemComercial(prefijo, indice){
   document.getElementById('itemComPrefijo').value = prefijo;
   document.getElementById('itemComIndice').value = (indice===undefined || indice===null) ? '' : indice;
   poblarSelectItemsComercial('itemComInventarioSelect');
   document.getElementById('itemComInventarioSelect').value = '';
+
+  const checkHistorico = document.getElementById('itemComGuardarHistorico');
 
   if(indice!==undefined && indice!==null){
     const it = itemsTempDe(prefijo)[indice];
@@ -1204,6 +1105,7 @@ function abrirModalItemComercial(prefijo, indice){
     document.getElementById('itemComPrecio').value = it.precioUnitario || 0;
     document.getElementById('itemComDescuento').value = it.descuentoPorcentaje || 0;
     if(it.itemId) document.getElementById('itemComInventarioSelect').value = it.itemId;
+    if(checkHistorico) checkHistorico.checked = it.guardarEnHistorico !== false;
   } else {
     document.getElementById('tituloModalItemComercial').innerText = '📦 Agregar Ítem';
     document.getElementById('itemComNombre').value = '';
@@ -1211,6 +1113,7 @@ function abrirModalItemComercial(prefijo, indice){
     document.getElementById('itemComCantidad').value = 1;
     document.getElementById('itemComPrecio').value = 0;
     document.getElementById('itemComDescuento').value = 0;
+    if(checkHistorico) checkHistorico.checked = true; // por defecto SÍ queda en histórico
   }
   actualizarPreviewItemComercial();
   abrirModal('modalItemComercial');
@@ -1239,10 +1142,13 @@ function guardarItemComercialDesdeModal(){
   const descuentoPorcentaje = parseFloat(document.getElementById('itemComDescuento').value) || 0;
   const descripcionExtra = document.getElementById('itemComDescripcion').value.trim();
   const itemIdRaw = document.getElementById('itemComInventarioSelect').value;
+  const checkHistorico = document.getElementById('itemComGuardarHistorico');
+  const guardarEnHistorico = checkHistorico ? checkHistorico.checked : true; // si el checkbox no existe todavía en el HTML, se mantiene el comportamiento anterior (siempre queda)
   const item = {
     tipo: itemIdRaw ? 'inventario' : 'libre', itemId: itemIdRaw ? parseInt(itemIdRaw) : null,
     descripcion: nombre, descripcionExtra, cantidad, precioUnitario, descuentoPorcentaje,
-    subtotal: calcularSubtotalItem(cantidad, precioUnitario, descuentoPorcentaje)
+    subtotal: calcularSubtotalItem(cantidad, precioUnitario, descuentoPorcentaje),
+    guardarEnHistorico
   };
   const items = itemsTempDe(prefijo);
   if(indiceRaw!==''){ items[parseInt(indiceRaw)] = item; } else { items.push(item); }
@@ -1250,6 +1156,34 @@ function guardarItemComercialDesdeModal(){
   renderizarTablaItemsForm(prefijo);
   actualizarPreviewCotizacionFactura(prefijo);
   autoguardarBorrador(prefijo);
+  if(guardarEnHistorico) guardarItemEnHistoricoSiHaceFalta(item);
+}
+
+// --- Histórico/catálogo de ítems de Cotización y Factura ---
+// Por defecto, todo ítem "libre" (sin producto de inventario asociado) que
+// se agrega en Cotización/Factura queda guardado en un catálogo propio
+// (db.historicoItemsComerciales), para poder reutilizarlo después sin
+// escribirlo de nuevo desde cero — a menos que se marque explícitamente
+// "No guardar en histórico" al agregarlo (ítem esporádico, de una sola vez).
+async function guardarItemEnHistoricoSiHaceFalta(item){
+  if(item.tipo === 'inventario') return; // ya vive en el catálogo de Inventario, no hace falta duplicarlo aquí
+  db.historicoItemsComerciales = db.historicoItemsComerciales || [];
+  const yaExiste = db.historicoItemsComerciales.some(h =>
+    h.descripcion.trim().toLowerCase() === item.descripcion.trim().toLowerCase()
+  );
+  if(yaExiste) return;
+  db.historicoItemsComerciales.push({
+    id: Date.now(),
+    descripcion: item.descripcion,
+    descripcionExtra: item.descripcionExtra || '',
+    precioUnitario: item.precioUnitario,
+    creadoEn: new Date().toISOString()
+  });
+  try{
+    await dbGuardarInmediato();
+  }catch(err){
+    db.historicoItemsComerciales.pop(); // si no se pudo guardar, no se deja "fantasma" en memoria
+  }
 }
 function duplicarItemComercial(prefijo, indice){
   const items = itemsTempDe(prefijo);
@@ -1266,7 +1200,6 @@ function eliminarItemFormCotizacionFactura(prefijo, indice){
   autoguardarBorrador(prefijo);
 }
 
-// --- Reordenar arrastrando (drag & drop) ---
 let itemComercialArrastrandoIndice = null;
 function dragStartItemComercial(indice){ itemComercialArrastrandoIndice = indice; }
 function dropItemComercial(prefijo, indiceDestino){
@@ -1284,7 +1217,7 @@ function renderizarTablaItemsForm(prefijo){
   document.getElementById(idTabla).innerHTML = items.map((it,i)=>`
     <tr draggable="true" ondragstart="dragStartItemComercial(${i})" ondragover="event.preventDefault()" ondrop="dropItemComercial('${prefijo}',${i})">
       <td style="cursor:grab;text-align:center;color:var(--text-muted);" title="Arrastra para reordenar">⠿</td>
-      <td>${it.descripcion}</td>
+      <td>${it.descripcion}${it.guardarEnHistorico===false ? ' <span style="font-size:9px;background:#e2e8f0;color:#475569;padding:1px 6px;border-radius:8px;" title="Este ítem no quedó guardado en el histórico">ESPORÁDICO</span>' : ''}</td>
       <td style="font-size:11px;color:var(--text-muted);">${it.descripcionExtra||'—'}</td>
       <td>${it.cantidad}</td>
       <td>${formatoCOP(it.precioUnitario)}</td>
@@ -1320,9 +1253,6 @@ function actualizarPreviewCotizacionFactura(prefijo){
   return { subtotal: subtotalBruto, descuentoItems, descuentoGeneralPorcentaje, descuentoGeneral, descuentosTotales, impuestoPorcentaje, impuesto, total };
 }
 
-// --- Borrador automático: desde el primer ítem agregado, el documento ya
-// queda creado y se va actualizando solo, para no perder nada si el modal
-// se cierra por accidente antes de presionar "Guardar". ---
 async function autoguardarBorrador(prefijo){
   const items = itemsTempDe(prefijo);
   if(!items.length) return;
@@ -1360,11 +1290,7 @@ async function autoguardarBorrador(prefijo){
 function siguienteNumeroCotizacion(){ return `COT-2026-${String((db.cotizaciones||[]).length + 1).padStart(4,'0')}`; }
 function siguienteNumeroFactura(){ return `FACT-2026-${String((db.facturas||[]).length + 1).padStart(4,'0')}`; }
 
-// --- Abrir modales ---
 function abrirModalCotizacion(cotizacionId){
-  // Por seguridad: si por cualquier motivo quedó abierto el modal del ítem o
-  // del PDF de una sesión anterior (por ejemplo, si algo falló a mitad de
-  // camino), se cierran aquí — así nunca bloquean el formulario nuevo.
   cerrarModal('modalItemComercial');
   cerrarModal('modalPDF');
   const cajaCot = document.getElementById('cajaModalCotizacion');
@@ -1477,8 +1403,6 @@ function abrirModalFactura(facturaId, cotizacionOrigen){
   abrirModal('modalFactura');
 }
 
-// --- Guardar (confirmación final: si venía de un borrador automático, deja
-// de serlo — pasa a su estado normal de seguimiento) ---
 async function guardarCotizacion(){
   db.cotizaciones = db.cotizaciones || [];
   if(!itemsCotTemp.length){ mostrarToast('Agrega al menos un ítem a la cotización.'); return; }
@@ -1507,7 +1431,7 @@ async function guardarCotizacion(){
     if(!c){ mostrarToast('No se encontró la cotización.'); return; }
     respaldo = JSON.parse(JSON.stringify(c));
     Object.assign(c, datosDoc);
-    if(c.estado==='Borrador') c.estado = 'Enviada'; // el borrador automático se confirma al guardar de verdad
+    if(c.estado==='Borrador') c.estado = 'Enviada';
   } else {
     esNuevaCot = true;
     db.cotizaciones.push(Object.assign({ id:Date.now(), numero: siguienteNumeroCotizacion(), fecha: new Date().toISOString().slice(0,10), estado:'Enviada', facturaId:null }, datosDoc));
@@ -1581,7 +1505,6 @@ async function guardarFactura(){
   renderizarCotizacionesFacturas();
 }
 
-// --- Estados y conversión ---
 async function cambiarEstadoCotizacion(id, nuevoEstado){
   const c = db.cotizaciones.find(x=>x.id===id);
   if(!c) return;
@@ -1599,7 +1522,6 @@ function convertirCotizacionAFactura(cotizacionId){
   abrirModalFactura(null, c);
 }
 
-// --- Pago de factura (con ingreso automático — mismo patrón que Nómina→Gastos) ---
 let facturaEstadoPagoActualId = null;
 function toggleMontoAbonadoFactura(){
   document.getElementById('wrapperMontoAbonadoFactura').style.display = document.getElementById('selEstadoPagoFactura').value==='abonada' ? 'block' : 'none';
@@ -1654,17 +1576,13 @@ function infoEstadoPagoFactura(estado){
   };
   return mapa[estado] || mapa.pendiente;
 }
-// Registra en Trazabilidad (Ingresos) solo la DIFERENCIA desde el último abono
-// registrado — así varios abonos sucesivos a la misma factura se van sumando
-// correctamente, sin duplicar ni perder ninguno. Al cancelar una factura, el
-// dinero que YA se había recibido no se borra (se conserva tal cual).
 function sincronizarIngresoDesdeFactura(f){
   db.ingresos = db.ingresos || [];
   let montoObjetivo;
   if(f.estadoPago === 'pagado') montoObjetivo = f.total;
   else if(f.estadoPago === 'abonada') montoObjetivo = f.montoAbonado || 0;
   else if(f.estadoPago === 'cancelada') montoObjetivo = f.montoRegistradoComoIngreso || 0;
-  else montoObjetivo = 0; // pendiente
+  else montoObjetivo = 0;
   const yaRegistrado = f.montoRegistradoComoIngreso || 0;
   const delta = montoObjetivo - yaRegistrado;
   const nombreCliente = f.clienteId ? (buscarCliente(f.clienteId)?.nombre||'Cliente') : (f.clienteManual?.nombre||'Cliente');
@@ -1688,7 +1606,6 @@ function sincronizarIngresoDesdeFactura(f){
   }
 }
 
-// --- Eliminar ---
 async function eliminarCotizacion(id){
   if(!confirm('¿Eliminar esta cotización?')) return;
   const respaldo = db.cotizaciones.slice();
@@ -1718,7 +1635,6 @@ async function eliminarFactura(id){
   renderizarCotizacionesFacturas();
 }
 
-// --- Render de las 2 tablas ---
 function renderizarCotizacionesFacturas(){
   db.cotizaciones = db.cotizaciones || [];
   db.facturas = db.facturas || [];
