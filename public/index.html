@@ -2378,50 +2378,6 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <div id="temasClarosGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:10px;"></div>
       </div>
       <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
-        <h4 style="margin-top:0;font-size:13px;">🔐 Pantalla de inicio de sesión</h4>
-        <p style="font-size:11px;color:var(--text-muted);">Así se ve la pantalla antes de entrar a la plataforma. Los cambios se ven la próxima vez que alguien inicie sesión.</p>
-
-        <label>Vista previa (fiel a como se ve el login real):</label>
-        <div class="preview-login-mini" id="previewLoginMini">
-          <div class="preview-login-mini-izq" id="previewLoginMiniIzq">
-            <div id="loginImagenCargando" style="display:none;position:absolute;inset:0;background:rgba(15,23,42,.72);flex-direction:column;align-items:center;justify-content:center;gap:6px;z-index:2;">
-              <div class="spinner-imagen-login" style="width:18px;height:18px;"></div>
-              <span style="color:#fff;font-size:9px;font-weight:600;">Procesando...</span>
-            </div>
-            <div class="preview-login-mini-texto">
-              <strong id="previewLoginMiniTitulo">Domina el sistema</strong>
-              <small id="previewLoginMiniSubtitulo">Controla clientes, equipos, órdenes de servicio e inventario desde un solo lugar.</small>
-            </div>
-          </div>
-          <div class="preview-login-mini-der">
-            <div class="preview-login-mini-logo"></div>
-            <strong id="previewLoginMiniBienvenida">¡Bienvenido!</strong>
-            <small id="previewLoginMiniSubBienvenida">Por favor inicia sesión</small>
-            <div class="preview-login-mini-input"></div>
-            <div class="preview-login-mini-input"></div>
-            <div class="preview-login-mini-boton" id="previewLoginMiniBoton">ENTRAR</div>
-          </div>
-        </div>
-
-        <div class="field-row" style="margin-top:10px;">
-          <div><label>Color principal:</label><input type="color" id="cfgLoginColor1" oninput="actualizarPreviewLoginMini()"></div>
-          <div><label>Color secundario:</label><input type="color" id="cfgLoginColor2" oninput="actualizarPreviewLoginMini()"></div>
-        </div>
-        <label>Imagen de fondo (columna izquierda):</label>
-        <p style="font-size:11px;color:var(--text-muted);margin:2px 0 4px;">Acepta JPG, PNG, WEBP y HEIC/HEIF (fotos de iPhone) — máx. 10MB. Recomendado: vertical 1080 x 1920 px; cualquier otra medida se recorta y ajusta sola, sin deformarla.</p>
-        <input type="file" id="cfgLoginImagenInput" accept="image/*,.heic,.heif" onchange="manejarLoginImagenUpload(event)">
-        <p id="loginImagenEstado" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></p>
-        <label style="margin-top:10px;">Título (columna izquierda):</label>
-        <input type="text" id="cfgLoginTituloIzquierda" placeholder="Ej. Domina el sistema" oninput="actualizarPreviewLoginMini()">
-        <label>Descripción corta (columna izquierda):</label>
-        <textarea id="cfgLoginSubtituloIzquierda" rows="2" placeholder="Ej. Controla clientes, equipos, órdenes de servicio e inventario desde un solo lugar." oninput="actualizarPreviewLoginMini()"></textarea>
-        <label style="margin-top:10px;">Título de bienvenida (formulario):</label>
-        <input type="text" id="cfgLoginBienvenidaTitulo" placeholder="Ej. ¡Bienvenido!" oninput="actualizarPreviewLoginMini()">
-        <label>Subtítulo de bienvenida (formulario):</label>
-        <input type="text" id="cfgLoginBienvenidaSubtitulo" placeholder="Ej. Por favor inicia sesión" oninput="actualizarPreviewLoginMini()">
-        <button class="btn-custom" id="btnGuardarAparienciaLogin" style="margin-top:12px;" onclick="guardarAparienciaLogin()">Guardar pantalla de login</button>
-      </div>
-      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
         <h4 style="margin-top:0;font-size:13px;">🧭 Menú Lateral, Barra Superior y Tarjetas</h4>
         <p style="font-size:11px;color:var(--text-muted);">Estos colores quedan definidos automáticamente por el tema que elijas arriba, para que todo se vea siempre coordinado — no hay selectores sueltos que puedan romper la combinación.</p>
       </div>
