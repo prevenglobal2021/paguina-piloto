@@ -70,6 +70,18 @@ const limitePublico = rateLimit({
   message: { error: 'Demasiadas solicitudes desde tu conexión. Espera unos minutos e intenta de nuevo.' },
   standardHeaders: true, legacyHeaders: false,
 });
+// Separado por completo de limiteLogin: este protege una acción de alguien
+// que YA inició sesión (confirmar su propia clave antes de editar/eliminar
+// algo sensible), no el login público — antes ambas cosas compartían el
+// mismo límite de 20 intentos/15min, y usar varias veces seguidas Nómina
+// (editar, eliminar, cambiar estado de pago) agotaba ese límite y dejaba
+// SIN PODER ENTRAR al sistema también, aunque nadie estuviera atacando nada.
+const limiteVerificacionPropia = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 40,
+  message: { error: 'Demasiados intentos. Espera unos minutos e intenta de nuevo.' },
+  standardHeaders: true, legacyHeaders: false,
+});
 
 /* ---------------------------------------------------------
    Utilidades de contraseñas (hash con sal, sin dependencias)
@@ -684,6 +696,35 @@ app.post('/api/auth/logout', requireAuth, (req, res) => {
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
   if (token) sesiones.delete(token);
   res.json({ ok: true });
+});
+
+// Confirma la contraseña del USUARIO YA CONECTADO (para acciones sensibles
+// como editar/eliminar una liquidación de nómina) — SIN crear una sesión
+// nueva y SIN compartir el límite de intentos del login público. Reemplaza
+// el patrón anterior de reutilizar /api/auth/login para esto, que agotaba
+// por accidente el límite de acceso real.
+app.post('/api/auth/verificar-mi-password', requireAuth, limiteVerificacionPropia, async (req, res) => {
+  const { password } = req.body || {};
+  if (!password) return res.status(400).json({ error: 'Escribe la contraseña.' });
+
+  if (req.rol === 'admin') {
+    const data = await leerEstadoEmpresa(req.slug);
+    if (!data || !verificarPassword(password, data.config.adminPasswordHash)) {
+      return res.status(401).json({ error: 'Contraseña incorrecta.' });
+    }
+    return res.json({ ok: true });
+  }
+
+  if (req.rol === 'tecnico') {
+    const data = await leerEstadoEmpresa(req.slug);
+    const t = data ? (data.tecnicos || []).find(x => x.id === req.tecnicoId) : null;
+    if (!t || !verificarPassword(password, t.passwordHash)) {
+      return res.status(401).json({ error: 'Contraseña incorrecta.' });
+    }
+    return res.json({ ok: true });
+  }
+
+  return res.status(403).json({ error: 'Esta acción no aplica para tu tipo de sesión.' });
 });
 
 app.post('/api/auth/login', limiteLogin, async (req, res) => {
