@@ -288,11 +288,17 @@ function verDetalleOrden(ordenId){
     }
   });
   document.querySelectorAll('#detPreviewFotos button, [id^="detPreviewFotoCampo"] button').forEach(b=>b.style.display = finalizada ? 'none' : '');
-  document.getElementById('detAccionesEdicion').style.display = finalizada ? 'none' : 'flex';
-  document.getElementById('detBtnVerDocumentoEdicion').style.display = (!finalizada && o.cierre) ? 'inline-flex' : 'none';
-  document.getElementById('detAccionesSoloLectura').style.display = finalizada ? 'block' : 'none';
-  document.getElementById('detAvisoFinalizada').style.display = finalizada ? 'block' : 'none';
-  document.getElementById('detAvisoEdicionForzada').style.display = (ordenDetalleEsEdicionForzada && o.estado==='Finalizado') ? 'block' : 'none';
+  // Cada línea se protege por separado (en vez de una sola línea que, si un
+  // elemento faltara, detendría TODO lo que viene después sin avisar —
+  // exactamente lo que pasaba antes con detBtnVerDocumentoEdicion: un solo
+  // elemento faltante dejaba el resto del modal a medio armar y sin
+  // responder, aunque se viera "abierto").
+  const fijarDisplay = (id, valor) => { const el = document.getElementById(id); if(el) el.style.display = valor; };
+  fijarDisplay('detAccionesEdicion', finalizada ? 'none' : 'flex');
+  fijarDisplay('detBtnVerDocumentoEdicion', (!finalizada && o.cierre) ? 'inline-flex' : 'none');
+  fijarDisplay('detAccionesSoloLectura', finalizada ? 'block' : 'none');
+  fijarDisplay('detAvisoFinalizada', finalizada ? 'block' : 'none');
+  fijarDisplay('detAvisoEdicionForzada', (ordenDetalleEsEdicionForzada && o.estado==='Finalizado') ? 'block' : 'none');
 
   // Carga la firma ya guardada (si existe) en la vista previa, y prepara el
   // botón "Firmar" para reabrir el lienzo táctil en pantalla completa. En

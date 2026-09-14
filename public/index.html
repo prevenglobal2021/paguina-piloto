@@ -1760,6 +1760,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 
     <div id="detAccionesEdicion" style="margin-top:15px;display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;">
       <span style="font-size:11px;color:var(--text-muted);margin-right:auto;">No hace falta llenarlo todo — puedes guardar el avance y continuar después.</span>
+      <button class="btn-custom btn-secondary-custom" id="detBtnVerDocumentoEdicion" style="display:none;" onclick="verPDF(ordenDetalleId)"><i class="fas fa-file-lines"></i> Ver informe actual</button>
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalDetalleOrden')">Cancelar</button>
       <button class="btn-custom" onclick="conIndicadorCarga(this, ()=>guardarDetalleOrden(false))"><i class="fas fa-floppy-disk"></i> Guardar Avance</button>
       <button class="btn-custom btn-success-custom" onclick="conIndicadorCarga(this, confirmarFinalizarOrden)">✅ Finalizar Orden</button>

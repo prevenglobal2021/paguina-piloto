@@ -2,9 +2,6 @@
 /* =========================================================
    UTILIDADES DE CONSULTA
 ========================================================= */
-// Genera una imagen de referencia/temporal propia (SVG), sin depender de
-// ningún banco de imágenes externo — así nunca se rompe por un enlace caído.
-// Sirve para precargar contenido de ejemplo mientras se sube contenido real.
 function generarImagenReferenciaSVG(emoji, texto, colorDe, colorA){
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
     <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
@@ -18,8 +15,6 @@ function generarImagenReferenciaSVG(emoji, texto, colorDe, colorA){
   return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
 }
 function buscarCliente(id){ return db.clientes.find(c=>c.id===id); }
-// Alterna la ventana entre tamaño normal y ampliado (casi pantalla completa) —
-// el mismo botón sirve para ampliar y para volver a restaurar el tamaño normal.
 function toggleAmpliarModal(idCaja, boton){
   const caja = document.getElementById(idCaja);
   const ampliado = caja.classList.toggle('ampliado');
@@ -27,11 +22,6 @@ function toggleAmpliarModal(idCaja, boton){
   icono.className = ampliado ? 'fas fa-compress' : 'fas fa-expand';
   boton.title = ampliado ? 'Restaurar tamaño' : 'Ampliar';
 }
-/* =========================================================
-   CARRUSEL REUTILIZABLE (Tienda Virtual) — un solo componente
-   para el carrusel de imágenes y el de proyectos, con flechas,
-   puntos de navegación, y rotación automática opcional.
-========================================================= */
 function generarCarruselHTML(idCarrusel, slidesHtml, autoRotarMs){
   if(!slidesHtml || !slidesHtml.length) return '<p class="empty-state">Aún no hay contenido en este carrusel.</p>';
   const puntos = slidesHtml.map((_,i)=>`<button class="carrusel-punto ${i===0?'activo':''}" onclick="irADiapositivaCarrusel('${idCarrusel}',${i})" aria-label="Ir a la diapositiva ${i+1}"></button>`).join('');
@@ -58,9 +48,6 @@ function irADiapositivaCarrusel(idCarrusel, indice){
   wrap.querySelector('.carrusel-track').style.transform = `translateX(-${indice*100}%)`;
   wrap.querySelectorAll('.carrusel-punto').forEach((p,i)=>p.classList.toggle('activo', i===indice));
 }
-// Inicia (o reinicia) la rotación automática de un carrusel — se llama
-// después de insertarlo en la página, ya que antes el elemento no existe
-// todavía. Se detiene sola si el carrusel ya no está en la página.
 function iniciarAutoRotacionCarrusel(idCarrusel){
   const wrap = document.getElementById('carrusel-'+idCarrusel);
   if(!wrap) return;
@@ -73,8 +60,6 @@ function iniciarAutoRotacionCarrusel(idCarrusel){
     moverCarrusel(idCarrusel, 1);
   }, ms);
 }
-// Visor de imagen ampliada (lightbox) — reutilizable en toda la plataforma:
-// cualquier <img> puede llamar a esto con su src para verse en grande.
 function verImagenAmpliada(src){
   let overlay = document.getElementById('lightboxImagenOverlay');
   if(!overlay){
@@ -92,10 +77,6 @@ function cerrarImagenAmpliada(){
   const overlay = document.getElementById('lightboxImagenOverlay');
   if(overlay) overlay.style.display = 'none';
 }
-// Deshabilita el botón y muestra "Guardando..." mientras dura la acción, y lo
-// restaura automáticamente al terminar (haya funcionado o no) — así el
-// usuario nunca duda si su toque se registró, ni puede tocar dos veces por
-// accidente mientras se está guardando en una conexión lenta.
 async function conIndicadorCarga(boton, accionAsync){
   if(!boton) return accionAsync();
   const textoOriginal = boton.innerHTML;
@@ -108,10 +89,6 @@ async function conIndicadorCarga(boton, accionAsync){
     boton.innerHTML = textoOriginal;
   }
 }
-// Antes de aplicar negrita/viñetas/etc., el área de texto necesita tener un
-// cursor o selección activa DENTRO de ella — con solo .focus() no basta si
-// el usuario nunca tocó el texto primero. Esto coloca el cursor al final
-// del texto si todavía no había ninguno puesto ahí.
 function enfocarYColocarCursor(idEditor){
   const el = document.getElementById(idEditor);
   if(!el) return null;
@@ -121,25 +98,15 @@ function enfocarYColocarCursor(idEditor){
   if(!yaHayCursorAdentro){
     const rango = document.createRange();
     rango.selectNodeContents(el);
-    rango.collapse(false); // al final del texto ya escrito
+    rango.collapse(false);
     seleccion.removeAllRanges();
     seleccion.addRange(rango);
   }
   return el;
 }
-// Aplica el formato de la barra tipo Word. Algunos navegadores de celular
-// rechazan ciertos comandos (por ejemplo, "resaltar" a veces necesita el
-// nombre alterno "backColor" en vez de "hiliteColor") — si el primer intento
-// no funciona, se reintenta automáticamente con el alterno antes de avisar
-// que ese formato no es compatible con ese navegador.
 function ejecutarFormatoRico(idEditor, comando, valor){
   const el = enfocarYColocarCursor(idEditor);
   if(!el) return;
-  // Tipo y tamaño de letra necesitan texto SELECCIONADO para verse — con
-  // solo el cursor parpadeando (sin nada resaltado), el navegador no muestra
-  // ningún cambio, aunque el comando "funcione" por dentro. Si no hay nada
-  // seleccionado, se selecciona todo lo ya escrito, para que el cambio se
-  // vea de inmediato en todo el texto.
   if(comando==='fontName' || comando==='fontSize'){
     const seleccion = window.getSelection();
     const haySeleccionConTexto = seleccion.rangeCount > 0 && !seleccion.getRangeAt(0).collapsed;
@@ -153,25 +120,18 @@ function ejecutarFormatoRico(idEditor, comando, valor){
   let exito = false;
   try{ exito = document.execCommand(comando, false, valor===undefined?null:valor); }catch(e){ exito = false; }
   if(!exito && comando==='hiliteColor'){
-    try{ exito = document.execCommand('backColor', false, valor); }catch(e){ /* tampoco este navegador lo admite */ }
+    try{ exito = document.execCommand('backColor', false, valor); }catch(e){ }
   }
   if(!exito){
     mostrarToast('Ese formato no es compatible con este navegador — prueba actualizar la app o usar otro navegador.', 'error');
   }
   actualizarEstadoBotonesFormato(idEditor);
 }
-// Aplica tipo o tamaño de letra directamente, envolviendo el texto en su
-// propio elemento — en vez de usar el comando del navegador (execCommand),
-// que en varios celulares no aplica nada visible aunque "funcione" por
-// dentro. Esto es mucho más confiable porque no depende de cómo cada
-// navegador interprete ese comando.
 function aplicarEstiloTextoSeleccionado(idEditor, propiedadCSS, valorCSS){
   const el = enfocarYColocarCursor(idEditor);
   if(!el || !el.textContent.trim()) { if(el && !el.textContent.trim()) mostrarToast('Escribe algo primero, luego aplica el estilo.'); return; }
   const seleccion = window.getSelection();
   let rango = seleccion.rangeCount ? seleccion.getRangeAt(0) : null;
-  // Sin texto seleccionado (solo el cursor), se aplica a todo lo ya escrito
-  // — así el cambio se ve de inmediato, en vez de no notarse nada.
   if(!rango || rango.collapsed){
     rango = document.createRange();
     rango.selectNodeContents(el);
@@ -191,9 +151,6 @@ function aplicarEstiloTextoSeleccionado(idEditor, propiedadCSS, valorCSS){
     mostrarToast('No se pudo aplicar el estilo — intenta seleccionar el texto de nuevo.', 'error');
   }
 }
-// Ilumina los botones (negrita/cursiva/subrayado) cuando el cursor está
-// sobre texto que ya tiene ese formato — igual que en Word, para saber de
-// un vistazo qué está activo, sin tener que adivinar.
 function actualizarEstadoBotonesFormato(idEditor){
   const el = document.getElementById(idEditor);
   if(!el) return;
@@ -212,10 +169,6 @@ document.addEventListener('selectionchange', ()=>{
   const activo = document.activeElement;
   if(activo && activo.classList && activo.classList.contains('editor-rico-area')) actualizarEstadoBotonesFormato(activo.id);
 });
-// Genera la barra de formato tipo Word + el área de texto enriquecido, para
-// cualquier campo de "observaciones" de la plataforma — un solo componente
-// reutilizado tanto en el diagnóstico general como en los campos dinámicos
-// de plantilla de tipo "Observación larga".
 function generarEditorRico(idEditor, contenidoInicial, soloLectura, atributoDataCampo){
   const idSeguro = idEditor.replace(/'/g,"\\'");
   const evitarPerderFoco = 'onmousedown="event.preventDefault()" ontouchstart="event.preventDefault()"';
@@ -245,14 +198,6 @@ function generarEditorRico(idEditor, contenidoInicial, soloLectura, atributoData
   </div>
   <div class="editor-rico-area" id="${idEditor}" ${atributoDataCampo?`data-campo="${atributoDataCampo}"`:''} contenteditable="${soloLectura?'false':'true'}" data-placeholder="Escribe aquí...">${contenidoInicial||''}</div>`;
 }
-/* =========================================================
-   UBICACIÓN GPS — botón reutilizable para cualquier campo de
-   dirección de la plataforma. Usa el GPS del dispositivo y
-   convierte las coordenadas a una dirección legible (servicio
-   gratuito de OpenStreetMap, sin necesidad de clave ni configurar
-   nada). Si no se puede convertir a texto, deja las coordenadas
-   tal cual — nunca deja el campo vacío por un fallo de conversión.
-========================================================= */
 async function obtenerUbicacionGPS(inputId, botonId){
   if(!navigator.geolocation){ mostrarToast('Tu navegador no permite obtener la ubicación GPS.', 'error'); return; }
   const boton = document.getElementById(botonId);
@@ -269,9 +214,9 @@ async function obtenerUbicacionGPS(inputId, botonId){
         const data = await resp.json();
         if(data && data.display_name) direccion = data.display_name;
       }
-    }catch(err){ /* si falla la conversión a texto, se dejan las coordenadas — nunca se deja el campo vacío */ }
+    }catch(err){ }
     if(input.tagName==='TEXTAREA' && input.value.trim()){
-      input.value = input.value.trim() + ' — ' + direccion; // en campos de notas, se agrega sin borrar lo ya escrito
+      input.value = input.value.trim() + ' — ' + direccion;
     } else {
       input.value = direccion;
     }
@@ -286,17 +231,7 @@ async function obtenerUbicacionGPS(inputId, botonId){
     mostrarToast(msg, 'error');
   }, { enableHighAccuracy:true, timeout:15000, maximumAge:0 });
 }
-/* =========================================================
-   FIRMA TÁCTIL — componente único, reutilizado en:
-   - Firma del técnico y del cliente al cerrar una orden de servicio.
-   - Firma del representante en Configuración de empresa.
-   En celular, en vertical, la caja de firma se GIRA 90° con CSS para dar
-   todo el ancho de la pantalla como espacio de firma. El lienzo (canvas)
-   NO se gira internamente — solo se traduce matemáticamente la posición
-   del dedo/mouse a las coordenadas reales del lienzo, para que el trazo
-   quede exactamente donde se tocó, sin desalinearse por el giro visual.
-========================================================= */
-let firmaTactilContexto = null; // 'tecnico' | 'cliente' | 'representante'
+let firmaTactilContexto = null;
 let firmaTactilCtx = null;
 let firmaTactilRotada = false;
 let firmaTactilDibujando = false;
@@ -309,9 +244,6 @@ function abrirFirmaTactil(contexto, firmaExistente){
   const overlay = document.getElementById('firmaTactilOverlay');
   const caja = document.getElementById('firmaTactilCaja');
   overlay.classList.add('activa');
-  // Bloqueo robusto del fondo mientras se firma: además de ocultar el scroll,
-  // se fija la posición de la página (evita el "rebote" de iOS al arrastrar
-  // el dedo cerca de los bordes, que antes también sacudía la pantalla de firma).
   document.body.dataset.scrollY = window.scrollY;
   document.body.style.position = 'fixed';
   document.body.style.top = `-${window.scrollY}px`;
@@ -319,12 +251,6 @@ function abrirFirmaTactil(contexto, firmaExistente){
 
   firmaTactilRotada = window.matchMedia('(max-width:900px) and (orientation:portrait)').matches;
   if(firmaTactilRotada){
-    // Tamaño fijo en píxeles, calculado UNA SOLA VEZ aquí — a propósito NO se
-    // usa 100vh/100vw en el CSS, porque esa medida cambia sola en el navegador
-    // del celular cuando la barra de direcciones aparece/desaparece mientras
-    // se firma, y eso era lo que hacía que la pantalla se reacomodara a medio
-    // trazo. Con un valor fijo, la caja de firma ya no se mueve por el resto
-    // de la sesión, sin importar qué haga el navegador alrededor.
     caja.style.width = window.innerHeight + 'px';
     caja.style.height = window.innerWidth + 'px';
     caja.classList.add('firma-tactil-rotada');
@@ -332,8 +258,6 @@ function abrirFirmaTactil(contexto, firmaExistente){
     caja.style.width = ''; caja.style.height = '';
     caja.classList.remove('firma-tactil-rotada');
   }
-  // Pequeña espera para que el navegador termine de acomodar la caja ya
-  // dimensionada antes de medir el tamaño real del lienzo interno.
   setTimeout(()=>{
     const canvas = document.getElementById('firmaTactilCanvas');
     canvas.width = canvas.offsetWidth;
@@ -356,10 +280,6 @@ function activarDibujoFirmaTactil(canvas, ctx){
     const clientX = t ? t.clientX : e.clientX;
     const clientY = t ? t.clientY : e.clientY;
     const dx = clientX - rect.left, dy = clientY - rect.top;
-    // Sin girar: la posición es directa. Girado 90°: la pantalla reporta el
-    // toque en su propio sistema de coordenadas (ya rotado), así que se
-    // traduce de vuelta al sistema del lienzo (fórmula verificada para un
-    // giro de 90°: x_real = distancia_desde_arriba, y_real = alto_del_lienzo - distancia_desde_la_izquierda).
     return firmaTactilRotada ? { x: dy, y: canvas.height - dx } : { x: dx, y: dy };
   };
   const iniciar = e=>{ e.preventDefault(); firmaTactilDibujando=true; ctx.beginPath(); const p=posicion(e); ctx.moveTo(p.x,p.y); };
@@ -395,29 +315,15 @@ function actualizarPreviewFirmaOrden(contexto){
   if(!img) return;
   if(dataUrl){ img.src = dataUrl; img.style.display='block'; if(placeholder) placeholder.style.display='none'; }
 }
-// Extrae la URL real de una foto sin importar si quedó guardada como texto
-// plano (formato viejo) o como {src, desc} (formato nuevo, con descripción)
-// — así ningún lugar de la plataforma se rompe por el cambio de formato.
 function srcDeFoto(f){ return (typeof f === 'string') ? f : ((f && f.src) || ''); }
-// Misma idea que ya existía para las fotos de cierre de orden (normalizarFotosEvidencia),
-// pero de nombre genérico para usarla en cualquier galería de la plataforma.
 function normalizarGaleria(fotos){
   return (fotos||[]).map(f => (typeof f === 'string') ? { src:f, desc:'' } : { src:f.src, desc:f.desc||'' });
 }
-/* =========================================================
-   GALERÍA DE FOTOS CON DESCRIPCIÓN — componente único, reutilizado
-   en todos los formularios que suben varias imágenes (inventario,
-   clientes, equipos, órdenes). Cuadrícula uniforme (recortada sin
-   deformar) con un campo de descripción corta debajo de cada foto.
-========================================================= */
 function renderizarGaleriaFotos(contenedorId, fotos, contexto, campoId, tamanoBloque){
   const cont = document.getElementById(contenedorId);
   if(!cont) return;
   const lista = normalizarGaleria(fotos);
   const sufijoCampo = campoId!==undefined ? ',' + campoId : '';
-  // El marcado de UNA foto (marco + botón de quitar + descripción) es el mismo
-  // sin importar si se muestra suelta o agrupada en un bloque — así el
-  // componente sigue siendo uno solo, reutilizado en todos lados.
   const itemHtml = (f, idx) => `
     <div class="galeria-foto-item">
       <div class="galeria-foto-marco">
@@ -428,16 +334,11 @@ function renderizarGaleriaFotos(contenedorId, fotos, contexto, campoId, tamanoBl
     </div>`;
 
   if(!tamanoBloque || tamanoBloque < 1){
-    // Sin agrupar: igual que siempre, una sola cuadrícula continua.
     cont.classList.remove('galeria-por-bloques');
     cont.innerHTML = lista.map(itemHtml).join('');
     return;
   }
 
-  // Agrupado en bloques (definido al diseñar la plantilla, campo por campo):
-  // cada bloque es su propia mini-cuadrícula con etiqueta ("Bloque 1", "Bloque
-  // 2"...), usando el MISMO marcado por foto de arriba — solo cambia cómo se
-  // reparten entre sub-contenedores.
   cont.classList.add('galeria-por-bloques');
   let html = '';
   for(let inicio=0; inicio<lista.length; inicio+=tamanoBloque){
@@ -486,14 +387,7 @@ function actualizarDescripcionGaleria(contexto, idx, valor, campoId){
   if(typeof arr[idx] === 'string') arr[idx] = { src: arr[idx], desc: valor };
   else arr[idx].desc = valor;
   if(contexto==='cliente') imagenesClienteModificado = true;
-  // No hace falta redibujar toda la cuadrícula por cada letra escrita — el
-  // campo de texto ya quedó con lo que se escribió, y el dato ya se guardó arriba.
 }
-// Nombre del cliente de una orden, ya sea uno registrado o uno nuevo (no
-// registrado, ingresado directo en la orden) — usar esto en vez de
-// buscarCliente(o.clienteId) directo en cualquier lugar donde se muestre
-// el cliente de una orden, para que el caso de "cliente nuevo" siempre
-// se vea correcto en vez de "—".
 function nombreClienteOrden(o){
   if(o.esClienteNuevo) return o.clienteNuevoNombre || '(cliente nuevo sin nombre)';
   const c = buscarCliente(o.clienteId);
@@ -526,50 +420,6 @@ function badgeEstado(estado){
   return `<span class="badge-estado ${map[estado]||'badge-programado'}">${estado}</span>`;
 }
 
-/* =========================================================
-   NAVEGACIÓN / INICIO
-   Con la pantalla de acceso reactivada: solo se entra a la app
-   si hay una empresa + sesión de servidor válidas guardadas;
-   si no, se muestra el login (empezando por el paso de empresa).
-========================================================= */
-window.onload = function(){
-  // Enlace de recuperación de contraseña (?resetToken=...): pantalla aparte,
-  // sin sesión, no toca el login ni el resto de la app.
-  if(detectarTokenReset()) return;
-  // Enlace público de tienda (?tienda=codigo-empresa): no toca el login ni el resto
-  // de la app — es una vista completamente aparte, de solo catálogo, sin sesión.
-  const slugTiendaPublica = new URLSearchParams(location.search).get('tienda');
-  if(slugTiendaPublica){
-    ocultarSkeletonBoot();
-    iniciarTiendaPublica(slugTiendaPublica.toLowerCase().trim());
-    return;
-  }
-  setTimeout(ocultarSkeletonBoot, 2500); // red de seguridad, por si ningún otro punto lo oculta
-  aplicarConfiguracionVisual();
-  actualizarBadgeConexion();
-  window.addEventListener('online', actualizarBadgeConexion);
-  window.addEventListener('offline', actualizarBadgeConexion);
-  document.querySelector('.sidebar-menu').addEventListener('click', e=>{
-    if(e.target.closest('a') && window.innerWidth <= 640) cerrarMenuMovil();
-  });
-
-  const sinServidor = ['file:','content:',''].includes(location.protocol) || !location.protocol.startsWith('http'); // archivo abierto directamente (PC o Android), sin backend real
-  const loginDesactivado = db.config.loginRequerido === false; // interruptor en Configuración
-
-  if(sinServidor || loginDesactivado){
-    if(!sesionActual){ sesionActual = { rol:'admin', tecnicoId:null }; localStorage.setItem(SESION_KEY, JSON.stringify(sesionActual)); }
-    aplicarRBACaUI(); mostrarSeccion('agenda'); manejarParametroQR();
-    if(!sinServidor) cargarEstadoDesdeBackend(); // si hay servidor pero el login está desactivado, igual sincroniza
-    return;
-  }
-
-  if(empresaActual && sesionServidor && sesionActual){
-    aplicarRBACaUI(); mostrarSeccion('agenda'); manejarParametroQR();
-    cargarEstadoDesdeBackend();
-  } else {
-    mostrarLogin();
-  }
-};
 function actualizarBadgeConexion(){
   const el = document.getElementById('badgeConexion');
   if(!el) return;
@@ -588,7 +438,6 @@ function actualizarBadgeConexion(){
   }
 }
 
-/* Menú lateral deslizante en teléfonos (capa aditiva, no cambia el comportamiento en pantallas grandes) */
 function toggleMenuMovil(){ document.querySelector('.left-sidebar').classList.toggle('abierto'); }
 function cerrarMenuMovil(){ document.querySelector('.left-sidebar').classList.remove('abierto'); }
 
@@ -599,9 +448,6 @@ function mostrarSeccion(nombre){
   document.querySelectorAll('.sidebar-menu a[data-sec]').forEach(a=>a.classList.remove('active'));
   const link = document.querySelector(`.sidebar-menu a[data-sec="${nombre}"]`);
   if(link) link.classList.add('active');
-  document.querySelectorAll('.bottom-nav-item[data-nav]').forEach(a=>a.classList.remove('active'));
-  const navBtn = document.querySelector(`.bottom-nav-item[data-nav="${nombre}"]`);
-  if(navBtn) navBtn.classList.add('active');
   if(nombre==='agenda') renderizarAgenda();
   if(nombre==='equipos') renderizarEquiposGlobal('');
   if(nombre==='trazabilidad') inicializarTrazabilidad();
@@ -620,41 +466,6 @@ function mostrarSeccion(nombre){
   cerrarMenuMovil();
 }
 
-function aplicarConfiguracionVisual(){
-  document.getElementById('lblNombreEmpresa').innerText = db.config.nombre;
-  document.getElementById('brandTitleSidebar').innerText = db.config.nombre;
-  document.getElementById('lblSubtituloEmpresa').innerText = db.config.subtitulo;
-  aplicarAparienciaTienda();
-  document.documentElement.style.setProperty('--blue-accent', db.config.colorAcento);
-  document.documentElement.style.setProperty('--bg-dark', db.config.colorFondo);
-  document.documentElement.style.setProperty('--sidebar-bg-1', db.config.colorSidebar1 || '#24272e');
-  document.documentElement.style.setProperty('--sidebar-bg-2', db.config.colorSidebar2 || '#15171c');
-  document.documentElement.style.setProperty('--topbar-bg-1', db.config.colorTopbar1 || '#24272e');
-  document.documentElement.style.setProperty('--topbar-bg-2', db.config.colorTopbar2 || '#191b20');
-  document.documentElement.style.setProperty('--panel-bg-1', db.config.colorPanel1 || '#212429');
-  document.documentElement.style.setProperty('--panel-bg-2', db.config.colorPanel2 || '#191b20');
-  document.documentElement.style.setProperty('--font-family', db.config.fontFamily || "'Segoe UI',Tahoma,Geneva,Verdana,sans-serif");
-  document.body.classList.toggle('modo-claro', !!db.config.modoClaro);
-  if(db.config.colorTexto) document.documentElement.style.setProperty('--text-main', db.config.colorTexto);
-  else document.documentElement.style.removeProperty('--text-main');
-  if(db.config.formBorderColor) document.documentElement.style.setProperty('--form-border-color', db.config.formBorderColor);
-  else document.documentElement.style.removeProperty('--form-border-color');
-  document.documentElement.style.setProperty('--form-radius', (db.config.formRadius!==undefined ? db.config.formRadius : 6) + 'px');
-  document.body.classList.remove('letra-pequena','letra-grande');
-  if(db.config.tamanoLetra==='sm') document.body.classList.add('letra-pequena');
-  if(db.config.tamanoLetra==='lg') document.body.classList.add('letra-grande');
-  const mapaTamanoBotones = { sm:{padding:'6px 12px',fontSize:'12px'}, md:{padding:'8px 16px',fontSize:'13px'}, lg:{padding:'11px 22px',fontSize:'15px'} };
-  const tb = mapaTamanoBotones[db.config.formTamanoBotones] || mapaTamanoBotones.md;
-  document.documentElement.style.setProperty('--form-btn-padding', tb.padding);
-  document.documentElement.style.setProperty('--form-btn-font-size', tb.fontSize);
-  const logoImg = document.getElementById('sidebarLogo');
-  const iconoDefault = document.getElementById('sidebarIconoDefault');
-  if(db.config.logo){ logoImg.src = db.config.logo; logoImg.style.display='block'; iconoDefault.style.display='none'; }
-  else { logoImg.style.display='none'; iconoDefault.style.display='inline'; }
-  const topbarLogo = document.getElementById('topbarLogo');
-  if(topbarLogo){ if(db.config.logo){ topbarLogo.src = db.config.logo; topbarLogo.style.display='block'; } else { topbarLogo.style.display='none'; } }
-}
-
 function actualizarKPIs(){
   document.getElementById('kpiProgramados').innerText = db.ordenes.filter(o=>o.estado==='Programado').length;
   document.getElementById('kpiEjecucion').innerText = db.ordenes.filter(o=>o.estado==='En Ejecución').length;
@@ -663,8 +474,6 @@ function actualizarKPIs(){
   document.getElementById('kpiEquipos').innerText = totalEquipos;
 }
 
-/* Notificaciones tipo "toast" — reemplazan las ventanas mostrarToast() del navegador.
-   mostrarToast(mensaje, tipo) donde tipo es 'info' (por defecto), 'exito' o 'error'. */
 function mostrarToast(mensaje, tipo){
   tipo = tipo || (/no se pud|error|falta|inválid|obligatorio|escribe|selecciona|debes|ya existe/i.test(mensaje) ? 'error' : /listo|guardad|creado|actualizad|registrad|exitos|correct|copiado/i.test(mensaje) ? 'exito' : 'info');
   const cont = document.getElementById('toastContainer');
@@ -674,7 +483,7 @@ function mostrarToast(mensaje, tipo){
   el.className = 'toast ' + tipo;
   el.innerHTML = `<span class="toast-icono">${icono}</span><span class="toast-texto">${mensaje}</span><span class="toast-cerrar" onclick="this.parentElement.remove()">✖</span>`;
   cont.appendChild(el);
-  const duracion = 30000; // 30 segundos para todos los tipos — tiempo de sobra para leer con calma
+  const duracion = tipo==='error' ? 9000 : 7000;
   setTimeout(()=>{
     el.classList.add('saliendo');
     setTimeout(()=>el.remove(), 250);
