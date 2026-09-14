@@ -154,6 +154,7 @@
           <label for="loginCfgLogoInput">Logo</label>
           <input type="file" id="loginCfgLogoInput" accept="image/*">
           <div class="nota-campo">Se muestra en círculo, arriba del formulario.</div>
+          <img id="loginCfgLogoPreview" style="display:none; max-width:90px; max-height:90px; margin-top:8px; border-radius:50%; border:1px solid var(--gris-borde);">
         </div>
         <div style="flex:1; min-width:220px;">
           <label for="loginCfgImagenInput">Imagen de fondo (columna izquierda)</label>
@@ -183,11 +184,6 @@
           <input type="file" id="loginCfgBannerLateralInput" accept="image/*">
           <img id="loginCfgBannerLateralPreview" style="display:none; max-width:100%; max-height:80px; margin-top:8px; border-radius:8px; border:1px solid var(--gris-borde);">
         </div>
-        <div style="flex:1; min-width:220px;">
-          <label for="loginCfgBannerIconoInput">Ícono del banner</label>
-          <input type="file" id="loginCfgBannerIconoInput" accept="image/*">
-          <img id="loginCfgBannerIconoPreview" style="display:none; max-width:60px; max-height:60px; margin-top:8px; border-radius:8px; border:1px solid var(--gris-borde);">
-        </div>
       </div>
 
       <div class="fila-modal" style="margin-top:20px;">
@@ -214,33 +210,16 @@
     <div class="barra-superior" style="margin-top:36px;">
       <h2>Buscar equipo por QR (todas las empresas)</h2>
     </div>
-    <p class="nota-campo" style="margin-bottom:16px;">Escanea o escribe el código de la etiqueta de cualquier equipo, de cualquier empresa cliente, y consulta su información completa e historial de órdenes desde un solo lugar — esto es exclusivo tuyo; los usuarios normales de cada empresa siguen viendo solo lo suyo.</p>
+    <p class="nota-campo" style="margin-bottom:16px;">Escanea o escribe el código de la etiqueta de cualquier equipo, de cualquier empresa cliente — te lleva directo a su ficha e historial completo, dentro de la misma plataforma que usa cada empresa (en modo solo lectura). Los usuarios normales siguen viendo únicamente los equipos de su propia empresa.</p>
     <div class="error" id="errorBusquedaEquipo"></div>
     <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
       <input type="text" id="inputCodigoEquipo" placeholder="Pega o escribe el código / serie del equipo" style="flex:1; min-width:220px;" onkeydown="if(event.key==='Enter') buscarEquipoGlobal()">
-      <button class="principal" style="width:auto; margin:0; padding:10px 18px;" onclick="buscarEquipoGlobal()">Buscar</button>
+      <button class="principal" style="width:auto; margin:0; padding:10px 18px;" id="btnBuscarEquipoGlobal" onclick="buscarEquipoGlobal()">Buscar</button>
       <button class="principal" style="width:auto; margin:0; padding:10px 18px; background:#0f766e;" id="btnEscanearEquipoGlobal">📷 Escanear con cámara</button>
     </div>
 
-    <div id="resultadoEquipoGlobal" style="display:none; background:#fff; border-radius:12px; padding:24px; box-shadow:0 1px 3px rgba(0,0,0,0.06); margin-bottom:20px;">
-      <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
-        <div>
-          <h3 id="resEquipoNombre" style="margin:0 0 4px;"></h3>
-          <p style="margin:0; color:#64748b; font-size:13px;" id="resEquipoSerie"></p>
-        </div>
-        <div style="text-align:right;">
-          <p style="margin:0; font-size:13px;"><strong>Empresa:</strong> <span id="resEmpresaNombre"></span></p>
-          <p style="margin:0; font-size:13px;"><strong>Cliente:</strong> <span id="resClienteNombre"></span></p>
-        </div>
-      </div>
-      <h4 style="margin:18px 0 8px;">Historial de órdenes de servicio</h4>
-      <table class="empresas">
-        <thead><tr><th>N.º</th><th>Fecha</th><th>Tipo</th><th>Estado</th><th>Diagnóstico</th></tr></thead>
-        <tbody id="filasHistorialEquipoGlobal"></tbody>
-      </table>
-    </div>
-
-    <!-- MODAL: ESCÁNER DE CÁMARA -->
+    <!-- MODAL: ESCÁNER DE CÁMARA (solo decodifica el texto del QR; la
+         ficha/historial/PDF/WhatsApp los muestra la plataforma real) -->
     <div class="modal-overlay" id="modalEscanerEquipoGlobal" style="display:none;">
       <div class="modal" style="max-width:480px;">
         <h3>📷 Escanear código QR</h3>
@@ -604,7 +583,6 @@
   let logoCfgBase64Pendiente = null;
   let imagenCfgBase64Pendiente = null;
   let bannerLateralCfgBase64Pendiente = null;
-  let bannerIconoCfgBase64Pendiente = null;
 
   function archivoABase64(file) {
     return new Promise((resolve, reject) => {
@@ -620,7 +598,6 @@
     logoCfgBase64Pendiente = null;
     imagenCfgBase64Pendiente = null;
     bannerLateralCfgBase64Pendiente = null;
-    bannerIconoCfgBase64Pendiente = null;
     try {
       const cfg = await llamar('/api/login-config');
       document.getElementById('loginCfgColor1').value = cfg.color1 || '#2563eb';
@@ -628,12 +605,12 @@
       document.getElementById('loginCfgNombrePlataforma').value = cfg.nombrePlataforma || '';
       document.getElementById('loginCfgTituloIzq').value = cfg.tituloIzquierda || '';
       document.getElementById('loginCfgSubtituloIzq').value = cfg.subtituloIzquierda || '';
+      const previewLogo = document.getElementById('loginCfgLogoPreview');
+      if (cfg.logo) { previewLogo.src = cfg.logo; previewLogo.style.display = 'block'; }
       const previewImg = document.getElementById('loginCfgImagenPreview');
       if (cfg.imagenFondo) { previewImg.src = cfg.imagenFondo; previewImg.style.display = 'block'; }
       const previewBanner = document.getElementById('loginCfgBannerLateralPreview');
       if (cfg.bannerLateral) { previewBanner.src = cfg.bannerLateral; previewBanner.style.display = 'block'; }
-      const previewBannerIcono = document.getElementById('loginCfgBannerIconoPreview');
-      if (cfg.bannerLateralIcono) { previewBannerIcono.src = cfg.bannerLateralIcono; previewBannerIcono.style.display = 'block'; }
     } catch (err) {
       mostrarError('errorLoginCfg', 'No se pudo cargar la personalización actual: ' + err.message);
     }
@@ -643,6 +620,9 @@
     const file = e.target.files[0];
     if (!file) return;
     logoCfgBase64Pendiente = await archivoABase64(file);
+    const preview = document.getElementById('loginCfgLogoPreview');
+    preview.src = logoCfgBase64Pendiente;
+    preview.style.display = 'block';
   });
 
   document.getElementById('loginCfgImagenInput').addEventListener('change', async (e) => {
@@ -663,15 +643,6 @@
     preview.style.display = 'block';
   });
 
-  document.getElementById('loginCfgBannerIconoInput').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    bannerIconoCfgBase64Pendiente = await archivoABase64(file);
-    const preview = document.getElementById('loginCfgBannerIconoPreview');
-    preview.src = bannerIconoCfgBase64Pendiente;
-    preview.style.display = 'block';
-  });
-
   document.getElementById('formLoginCfg').addEventListener('submit', async (e) => {
     e.preventDefault();
     ocultarError('errorLoginCfg');
@@ -689,13 +660,11 @@
           tituloIzquierda: document.getElementById('loginCfgTituloIzq').value.trim() || null,
           subtituloIzquierda: document.getElementById('loginCfgSubtituloIzq').value.trim() || null,
           bannerLateral: bannerLateralCfgBase64Pendiente,
-          bannerLateralIcono: bannerIconoCfgBase64Pendiente
         })
       });
       logoCfgBase64Pendiente = null;
       imagenCfgBase64Pendiente = null;
       bannerLateralCfgBase64Pendiente = null;
-      bannerIconoCfgBase64Pendiente = null;
       mostrarError('errorLoginCfg', '✅ Guardado. Los cambios ya se ven para cualquiera que entre al login.');
       document.getElementById('errorLoginCfg').style.background = '#f0fdf4';
       document.getElementById('errorLoginCfg').style.color = '#15803d';
@@ -818,29 +787,27 @@
   });
 
   // --------- BUSCAR EQUIPO POR QR (todas las empresas) ---------
+  // Ya NO arma su propia vista de resultado — encuentra a qué empresa
+  // pertenece el equipo, traspasa la sesión, y entra a la plataforma real
+  // de esa empresa en modo solo lectura, directo a la ficha del equipo.
+  // Así se reutiliza el MISMO módulo de Equipos/Trazabilidad (con PDF,
+  // WhatsApp, historial) que ya usa cualquier empresa — no se duplica.
   async function buscarEquipoGlobal(){
     const codigo = document.getElementById('inputCodigoEquipo').value.trim();
     if(!codigo){ mostrarError('errorBusquedaEquipo', 'Escribe o escanea un código primero.'); return; }
     ocultarError('errorBusquedaEquipo');
-    document.getElementById('resultadoEquipoGlobal').style.display = 'none';
+    const btn = document.getElementById('btnBuscarEquipoGlobal');
+    btn.disabled = true; btn.textContent = 'Buscando…';
     try{
       const data = await llamar('/api/superadmin/equipos/buscar?codigo=' + encodeURIComponent(codigo));
-      document.getElementById('resEquipoNombre').innerText = data.equipo.nombre || '—';
-      document.getElementById('resEquipoSerie').innerText = data.equipo.serie ? `Serie: ${data.equipo.serie}` : (data.equipo.qrId ? `Código: ${data.equipo.qrId}` : '');
-      document.getElementById('resEmpresaNombre').innerText = data.empresa.nombre;
-      document.getElementById('resClienteNombre').innerText = data.cliente.nombre;
-      const tbody = document.getElementById('filasHistorialEquipoGlobal');
-      tbody.innerHTML = data.historial.length ? data.historial.map(o => `
-        <tr>
-          <td>${o.numero || '—'}</td>
-          <td>${o.fecha || '—'}</td>
-          <td>${o.tipo || '—'}</td>
-          <td>${o.estado || '—'}</td>
-          <td style="max-width:280px;font-size:12px;color:#475569;">${(o.diagnostico || '—').replace(/<[^>]*>/g, ' ').slice(0,140)}</td>
-        </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:16px;">Este equipo todavía no tiene órdenes de servicio registradas.</td></tr>';
-      document.getElementById('resultadoEquipoGlobal').style.display = 'block';
+      const token = localStorage.getItem(LS_TOKEN);
+      localStorage.setItem('prevenglobal_token_v1', JSON.stringify({ token, rol:'superadmin', tecnicoId:null }));
+      localStorage.setItem('prevenglobal_sesion_v1', JSON.stringify({ rol:'superadmin', tecnicoId:null }));
+      localStorage.setItem('prevenglobal_empresa_v1', data.empresaSlug);
+      window.location.href = `index.html?modoSupervisionEquipo=${data.equipoId}`;
     }catch(err){
       mostrarError('errorBusquedaEquipo', err.message);
+      btn.disabled = false; btn.textContent = 'Buscar';
     }
   }
 
