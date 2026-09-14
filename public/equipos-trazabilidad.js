@@ -165,54 +165,10 @@ function renderizarTrazabilidad(equipoIdStr){
   timeline.innerHTML = html;
 }
 
-/* =========================================================
-   QR DEL EQUIPO — GENERAR / IMPRIMIR
-   (mismo criterio que el QR de ítems de Inventario: se codifica
-   como una URL con ?equipo=<id>, para que también funcione si
-   alguien lo abre con la cámara normal del celular, fuera de la app)
-========================================================= */
-function verEtiquetaQR(equipoId){
-  const info = ubicarEquipoPorId(equipoId);
-  if(!info) return;
-  const equipo = info.equipo;
-
-  const wrap = document.getElementById('etiquetaQRWrap');
-  if(!wrap) return;
-  wrap.innerHTML = '';
-
-  const urlEquipo = `${location.origin}${location.pathname}?equipo=${equipo.id}`;
-  if(typeof QRCode !== 'undefined'){
-    new QRCode(wrap, { text: urlEquipo, width: 300, height: 300, correctLevel: QRCode.CorrectLevel.H });
-  }
-
-  const lblNombre = document.getElementById('etiquetaQRNombre');
-  const lblCodigo = document.getElementById('etiquetaQRCodigo');
-  if(lblNombre) lblNombre.innerText = equipo.nombre;
-  if(lblCodigo) lblCodigo.innerText = equipo.serie || equipo.qrId || ('EQUIPO-' + equipo.id);
-
-  if(db.config && db.config.logo){
-    setTimeout(()=>{
-      const existente = wrap.querySelector('.etiqueta-logo-centro');
-      if(existente) existente.remove();
-      const logoImg = document.createElement('img');
-      logoImg.src = db.config.logo;
-      logoImg.className = 'etiqueta-logo-centro';
-      wrap.appendChild(logoImg);
-    }, 80);
-  }
-  abrirModal('modalEtiquetaQR');
-}
-
-function imprimirEtiquetaQR(){
-  // La hoja de estilos ya trae reglas @media print específicas para
-  // body.imprimiendo-etiqueta — solo hay que activarla, imprimir, y
-  // quitarla otra vez para no afectar el resto de la app.
-  document.body.classList.add('imprimiendo-etiqueta');
-  setTimeout(()=>{
-    window.print();
-    setTimeout(()=>{ document.body.classList.remove('imprimiendo-etiqueta'); }, 300);
-  }, 60);
-}
+/* NOTA: verEtiquetaQR() e imprimirEtiquetaQR() ya NO se definen aquí — viven
+   en config-clientes-equipos.js (el archivo original, más completo). Antes
+   había una copia mía aquí también, reconstruida cuando pensé que faltaban
+   — se quitó para no duplicar. */
 
 /* =========================================================
    ESCÁNER DE QR (cámara en vivo) — botón junto a "Buscar equipo"

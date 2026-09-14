@@ -510,11 +510,9 @@ function renderizarBottomNavMovil(){
   `).join('') + `<a class="bottom-nav-item salir" onclick="cerrarSesion()"><i class="fas fa-power-off"></i><span>Salir</span></a>`;
 }
 
-function actualizarBadgeConexion(){
-  const badge = document.getElementById('badgeConexion');
-  if(!badge) return;
-  badge.innerHTML = syncEstado==='ok' ? '<span style="color:#22c55e;">● En línea</span>' : '<span style="color:#f59e0b;">● Guardando...</span>';
-}
+// NOTA: actualizarBadgeConexion() ya no se define aquí — vive en
+// utilidades-navegacion.js (versión más completa: detecta sin-conexión,
+// error de guardado con reintento, etc.), para no tener dos versiones.
 
 // Arranque protegido
 /* =========================================================
