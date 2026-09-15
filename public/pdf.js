@@ -146,10 +146,20 @@ async function compartirDocumentoPorWhatsApp({ telefono, mensaje, generarBlob, n
   const archivo = new File([blob], nombreArchivo, { type:'application/pdf' });
   if(navigator.share && navigator.canShare && navigator.canShare({ files:[archivo] })){
     try{
-      await navigator.share({ files:[archivo], title:tituloCompartir, text:mensaje });
+      // En algunos Android/Chrome, navigator.share() a veces se queda
+      // "colgado" sin abrir ningún panel y sin lanzar ningún error — el
+      // usuario no ve nada y el código tampoco caía nunca al respaldo. El
+      // límite de tiempo es generoso (nadie elige una app en menos de 45
+      // segundos), así que nunca interrumpe a alguien que sí está eligiendo
+      // — solo rescata el caso donde el panel nunca llegó a aparecer.
+      await conTiempoLimite(
+        navigator.share({ files:[archivo], title:tituloCompartir, text:mensaje }),
+        45000,
+        'El panel de compartir no respondió.'
+      );
       registrarLog('Enviar WhatsApp', tipoLog, `${detalleLog} (compartido directo desde el celular)`);
       return;
-    }catch(err){ /* el usuario cerró el panel de compartir sin elegir nada — seguimos con el respaldo */ }
+    }catch(err){ /* el usuario cerró el panel sin elegir nada, o nunca llegó a abrirse — seguimos con el respaldo */ }
   }
 
   // 3) Respaldo universal: se descarga el documento y se muestra un botón
