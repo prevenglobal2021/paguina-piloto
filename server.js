@@ -518,6 +518,31 @@ app.patch('/api/superadmin/empresas/:slug/activa', requireSuperAdmin, async (req
   res.json({ ok: true, slug, activa });
 });
 
+// Elimina una empresa PARA SIEMPRE — todos sus clientes, órdenes, facturas,
+// inventario, todo. La confirmación fuerte (escribir el código exacto de la
+// empresa) ya se pidió en el panel; aquí solo se ejecuta. También se borran
+// sus respaldos automáticos por hora, para no dejar registros huérfanos.
+app.delete('/api/superadmin/empresas/:slug', requireSuperAdmin, async (req, res) => {
+  const slug = req.params.slug.toLowerCase();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM respaldos_estado WHERE empresa_slug = $1', [slug]);
+    const r = await client.query('DELETE FROM empresas WHERE slug = $1 RETURNING slug', [slug]);
+    if (!r.rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Empresa no encontrada.' });
+    }
+    await client.query('COMMIT');
+    res.json({ ok: true, slug });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: 'No se pudo eliminar la empresa: ' + err.message });
+  } finally {
+    client.release();
+  }
+});
+
 /* ---------------------------------------------------------
    API — Personalización global de la pantalla de login única
    (compartida por todas las empresas y por el superadmin, ya que se
@@ -542,23 +567,40 @@ app.get('/api/login-config', limitePublico, async (req, res) => {
   });
 });
 
+// Para poder EDITAR (reemplazar) o ELIMINAR cada imagen de forma
+// independiente, sin afectar las demás en el mismo guardado, se usa una
+// palabra especial ('__QUITAR__') para decir "borra esta imagen en
+// concreto" — a diferencia de no enviar nada (lo que significa "no
+// toques esta imagen, déjala como está").
 app.patch('/api/superadmin/login-config', requireSuperAdmin, async (req, res) => {
   const { logo, color1, color2, imagenFondo, nombrePlataforma, tituloIzquierda, subtituloIzquierda, bannerLateral, bannerLateralIcono } = req.body || {};
+  const quitarLogo = logo === '__QUITAR__';
+  const quitarImagenFondo = imagenFondo === '__QUITAR__';
+  const quitarBannerLateral = bannerLateral === '__QUITAR__';
+  const quitarBannerIcono = bannerLateralIcono === '__QUITAR__';
   await pool.query(
     `INSERT INTO configuracion_login (id, logo, color1, color2, imagen_fondo, nombre_plataforma, titulo_izquierda, subtitulo_izquierda, banner_lateral, banner_lateral_icono, actualizado_en)
      VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, now())
      ON CONFLICT (id) DO UPDATE SET
-       logo = COALESCE($1, configuracion_login.logo),
+       logo = CASE WHEN $10 THEN NULL ELSE COALESCE($1, configuracion_login.logo) END,
        color1 = COALESCE($2, configuracion_login.color1),
        color2 = COALESCE($3, configuracion_login.color2),
-       imagen_fondo = COALESCE($4, configuracion_login.imagen_fondo),
+       imagen_fondo = CASE WHEN $11 THEN NULL ELSE COALESCE($4, configuracion_login.imagen_fondo) END,
        nombre_plataforma = COALESCE($5, configuracion_login.nombre_plataforma),
        titulo_izquierda = COALESCE($6, configuracion_login.titulo_izquierda),
        subtitulo_izquierda = COALESCE($7, configuracion_login.subtitulo_izquierda),
-       banner_lateral = COALESCE($8, configuracion_login.banner_lateral),
-       banner_lateral_icono = COALESCE($9, configuracion_login.banner_lateral_icono),
+       banner_lateral = CASE WHEN $12 THEN NULL ELSE COALESCE($8, configuracion_login.banner_lateral) END,
+       banner_lateral_icono = CASE WHEN $13 THEN NULL ELSE COALESCE($9, configuracion_login.banner_lateral_icono) END,
        actualizado_en = now()`,
-    [logo || null, color1 || null, color2 || null, imagenFondo || null, nombrePlataforma || null, tituloIzquierda || null, subtituloIzquierda || null, bannerLateral || null, bannerLateralIcono || null]
+    [
+      (quitarLogo || logo === '__QUITAR__') ? null : (logo || null),
+      color1 || null, color2 || null,
+      quitarImagenFondo ? null : (imagenFondo || null),
+      nombrePlataforma || null, tituloIzquierda || null, subtituloIzquierda || null,
+      quitarBannerLateral ? null : (bannerLateral || null),
+      quitarBannerIcono ? null : (bannerLateralIcono || null),
+      quitarLogo, quitarImagenFondo, quitarBannerLateral, quitarBannerIcono
+    ]
   );
   res.json({ ok: true });
 });
@@ -856,11 +898,19 @@ function obtenerTransportadorCorreo() {
   return transportadorCorreo;
 }
 
-async function enviarCorreoReset(slug, tipo, tecnicoId, email, nombreEmpresa) {
+async function enviarCorreoReset(slug, tipo, tecnicoId, email, nombreEmpresa, baseUrlRespaldo) {
   const token = crypto.randomBytes(32).toString('hex');
   tokensReset.set(token, { slug, tipo, tecnicoId, exp: Date.now() + 60 * 60 * 1000, usado: false });
   const transportador = obtenerTransportadorCorreo();
-  const enlace = `${process.env.APP_URL || ''}/?resetToken=${token}`;
+  // Si la variable de entorno APP_URL no está configurada en Railway, el
+  // enlace quedaba armado como "/?resetToken=..." (sin dominio) — al
+  // abrirlo desde el correo, sin ninguna página "actual" de referencia,
+  // terminaba en una URL rota como "http:///?resetToken=...". Como
+  // respaldo automático, se usa el dominio real desde el que llegó esta
+  // solicitud (baseUrlRespaldo), para que el enlace nunca quede roto
+  // aunque se le olvide configurar esa variable.
+  const base = process.env.APP_URL || baseUrlRespaldo || '';
+  const enlace = `${base}/?resetToken=${token}`;
   if (!transportador) {
     console.log(`[reset] Gmail no configurado todavía. Enlace de prueba para ${email}: ${enlace}`);
     return;
@@ -883,6 +933,7 @@ app.post('/api/auth/solicitar-reset', limiteLogin, async (req, res) => {
   const correo = ((req.body || {}).email || '').trim().toLowerCase();
   const respuesta = { ok: true, mensaje: 'Si ese correo está registrado, te enviamos un enlace para restablecer tu contraseña.' };
   if (!correo) return res.json(respuesta);
+  const baseUrlRespaldo = `${req.protocol}://${req.get('host')}`;
   try {
     const rActivas = await pool.query('SELECT slug FROM empresas WHERE activa = true');
     for (const fila of rActivas.rows) {
@@ -890,12 +941,12 @@ app.post('/api/auth/solicitar-reset', limiteLogin, async (req, res) => {
       const data = await leerEstadoEmpresa(emp.slug);
       if (!data) continue;
       if (data.config.adminUsuario && data.config.adminUsuario.trim().toLowerCase() === correo) {
-        await enviarCorreoReset(emp.slug, 'admin', null, correo, data.config.nombre);
+        await enviarCorreoReset(emp.slug, 'admin', null, correo, data.config.nombre, baseUrlRespaldo);
         return res.json(respuesta);
       }
       const tecnico = (data.tecnicos || []).find(t => t.usuario && t.usuario.trim().toLowerCase() === correo);
       if (tecnico) {
-        await enviarCorreoReset(emp.slug, 'tecnico', tecnico.id, correo, data.config.nombre);
+        await enviarCorreoReset(emp.slug, 'tecnico', tecnico.id, correo, data.config.nombre, baseUrlRespaldo);
         return res.json(respuesta);
       }
     }
