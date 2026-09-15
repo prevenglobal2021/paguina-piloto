@@ -70,58 +70,41 @@ function renderizarAuditoria(){
     <tr><td>${new Date(l.timestamp).toLocaleString('es-CO')}</td><td>${l.usuario}</td><td>${l.accion}</td><td>${l.entidad}</td><td>${l.detalle||''}</td></tr>
   `).join('') || '<tr><td colspan="5" class="empty-state">Sin actividad registrada todavía.</td></tr>';
 }
-function enviarPorWhatsApp(ordenId){
+// Envoltorio delgado: arma los datos propios de una Orden de Servicio y
+// se los entrega al motor único de envío por WhatsApp (compartirDocumentoPorWhatsApp,
+// en pdf.js) — ahí vive toda la lógica de compartir/descargar/reintentar,
+// igual para Orden, Cotización, Factura y Nómina.
+async function enviarPorWhatsApp(ordenId){
   const o = db.ordenes.find(x=>x.id===ordenId);
+  if(!o) return;
   if(o.esClienteNuevo){ mostrarToast('Esta orden es de un cliente nuevo (no registrado), sin teléfono guardado — usa "Ver Documento" para descargar el informe y enviarlo tú mismo.'); return; }
   const cliente = buscarCliente(o.clienteId);
-  if(!cliente || !cliente.telefono){ mostrarToast('Este cliente no tiene teléfono registrado.'); return; }
-  const telefonoLimpio = cliente.telefono.replace(/[^0-9]/g,'');
-  let mensaje = db.config.plantillaWhatsApp
-    .replace(/{nombre_cliente}/g, cliente.nombre)
+  const mensaje = (db.config.plantillaWhatsApp || '')
+    .replace(/{nombre_cliente}/g, cliente ? cliente.nombre : '')
     .replace(/{numero_orden}/g, o.numero);
-  const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
+  const nombreArchivo = `Informe_${o.numero}_${cliente ? cliente.nombre : ''}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
 
-  const puedeCompartirArchivosNativo = !!(navigator.share && navigator.canShare);
-  let ventanaWhatsApp = null;
-  if(!puedeCompartirArchivosNativo){
-    ventanaWhatsApp = window.open(enlaceWhatsApp, '_blank');
-    if(!ventanaWhatsApp){
-      mostrarToast('⚠️ El navegador bloqueó la ventana de WhatsApp. Busca el ícono de "ventana emergente bloqueada" en la barra de direcciones, permítela para este sitio, e intenta de nuevo.', 'error');
-      return;
+  await compartirDocumentoPorWhatsApp({
+    telefono: cliente ? cliente.telefono : null,
+    mensaje,
+    nombreArchivo,
+    tituloCompartir: `Informe ${o.numero}`,
+    tipoLog: 'OrdenServicio',
+    detalleLog: `${o.numero} a ${cliente ? cliente.nombre : 'cliente'}`,
+    mensajeSinTelefono: 'Este cliente no tiene teléfono registrado.',
+    generarBlob: async () => {
+      verPDF(ordenId);
+      const elemento = document.getElementById('pdfContenido');
+      await esperarImagenesCargadas(elemento); // evita fotos en blanco en el PDF por no esperar a que carguen
+      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
+      const blob = await conTiempoLimite(
+        html2pdf().set(opciones).from(elemento).outputPdf('blob'),
+        25000,
+        'La generación del informe está tardando demasiado (puede deberse a muchas fotos de alta resolución). Vuelve a intentarlo, o usa "Ver Documento" para generarlo manualmente.'
+      );
+      cerrarModal('modalPDF');
+      return blob;
     }
-  }
-
-  verPDF(ordenId);
-  const nombreArchivo = `Informe_${o.numero}_${cliente.nombre}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
-  const elemento = document.getElementById('pdfContenido');
-  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
-
-  if(typeof html2pdf === 'undefined'){
-    if(puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
-    registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (sin informe adjunto automático — sin conexión)`);
-    return;
-  }
-  html2pdf().set(opciones).from(elemento).outputPdf('blob').then(blob=>{
-    cerrarModal('modalPDF');
-    const archivoPdf = new File([blob], nombreArchivo, { type:'application/pdf' });
-
-    if(puedeCompartirArchivosNativo && navigator.canShare({ files:[archivoPdf] })){
-      navigator.share({ files:[archivoPdf], title:`Informe ${o.numero}`, text: mensaje }).then(()=>{
-        registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (informe compartido directo desde el celular)`);
-      }).catch(()=>{ });
-      return;
-    }
-
-    const url = URL.createObjectURL(blob);
-    const enlaceDescarga = document.createElement('a');
-    enlaceDescarga.href = url; enlaceDescarga.download = nombreArchivo; enlaceDescarga.click();
-    URL.revokeObjectURL(url);
-    mostrarToast(`Se descargó el informe "${nombreArchivo}". WhatsApp ya está abierto con el mensaje listo: adjunta ese archivo en el chat (📎 → Documento) antes de enviarlo.`);
-    registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (con informe PDF descargado para adjuntar)`);
-  }).catch(()=>{
-    if(!ventanaWhatsApp && !puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
-    mostrarToast('No se pudo generar el PDF automáticamente. WhatsApp está abierto; genera el informe desde "Ver Documento" y adjúntalo manualmente.');
-    registrarLog('Enviar WhatsApp', 'OrdenServicio', `${o.numero} a ${cliente.nombre} (sin informe adjunto automático)`);
   });
 }
 

@@ -9,10 +9,10 @@ let ordenPdfActualId = null;
 // función correcta en cada caso.
 let pdfDocumentoActualTipo = 'orden'; // 'orden' | 'cotizacion' | 'factura'
 let pdfDocumentoActualId = null;
-function enviarDocumentoActualPorWhatsApp(){
-  if(pdfDocumentoActualTipo === 'cotizacion') enviarPorWhatsAppCotizacion(pdfDocumentoActualId);
-  else if(pdfDocumentoActualTipo === 'factura') enviarPorWhatsAppFactura(pdfDocumentoActualId);
-  else enviarPorWhatsApp(pdfDocumentoActualId);
+async function enviarDocumentoActualPorWhatsApp(){
+  if(pdfDocumentoActualTipo === 'cotizacion') return enviarPorWhatsAppCotizacion(pdfDocumentoActualId);
+  else if(pdfDocumentoActualTipo === 'factura') return enviarPorWhatsAppFactura(pdfDocumentoActualId);
+  else return enviarPorWhatsApp(pdfDocumentoActualId);
 }
 
 // Arma las fotos en FILAS explícitas de a 4 (cada fila es su propio <div>).

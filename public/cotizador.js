@@ -365,58 +365,101 @@ function verComprobanteNomina(id){
     </div>`;
   abrirModal('modalComprobanteNomina');
 }
-function enviarComprobanteNominaPorWhatsApp(id){
+// Envoltorio delgado, igual criterio que enviarPorWhatsApp (Órdenes) — se
+// apoya en el motor único compartirDocumentoPorWhatsApp (pdf.js) para
+// unificar el comportamiento de los 4 módulos en un solo lugar.
+async function enviarComprobanteNominaPorWhatsApp(id){
   const l = (db.liquidacionesNomina||[]).find(x=>x.id===id);
   if(!l) return;
   const t = buscarTecnico(l.tecnicoId);
-  if(!t || !t.telefono){ mostrarToast('Esta persona no tiene teléfono registrado en su ficha de técnico.'); return; }
-  const telefonoLimpio = t.telefono.replace(/[^0-9]/g,'');
-  const mensaje = `Hola ${t.nombre}, adjuntamos tu comprobante de pago de nómina N.º ${l.numero}, correspondiente al periodo ${l.periodoDesde} a ${l.periodoHasta}. Cualquier duda con gusto la resolvemos.`;
-  const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
+  const mensaje = `Hola ${t ? t.nombre : ''}, adjuntamos tu comprobante de pago de nómina N.º ${l.numero}, correspondiente al periodo ${l.periodoDesde} a ${l.periodoHasta}. Cualquier duda con gusto la resolvemos.`;
+  const nombreArchivo = `Comprobante_${l.numero}_${t ? t.nombre : ''}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
 
-  const puedeCompartirArchivosNativo = !!(navigator.share && navigator.canShare);
-  let ventanaWhatsApp = null;
-  if(!puedeCompartirArchivosNativo){
-    ventanaWhatsApp = window.open(enlaceWhatsApp, '_blank');
-    if(!ventanaWhatsApp){
-      mostrarToast('⚠️ El navegador bloqueó la ventana de WhatsApp. Busca el ícono de "ventana emergente bloqueada" en la barra de direcciones, permítela para este sitio, e intenta de nuevo.', 'error');
-      return;
+  await compartirDocumentoPorWhatsApp({
+    telefono: t ? t.telefono : null,
+    mensaje,
+    nombreArchivo,
+    tituloCompartir: `Comprobante ${l.numero}`,
+    tipoLog: 'Nómina',
+    detalleLog: `${l.numero} a ${t ? t.nombre : 'persona'}`,
+    mensajeSinTelefono: 'Esta persona no tiene teléfono registrado en su ficha de técnico.',
+    generarBlob: async () => {
+      verComprobanteNomina(id);
+      const elemento = document.getElementById('comprobanteNominaContenido');
+      await esperarImagenesCargadas(elemento);
+      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
+      const blob = await conTiempoLimite(
+        html2pdf().set(opciones).from(elemento).outputPdf('blob'),
+        25000,
+        'La generación del comprobante está tardando demasiado. Vuelve a intentarlo, o usa "Ver comprobante" para generarlo manualmente.'
+      );
+      cerrarModal('modalComprobanteNomina');
+      return blob;
     }
-  }
-
-  verComprobanteNomina(id);
-  const nombreArchivo = `Comprobante_${l.numero}_${t.nombre}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
-  const elemento = document.getElementById('comprobanteNominaContenido');
-  const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
-
-  if(typeof html2pdf === 'undefined'){
-    if(puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
-    registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (sin comprobante adjunto automático — sin conexión)`);
-    return;
-  }
-  html2pdf().set(opciones).from(elemento).outputPdf('blob').then(blob=>{
-    cerrarModal('modalComprobanteNomina');
-    const archivoPdf = new File([blob], nombreArchivo, { type:'application/pdf' });
-
-    if(puedeCompartirArchivosNativo && navigator.canShare({ files:[archivoPdf] })){
-      navigator.share({ files:[archivoPdf], title:`Comprobante ${l.numero}`, text: mensaje }).then(()=>{
-        registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (comprobante compartido directo desde el celular)`);
-      }).catch(()=>{ });
-      return;
-    }
-
-    const url = URL.createObjectURL(blob);
-    const enlaceDescarga = document.createElement('a');
-    enlaceDescarga.href = url; enlaceDescarga.download = nombreArchivo; enlaceDescarga.click();
-    URL.revokeObjectURL(url);
-    mostrarToast(`Se descargó el comprobante "${nombreArchivo}". WhatsApp ya está abierto con el mensaje listo: adjunta ese archivo en el chat (📎 → Documento) antes de enviarlo.`);
-    registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (con comprobante PDF descargado para adjuntar)`);
-  }).catch(()=>{
-    if(!ventanaWhatsApp && !puedeCompartirArchivosNativo) window.open(enlaceWhatsApp, '_blank');
-    mostrarToast('No se pudo generar el PDF automáticamente. WhatsApp está abierto; genera el comprobante desde "Ver comprobante" y adjúntalo manualmente.');
-    registrarLog('Enviar WhatsApp', 'Nómina', `${l.numero} a ${t.nombre} (sin comprobante adjunto automático)`);
   });
 }
+// Envoltorios delgados de Cotización y Factura — mismo criterio que Orden
+// y Nómina: solo arman el teléfono/mensaje/nombre de archivo propios, y le
+// entregan todo al motor único compartirDocumentoPorWhatsApp (pdf.js).
+async function enviarPorWhatsAppCotizacion(id){
+  const c = db.cotizaciones.find(x=>x.id===id);
+  if(!c) return;
+  const nombreCliente = c.clienteId ? (buscarCliente(c.clienteId)?.nombre||'') : (c.clienteManual?.nombre||'');
+  const telefono = c.clienteId ? buscarCliente(c.clienteId)?.telefono : c.clienteManual?.telefono;
+  const mensaje = `Hola ${nombreCliente}, adjuntamos la cotización N.º ${c.numero}. Cualquier duda con gusto la resolvemos.`;
+  const nombreArchivo = `Cotizacion_${c.numero}_${nombreCliente}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
+
+  await compartirDocumentoPorWhatsApp({
+    telefono, mensaje, nombreArchivo,
+    tituloCompartir: `Cotización ${c.numero}`,
+    tipoLog: 'Cotizacion',
+    detalleLog: `${c.numero} a ${nombreCliente}`,
+    mensajeSinTelefono: 'Este cliente no tiene teléfono registrado — usa "Ver" para descargar la cotización y enviarla tú mismo.',
+    generarBlob: async () => {
+      verPDFCotizacion(id);
+      const elemento = document.getElementById('pdfContenido');
+      await esperarImagenesCargadas(elemento);
+      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
+      const blob = await conTiempoLimite(
+        html2pdf().set(opciones).from(elemento).outputPdf('blob'),
+        25000,
+        'La generación de la cotización está tardando demasiado. Vuelve a intentarlo, o usa "Ver" para generarla manualmente.'
+      );
+      cerrarModal('modalPDF');
+      return blob;
+    }
+  });
+}
+async function enviarPorWhatsAppFactura(id){
+  const f = db.facturas.find(x=>x.id===id);
+  if(!f) return;
+  const nombreCliente = f.clienteId ? (buscarCliente(f.clienteId)?.nombre||'') : (f.clienteManual?.nombre||'');
+  const telefono = f.clienteId ? buscarCliente(f.clienteId)?.telefono : f.clienteManual?.telefono;
+  const mensaje = `Hola ${nombreCliente}, adjuntamos la factura N.º ${f.numero}. Cualquier duda con gusto la resolvemos.`;
+  const nombreArchivo = `Factura_${f.numero}_${nombreCliente}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
+
+  await compartirDocumentoPorWhatsApp({
+    telefono, mensaje, nombreArchivo,
+    tituloCompartir: `Factura ${f.numero}`,
+    tipoLog: 'Factura',
+    detalleLog: `${f.numero} a ${nombreCliente}`,
+    mensajeSinTelefono: 'Este cliente no tiene teléfono registrado — usa "Ver" para descargar la factura y enviarla tú mismo.',
+    generarBlob: async () => {
+      verPDFFactura(id);
+      const elemento = document.getElementById('pdfContenido');
+      await esperarImagenesCargadas(elemento);
+      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
+      const blob = await conTiempoLimite(
+        html2pdf().set(opciones).from(elemento).outputPdf('blob'),
+        25000,
+        'La generación de la factura está tardando demasiado. Vuelve a intentarlo, o usa "Ver" para generarla manualmente.'
+      );
+      cerrarModal('modalPDF');
+      return blob;
+    }
+  });
+}
+
 function toggleIngresoClienteEsporadico(){
   const esEsporadico = document.getElementById('ingresoClienteEsporadico').checked;
   document.getElementById('wrapperIngresoClienteExistente').style.display = esEsporadico ? 'none' : 'block';
@@ -1653,7 +1696,7 @@ function renderizarCotizacionesFacturas(){
         <td><select onchange="cambiarEstadoCotizacion(${c.id}, this.value)" style="background:${col.fondo};color:${col.texto};border:none;font-weight:700;font-size:11px;border-radius:8px;padding:3px 6px;">${opcionesEstado}</select></td>
         <td style="white-space:nowrap;">
           <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verPDFCotizacion(${c.id})" title="Ver / Imprimir"><i class="fas fa-file-invoice"></i></button>
-          <button class="btn-custom btn-success-custom btn-sm-custom" onclick="enviarPorWhatsAppCotizacion(${c.id})" title="Enviar por WhatsApp"><i class="fab fa-whatsapp"></i></button>
+          <button class="btn-custom btn-success-custom btn-sm-custom" onclick="conIndicadorCarga(this, ()=>enviarPorWhatsAppCotizacion(${c.id}), 'Generando...')" title="Enviar por WhatsApp"><i class="fab fa-whatsapp"></i></button>
           <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalCotizacion(${c.id})" title="Editar"><i class="fas fa-pen"></i></button>
           ${c.estado==='Aprobada' && !c.facturaId ? `<button class="btn-custom btn-sm-custom" onclick="convertirCotizacionAFactura(${c.id})">→ Factura</button>` : ''}
           ${c.facturaId ? `<span style="font-size:10px;color:var(--text-muted);">→ ${db.facturas.find(f=>f.id===c.facturaId)?.numero||''}</span>` : ''}
@@ -1677,7 +1720,7 @@ function renderizarCotizacionesFacturas(){
         <td style="white-space:nowrap;">
           <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verPDFFactura(${f.id})" title="Ver / Imprimir"><i class="fas fa-file-invoice"></i></button>
           <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalFactura(${f.id})" title="Editar"><i class="fas fa-pen"></i></button>
-          <button class="btn-custom btn-success-custom btn-sm-custom" onclick="enviarPorWhatsAppFactura(${f.id})" title="Enviar por WhatsApp"><i class="fab fa-whatsapp"></i></button>
+          <button class="btn-custom btn-success-custom btn-sm-custom" onclick="conIndicadorCarga(this, ()=>enviarPorWhatsAppFactura(${f.id}), 'Generando...')" title="Enviar por WhatsApp"><i class="fab fa-whatsapp"></i></button>
           <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalEstadoPagoFactura(${f.id})" title="Cambiar estado de pago"><i class="fas fa-hand-holding-dollar"></i> Estado de pago</button>
           <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarFactura(${f.id})" title="Eliminar"><i class="fas fa-trash"></i></button>
         </td>
