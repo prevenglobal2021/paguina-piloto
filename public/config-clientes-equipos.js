@@ -345,6 +345,96 @@ function manejarFotoEquipoModal(event){
   files.forEach(file=>{ comprimirImagen(file).then(dataUrl=>{ fotosEquipoModalTemp.push({ src:dataUrl, desc:'' }); renderizarFotosEquipoModalPreview(); }); });
   event.target.value = '';
 }
+
+/* =========================================================
+   TOMAR FOTO EN VIVO (equipos) — misma cámara del navegador que el
+   escáner QR, pero para capturar una foto fija en vez de leer un
+   código. Al confirmar, la foto pasa por comprimirImagen() y se agrega
+   a fotosEquipoModalTemp EXACTAMENTE igual que una foto subida por
+   archivo — mismo formato, mismo almacenamiento, misma vista previa.
+========================================================= */
+let camaraFotoEquipoStream = null;
+let camaraFotoEquipoBlobCapturado = null;
+
+async function abrirCamaraFotoEquipo(){
+  const estado = document.getElementById('camaraFotoEquipoEstado');
+  if(estado) estado.innerText = 'Encuadra el equipo y toma la foto…';
+  volverAVistaEnVivoCamaraEquipo();
+  abrirModal('modalCamaraFotoEquipo');
+  camaraFotoEquipoStream = null;
+  const video = document.getElementById('camaraFotoEquipoVideo');
+  try{
+    camaraFotoEquipoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    video.srcObject = camaraFotoEquipoStream;
+    await video.play();
+  }catch(err){
+    if(estado) estado.innerText = 'No se pudo acceder a la cámara. Revisa los permisos del navegador.';
+    mostrarToast('⚠️ No se pudo acceder a la cámara: ' + err.message, 'error');
+  }
+}
+
+function capturarFotoEquipo(){
+  const video = document.getElementById('camaraFotoEquipoVideo');
+  const canvas = document.getElementById('camaraFotoEquipoCanvasOculto');
+  if(!video || !video.videoWidth){ mostrarToast('La cámara todavía no está lista — espera un segundo e intenta de nuevo.'); return; }
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  canvas.toBlob(blob=>{
+    camaraFotoEquipoBlobCapturado = blob;
+    const preview = document.getElementById('camaraFotoEquipoPreview');
+    preview.src = URL.createObjectURL(blob);
+    preview.style.display = 'block';
+    video.style.display = 'none';
+    document.getElementById('camaraFotoEquipoEstado').innerText = '¿Quedó bien? Puedes usarla o repetir la toma.';
+    document.getElementById('btnCapturarFotoEquipo').style.display = 'none';
+    document.getElementById('btnRepetirFotoEquipo').style.display = 'block';
+    document.getElementById('btnUsarFotoEquipo').style.display = 'block';
+  }, 'image/jpeg', 0.92);
+}
+
+function repetirFotoEquipo(){
+  camaraFotoEquipoBlobCapturado = null;
+  volverAVistaEnVivoCamaraEquipo();
+}
+
+function volverAVistaEnVivoCamaraEquipo(){
+  const preview = document.getElementById('camaraFotoEquipoPreview');
+  const video = document.getElementById('camaraFotoEquipoVideo');
+  if(preview){ preview.style.display = 'none'; if(preview.src) URL.revokeObjectURL(preview.src); preview.removeAttribute('src'); }
+  if(video) video.style.display = 'block';
+  const estado = document.getElementById('camaraFotoEquipoEstado');
+  if(estado) estado.innerText = 'Encuadra el equipo y toma la foto…';
+  const btnCapturar = document.getElementById('btnCapturarFotoEquipo');
+  const btnRepetir = document.getElementById('btnRepetirFotoEquipo');
+  const btnUsar = document.getElementById('btnUsarFotoEquipo');
+  if(btnCapturar) btnCapturar.style.display = 'block';
+  if(btnRepetir) btnRepetir.style.display = 'none';
+  if(btnUsar) btnUsar.style.display = 'none';
+}
+
+async function usarFotoCapturadaEquipo(){
+  if(!camaraFotoEquipoBlobCapturado){ mostrarToast('No hay ninguna foto capturada todavía.'); return; }
+  try{
+    // Mismo comprimirImagen() que usan las fotos subidas por archivo —
+    // así la foto en vivo queda guardada en el mismo formato exacto.
+    const dataUrl = await comprimirImagen(camaraFotoEquipoBlobCapturado);
+    fotosEquipoModalTemp.push({ src: dataUrl, desc: '' });
+    renderizarFotosEquipoModalPreview();
+    mostrarToast('📷 Foto agregada.', 'exito');
+    cerrarCamaraFotoEquipo();
+  }catch(err){
+    mostrarToast('No se pudo procesar la foto capturada. Intenta de nuevo.', 'error');
+  }
+}
+
+function cerrarCamaraFotoEquipo(){
+  if(camaraFotoEquipoStream){ camaraFotoEquipoStream.getTracks().forEach(t=>t.stop()); camaraFotoEquipoStream = null; }
+  camaraFotoEquipoBlobCapturado = null;
+  volverAVistaEnVivoCamaraEquipo();
+  cerrarModal('modalCamaraFotoEquipo');
+}
+
 function renderizarFotosEquipoModalPreview(){
   renderizarGaleriaFotos('previewFotosEquipoModal', fotosEquipoModalTemp, 'equipoModal');
 }
