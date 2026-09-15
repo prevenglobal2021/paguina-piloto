@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prevenglobal — Panel General</title>
+<style>
+  :root {
+    --azul: #0b5fa5;
+    --azul-osc: #073f6e;
+    --verde: #16a34a;
+    --gris-fondo: #f1f5f9;
+    --gris-borde: #e2e8f0;
+    --gris-texto: #475569;
+    --rojo: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--gris-fondo); color: #1e293b;
+  }
+  .pantalla { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .tarjeta {
+    background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(11,95,165,0.12);
+    width: 100%; max-width: 380px; padding: 36px 32px;
+  }
+  .tarjeta h1 { font-size: 20px; margin: 0 0 4px; color: var(--azul-osc); }
+  .tarjeta p.sub { color: var(--gris-texto); font-size: 14px; margin: 0 0 24px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--gris-texto); margin: 14px 0 6px; }
+  input {
+    width: 100%; padding: 11px 12px; border: 1.5px solid var(--gris-borde); border-radius: 8px;
+    font-size: 14px; outline: none; transition: border-color .15s;
+  }
+  input:focus { border-color: var(--azul); }
+  button.principal {
+    width: 100%; margin-top: 22px; padding: 12px; border: none; border-radius: 8px;
+    background: linear-gradient(135deg, var(--azul), var(--verde)); color: #fff;
+    font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+  }
+  button.principal:disabled { opacity: .6; cursor: not-allowed; }
+  button.secundario {
+    background: none; border: 1.5px solid var(--gris-borde); color: var(--gris-texto);
+    padding: 10px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
+  }
+  .error {
+    background: #fef2f2; color: var(--rojo); border: 1px solid #fecaca; border-radius: 8px;
+    padding: 10px 12px; font-size: 13px; margin-top: 16px; display: none;
+  }
+  .aviso {
+    background: #eff6ff; color: var(--azul-osc); border: 1px solid #bfdbfe; border-radius: 8px;
+    padding: 10px 12px; font-size: 13px; margin-bottom: 16px;
+  }
+
+  /* --- Panel principal --- */
+  .oculto { display: none !important; }
+  header.panel {
+    background: #fff; border-bottom: 1px solid var(--gris-borde); padding: 14px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  header.panel .titulo { font-weight: 700; color: var(--azul-osc); font-size: 16px; }
+  header.panel .titulo span { color: var(--gris-texto); font-weight: 400; font-size: 13px; margin-left: 10px; }
+  main.panel { max-width: 1000px; margin: 0 auto; padding: 28px; }
+  .layout-sa { display: flex; gap: 24px; max-width: 1200px; margin: 0 auto; padding: 28px; align-items: flex-start; }
+  .sidebar-sa { width: 200px; flex-shrink: 0; background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); padding: 10px; position: sticky; top: 28px; }
+  .sidebar-sa a { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 8px; color: var(--gris-texto); text-decoration: none; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 2px; }
+  .sidebar-sa a:hover { background: var(--gris-fondo); }
+  .sidebar-sa a.activo { background: #eff6ff; color: var(--azul-osc); }
+  .contenido-sa { flex: 1; min-width: 0; }
+  .panel-sa { display: none; }
+  .panel-sa.activo { display: block; }
+  /* ---- Tarjetas de empresas (sección Empresa) ---- */
+  .grid-empresas { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .tarjeta-empresa { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #f1f5f9; transition: box-shadow .15s ease, transform .15s ease; }
+  .tarjeta-empresa:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.09); transform: translateY(-1px); }
+  .tarjeta-empresa-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
+  .tarjeta-empresa-nombre { font-size: 16px; font-weight: 700; color: #1e293b; margin: 0 0 4px; word-break: break-word; }
+  .tarjeta-empresa-slug { font-size: 11px; color: #94a3b8; font-family: monospace; background: #f8fafc; padding: 2px 7px; border-radius: 5px; }
+  .pill-estado { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+  .pill-estado.activa { background: #dcfce7; color: #166534; }
+  .pill-estado.inactiva { background: #f1f5f9; color: #64748b; }
+  .tarjeta-empresa-fecha { font-size: 12px; color: #94a3b8; margin: 6px 0 14px; }
+  .tarjeta-empresa-acciones { display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 12px; }
+  .tarjeta-empresa-acciones .btn-mini { flex: 1; min-width: 0; text-align: center; }
+  .buscador-empresas { position: relative; margin-bottom: 18px; }
+  .buscador-empresas input { padding-left: 36px; }
+  .buscador-empresas span { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px; }
+  .resumen-empresas { font-size: 13px; color: #64748b; margin-bottom: 14px; }
+  .barra-superior { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .barra-superior h2 { margin: 0; font-size: 18px; color: #1e293b; }
+  table.empresas { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  table.empresas th, table.empresas td { text-align: left; padding: 12px 16px; font-size: 14px; border-bottom: 1px solid var(--gris-borde); }
+  table.empresas th { background: var(--gris-fondo); color: var(--gris-texto); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  table.empresas tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .badge.activa { background: #dcfce7; color: #15803d; }
+  .badge.inactiva { background: #fee2e2; color: #b91c1c; }
+  .btn-mini { border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; margin-right: 6px; }
+  .btn-mini.desactivar { background: #fee2e2; color: #b91c1c; }
+  .btn-mini.activar { background: #dcfce7; color: #15803d; }
+  .btn-mini.editar { background: #dbeafe; color: #1d4ed8; }
+  .nota-campo { font-size: 11px; color: var(--gris-texto); margin-top: 4px; }
+
+  /* --- Modal nueva empresa --- */
+  .fondo-modal {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.45);
+    display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50;
+  }
+  .modal { background: #fff; border-radius: 14px; padding: 28px; width: 100%; max-width: 420px; }
+  .modal h3 { margin: 0 0 18px; color: var(--azul-osc); }
+  .fila-modal { display: flex; gap: 10px; margin-top: 20px; }
+  .fila-modal button { flex: 1; }
+</style>
+</head>
+<body>
+
+<!-- ============ PANTALLA 2: CAMBIO DE CONTRASEÑA OBLIGATORIO ============ -->
+<div id="pantallaCambio" class="pantalla oculto">
+  <div class="tarjeta">
+    <h1>Crea tu contraseña</h1>
+    <p class="sub">Por seguridad, debes reemplazar la contraseña temporal antes de continuar.</p>
+    <div class="aviso">Mínimo 8 caracteres. Elige algo que no uses en ninguna otra parte.</div>
+    <form id="formCambio">
+      <label for="inputNuevaPassword">Nueva contraseña</label>
+      <input type="password" id="inputNuevaPassword" minlength="8" required>
+      <label for="inputConfirmarPassword">Confirmar contraseña</label>
+      <input type="password" id="inputConfirmarPassword" minlength="8" required>
+      <div class="error" id="errorCambio"></div>
+      <button type="submit" class="principal" id="btnCambio">Guardar y continuar</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============ PANTALLA 3: PANEL DE EMPRESAS ============ -->
+<div id="pantallaPanel" class="oculto">
+  <header class="panel">
+    <div class="titulo">Prevenglobal <span>Panel General</span></div>
+    <button class="secundario" id="btnSalir">Cerrar sesión</button>
+  </header>
+  <div class="layout-sa">
+    <aside class="sidebar-sa">
+      <a data-secsa="empresa" class="activo" onclick="mostrarSeccionSA('empresa')">🏢 Empresa</a>
+      <a data-secsa="perfil" onclick="mostrarSeccionSA('perfil')">👤 Perfil</a>
+      <a data-secsa="apariencia" onclick="mostrarSeccionSA('apariencia')">🎨 Apariencia</a>
+      <a data-secsa="basedatos" onclick="mostrarSeccionSA('basedatos')">💾 Base de Datos</a>
+    </aside>
+    <main class="contenido-sa">
+
+    <!-- ===== SECCIÓN: EMPRESA ===== -->
+    <div id="secSA-empresa" class="panel-sa activo">
+      <div class="barra-superior">
+        <h2>Empresas</h2>
+        <button class="principal" style="width:auto; margin:0; padding:10px 18px;" id="btnNuevaEmpresa">+ Nueva empresa</button>
+      </div>
+      <div class="error" id="errorPanel"></div>
+      <div class="buscador-empresas">
+        <span>🔍</span>
+        <input type="text" id="buscadorEmpresas" placeholder="Buscar por nombre o código…" oninput="filtrarTarjetasEmpresas()">
+      </div>
+      <p class="resumen-empresas" id="resumenEmpresas"></p>
+      <div class="grid-empresas" id="filasEmpresas">
+        <p style="text-align:center; color:#94a3b8; padding:24px; grid-column:1/-1;">Cargando…</p>
+      </div>
+    </div>
+
+    <!-- ===== SECCIÓN: PERFIL ===== -->
+    <div id="secSA-perfil" class="panel-sa">
+      <div class="barra-superior">
+        <h2>Mi cuenta (SuperAdmin)</h2>
+      </div>
+      <div class="error" id="errorMiCuenta"></div>
+      <form id="formMiCuenta" style="background:#fff; border-radius:12px; padding:24px; box-shadow:0 1px 3px rgba(0,0,0,0.06); max-width:480px;">
+        <label for="miCuentaCorreoNuevo">Correo nuevo (déjalo vacío para no cambiarlo)</label>
+        <input type="email" id="miCuentaCorreoNuevo" placeholder="nuevo-correo@ejemplo.com">
+        <label for="miCuentaPasswordNueva">Contraseña nueva (déjala vacía para no cambiarla)</label>
+        <input type="password" id="miCuentaPasswordNueva" placeholder="Mínimo 8 caracteres">
+        <label for="miCuentaPasswordActual">Tu contraseña actual (siempre obligatoria, para confirmar)</label>
+        <input type="password" id="miCuentaPasswordActual" placeholder="Contraseña actual" required>
+        <div class="fila-modal" style="margin-top:16px;">
+          <button type="submit" class="principal" style="margin:0;" id="btnGuardarMiCuenta">Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ===== SECCIÓN: APARIENCIA ===== -->
+    <div id="secSA-apariencia" class="panel-sa">
+      <div class="barra-superior">
+        <h2>Personalizar página de login</h2>
+      </div>
+      <p class="nota-campo" style="margin-bottom:16px;">Esta es la ÚNICA pantalla de acceso — la ven todos los usuarios de todas las empresas (y tú mismo) antes de identificarse. Los cambios aplican para todos de inmediato.</p>
+      <div class="error" id="errorLoginCfg"></div>
+      <form id="formLoginCfg" style="background:#fff; border-radius:12px; padding:24px; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+        <div style="display:flex; gap:24px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:220px;">
+            <label for="loginCfgLogoInput">Logo</label>
+            <input type="file" id="loginCfgLogoInput" accept="image/*">
+            <div class="nota-campo">Se muestra en círculo, arriba del formulario.</div>
+            <div style="display:flex; align-items:center; gap:10px; margin-top:8px;">
+              <img id="loginCfgLogoPreview" style="display:none; max-width:80px; max-height:80px; border-radius:50%; border:1px solid var(--gris-borde);">
+              <button type="button" class="secundario" id="btnQuitarLogo" style="display:none; width:auto; padding:6px 12px; font-size:13px;" onclick="quitarImagenLoginCfg('logo')">Quitar</button>
+            </div>
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label for="loginCfgImagenInput">Imagen de fondo (columna izquierda)</label>
+            <input type="file" id="loginCfgImagenInput" accept="image/*">
+            <div class="nota-campo">Recomendado: vertical, 1080 x 1920 px.</div>
+            <div style="display:flex; align-items:center; gap:10px; margin-top:8px;">
+              <img id="loginCfgImagenPreview" style="display:none; max-width:100%; max-height:90px; border-radius:8px;">
+              <button type="button" class="secundario" id="btnQuitarImagenFondo" style="display:none; width:auto; padding:6px 12px; font-size:13px;" onclick="quitarImagenLoginCfg('imagenFondo')">Quitar</button>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; gap:24px; margin-top:16px; flex-wrap:wrap;">
+          <div><label for="loginCfgColor1">Color principal</label><input type="color" id="loginCfgColor1" style="width:70px; padding:2px; height:38px;"></div>
+          <div><label for="loginCfgColor2">Color secundario</label><input type="color" id="loginCfgColor2" style="width:70px; padding:2px; height:38px;"></div>
+        </div>
+        <label for="loginCfgNombrePlataforma">Nombre de la plataforma</label>
+        <input type="text" id="loginCfgNombrePlataforma" placeholder="Ej. Prevenglobal">
+        <label for="loginCfgTituloIzq">Título (columna izquierda)</label>
+        <input type="text" id="loginCfgTituloIzq" placeholder="Ej. Domina el sistema">
+        <label for="loginCfgSubtituloIzq">Descripción corta (columna izquierda)</label>
+        <input type="text" id="loginCfgSubtituloIzq" placeholder="Ej. Controla clientes, equipos, órdenes de servicio e inventario desde un solo lugar.">
+
+        <div style="border-top:1px solid var(--gris-borde); margin:18px 0 14px; padding-top:14px;">
+          <strong>Menú lateral dentro de la app (con sesión ya iniciada)</strong>
+          <p class="nota-campo" style="margin:2px 0 10px;">Se ve en el menú izquierdo de TODAS las empresas, para todos los usuarios.</p>
+        </div>
+        <div style="display:flex; gap:24px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:220px;">
+            <label for="loginCfgBannerLateralInput">Banner del menú lateral</label>
+            <input type="file" id="loginCfgBannerLateralInput" accept="image/*">
+            <div style="display:flex; align-items:center; gap:10px; margin-top:8px;">
+              <img id="loginCfgBannerLateralPreview" style="display:none; max-width:100%; max-height:80px; border-radius:8px; border:1px solid var(--gris-borde);">
+              <button type="button" class="secundario" id="btnQuitarBannerLateral" style="display:none; width:auto; padding:6px 12px; font-size:13px;" onclick="quitarImagenLoginCfg('bannerLateral')">Quitar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="fila-modal" style="margin-top:20px;">
+          <button type="submit" class="principal" style="margin:0;" id="btnGuardarLoginCfg">Guardar personalización</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ===== SECCIÓN: BASE DE DATOS ===== -->
+    <div id="secSA-basedatos" class="panel-sa">
+      <div class="barra-superior">
+        <h2>Respaldos semanales descargables</h2>
+        <button class="principal" style="width:auto; margin:0; padding:10px 18px;" id="btnGenerarRespaldoAhora">Generar respaldo ahora</button>
+      </div>
+      <p class="nota-campo" style="margin-bottom:16px;">Se genera solo, automáticamente, todos los domingos a la medianoche (hora de Colombia). Incluye todas las empresas. Se conservan los últimos 10 (unas 10 semanas) — los más viejos se depuran solos.</p>
+      <div class="error" id="errorRespaldos"></div>
+      <table class="empresas">
+        <thead>
+          <tr><th>Archivo</th><th>Generado</th><th>Tamaño</th><th></th></tr>
+        </thead>
+        <tbody id="filasRespaldos">
+          <tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:24px;">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ============ MODAL: NUEVA EMPRESA ============ -->
+<div id="fondoModal" class="fondo-modal oculto">
+  <div class="modal">
+    <h3>Nueva empresa</h3>
+    <form id="formNuevaEmpresa">
+      <label for="inputNombreEmpresa">Nombre de la empresa</label>
+      <input type="text" id="inputNombreEmpresa" required>
+      <label for="inputSlugEmpresa">Código (se genera solo — puedes ajustarlo si quieres)</label>
+      <input type="text" id="inputSlugEmpresa" pattern="[a-z0-9][a-z0-9-]{1,40}" required placeholder="ej: mi-empresa">
+      <div class="nota-campo">Este código identifica a la empresa por dentro. Se rellena automáticamente a partir del nombre.</div>
+      <label for="inputAdminUsuario">Usuario administrador de esa empresa</label>
+      <input type="text" id="inputAdminUsuario" required>
+      <label for="inputAdminPassword">Contraseña inicial de ese administrador</label>
+      <input type="password" id="inputAdminPassword" required minlength="4">
+      <div class="error" id="errorModal"></div>
+      <div class="fila-modal">
+        <button type="button" class="secundario" id="btnCancelarModal">Cancelar</button>
+        <button type="submit" class="principal" style="margin:0;" id="btnCrearEmpresa">Crear</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL: EDITAR EMPRESA ============ -->
+<div id="fondoModalEditar" class="fondo-modal oculto">
+  <div class="modal">
+    <h3>Editar empresa</h3>
+    <form id="formEditarEmpresa">
+      <input type="hidden" id="editSlugEmpresa">
+      <label for="editNombreEmpresa">Nombre de la empresa</label>
+      <input type="text" id="editNombreEmpresa" required>
+      <label for="editAdminUsuario">Usuario administrador de esa empresa</label>
+      <input type="text" id="editAdminUsuario" required>
+      <label for="editAdminPassword">Nueva contraseña del administrador</label>
+      <input type="password" id="editAdminPassword" minlength="4">
+      <div class="nota-campo">Déjala en blanco para no cambiar la contraseña actual.</div>
+      <div class="error" id="errorModalEditar"></div>
+      <div class="fila-modal">
+        <button type="button" class="secundario" id="btnCancelarModalEditar">Cancelar</button>
+        <button type="submit" class="principal" style="margin:0;" id="btnGuardarEdicionEmpresa">Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  const API = ''; // mismo origen (el backend sirve este archivo)
+  const LS_TOKEN = 'prevenglobal_superadmin_token';
+
+  const pantallaCambio = document.getElementById('pantallaCambio');
+  const pantallaPanel = document.getElementById('pantallaPanel');
+  const fondoModal = document.getElementById('fondoModal');
+  const fondoModalEditar = document.getElementById('fondoModalEditar');
+
+  function mostrarError(elId, mensaje) {
+    const el = document.getElementById(elId);
+    el.textContent = mensaje;
+    el.style.display = 'block';
+  }
+  function ocultarError(elId) {
+    document.getElementById(elId).style.display = 'none';
+  }
+  function irA(pantalla) {
+    [pantallaCambio, pantallaPanel].forEach(p => p.classList.add('oculto'));
+    pantalla.classList.remove('oculto');
+  }
+
+  // --------- BARRA LATERAL: Empresa / Perfil / Apariencia / Base de Datos ---------
+  function mostrarSeccionSA(nombre) {
+    document.querySelectorAll('.panel-sa').forEach(el => el.classList.remove('activo'));
+    document.querySelectorAll('.sidebar-sa a').forEach(a => a.classList.remove('activo'));
+    const seccion = document.getElementById('secSA-' + nombre);
+    const link = document.querySelector(`.sidebar-sa a[data-secsa="${nombre}"]`);
+    if (seccion) seccion.classList.add('activo');
+    if (link) link.classList.add('activo');
+  }
+  window.mostrarSeccionSA = mostrarSeccionSA;
+
+  async function llamar(ruta, opciones = {}) {
+    const token = localStorage.getItem(LS_TOKEN);
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, opciones.headers || {});
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const resp = await fetch(API + ruta, Object.assign({}, opciones, { headers }));
+    let cuerpo = null;
+    try { cuerpo = await resp.json(); } catch (e) { /* respuesta sin cuerpo */ }
+    if (!resp.ok) {
+      const err = new Error((cuerpo && cuerpo.error) || 'Error inesperado. Intenta de nuevo.');
+      err.status = resp.status;
+      throw err;
+    }
+    return cuerpo;
+  }
+
+  // --------- CAMBIO DE CONTRASEÑA OBLIGATORIO ---------
+  document.getElementById('formCambio').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    ocultarError('errorCambio');
+    const nueva = document.getElementById('inputNuevaPassword').value;
+    const confirmar = document.getElementById('inputConfirmarPassword').value;
+    if (nueva !== confirmar) return mostrarError('errorCambio', 'Las dos contraseñas no coinciden.');
+    if (nueva.length < 8) return mostrarError('errorCambio', 'Debe tener al menos 8 caracteres.');
+    const btn = document.getElementById('btnCambio');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+      await llamar('/api/superadmin/cambiar-password', {
+        method: 'POST',
+        body: JSON.stringify({ nuevaPassword: nueva })
+      });
+      await cargarPanel();
+    } catch (err) {
+      mostrarError('errorCambio', err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Guardar y continuar';
+    }
+  });
+
+  // --------- PANEL: LISTAR EMPRESAS ---------
+  function formatoFecha(iso) {
+    try {
+      return new Date(iso).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch (e) { return iso; }
+  }
+
+  let empresasCargadas = [];
+
+  async function cargarPanel() {
+    ocultarError('errorPanel');
+    irA(pantallaPanel);
+    cargarLoginConfig();
+    cargarRespaldosSemanales();
+    const cont = document.getElementById('filasEmpresas');
+    cont.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:24px; grid-column:1/-1;">Cargando…</p>';
+    try {
+      empresasCargadas = await llamar('/api/superadmin/empresas');
+      renderizarTarjetasEmpresas(empresasCargadas);
+    } catch (err) {
+      if (err.status === 401 || err.status === 403) return cerrarSesion();
+      mostrarError('errorPanel', err.message);
+      cont.innerHTML = '';
+    }
+  }
+
+  function renderizarTarjetasEmpresas(lista) {
+    const cont = document.getElementById('filasEmpresas');
+    const resumen = document.getElementById('resumenEmpresas');
+    const activas = empresasCargadas.filter(e => e.activa).length;
+    resumen.textContent = `${empresasCargadas.length} empresa${empresasCargadas.length === 1 ? '' : 's'} en total · ${activas} activa${activas === 1 ? '' : 's'}`;
+    if (!empresasCargadas.length) {
+      cont.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:24px; grid-column:1/-1;">Todavía no hay empresas creadas.</p>';
+      return;
+    }
+    if (!lista.length) {
+      cont.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:24px; grid-column:1/-1;">Sin resultados para esa búsqueda.</p>';
+      return;
+    }
+    cont.innerHTML = lista.map(e => `
+      <div class="tarjeta-empresa" data-slug="${e.slug}">
+        <div class="tarjeta-empresa-top">
+          <div>
+            <p class="tarjeta-empresa-nombre">${e.nombre}</p>
+            <span class="tarjeta-empresa-slug">${e.slug}</span>
+          </div>
+          <span class="pill-estado ${e.activa ? 'activa' : 'inactiva'}">${e.activa ? '● Activa' : '○ Inactiva'}</span>
+        </div>
+        <p class="tarjeta-empresa-fecha">Creada el ${formatoFecha(e.creado_en)}</p>
+        <div class="tarjeta-empresa-acciones">
+          <button class="btn-mini editar" data-accion="editar" data-slug="${e.slug}">✏️ Editar</button>
+          <button class="btn-mini ${e.activa ? 'desactivar' : 'activar'}" data-accion="toggle" data-slug="${e.slug}" data-activa="${e.activa}">
+            ${e.activa ? '⏸ Desactivar' : '▶ Activar'}
+          </button>
+          <button class="btn-mini desactivar" data-accion="eliminar" data-slug="${e.slug}" data-nombre="${e.nombre}">🗑 Eliminar</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Filtro en vivo, sin volver a pedirle nada al servidor — ya tenemos
+  // todas las empresas cargadas en memoria (empresasCargadas).
+  function filtrarTarjetasEmpresas() {
+    const texto = document.getElementById('buscadorEmpresas').value.trim().toLowerCase();
+    if (!texto) { renderizarTarjetasEmpresas(empresasCargadas); return; }
+    const filtradas = empresasCargadas.filter(e =>
+      e.nombre.toLowerCase().includes(texto) || e.slug.toLowerCase().includes(texto)
+    );
+    renderizarTarjetasEmpresas(filtradas);
+  }
+  window.filtrarTarjetasEmpresas = filtrarTarjetasEmpresas;
+
+  document.getElementById('filasEmpresas').addEventListener('click', async (e) => {
+    const btnToggle = e.target.closest('button[data-accion="toggle"]');
+    if (btnToggle) {
+      const slug = btnToggle.dataset.slug;
+      const activaActual = btnToggle.dataset.activa === 'true';
+      const accion = activaActual ? 'desactivar' : 'activar';
+      if (!confirm(`¿Seguro que quieres ${accion} la empresa "${slug}"? ${activaActual ? 'Sus usuarios no podrán iniciar sesión mientras esté desactivada.' : ''}`)) return;
+      btnToggle.disabled = true;
+      try {
+        await llamar(`/api/superadmin/empresas/${encodeURIComponent(slug)}/activa`, {
+          method: 'PATCH',
+          body: JSON.stringify({ activa: !activaActual })
+        });
+        await cargarPanel();
+      } catch (err) {
+        mostrarError('errorPanel', err.message);
+        btnToggle.disabled = false;
+      }
+      return;
+    }
+
+    const btnEliminar = e.target.closest('button[data-accion="eliminar"]');
+    if (btnEliminar) {
+      const slug = btnEliminar.dataset.slug;
+      const nombre = btnEliminar.dataset.nombre;
+      const escrito = prompt(`⚠️ Esto elimina PARA SIEMPRE a "${nombre}" y TODOS sus datos (clientes, órdenes, facturas, todo) — no se puede deshacer.\n\nPara confirmar, escribe exactamente el código de la empresa: ${slug}`);
+      if (escrito === null) return; // canceló
+      if (escrito.trim() !== slug) {
+        mostrarError('errorPanel', 'No coincide con el código de la empresa — no se eliminó nada.');
+        return;
+      }
+      btnEliminar.disabled = true;
+      try {
+        await llamar(`/api/superadmin/empresas/${encodeURIComponent(slug)}`, { method: 'DELETE' });
+        await cargarPanel();
+      } catch (err) {
+        mostrarError('errorPanel', err.message);
+        btnEliminar.disabled = false;
+      }
+      return;
+    }
+
+    const btnEditar = e.target.closest('button[data-accion="editar"]');
+    if (btnEditar) {const slug = btnEditar.dataset.slug;
+      btnEditar.disabled = true;
+      try {
+        const detalle = await llamar(`/api/superadmin/empresas/${encodeURIComponent(slug)}`);
+        document.getElementById('editSlugEmpresa').value = detalle.slug;
+        document.getElementById('editNombreEmpresa').value = detalle.nombre;
+        document.getElementById('editAdminUsuario').value = detalle.adminUsuario;
+        document.getElementById('editAdminPassword').value = '';
+        ocultarError('errorModalEditar');
+        fondoModalEditar.classList.remove('oculto');
+      } catch (err) {
+        mostrarError('errorPanel', err.message);
+      } finally {
+        btnEditar.disabled = false;
+      }
+    }
+  });
+
+  // --------- MODAL: NUEVA EMPRESA ---------
+  function generarSlugDesdeNombre(texto) {
+    return (texto || '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita tildes
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/[\s_]+/g, '-')
+      .replace(/-+/g, '-')
+      .slice(0, 40)
+      .replace(/^-+|-+$/g, '');
+  }
+
+  let slugEditadoManualmente = false;
+  document.getElementById('inputSlugEmpresa').addEventListener('input', () => {
+    slugEditadoManualmente = true;
+  });
+  document.getElementById('inputNombreEmpresa').addEventListener('input', (e) => {
+    if (slugEditadoManualmente) return;
+    document.getElementById('inputSlugEmpresa').value = generarSlugDesdeNombre(e.target.value);
+  });
+
+  document.getElementById('btnNuevaEmpresa').addEventListener('click', () => {
+    document.getElementById('formNuevaEmpresa').reset();
+    slugEditadoManualmente = false;
+    ocultarError('errorModal');
+    fondoModal.classList.remove('oculto');
+  });
+  document.getElementById('btnCancelarModal').addEventListener('click', () => {
+    fondoModal.classList.add('oculto');
+  });
+  fondoModal.addEventListener('click', (e) => {
+    if (e.target === fondoModal) fondoModal.classList.add('oculto');
+  });
+
+  document.getElementById('formNuevaEmpresa').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    ocultarError('errorModal');
+    const nombre = document.getElementById('inputNombreEmpresa').value.trim();
+    const slug = document.getElementById('inputSlugEmpresa').value.trim().toLowerCase();
+    const adminUsuario = document.getElementById('inputAdminUsuario').value.trim();
+    const adminPassword = document.getElementById('inputAdminPassword').value;
+    const btn = document.getElementById('btnCrearEmpresa');
+    btn.disabled = true; btn.textContent = 'Creando…';
+    try {
+      await llamar('/api/superadmin/empresas', {
+        method: 'POST',
+        body: JSON.stringify({ slug, nombre, adminUsuario, adminPassword })
+      });
+      fondoModal.classList.add('oculto');
+      await cargarPanel();
+    } catch (err) {
+      mostrarError('errorModal', err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Crear';
+    }
+  });
+
+  // --------- MODAL: EDITAR EMPRESA ---------
+  document.getElementById('btnCancelarModalEditar').addEventListener('click', () => {
+    fondoModalEditar.classList.add('oculto');
+  });
+  fondoModalEditar.addEventListener('click', (e) => {
+    if (e.target === fondoModalEditar) fondoModalEditar.classList.add('oculto');
+  });
+
+  document.getElementById('formEditarEmpresa').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    ocultarError('errorModalEditar');
+    const slug = document.getElementById('editSlugEmpresa').value;
+    const nombre = document.getElementById('editNombreEmpresa').value.trim();
+    const adminUsuario = document.getElementById('editAdminUsuario').value.trim();
+    const adminPassword = document.getElementById('editAdminPassword').value;
+    const btn = document.getElementById('btnGuardarEdicionEmpresa');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+      await llamar(`/api/superadmin/empresas/${encodeURIComponent(slug)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ nombre, adminUsuario, adminPassword })
+      });
+      fondoModalEditar.classList.add('oculto');
+      await cargarPanel();
+    } catch (err) {
+      mostrarError('errorModalEditar', err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Guardar cambios';
+    }
+  });
+
+  // --------- PERSONALIZAR PÁGINA DE LOGIN (única, global) ---------
+  let logoCfgBase64Pendiente = null;
+  let imagenCfgBase64Pendiente = null;
+  let bannerLateralCfgBase64Pendiente = null;
+
+  function archivoABase64(file) {
+    return new Promise((resolve, reject) => {
+      const lector = new FileReader();
+      lector.onload = () => resolve(lector.result);
+      lector.onerror = reject;
+      lector.readAsDataURL(file);
+    });
+  }
+
+  // Muestra u oculta la imagen + su botón "Quitar" según si hay algo que mostrar.
+  function actualizarPreviewImagenCfg(idPreview, idBtnQuitar, src) {
+    const preview = document.getElementById(idPreview);
+    const btn = document.getElementById(idBtnQuitar);
+    if (src) { preview.src = src; preview.style.display = 'block'; btn.style.display = 'inline-block'; }
+    else { preview.style.display = 'none'; preview.removeAttribute('src'); btn.style.display = 'none'; }
+  }
+
+  async function cargarLoginConfig() {
+    ocultarError('errorLoginCfg');
+    logoCfgBase64Pendiente = null;
+    imagenCfgBase64Pendiente = null;
+    bannerLateralCfgBase64Pendiente = null;
+    try {
+      const cfg = await llamar('/api/login-config');
+      document.getElementById('loginCfgColor1').value = cfg.color1 || '#2563eb';
+      document.getElementById('loginCfgColor2').value = cfg.color2 || '#1e3a8a';
+      document.getElementById('loginCfgNombrePlataforma').value = cfg.nombrePlataforma || '';
+      document.getElementById('loginCfgTituloIzq').value = cfg.tituloIzquierda || '';
+      document.getElementById('loginCfgSubtituloIzq').value = cfg.subtituloIzquierda || '';
+      actualizarPreviewImagenCfg('loginCfgLogoPreview', 'btnQuitarLogo', cfg.logo);
+      actualizarPreviewImagenCfg('loginCfgImagenPreview', 'btnQuitarImagenFondo', cfg.imagenFondo);
+      actualizarPreviewImagenCfg('loginCfgBannerLateralPreview', 'btnQuitarBannerLateral', cfg.bannerLateral);
+    } catch (err) {
+      mostrarError('errorLoginCfg', 'No se pudo cargar la personalización actual: ' + err.message);
+    }
+  }
+
+  document.getElementById('loginCfgLogoInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    logoCfgBase64Pendiente = await archivoABase64(file);
+    actualizarPreviewImagenCfg('loginCfgLogoPreview', 'btnQuitarLogo', logoCfgBase64Pendiente);
+  });
+
+  document.getElementById('loginCfgImagenInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    imagenCfgBase64Pendiente = await archivoABase64(file);
+    actualizarPreviewImagenCfg('loginCfgImagenPreview', 'btnQuitarImagenFondo', imagenCfgBase64Pendiente);
+  });
+
+  document.getElementById('loginCfgBannerLateralInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    bannerLateralCfgBase64Pendiente = await archivoABase64(file);
+    actualizarPreviewImagenCfg('loginCfgBannerLateralPreview', 'btnQuitarBannerLateral', bannerLateralCfgBase64Pendiente);
+  });
+
+  // Quita una imagen de inmediato (guarda en el momento, sin esperar a
+  // "Guardar personalización") — más claro para el usuario: un botón,
+  // una acción. campo es 'logo' | 'imagenFondo' | 'bannerLateral'.
+  const CAMPO_IMAGEN_CFG = {
+    logo: { input: 'loginCfgLogoInput', preview: 'loginCfgLogoPreview', btn: 'btnQuitarLogo' },
+    imagenFondo: { input: 'loginCfgImagenInput', preview: 'loginCfgImagenPreview', btn: 'btnQuitarImagenFondo' },
+    bannerLateral: { input: 'loginCfgBannerLateralInput', preview: 'loginCfgBannerLateralPreview', btn: 'btnQuitarBannerLateral' },
+  };
+  async function quitarImagenLoginCfg(campo) {
+    if (!confirm('¿Quitar esta imagen? Se volverá al estado por defecto.')) return;
+    const info = CAMPO_IMAGEN_CFG[campo];
+    const btn = document.getElementById(info.btn);
+    btn.disabled = true;
+    try {
+      await llamar('/api/superadmin/login-config', {
+        method: 'PATCH',
+        body: JSON.stringify({ [campo]: '__QUITAR__' })
+      });
+      document.getElementById(info.input).value = '';
+      if (campo === 'logo') logoCfgBase64Pendiente = null;
+      if (campo === 'imagenFondo') imagenCfgBase64Pendiente = null;
+      if (campo === 'bannerLateral') bannerLateralCfgBase64Pendiente = null;
+      actualizarPreviewImagenCfg(info.preview, info.btn, null);
+    } catch (err) {
+      alert('No se pudo quitar: ' + err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+  window.quitarImagenLoginCfg = quitarImagenLoginCfg;
+
+  document.getElementById('formLoginCfg').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    ocultarError('errorLoginCfg');
+    const btn = document.getElementById('btnGuardarLoginCfg');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+      await llamar('/api/superadmin/login-config', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          logo: logoCfgBase64Pendiente,
+          imagenFondo: imagenCfgBase64Pendiente,
+          color1: document.getElementById('loginCfgColor1').value,
+          color2: document.getElementById('loginCfgColor2').value,
+          nombrePlataforma: document.getElementById('loginCfgNombrePlataforma').value.trim() || null,
+          tituloIzquierda: document.getElementById('loginCfgTituloIzq').value.trim() || null,
+          subtituloIzquierda: document.getElementById('loginCfgSubtituloIzq').value.trim() || null,
+          bannerLateral: bannerLateralCfgBase64Pendiente,
+        })
+      });
+      logoCfgBase64Pendiente = null;
+      imagenCfgBase64Pendiente = null;
+      bannerLateralCfgBase64Pendiente = null;
+      mostrarError('errorLoginCfg', '✅ Guardado. Los cambios ya se ven para cualquiera que entre al login.');
+      document.getElementById('errorLoginCfg').style.background = '#f0fdf4';
+      document.getElementById('errorLoginCfg').style.color = '#15803d';
+      document.getElementById('errorLoginCfg').style.borderColor = '#bbf7d0';
+    } catch (err) {
+      const cajaError = document.getElementById('errorLoginCfg');
+      cajaError.style.background = '';
+      cajaError.style.color = '';
+      cajaError.style.borderColor = '';
+      mostrarError('errorLoginCfg', 'No se pudo guardar: ' + err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Guardar personalización';
+    }
+  });
+
+  // --------- MI CUENTA (SuperAdmin) ---------
+  document.getElementById('formMiCuenta').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    ocultarError('errorMiCuenta');
+    const correoNuevo = document.getElementById('miCuentaCorreoNuevo').value.trim();
+    const passwordNueva = document.getElementById('miCuentaPasswordNueva').value;
+    const passwordActual = document.getElementById('miCuentaPasswordActual').value;
+    if (!correoNuevo && !passwordNueva) {
+      mostrarError('errorMiCuenta', 'Escribe un correo nuevo, una contraseña nueva, o ambos — no hay nada que cambiar.');
+      return;
+    }
+    const btn = document.getElementById('btnGuardarMiCuenta');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+      const resultado = await llamar('/api/superadmin/mi-cuenta', {
+        method: 'PATCH',
+        body: JSON.stringify({ passwordActual, nuevoCorreo: correoNuevo || null, nuevaPassword: passwordNueva || null })
+      });
+      document.getElementById('formMiCuenta').reset();
+      const msj = correoNuevo
+        ? `✅ Listo. Tu correo de acceso ahora es: ${resultado.correo}`
+        : '✅ Contraseña actualizada correctamente.';
+      mostrarError('errorMiCuenta', msj);
+      document.getElementById('errorMiCuenta').style.background = '#f0fdf4';
+      document.getElementById('errorMiCuenta').style.color = '#15803d';
+      document.getElementById('errorMiCuenta').style.borderColor = '#bbf7d0';
+    } catch (err) {
+      const cajaError = document.getElementById('errorMiCuenta');
+      cajaError.style.background = '';
+      cajaError.style.color = '';
+      cajaError.style.borderColor = '';
+      mostrarError('errorMiCuenta', err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Guardar cambios';
+    }
+  });
+
+  // --------- RESPALDOS SEMANALES DESCARGABLES ---------
+  function formatoTamano(bytes) {
+    if (!bytes) return '—';
+    const kb = bytes / 1024;
+    if (kb < 1024) return `${kb.toFixed(0)} KB`;
+    return `${(kb / 1024).toFixed(1)} MB`;
+  }
+
+  async function cargarRespaldosSemanales() {
+    ocultarError('errorRespaldos');
+    const tbody = document.getElementById('filasRespaldos');
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:24px;">Cargando…</td></tr>';
+    try {
+      const respaldos = await llamar('/api/superadmin/respaldos-semanales');
+      if (!respaldos.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:24px;">Todavía no se ha generado ningún respaldo semanal.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = respaldos.map(r => `
+        <tr>
+          <td><code>${r.nombre_archivo}</code></td>
+          <td>${formatoFecha(r.creado_en)}</td>
+          <td>${formatoTamano(r.tamano_bytes)}</td>
+          <td><button class="btn-mini editar" data-accion="descargar-respaldo" data-id="${r.id}">Descargar</button></td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      mostrarError('errorRespaldos', err.message);
+      tbody.innerHTML = '';
+    }
+  }
+
+  document.getElementById('filasRespaldos').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-accion="descargar-respaldo"]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const token = localStorage.getItem(LS_TOKEN);
+    // Descarga directa vía fetch (no un simple <a href>) porque la ruta
+    // requiere el token de superadmin en el encabezado Authorization.
+    fetch(`${API}/api/superadmin/respaldos-semanales/${id}/descargar`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    }).then(async (resp) => {
+      if (!resp.ok) throw new Error('No se pudo descargar el respaldo.');
+      const disposicion = resp.headers.get('Content-Disposition') || '';
+      const coincide = disposicion.match(/filename="([^"]+)"/);
+      const nombreArchivo = coincide ? coincide[1] : 'respaldo-semanal.json';
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = nombreArchivo;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }).catch(err => mostrarError('errorRespaldos', err.message));
+  });
+
+  document.getElementById('btnGenerarRespaldoAhora').addEventListener('click', async () => {
+    ocultarError('errorRespaldos');
+    const btn = document.getElementById('btnGenerarRespaldoAhora');
+    btn.disabled = true; btn.textContent = 'Generando…';
+    try {
+      await llamar('/api/superadmin/respaldos-semanales/generar-ahora', { method: 'POST' });
+      await cargarRespaldosSemanales();
+    } catch (err) {
+      mostrarError('errorRespaldos', err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Generar respaldo ahora';
+    }
+  });
+
+  // --------- CERRAR SESIÓN ---------
+  function cerrarSesion() {
+    localStorage.removeItem(LS_TOKEN);
+    // Login único: ya no se muestra un formulario propio aquí — se
+    // vuelve a la pantalla de login principal de la plataforma.
+    window.location.href = 'index.html';
+  }
+  document.getElementById('btnSalir').addEventListener('click', cerrarSesion);
+
+  // --------- AL CARGAR LA PÁGINA: ¿ya hay sesión guardada? ---------
+  (async function inicio() {
+    const token = localStorage.getItem(LS_TOKEN);
+    // Login único: si alguien entra directo a esta URL sin una sesión de
+    // superadmin ya guardada, se le manda al login principal (index.html)
+    // en vez de mostrarle un formulario de acceso aparte.
+    if (!token) { window.location.href = 'index.html'; return; }
+
+    // Si venía con contraseña temporal (marcado por el login unificado),
+    // se respeta el mismo paso obligatorio de cambiarla antes de entrar.
+    if (localStorage.getItem('prevenglobal_superadmin_debe_cambiar') === '1') {
+      localStorage.removeItem('prevenglobal_superadmin_debe_cambiar');
+      irA(pantallaCambio);
+      return;
+    }
+
+    try {
+      await cargarPanel();
+    } catch (err) {
+      cerrarSesion();
+    }
+  })();
+})();
+</script>
+</body>
+</html>
