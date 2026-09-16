@@ -1831,7 +1831,16 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <label>Ficha técnica complementaria (especificaciones adicionales):</label>
     <textarea id="eqModalFichaTecnica" rows="2" placeholder="Datos técnicos adicionales, hoja de datos, notas de instalación..."></textarea>
     <label>Fotos del equipo:</label>
-    <input type="file" id="eqModalFotoInput" accept="image/*" multiple onchange="manejarFotoEquipoModal(event)">
+    <div class="equipo-fotos-acciones" style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px;">
+      <button class="btn-custom btn-secondary-custom btn-sm-custom" type="button" onclick="document.getElementById('eqModalFotoCamaraInput').click()">
+        <i class="fas fa-camera m-r-10"></i>Tomar foto
+      </button>
+      <button class="btn-custom btn-secondary-custom btn-sm-custom" type="button" onclick="document.getElementById('eqModalFotoInput').click()">
+        <i class="fas fa-images m-r-10"></i>Seleccionar imágenes
+      </button>
+    </div>
+    <input type="file" id="eqModalFotoCamaraInput" accept="image/*" capture="environment" style="display:none" onchange="manejarFotoEquipoModal(event)">
+    <input type="file" id="eqModalFotoInput" accept="image/*" multiple onchange="manejarFotoEquipoModal(event)" style="display:none">
     <div class="galeria-fotos" id="previewFotosEquipoModal"></div>
     <div style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalEquipo')">Cancelar</button>
