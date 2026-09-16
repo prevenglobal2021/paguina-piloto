@@ -689,6 +689,19 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
      el CSS. Antes solo estaba aquí y la herramienta de generar el PDF para
      WhatsApp/descarga no la veía. */
 }
+
+/* v95 - Sidebar responsive: móvil y tablet */
+@media (max-width:1024px){
+  #btnMenuMovil{display:inline-flex !important;align-items:center;justify-content:center;}
+  .left-sidebar{width:min(300px,82vw) !important;transform:translateX(-105%);transition:transform .25s ease;z-index:1200;box-shadow:12px 0 32px rgba(0,0,0,.28);}
+  .left-sidebar.abierto{transform:translateX(0);}
+  .left-sidebar .sidebar-brand span,.left-sidebar .sidebar-menu span,.left-sidebar .sidebar-section-title{display:inline !important;}
+  .page-wrapper{margin-left:0 !important;width:100% !important;}
+  #sidebarBackdrop{z-index:1190;}
+  body.menu-abierto{overflow:hidden;}
+}
+@media (min-width:1025px){#btnMenuMovil{display:none !important;}}
+
 </style>
 </head>
 <body>
@@ -2616,12 +2629,39 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 <script src="pdf.js?v=93"></script>
 <script src="config-clientes-equipos.js?v=93"></script>
 <script src="config-plantillas-tecnicos.js?v=90"></script>
-<script src="cotizador.js?v=94"></script>
+<script src="cotizador.js?v=95"></script>
 <script src="asistencia.js?v=90"></script>
 <script src="config-general.js?v=90"></script>
 <script src="inventario.js?v=90"></script>
 <script src="tienda-admin.js?v=90"></script>
 <script src="tienda-publica.js?v=90"></script>
 <script src="kpi.js?v=90"></script>
+
+<script>
+/* v95 - Control único del menú lateral */
+(function(){
+  function sidebar(){ return document.querySelector('.left-sidebar'); }
+  function backdrop(){ return document.getElementById('sidebarBackdrop'); }
+  window.abrirMenuMovil=function(){
+    var s=sidebar(); if(!s) return; s.classList.add('abierto'); document.body.classList.add('menu-abierto');
+    var b=backdrop(); if(b) b.style.display='block';
+  };
+  window.cerrarMenuMovil=function(){
+    var s=sidebar(); if(s) s.classList.remove('abierto'); document.body.classList.remove('menu-abierto');
+    var b=backdrop(); if(b) b.style.display='none';
+  };
+  window.toggleMenuMovil=function(){
+    var s=sidebar(); if(!s) return;
+    if(s.classList.contains('abierto')) window.cerrarMenuMovil(); else window.abrirMenuMovil();
+  };
+  document.addEventListener('DOMContentLoaded',function(){
+    var s=sidebar();
+    if(s) s.querySelectorAll('a,button').forEach(function(el){el.addEventListener('click',function(){if(window.innerWidth<=1024) setTimeout(window.cerrarMenuMovil,80);});});
+    window.addEventListener('resize',function(){if(window.innerWidth>1024) window.cerrarMenuMovil();});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape') window.cerrarMenuMovil();});
+  });
+})();
+</script>
+
 </body>
 </html>
