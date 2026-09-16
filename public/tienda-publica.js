@@ -88,8 +88,7 @@ function iniciarTiendaPublica(slug){
         const btnIg = document.getElementById('tpBotonInstagram');
         btnIg.href = data.instagram; btnIg.style.display = 'inline-block'; redesWrap.style.display = 'flex';
       }
-      document.getElementById('tpSecciones').innerHTML = htmlSeccionesTienda(data.secciones, data.testimonios, data.carruselImagenes);
-      iniciarAutoRotacionCarrusel('galeria'); iniciarAutoRotacionCarrusel('proyectos');
+      document.getElementById('tpSecciones').innerHTML = htmlSeccionesTienda(data.secciones, data.testimonios);
       iniciarRotacionTestimonios(data.testimonios);
       const contPolitica = document.getElementById('tpTextoPoliticaDatos');
       if(contPolitica) contPolitica.innerHTML = textoPoliticaDatosPorDefecto(data.nombre || 'esta empresa');

@@ -387,7 +387,7 @@ async function enviarComprobanteNominaPorWhatsApp(id){
       verComprobanteNomina(id);
       const elemento = document.getElementById('comprobanteNominaContenido');
       await esperarImagenesCargadas(elemento);
-      const opciones = { margin:8, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
+      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
       const blob = await conTiempoLimite(
         html2pdf().set(opciones).from(elemento).outputPdf('blob'),
         25000,
@@ -419,7 +419,7 @@ async function enviarPorWhatsAppCotizacion(id){
       verPDFCotizacion(id);
       const elemento = document.getElementById('pdfContenido');
       await esperarImagenesCargadas(elemento);
-      const opciones = { margin:8, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
+      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
       const blob = await conTiempoLimite(
         html2pdf().set(opciones).from(elemento).outputPdf('blob'),
         25000,
@@ -448,7 +448,7 @@ async function enviarPorWhatsAppFactura(id){
       verPDFFactura(id);
       const elemento = document.getElementById('pdfContenido');
       await esperarImagenesCargadas(elemento);
-      const opciones = { margin:8, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
+      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
       const blob = await conTiempoLimite(
         html2pdf().set(opciones).from(elemento).outputPdf('blob'),
         25000,
@@ -594,7 +594,13 @@ function renderizarContabilidad(){
   const totalNomina = nominaDelMes.reduce((a,l)=>a+l.totalNeto,0);
   const totalGastos = gastosDelMes.reduce((a,g)=>a+g.monto,0);
   const totalIngresos = pedidosDelMes.reduce((a,p)=>a+p.total,0) + ingresosDelMes.reduce((a,i)=>a+i.monto,0);
-  const balance = totalIngresos - totalNomina - totalGastos;
+  // OJO: no restar totalNomina aparte del balance — cuando una nómina se
+  // marca como pagada, sincronizarGastoDesdeNomina() YA crea un gasto por
+  // ese mismo monto (con origenNominaId), que queda incluido dentro de
+  // totalGastos. Restar totalNomina aquí TAMBIÉN duplicaba cada nómina
+  // pagada dos veces en el balance. totalNomina se conserva solo como
+  // dato informativo (nómina total del mes, pagada o no) para la tarjeta.
+  const balance = totalIngresos - totalGastos;
 
   document.getElementById('contaCardIngresos').innerText = formatoCOP(totalIngresos);
   document.getElementById('contaCardNomina').innerText = formatoCOP(totalNomina);
@@ -1380,23 +1386,6 @@ function abrirModalCotizacion(cotizacionId){
   actualizarPreviewCotizacionFactura('cot');
   abrirModal('modalCotizacion');
 }
-function abrirNuevaFacturaDirecta(){
-  // Punto de entrada exclusivo para el botón "Nueva Factura".
-  // Evita que un elemento opcional ausente o un estado anterior del modal
-  // deje el botón sin respuesta y garantiza que la colección exista.
-  try{
-    db = db || {};
-    db.facturas = Array.isArray(db.facturas) ? db.facturas : [];
-    if(!Array.isArray(db.cotizaciones)) db.cotizaciones = [];
-    abrirModalFactura(null, null);
-  }catch(err){
-    console.error('Error al abrir Nueva Factura:', err);
-    try{
-      mostrarToast('No se pudo abrir Nueva Factura: ' + (err?.message || 'error inesperado'), 'error');
-    }catch(_){ alert('No se pudo abrir Nueva Factura. Revisa la consola para más detalles.'); }
-  }
-}
-
 function abrirModalFactura(facturaId, cotizacionOrigen){
   cerrarModal('modalItemComercial');
   cerrarModal('modalPDF');

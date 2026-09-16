@@ -663,8 +663,6 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 
 
 @media print{
-  @page{ size:A4 portrait; margin:8mm; }
-  html,body{ background:#fff !important; width:100%; margin:0 !important; padding:0 !important; }
   body.imprimiendo-etiqueta *{ visibility:hidden; }
   body.imprimiendo-etiqueta #etiquetaQRPrint, body.imprimiendo-etiqueta #etiquetaQRPrint *{ visibility:visible; }
   body.imprimiendo-etiqueta #etiquetaQRPrint{ position:fixed; top:0; left:0; }
@@ -678,30 +676,13 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   #modalPDF, #modalVistaPreviaFormulario, #modalComprobanteNomina{ position:static !important; background:none !important; padding:0 !important; }
   #modalPDF .modal-box, #modalVistaPreviaFormulario .modal-box, #modalComprobanteNomina .modal-box{ box-shadow:none !important; max-width:100% !important; max-height:none !important; padding:0 !important; border:none !important; overflow:visible !important; }
   #modalPDF .close-modal, #modalPDF #pdfBotonera, #modalVistaPreviaFormulario .close-modal, #modalVistaPreviaFormulario #vpBotonera, #modalComprobanteNomina .close-modal, #modalComprobanteNomina #comprobanteNominaBotonera{ display:none !important; }
-  .pdf-preview{ padding:0 !important; width:100% !important; max-width:none !important; overflow:visible !important; }
-  .pdf-header img{max-width:42mm;height:auto;}
-  table{max-width:100%;}
-  img{max-width:100%;}
-  .pdf-fotos-fila img{max-width:100%;}
+  .pdf-preview{ padding:0 !important; }
 
   /* La protección de "no partir a la mitad" (.pdf-box, filas de tablas, fotos)
      ahora vive fuera de este bloque, disponible siempre — ver más arriba en
      el CSS. Antes solo estaba aquí y la herramienta de generar el PDF para
      WhatsApp/descarga no la veía. */
 }
-
-/* v95 - Sidebar responsive: móvil y tablet */
-@media (max-width:1024px){
-  #btnMenuMovil{display:inline-flex !important;align-items:center;justify-content:center;}
-  .left-sidebar{width:min(300px,82vw) !important;transform:translateX(-105%);transition:transform .25s ease;z-index:1200;box-shadow:12px 0 32px rgba(0,0,0,.28);}
-  .left-sidebar.abierto{transform:translateX(0);}
-  .left-sidebar .sidebar-brand span,.left-sidebar .sidebar-menu span,.left-sidebar .sidebar-section-title{display:inline !important;}
-  .page-wrapper{margin-left:0 !important;width:100% !important;}
-  #sidebarBackdrop{z-index:1190;}
-  body.menu-abierto{overflow:hidden;}
-}
-@media (min-width:1025px){#btnMenuMovil{display:none !important;}}
-
 </style>
 </head>
 <body>
@@ -1286,7 +1267,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <div id="contaTabCotizacionFactura" class="conta-tab-content">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
           <button class="btn-custom" onclick="abrirModalCotizacion()"><i class="fas fa-file-circle-plus"></i> Nueva Cotización</button>
-          <button class="btn-custom btn-secondary-custom" onclick="abrirNuevaFacturaDirecta()"><i class="fas fa-file-invoice-dollar"></i> Nueva Factura (directa)</button>
+          <button class="btn-custom btn-secondary-custom" onclick="abrirModalFactura()"><i class="fas fa-file-invoice-dollar"></i> Nueva Factura (directa)</button>
         </div>
 
         <div class="panel-title" style="margin-top:0;"><span>📝 Cotizaciones</span></div>
@@ -1509,7 +1490,11 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <div><label>Stock mínimo:</label><input type="number" id="invStockMinimo" value="0"></div>
     </div>
     <label>Fotos de referencia (máx. 2):</label>
-    <input type="file" id="invFotoInput" accept="image/*" multiple onchange="manejarFotoInventario(event)">
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+      <button type="button" class="btn-custom" style="flex:1; min-width:140px;" onclick="abrirCamaraFoto('inventario', undefined, 2)">📷 Tomar foto</button>
+      <button type="button" class="btn-custom btn-secondary-custom" style="flex:1; min-width:140px;" onclick="document.getElementById('invFotoInput').click()">🖼️ Subir imagen</button>
+    </div>
+    <input type="file" id="invFotoInput" accept="image/*" multiple onchange="manejarFotoInventario(event)" style="display:none;">
     <div class="galeria-fotos" id="previewFotosInventario"></div>
     <hr style="border-color:var(--card-border);margin:14px 0;">
     <label style="display:flex;align-items:center;gap:8px;font-weight:normal;"><input type="checkbox" id="invPublicarTienda" style="width:auto;"> 🛒 Publicar este ítem en la Tienda Virtual</label>
@@ -1798,8 +1783,8 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div class="pdf-preview" id="pdfContenido"></div>
     <div id="pdfBotonera" style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalPDF')">Cerrar</button>
-      <button class="btn-custom" onclick="imprimirDocumentoActual()">🖨️ Imprimir / Guardar PDF</button>
-      <button class="btn-custom btn-success-custom" onclick="enviarDocumentoActualPorWhatsApp()"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
+      <button class="btn-custom" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+      <button class="btn-custom btn-success-custom" onclick="conIndicadorCarga(this, enviarDocumentoActualPorWhatsApp, 'Generando documento...')"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
     </div>
   </div>
 </div>
@@ -1831,20 +1816,36 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <label>Ficha técnica complementaria (especificaciones adicionales):</label>
     <textarea id="eqModalFichaTecnica" rows="2" placeholder="Datos técnicos adicionales, hoja de datos, notas de instalación..."></textarea>
     <label>Fotos del equipo:</label>
-    <div class="equipo-fotos-acciones" style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px;">
-      <button class="btn-custom btn-secondary-custom btn-sm-custom" type="button" onclick="document.getElementById('eqModalFotoCamaraInput').click()">
-        <i class="fas fa-camera m-r-10"></i>Tomar foto
-      </button>
-      <button class="btn-custom btn-secondary-custom btn-sm-custom" type="button" onclick="document.getElementById('eqModalFotoInput').click()">
-        <i class="fas fa-images m-r-10"></i>Seleccionar imágenes
-      </button>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+      <button type="button" class="btn-custom" style="flex:1; min-width:140px;" onclick="abrirCamaraFoto('equipoModal')">📷 Tomar foto</button>
+      <button type="button" class="btn-custom btn-secondary-custom" style="flex:1; min-width:140px;" onclick="document.getElementById('eqModalFotoInput').click()">🖼️ Subir imagen</button>
     </div>
-    <input type="file" id="eqModalFotoCamaraInput" accept="image/*" capture="environment" style="display:none" onchange="manejarFotoEquipoModal(event)">
-    <input type="file" id="eqModalFotoInput" accept="image/*" multiple onchange="manejarFotoEquipoModal(event)" style="display:none">
+    <input type="file" id="eqModalFotoInput" accept="image/*" multiple onchange="manejarFotoEquipoModal(event)" style="display:none;">
     <div class="galeria-fotos" id="previewFotosEquipoModal"></div>
     <div style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalEquipo')">Cancelar</button>
       <button class="btn-custom" onclick="conIndicadorCarga(this, guardarEquipoModal)">Guardar Equipo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: TOMAR FOTO EN VIVO (equipos) — misma cámara que el escáner QR,
+     reutilizada aquí para capturar una foto fija en vez de leer un código. -->
+<!-- MODAL: TOMAR FOTO EN VIVO — único y genérico, usado por cualquier
+     galería de fotos de la plataforma (Equipos, Inventario, etc.). -->
+<div class="modal-overlay" id="modalCamaraFoto">
+  <div class="modal-box" style="max-width:480px;">
+    <button class="close-modal" onclick="cerrarCamaraFoto()">✖</button>
+    <h3>📷 Tomar foto</h3>
+    <video id="camaraFotoVideo" autoplay playsinline muted style="width:100%; border-radius:10px; background:#000; display:block;"></video>
+    <canvas id="camaraFotoCanvasOculto" style="display:none;"></canvas>
+    <img id="camaraFotoPreview" style="width:100%; border-radius:10px; display:none;">
+    <p id="camaraFotoEstado" style="text-align:center; color:#64748b; font-size:13px; margin-top:10px;">Encuadra y toma la foto…</p>
+    <div class="fila-modal" style="margin-top:12px; display:flex; gap:10px;">
+      <button type="button" class="btn-custom btn-secondary-custom" style="flex:1;" onclick="cerrarCamaraFoto()" id="btnCancelarCamaraFoto">Cancelar</button>
+      <button type="button" class="btn-custom" style="flex:1;" onclick="capturarFoto()" id="btnCapturarFoto">📸 Capturar</button>
+      <button type="button" class="btn-custom btn-secondary-custom" style="flex:1; display:none;" onclick="repetirFoto()" id="btnRepetirFoto">↺ Repetir</button>
+      <button type="button" class="btn-custom btn-success-custom" style="flex:1; display:none;" onclick="usarFotoCapturada()" id="btnUsarFoto">✔ Usar esta foto</button>
     </div>
   </div>
 </div>
@@ -1896,7 +1897,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div class="pdf-preview" id="vpContenidoFormulario"></div>
     <div id="vpBotonera" style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalVistaPreviaFormulario')">Cerrar</button>
-      <button class="btn-custom" onclick="imprimirVistaPreviaFormulario()">🖨️ Imprimir / Guardar PDF</button>
+      <button class="btn-custom" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
     </div>
   </div>
 </div>
@@ -2082,8 +2083,8 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div class="pdf-preview" id="comprobanteNominaContenido"></div>
     <div id="comprobanteNominaBotonera" style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalComprobanteNomina')">Cerrar</button>
-      <button class="btn-custom" onclick="imprimirComprobanteNomina()">🖨️ Imprimir / Guardar PDF</button>
-      <button class="btn-custom btn-success-custom solo-admin" data-permiso="enviar_whatsapp" onclick="enviarComprobanteNominaPorWhatsApp(comprobanteNominaActualId)"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
+      <button class="btn-custom" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+      <button class="btn-custom btn-success-custom solo-admin" data-permiso="enviar_whatsapp" onclick="conIndicadorCarga(this, ()=>enviarComprobanteNominaPorWhatsApp(comprobanteNominaActualId), 'Generando documento...')"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
     </div>
   </div>
 </div>
@@ -2630,47 +2631,20 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 </div>
 
 <script src="core.js?v=90"></script>
-<script src="capacitor-bridge.js?v=93"></script>
+<script src="capacitor-bridge.js?v=90"></script>
 <script src="utilidades-navegacion.js?v=90"></script>
 <script src="buscador-agenda.js?v=90"></script>
 <script src="ordenes.js?v=90"></script>
 <script src="equipos-trazabilidad.js?v=90"></script>
-<script src="pdf.js?v=93"></script>
-<script src="config-clientes-equipos.js?v=93"></script>
+<script src="pdf.js?v=90"></script>
+<script src="config-clientes-equipos.js?v=90"></script>
 <script src="config-plantillas-tecnicos.js?v=90"></script>
-<script src="cotizador.js?v=95"></script>
+<script src="cotizador.js?v=90"></script>
 <script src="asistencia.js?v=90"></script>
 <script src="config-general.js?v=90"></script>
 <script src="inventario.js?v=90"></script>
 <script src="tienda-admin.js?v=90"></script>
 <script src="tienda-publica.js?v=90"></script>
 <script src="kpi.js?v=90"></script>
-
-<script>
-/* v95 - Control único del menú lateral */
-(function(){
-  function sidebar(){ return document.querySelector('.left-sidebar'); }
-  function backdrop(){ return document.getElementById('sidebarBackdrop'); }
-  window.abrirMenuMovil=function(){
-    var s=sidebar(); if(!s) return; s.classList.add('abierto'); document.body.classList.add('menu-abierto');
-    var b=backdrop(); if(b) b.style.display='block';
-  };
-  window.cerrarMenuMovil=function(){
-    var s=sidebar(); if(s) s.classList.remove('abierto'); document.body.classList.remove('menu-abierto');
-    var b=backdrop(); if(b) b.style.display='none';
-  };
-  window.toggleMenuMovil=function(){
-    var s=sidebar(); if(!s) return;
-    if(s.classList.contains('abierto')) window.cerrarMenuMovil(); else window.abrirMenuMovil();
-  };
-  document.addEventListener('DOMContentLoaded',function(){
-    var s=sidebar();
-    if(s) s.querySelectorAll('a,button').forEach(function(el){el.addEventListener('click',function(){if(window.innerWidth<=1024) setTimeout(window.cerrarMenuMovil,80);});});
-    window.addEventListener('resize',function(){if(window.innerWidth>1024) window.cerrarMenuMovil();});
-    document.addEventListener('keydown',function(e){if(e.key==='Escape') window.cerrarMenuMovil();});
-  });
-})();
-</script>
-
 </body>
 </html>

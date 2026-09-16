@@ -91,19 +91,11 @@ function generarBloqueInformeEquipoPDF(datosCierre, plantilla){
 // bloquea el resto: se resuelve igual para no trabar todo el envío.
 function esperarImagenesCargadas(elemento){
   const imagenes = Array.from(elemento.querySelectorAll('img'));
-  if(!imagenes.length) return Promise.resolve();
   return Promise.all(imagenes.map(img => {
-    // Si ya terminó de cargar, sea correcta o incorrectamente, no debemos
-    // esperar un evento que nunca volverá a dispararse.
-    if(img.complete) return Promise.resolve();
+    if(img.complete && img.naturalWidth > 0) return Promise.resolve();
     return new Promise(resolve => {
-      const terminar = () => {
-        img.removeEventListener('load', terminar);
-        img.removeEventListener('error', terminar);
-        resolve();
-      };
-      img.addEventListener('load', terminar, { once:true });
-      img.addEventListener('error', terminar, { once:true });
+      img.addEventListener('load', resolve, { once:true });
+      img.addEventListener('error', resolve, { once:true });
     });
   }));
 }
@@ -126,47 +118,10 @@ function esperarImagenesCargadas(elemento){
 // ningún navegador lo puede bloquear ni esconder — nunca. Se pierde un poco
 // de automatismo en el peor de los casos, a cambio de que funcione siempre,
 // en cualquier navegador, sin excepción.
-// Normaliza teléfonos para WhatsApp. Por defecto aplica Colombia (+57) a números locales de 10 dígitos.
-// Utilidad de seguridad para evitar que una generación de PDF se quede
-// esperando indefinidamente. Esta función es requerida por Órdenes,
-// Cotizaciones, Facturas y Nómina.
-function conTiempoLimite(promesa, milisegundos, mensaje){
-  return new Promise((resolve, reject)=>{
-    let finalizado = false;
-    const temporizador = setTimeout(()=>{
-      if(finalizado) return;
-      finalizado = true;
-      reject(new Error(mensaje || 'La operación tardó demasiado.'));
-    }, milisegundos || 30000);
-
-    Promise.resolve(promesa).then(resultado=>{
-      if(finalizado) return;
-      finalizado = true;
-      clearTimeout(temporizador);
-      resolve(resultado);
-    }).catch(error=>{
-      if(finalizado) return;
-      finalizado = true;
-      clearTimeout(temporizador);
-      reject(error);
-    });
-  });
-}
-
-function normalizarTelefonoWhatsApp(telefono, codigoPais='57'){
-  if(telefono === null || telefono === undefined) return '';
-  let n = String(telefono).trim().replace(/[^0-9]/g,'');
-  if(!n) return '';
-  if(n.startsWith('00')) n = n.slice(2);
-  if(codigoPais === '57' && /^3\d{9}$/.test(n)) return '57' + n;
-  if(/^57\d{10}$/.test(n)) return n;
-  return n;
-}
-
 async function compartirDocumentoPorWhatsApp({ telefono, mensaje, generarBlob, nombreArchivo, tituloCompartir, tipoLog, detalleLog, mensajeSinTelefono }){
-  const telefonoLimpio = normalizarTelefonoWhatsApp(telefono);
-  if(!telefonoLimpio){ mostrarToast(mensajeSinTelefono || 'Este cliente no tiene teléfono registrado — usa "Ver" para descargar el documento y enviarlo tú mismo.'); return; }
-  const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje || '')}`;
+  if(!telefono){ mostrarToast(mensajeSinTelefono || 'Este cliente no tiene teléfono registrado — usa "Ver" para descargar el documento y enviarlo tú mismo.'); return; }
+  const telefonoLimpio = telefono.replace(/[^0-9]/g,'');
+  const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
   const dentroDeLaApp = typeof corriendoDentroDeLaApp === 'function' && corriendoDentroDeLaApp();
 
   let blob;
@@ -229,93 +184,6 @@ function mostrarAvisoAbrirWhatsApp(enlaceWhatsApp, nombreArchivo, mensajePersona
   el.innerHTML = `<span class="toast-icono">ℹ️</span><span class="toast-texto">${texto}<br><button class="btn-custom btn-success-custom btn-sm-custom" style="margin-top:8px;" onclick="window.open('${enlaceWhatsApp.replace(/'/g,"\\'")}','_blank')"><i class="fab fa-whatsapp"></i> Abrir WhatsApp</button></span><span class="toast-cerrar" onclick="this.parentElement.remove()">✖</span>`;
   cont.appendChild(el);
   setTimeout(()=>{ el.classList.add('saliendo'); setTimeout(()=>el.remove(), 250); }, 30000);
-}
-
-
-/* =========================================================
-   IMPRESIÓN / PDF A4 — botón unificado
-   En navegador: usa el diálogo de impresión del navegador.
-   En la app Android: genera primero un PDF A4 real y abre el panel
-   nativo de compartir, donde se puede elegir Imprimir, Guardar, WhatsApp, etc.
-========================================================= */
-function opcionesPDFA4(nombreArchivo){
-  return {
-    margin: 8,
-    filename: nombreArchivo || 'Prevenglobal_Documento.pdf',
-    image: { type:'jpeg', quality:0.95 },
-    html2canvas: {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      scrollX: 0,
-      scrollY: 0,
-      logging: false
-    },
-    jsPDF: { unit:'mm', format:'a4', orientation:'portrait' },
-    pagebreak: { mode:['css','legacy'] }
-  };
-}
-
-async function generarBlobA4DesdeElemento(elemento, nombreArchivo){
-  if(!elemento) throw new Error('No se encontró el contenido del documento.');
-  if(typeof html2pdf === 'undefined') throw new Error('El generador PDF no está disponible.');
-  await esperarImagenesCargadas(elemento);
-  return await conTiempoLimite(
-    html2pdf().set(opcionesPDFA4(nombreArchivo)).from(elemento).outputPdf('blob'),
-    30000,
-    'La generación del PDF está tardando demasiado. Vuelve a intentarlo.'
-  );
-}
-
-async function imprimirDocumentoDesdeElemento(idElemento, nombreArchivo, titulo){
-  const elemento = document.getElementById(idElemento);
-  if(!elemento){ mostrarToast('No se encontró el documento para imprimir.'); return; }
-  const dentroDeLaApp = typeof corriendoDentroDeLaApp === 'function' && corriendoDentroDeLaApp();
-
-  // Android/WebView: window.print() puede no hacer absolutamente nada.
-  // Generamos un A4 real y usamos el panel nativo, que permite seleccionar
-  // una impresora, guardar el PDF o compartirlo.
-  if(dentroDeLaApp){
-    try{
-      const blob = await generarBlobA4DesdeElemento(elemento, nombreArchivo);
-      const compartido = await compartirArchivoNativo(blob, nombreArchivo, titulo || 'Documento Prevenglobal');
-      if(compartido){
-        mostrarToast('Documento A4 listo. En el panel de compartir puedes elegir Imprimir o Guardar PDF.');
-        return;
-      }
-      // Si el puente nativo no está disponible, descargamos el PDF como
-      // respaldo. Esto evita que el botón quede sin respuesta.
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = nombreArchivo; document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(()=>URL.revokeObjectURL(url), 2000);
-      mostrarToast('PDF A4 generado y guardado en el dispositivo.');
-      return;
-    }catch(err){
-      console.error('Error al generar PDF A4:', err);
-      mostrarToast(err.message || 'No se pudo generar el PDF A4.');
-      return;
-    }
-  }
-
-  // Navegador normal: impresión nativa con CSS @page A4.
-  window.print();
-}
-
-function imprimirDocumentoActual(){
-  const tipo = pdfDocumentoActualTipo || 'orden';
-  const id = pdfDocumentoActualId || ordenPdfActualId || 'documento';
-  const prefijo = tipo === 'cotizacion' ? 'Cotizacion' : tipo === 'factura' ? 'Factura' : 'Informe';
-  imprimirDocumentoDesdeElemento('pdfContenido', `${prefijo}_${id}.pdf`, `${prefijo} Prevenglobal`);
-}
-
-function imprimirVistaPreviaFormulario(){
-  imprimirDocumentoDesdeElemento('vpContenidoFormulario', 'Plantilla_Prevenglobal_A4.pdf', 'Vista previa de formulario');
-}
-
-function imprimirComprobanteNomina(){
-  const id = (typeof comprobanteNominaActualId !== 'undefined' && comprobanteNominaActualId) ? comprobanteNominaActualId : 'comprobante';
-  imprimirDocumentoDesdeElemento('comprobanteNominaContenido', `Comprobante_Nomina_${id}.pdf`, 'Comprobante de nómina');
 }
 
 function verPDF(ordenId){

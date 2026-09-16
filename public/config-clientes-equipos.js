@@ -96,7 +96,7 @@ async function enviarPorWhatsApp(ordenId){
       verPDF(ordenId);
       const elemento = document.getElementById('pdfContenido');
       await esperarImagenesCargadas(elemento); // evita fotos en blanco en el PDF por no esperar a que carguen
-      const opciones = { margin:8, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
+      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
       const blob = await conTiempoLimite(
         html2pdf().set(opciones).from(elemento).outputPdf('blob'),
         25000,
@@ -345,6 +345,7 @@ function manejarFotoEquipoModal(event){
   files.forEach(file=>{ comprimirImagen(file).then(dataUrl=>{ fotosEquipoModalTemp.push({ src:dataUrl, desc:'' }); renderizarFotosEquipoModalPreview(); }); });
   event.target.value = '';
 }
+
 function renderizarFotosEquipoModalPreview(){
   renderizarGaleriaFotos('previewFotosEquipoModal', fotosEquipoModalTemp, 'equipoModal');
 }

@@ -77,11 +77,26 @@ function cerrarImagenAmpliada(){
   const overlay = document.getElementById('lightboxImagenOverlay');
   if(overlay) overlay.style.display = 'none';
 }
-async function conIndicadorCarga(boton, accionAsync){
+// texto: mensaje que se muestra mientras dura la acción — por defecto
+// "Guardando...", pero se puede personalizar (ej. "Generando documento...")
+// sin afectar a ninguno de los lugares que ya llaman esta función igual
+// que siempre (con solo 2 argumentos).
+// Si accionAsync no termina dentro de milisegundos, se corta con un error
+// claro en vez de dejar al usuario esperando para siempre sin ningún aviso
+// — usado en la generación de PDF, que a veces podía quedar "colgada" sin
+// que el usuario supiera si de verdad estaba trabajando o ya se rompió.
+function conTiempoLimite(promesa, milisegundos, mensajeError){
+  return Promise.race([
+    promesa,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(mensajeError || 'Esto está tardando demasiado — inténtalo de nuevo.')), milisegundos))
+  ]);
+}
+
+async function conIndicadorCarga(boton, accionAsync, texto){
   if(!boton) return accionAsync();
   const textoOriginal = boton.innerHTML;
   boton.disabled = true;
-  boton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+  boton.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${texto || 'Guardando...'}`;
   try{
     await accionAsync();
   } finally {
@@ -388,6 +403,114 @@ function actualizarDescripcionGaleria(contexto, idx, valor, campoId){
   else arr[idx].desc = valor;
   if(contexto==='cliente') imagenesClienteModificado = true;
 }
+
+/* =========================================================
+   TOMAR FOTO EN VIVO — componente ÚNICO y genérico, reutilizado en
+   cualquier galería de la plataforma (Equipos, Inventario, Clientes,
+   Órdenes...) que ya use obtenerArregloGaleria()/rerenderizarGaleria().
+   Al confirmar, la foto pasa por comprimirImagen() y se agrega al MISMO
+   arreglo que usan las fotos subidas por archivo — mismo formato, mismo
+   almacenamiento, misma vista previa. Un solo modal de cámara (definido
+   una vez en el HTML) sirve para todos los contextos.
+========================================================= */
+let camaraFotoStream = null;
+let camaraFotoBlobCapturado = null;
+let camaraFotoContextoActual = null;
+let camaraFotoCampoIdActual = null;
+let camaraFotoLimiteActual = null;
+
+async function abrirCamaraFoto(contexto, campoId, limiteMaximo){
+  const arr = obtenerArregloGaleria(contexto, campoId);
+  if(limiteMaximo && arr && arr.length >= limiteMaximo){
+    mostrarToast(`Ya tienes el máximo de ${limiteMaximo} foto${limiteMaximo===1?'':'s'} — quita una para poder tomar otra.`);
+    return;
+  }
+  camaraFotoContextoActual = contexto;
+  camaraFotoCampoIdActual = campoId;
+  camaraFotoLimiteActual = limiteMaximo || null;
+  const estado = document.getElementById('camaraFotoEstado');
+  if(estado) estado.innerText = 'Encuadra y toma la foto…';
+  volverAVistaEnVivoCamaraFoto();
+  abrirModal('modalCamaraFoto');
+  camaraFotoStream = null;
+  const video = document.getElementById('camaraFotoVideo');
+  try{
+    camaraFotoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    video.srcObject = camaraFotoStream;
+    await video.play();
+  }catch(err){
+    if(estado) estado.innerText = 'No se pudo acceder a la cámara. Revisa los permisos del navegador.';
+    mostrarToast('⚠️ No se pudo acceder a la cámara: ' + err.message, 'error');
+  }
+}
+
+function capturarFoto(){
+  const video = document.getElementById('camaraFotoVideo');
+  const canvas = document.getElementById('camaraFotoCanvasOculto');
+  if(!video || !video.videoWidth){ mostrarToast('La cámara todavía no está lista — espera un segundo e intenta de nuevo.'); return; }
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  canvas.toBlob(blob=>{
+    camaraFotoBlobCapturado = blob;
+    const preview = document.getElementById('camaraFotoPreview');
+    preview.src = URL.createObjectURL(blob);
+    preview.style.display = 'block';
+    video.style.display = 'none';
+    document.getElementById('camaraFotoEstado').innerText = '¿Quedó bien? Puedes usarla o repetir la toma.';
+    document.getElementById('btnCapturarFoto').style.display = 'none';
+    document.getElementById('btnRepetirFoto').style.display = 'block';
+    document.getElementById('btnUsarFoto').style.display = 'block';
+  }, 'image/jpeg', 0.92);
+}
+
+function repetirFoto(){
+  camaraFotoBlobCapturado = null;
+  volverAVistaEnVivoCamaraFoto();
+}
+
+function volverAVistaEnVivoCamaraFoto(){
+  const preview = document.getElementById('camaraFotoPreview');
+  const video = document.getElementById('camaraFotoVideo');
+  if(preview){ preview.style.display = 'none'; if(preview.src) URL.revokeObjectURL(preview.src); preview.removeAttribute('src'); }
+  if(video) video.style.display = 'block';
+  const estado = document.getElementById('camaraFotoEstado');
+  if(estado) estado.innerText = 'Encuadra y toma la foto…';
+  const btnCapturar = document.getElementById('btnCapturarFoto');
+  const btnRepetir = document.getElementById('btnRepetirFoto');
+  const btnUsar = document.getElementById('btnUsarFoto');
+  if(btnCapturar) btnCapturar.style.display = 'block';
+  if(btnRepetir) btnRepetir.style.display = 'none';
+  if(btnUsar) btnUsar.style.display = 'none';
+}
+
+async function usarFotoCapturada(){
+  if(!camaraFotoBlobCapturado){ mostrarToast('No hay ninguna foto capturada todavía.'); return; }
+  try{
+    // Mismo comprimirImagen() que usan las fotos subidas por archivo —
+    // así la foto en vivo queda guardada en el mismo formato exacto, en
+    // el mismo arreglo que ya usa cada galería (equipo, inventario, etc.).
+    const dataUrl = await comprimirImagen(camaraFotoBlobCapturado);
+    const arr = obtenerArregloGaleria(camaraFotoContextoActual, camaraFotoCampoIdActual);
+    if(!arr){ mostrarToast('No se pudo agregar la foto — la sección de fotos no está lista.', 'error'); return; }
+    arr.push({ src: dataUrl, desc: '' });
+    if(camaraFotoContextoActual === 'cliente') imagenesClienteModificado = true;
+    rerenderizarGaleria(camaraFotoContextoActual, camaraFotoCampoIdActual);
+    mostrarToast('📷 Foto agregada.', 'exito');
+    cerrarCamaraFoto();
+  }catch(err){
+    mostrarToast('No se pudo procesar la foto capturada. Intenta de nuevo.', 'error');
+  }
+}
+
+function cerrarCamaraFoto(){
+  if(camaraFotoStream){ camaraFotoStream.getTracks().forEach(t=>t.stop()); camaraFotoStream = null; }
+  camaraFotoBlobCapturado = null;
+  camaraFotoContextoActual = null; camaraFotoCampoIdActual = null; camaraFotoLimiteActual = null;
+  volverAVistaEnVivoCamaraFoto();
+  cerrarModal('modalCamaraFoto');
+}
+
 function nombreClienteOrden(o){
   if(o.esClienteNuevo) return o.clienteNuevoNombre || '(cliente nuevo sin nombre)';
   const c = buscarCliente(o.clienteId);

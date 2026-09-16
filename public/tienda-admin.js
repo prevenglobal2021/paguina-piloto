@@ -63,9 +63,7 @@ function renderizarMarcaTienda(){
   } else {
     footerTel.style.display = 'none';
   }
-  asegurarCarruselImagenesConReferencia();
-  document.getElementById('tiendaSecciones').innerHTML = htmlSeccionesTienda(db.config.tiendaSecciones, db.config.tiendaTestimonios, db.config.carruselImagenes);
-  iniciarAutoRotacionCarrusel('galeria'); iniciarAutoRotacionCarrusel('proyectos');
+  document.getElementById('tiendaSecciones').innerHTML = htmlSeccionesTienda(db.config.tiendaSecciones, db.config.tiendaTestimonios);
 }
 
 
@@ -104,13 +102,9 @@ function renderizarTienda(){
 function formatoCOP(valor){
   return '$' + Math.round(valor).toLocaleString('es-CO');
 }
-function htmlSeccionesTienda(secciones, testimonios, carruselImagenes){
-  secciones = secciones || {}; testimonios = testimonios || []; carruselImagenes = carruselImagenes || [];
+function htmlSeccionesTienda(secciones, testimonios){
+  secciones = secciones || {}; testimonios = testimonios || [];
   let html = '';
-  if(carruselImagenes.length){
-    const slides = carruselImagenes.map(item=>`<div class="carrusel-slide-imagen"><img src="${item.img}">${item.desc?`<div class="carrusel-desc">${item.desc}</div>`:''}</div>`);
-    html += `<div class="tienda-seccion" style="padding-top:0;">${generarCarruselHTML('galeria', slides, 5000)}</div>`;
-  }
   if((secciones.equipo||[]).length){
     html += `<div class="tienda-seccion"><h3 class="tienda-seccion-titulo">Nuestro Equipo</h3><div class="tienda-seccion-linea"></div>
       <div class="tienda-fila-cards">${secciones.equipo.map(m=>`
@@ -122,9 +116,9 @@ function htmlSeccionesTienda(secciones, testimonios, carruselImagenes){
         <div class="tienda-servicio-card">${s.imagen?`<img src="${s.imagen}">`:''}<h5>${s.titulo}</h5><p>${s.subtitulo||''}</p></div>`).join('')}</div></div>`;
   }
   if((secciones.proyectos||[]).length){
-    const slidesProyectos = secciones.proyectos.map(p=>`<div class="carrusel-slide-proyecto">${p.imagen?`<img src="${p.imagen}">`:''}<div class="carrusel-proyecto-info"><h4>${p.titulo}</h4>${p.subtitulo?`<p>${p.subtitulo}</p>`:''}</div></div>`);
     html += `<div class="tienda-seccion"><h3 class="tienda-seccion-titulo">Proyectos Realizados</h3><div class="tienda-seccion-linea"></div>
-      ${generarCarruselHTML('proyectos', slidesProyectos, 6000)}</div>`;
+      <div class="tienda-fila-cards">${secciones.proyectos.map(p=>`
+        <div class="tienda-proyecto-card">${p.imagen?`<img src="${p.imagen}">`:''}<div class="capa"><h5>${p.titulo}</h5></div></div>`).join('')}</div></div>`;
   }
   if((secciones.clientes||[]).length){
     html += `<div class="tienda-seccion"><h3 class="tienda-seccion-titulo">Nuestros Clientes</h3><div class="tienda-seccion-linea"></div>
@@ -300,7 +294,6 @@ function cargarTabTiendaConfig(){
   prevLogo.innerHTML = db.config.tiendaLogo ? `<img src="${db.config.tiendaLogo}" style="max-width:100%;max-height:100%;">` : '<small style="color:var(--text-muted);">Usando el logo de la empresa</small>';
   renderizarPreviewMultiple('previewBannerTienda', db.config.tiendaBanner||[], quitarBannerTienda);
   renderizarPreviewGaleria();
-  renderizarAdminCarruselImagenes();
   document.getElementById('cfgTiendaTelefono').value = db.config.tiendaTelefono||'';
   document.getElementById('cfgTiendaWhatsapp').value = db.config.tiendaWhatsapp||'';
   document.getElementById('cfgTiendaFacebook').value = db.config.tiendaFacebook||'';
@@ -339,265 +332,69 @@ function renderizarPreviewGaleria(){
       <input type="text" class="galeria-foto-desc" value="${(item.nota||'').replace(/"/g,'&quot;')}" placeholder="Nota breve..." onchange="guardarNotaGaleria(${i}, this.value)">
     </div>`).join('');
 }
-async function guardarNotaGaleria(i, valor){
+function guardarNotaGaleria(i, valor){
   if(!db.config.tiendaGaleria[i]) return;
-  const anterior = db.config.tiendaGaleria[i].nota;
   db.config.tiendaGaleria[i].nota = valor;
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    db.config.tiendaGaleria[i].nota = anterior;
-    mostrarToast('⚠️ No se pudo guardar la nota: ' + err.message, 'error');
-  }
+  dbGuardarInmediato();
 }
 function subirLogoTienda(event){
   const file = event.target.files[0];
   if(!file) return;
-  comprimirImagen(file).then(async dataUrl=>{
-    const anterior = db.config.tiendaLogo;
+  comprimirImagen(file).then(dataUrl=>{
     db.config.tiendaLogo = dataUrl;
-    try{
-      await dbGuardarInmediato();
-    }catch(err){
-      db.config.tiendaLogo = anterior;
-      mostrarToast('⚠️ No se pudo guardar el logo: ' + err.message, 'error');
-      return;
-    }
+    dbGuardarInmediato();
     cargarTabTiendaConfig();
   });
   event.target.value = '';
 }
-async function quitarLogoTienda(){
-  const anterior = db.config.tiendaLogo;
+function quitarLogoTienda(){
   db.config.tiendaLogo = null;
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    db.config.tiendaLogo = anterior;
-    mostrarToast('⚠️ No se pudo quitar el logo: ' + err.message, 'error');
-    return;
-  }
+  dbGuardarInmediato();
   cargarTabTiendaConfig();
 }
-/* =========================================================
-   CARRUSEL DE IMÁGENES (galería general) — Tienda Virtual
-========================================================= */
-// La primera vez que se abre la pestaña de Tienda, si nunca se ha
-// configurado el carrusel de imágenes, se precarga con contenido de
-// referencia (marcado como temporal) — así el administrador ve de
-// inmediato cómo se ve, mientras sube sus propias fotos.
-function asegurarCarruselImagenesConReferencia(){
-  if(db.config.carruselImagenes && db.config.carruselImagenes.length) return false;
-  db.config.carruselImagenes = [
-    { id:1, img: generarImagenReferenciaSVG('🏭','Instalación de Cuarto Frío','#1e3a8a','#2563eb'), desc:'Instalación de cuarto frío industrial', esTemporal:true },
-    { id:2, img: generarImagenReferenciaSVG('❄️','Equipos de Refrigeración Comercial','#0e7490','#06b6d4'), desc:'Equipos de refrigeración comercial de alto rendimiento', esTemporal:true },
-    { id:3, img: generarImagenReferenciaSVG('🔧','Mantenimiento Técnico Especializado','#166534','#22c55e'), desc:'Mantenimiento preventivo realizado por técnicos certificados', esTemporal:true },
-  ];
-  return true;
-}
-function renderizarAdminCarruselImagenes(){
-  if(asegurarCarruselImagenesConReferencia()) dbGuardarInmediato().catch(()=>{});
-  const lista = db.config.carruselImagenes || [];
-  document.getElementById('adminCarruselImagenes').innerHTML = lista.map((item,i)=>`
-    <div style="display:flex;gap:10px;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;margin-bottom:8px;">
-      <img src="${item.img}" style="width:80px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0;">
-      <div style="flex:1;min-width:0;">
-        ${item.esTemporal ? '<span class="badge-referencia-temporal">📌 Imagen de referencia — reemplázala</span><br>' : ''}
-        <input type="text" value="${(item.desc||'').replace(/"/g,'&quot;')}" placeholder="Descripción breve (opcional)" onchange="guardarDescImagenCarrusel(${item.id},this.value)" style="width:100%;margin-top:4px;font-size:12px;">
-      </div>
-      <div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0;">
-        <button class="btn-custom btn-secondary-custom btn-sm-custom" ${i===0?'disabled':''} onclick="moverImagenCarrusel(${item.id},-1)" title="Mover arriba"><i class="fas fa-arrow-up"></i></button>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom" ${i===lista.length-1?'disabled':''} onclick="moverImagenCarrusel(${item.id},1)" title="Mover abajo"><i class="fas fa-arrow-down"></i></button>
-      </div>
-      <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarImagenCarrusel(${item.id})" title="Eliminar"><i class="fas fa-trash"></i></button>
-    </div>`).join('') || '<p class="empty-state">Sin imágenes en el carrusel todavía.</p>';
-}
-function subirImagenesCarrusel(event){
-  const files = Array.from(event.target.files);
-  if(!files.length) return;
-  db.config.carruselImagenes = db.config.carruselImagenes || [];
-  Promise.allSettled(files.map(f=>comprimirImagen(f))).then(async resultados=>{
-    const exitosas = resultados.filter(r=>r.status==='fulfilled').map(r=>({ id:Date.now()+Math.random(), img:r.value, desc:'', esTemporal:false }));
-    const fallidas = resultados.length - exitosas.length;
-    const respaldo = db.config.carruselImagenes.slice();
-    if(exitosas.length) db.config.carruselImagenes.push(...exitosas);
-    try{
-      await dbGuardarInmediato();
-    }catch(err){
-      db.config.carruselImagenes = respaldo;
-      mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
-      return;
-    }
-    renderizarAdminCarruselImagenes();
-    mostrarToast(fallidas ? `Se subieron ${exitosas.length} imagen(es). ${fallidas} no se pudieron procesar.` : '✅ Imagen(es) agregada(s) al carrusel.', fallidas?'error':'exito');
-  });
-  event.target.value = '';
-}
-async function eliminarImagenCarrusel(id){
-  if(!confirm('¿Eliminar esta imagen del carrusel?')) return;
-  const respaldo = db.config.carruselImagenes.slice();
-  db.config.carruselImagenes = db.config.carruselImagenes.filter(x=>x.id!==id);
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    db.config.carruselImagenes = respaldo;
-    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
-    return;
-  }
-  renderizarAdminCarruselImagenes();
-}
-async function moverImagenCarrusel(id, delta){
-  const lista = db.config.carruselImagenes;
-  const idx = lista.findIndex(x=>x.id===id);
-  const destino = idx + delta;
-  if(idx<0 || destino<0 || destino>=lista.length) return;
-  const respaldo = lista.slice();
-  const tmp = lista[idx]; lista[idx] = lista[destino]; lista[destino] = tmp;
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    db.config.carruselImagenes = respaldo;
-    mostrarToast('⚠️ No se pudo reordenar: ' + err.message, 'error');
-    return;
-  }
-  renderizarAdminCarruselImagenes();
-}
-async function guardarDescImagenCarrusel(id, valor){
-  const item = (db.config.carruselImagenes||[]).find(x=>x.id===id);
-  if(!item) return;
-  const anterior = item.desc;
-  item.desc = valor;
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    item.desc = anterior;
-    mostrarToast('⚠️ No se pudo guardar la descripción: ' + err.message, 'error');
-  }
-}
-
 function subirBannerTienda(event){
   const files = Array.from(event.target.files);
   if(!files.length) return;
   db.config.tiendaBanner = db.config.tiendaBanner || [];
-  Promise.allSettled(files.map(f=>comprimirImagen(f))).then(async resultados=>{
+  Promise.allSettled(files.map(f=>comprimirImagen(f))).then(resultados=>{
     const exitosas = resultados.filter(r=>r.status==='fulfilled').map(r=>r.value);
     const fallidas = resultados.length - exitosas.length;
-    const respaldo = db.config.tiendaBanner.slice();
     if(exitosas.length) db.config.tiendaBanner.push(...exitosas);
-    try{
-      await dbGuardarInmediato();
-    }catch(err){
-      db.config.tiendaBanner = respaldo;
-      mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
-      return;
-    }
+    dbGuardarInmediato();
     cargarTabTiendaConfig();
     if(fallidas) mostrarToast(`Se subieron ${exitosas.length} imagen(es). ${fallidas} no se pudieron procesar — revisa que sean archivos de imagen válidos.`);
   });
   event.target.value = '';
 }
-async function quitarBannerTienda(i){
-  const respaldo = db.config.tiendaBanner.slice();
+function quitarBannerTienda(i){
   db.config.tiendaBanner.splice(i,1);
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    db.config.tiendaBanner = respaldo;
-    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
-    return;
-  }
+  dbGuardarInmediato();
   cargarTabTiendaConfig();
 }
 function subirGaleriaTienda(event){
   const files = Array.from(event.target.files);
   if(!files.length) return;
   normalizarGaleriaTienda();
-  Promise.allSettled(files.map(f=>comprimirImagen(f))).then(async resultados=>{
+  Promise.allSettled(files.map(f=>comprimirImagen(f))).then(resultados=>{
     const exitosas = resultados.filter(r=>r.status==='fulfilled').map(r=>({ img:r.value, nota:'' }));
     const fallidas = resultados.length - exitosas.length;
-    const respaldo = db.config.tiendaGaleria.slice();
     if(exitosas.length) db.config.tiendaGaleria.push(...exitosas);
-    try{
-      await dbGuardarInmediato();
-    }catch(err){
-      db.config.tiendaGaleria = respaldo;
-      mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
-      return;
-    }
+    dbGuardarInmediato();
     renderizarPreviewGaleria();
     if(fallidas) mostrarToast(`Se subieron ${exitosas.length} imagen(es). ${fallidas} no se pudieron procesar — revisa que sean archivos de imagen válidos.`);
   });
   event.target.value = '';
 }
-async function quitarGaleriaTienda(i){
-  const respaldo = db.config.tiendaGaleria.slice();
+function quitarGaleriaTienda(i){
   db.config.tiendaGaleria.splice(i,1);
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    db.config.tiendaGaleria = respaldo;
-    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
-    return;
-  }
+  dbGuardarInmediato();
   renderizarPreviewGaleria();
 }
 function secTiendaData(){
   db.config.tiendaSecciones = db.config.tiendaSecciones || { equipo:[], servicios:[], proyectos:[], clientes:[], certificaciones:[] };
   const tipo = document.getElementById('secTiendaTipo').value;
   if(!db.config.tiendaSecciones[tipo]) db.config.tiendaSecciones[tipo] = [];
-  // Solo "Proyectos" se precarga con contenido de referencia (es la sección
-  // que ahora se muestra como carrusel en la tienda pública) — las demás
-  // quedan vacías hasta que el administrador agregue sus propios elementos.
-  if(tipo==='proyectos' && db.config.tiendaSecciones.proyectos.length===0 && !db.config.proyectosReferenciaCargada){
-    db.config.tiendaSecciones.proyectos = [
-      { id:1, imagen: generarImagenReferenciaSVG('🏗️','Instalación de Cuarto Frío Industrial','#1e3a8a','#2563eb'), titulo:'Instalación de Cuarto Frío', subtitulo:'Proyecto de referencia — reemplázalo por uno tuyo', esTemporal:true },
-      { id:2, imagen: generarImagenReferenciaSVG('🚛','Cava Refrigerada para Transporte','#7c2d12','#ea580c'), titulo:'Cava Refrigerada para Transporte', subtitulo:'Proyecto de referencia — reemplázalo por uno tuyo', esTemporal:true },
-      { id:3, imagen: generarImagenReferenciaSVG('🏢','Central de Refrigeración Comercial','#166534','#22c55e'), titulo:'Central de Refrigeración Comercial', subtitulo:'Proyecto de referencia — reemplázalo por uno tuyo', esTemporal:true },
-    ];
-    db.config.proyectosReferenciaCargada = true;
-    dbGuardarInmediato().catch(()=>{});
-  }
   return { tipo, lista: db.config.tiendaSecciones[tipo] };
-}
-let edicionItemSeccionTienda = null;
-function editarItemSeccionTienda(tipo, id){
-  const item = (db.config.tiendaSecciones[tipo]||[]).find(x=>x.id===id);
-  if(!item) return;
-  edicionItemSeccionTienda = { tipo, id };
-  document.getElementById('editSecTiendaTitulo').value = item.titulo;
-  document.getElementById('editSecTiendaSubtitulo').value = item.subtitulo || '';
-  document.getElementById('editSecTiendaImagen').value = '';
-  const preview = document.getElementById('editSecTiendaImagenActual');
-  if(item.imagen){ preview.src = item.imagen; preview.style.display = 'inline-block'; } else { preview.style.display = 'none'; }
-  abrirModal('modalEditarSeccionTienda');
-}
-function guardarEdicionItemSeccionTienda(){
-  if(!edicionItemSeccionTienda) return;
-  const { tipo, id } = edicionItemSeccionTienda;
-  const item = (db.config.tiendaSecciones[tipo]||[]).find(x=>x.id===id);
-  if(!item) return;
-  const titulo = document.getElementById('editSecTiendaTitulo').value.trim();
-  const subtitulo = document.getElementById('editSecTiendaSubtitulo').value.trim();
-  if(!titulo){ mostrarToast('Escribe al menos el título.'); return; }
-  const fileInput = document.getElementById('editSecTiendaImagen');
-  const file = fileInput.files[0];
-  const respaldo = { titulo:item.titulo, subtitulo:item.subtitulo, imagen:item.imagen };
-  const guardar = async (nuevaImagen)=>{
-    item.titulo = titulo; item.subtitulo = subtitulo;
-    if(nuevaImagen) item.imagen = nuevaImagen;
-    try{
-      await dbGuardarInmediato();
-    }catch(err){
-      Object.assign(item, respaldo);
-      mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
-      return;
-    }
-    cerrarModal('modalEditarSeccionTienda');
-    renderizarListaSeccionTienda();
-    mostrarToast('✅ Elemento actualizado.', 'exito');
-  };
-  if(file) comprimirImagen(file).then(guardar);
-  else guardar(null);
 }
 function agregarItemSeccionTienda(){
   const { lista } = secTiendaData();
@@ -606,66 +403,29 @@ function agregarItemSeccionTienda(){
   const fileInput = document.getElementById('secTiendaImagen');
   const file = fileInput.files[0];
   if(!titulo){ mostrarToast('Escribe al menos el título (nombre, servicio, proyecto o cliente).'); return; }
-  const guardar = async (imagen)=>{
-    const nuevoItem = { id: Date.now(), imagen: imagen||null, titulo, subtitulo };
-    lista.push(nuevoItem);
-    try{
-      await dbGuardarInmediato();
-    }catch(err){
-      lista.pop();
-      mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
-      return;
-    }
+  const guardar = (imagen)=>{
+    lista.push({ id: Date.now(), imagen: imagen||null, titulo, subtitulo });
+    dbGuardarInmediato();
     document.getElementById('secTiendaTitulo').value=''; document.getElementById('secTiendaSubtitulo').value=''; fileInput.value='';
     renderizarListaSeccionTienda();
   };
   if(file) comprimirImagen(file).then(guardar);
   else guardar(null);
 }
-async function eliminarItemSeccionTienda(tipo, id){
-  const respaldo = db.config.tiendaSecciones[tipo].slice();
+function eliminarItemSeccionTienda(tipo, id){
   db.config.tiendaSecciones[tipo] = db.config.tiendaSecciones[tipo].filter(i=>i.id!==id);
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    db.config.tiendaSecciones[tipo] = respaldo;
-    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
-    return;
-  }
+  dbGuardarInmediato();
   renderizarListaSeccionTienda();
 }
 function renderizarListaSeccionTienda(){
   const { tipo, lista } = secTiendaData();
-  document.getElementById('listaSeccionTienda').innerHTML = lista.map((item,i)=>`
-    <div style="width:130px;text-align:center;background:#f8fafc;border:1px solid #e2e8f0;color:#1e293b;border-radius:8px;padding:8px;position:relative;">
+  document.getElementById('listaSeccionTienda').innerHTML = lista.map(item=>`
+    <div style="width:110px;text-align:center;background:rgba(0,0,0,.2);border-radius:8px;padding:8px;position:relative;">
       <button onclick="eliminarItemSeccionTienda('${tipo}',${item.id})" style="position:absolute;top:2px;right:2px;background:var(--red-alert);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer;">✖</button>
       ${item.imagen ? `<img src="${item.imagen}" style="width:100%;height:70px;object-fit:cover;border-radius:6px;">` : '<div style="height:70px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);"><i class="fas fa-image"></i></div>'}
-      ${item.esTemporal ? '<span class="badge-referencia-temporal" style="display:block;margin-top:3px;">📌 Referencia</span>' : ''}
       <strong style="display:block;font-size:11px;margin-top:4px;">${item.titulo}</strong>
       <small style="color:var(--text-muted);font-size:10px;">${item.subtitulo||''}</small>
-      <div style="display:flex;gap:3px;justify-content:center;margin-top:5px;">
-        <button class="btn-custom btn-secondary-custom btn-sm-custom" style="padding:2px 6px;" onclick="editarItemSeccionTienda('${tipo}',${item.id})" title="Editar"><i class="fas fa-pen"></i></button>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom" style="padding:2px 6px;" ${i===0?'disabled':''} onclick="moverItemSeccionTienda(${item.id},-1)" title="Mover antes"><i class="fas fa-arrow-left"></i></button>
-        <button class="btn-custom btn-secondary-custom btn-sm-custom" style="padding:2px 6px;" ${i===lista.length-1?'disabled':''} onclick="moverItemSeccionTienda(${item.id},1)" title="Mover después"><i class="fas fa-arrow-right"></i></button>
-      </div>
     </div>`).join('') || '<p class="empty-state" style="width:100%;">Sin elementos en esta sección todavía.</p>';
-}
-async function moverItemSeccionTienda(id, delta){
-  const { lista } = secTiendaData();
-  const idx = lista.findIndex(x=>x.id===id);
-  const destino = idx + delta;
-  if(idx<0 || destino<0 || destino>=lista.length) return;
-  const respaldo = lista.slice();
-  const tmp = lista[idx]; lista[idx] = lista[destino]; lista[destino] = tmp;
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    const { tipo } = secTiendaData();
-    db.config.tiendaSecciones[tipo] = respaldo;
-    mostrarToast('⚠️ No se pudo reordenar: ' + err.message, 'error');
-    return;
-  }
-  renderizarListaSeccionTienda();
 }
 function generarTestimoniosAutomaticos(){
   const yaHayTestimonios = (db.config.tiendaTestimonios || []).length > 0;
@@ -706,86 +466,32 @@ function generarTestimoniosAutomaticos(){
     const estrellas = (i % 9 === 0) ? 4 : 5; // mayoría 5 estrellas, algunas 4 -> promedio alto tipo 4.7-4.8
     testimonios.push({ id: Date.now() + i, nombre, comentario, estrellas });
   }
-  const testimoniosAnteriores = db.config.tiendaTestimonios;
   db.config.tiendaTestimonios = testimonios;
-  (async ()=>{
-    try{
-      await dbGuardarInmediato();
-    }catch(err){
-      db.config.tiendaTestimonios = testimoniosAnteriores;
-      mostrarToast('⚠️ No se pudieron guardar los testimonios: ' + err.message, 'error');
-      return;
-    }
-    renderizarListaTestimoniosTienda();
-    mostrarToast('✅ Se generaron 98 testimonios de ejemplo. Puedes editarlos o borrar los que no quieras desde aquí.', 'exito');
-  })();
+  dbGuardarInmediato();
+  renderizarListaTestimoniosTienda();
+  mostrarToast('Se generaron 98 testimonios de ejemplo. Puedes editarlos o borrar los que no quieras desde aquí.');
 }
-async function agregarTestimonioTienda(){
+function agregarTestimonioTienda(){
   const nombre = document.getElementById('testNombre').value.trim();
   const comentario = document.getElementById('testComentario').value.trim();
   const estrellas = parseInt(document.getElementById('testEstrellas').value);
   if(!nombre || !comentario){ mostrarToast('Escribe el nombre del cliente y su comentario.'); return; }
   db.config.tiendaTestimonios = db.config.tiendaTestimonios || [];
   db.config.tiendaTestimonios.push({ id: Date.now(), nombre, comentario, estrellas });
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    db.config.tiendaTestimonios.pop();
-    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
-    return;
-  }
+  dbGuardarInmediato();
   document.getElementById('testNombre').value=''; document.getElementById('testComentario').value='';
-  mostrarToast('✅ Testimonio agregado.', 'exito');
   renderizarListaTestimoniosTienda();
 }
-function editarTestimonioTienda(id){
-  const t = (db.config.tiendaTestimonios||[]).find(x=>x.id===id);
-  if(!t) return;
-  document.getElementById('editTestId').value = t.id;
-  document.getElementById('editTestNombre').value = t.nombre;
-  document.getElementById('editTestComentario').value = t.comentario;
-  document.getElementById('editTestEstrellas').value = t.estrellas;
-  abrirModal('modalEditarTestimonio');
-}
-async function guardarEdicionTestimonio(){
-  const id = parseFloat(document.getElementById('editTestId').value);
-  const t = (db.config.tiendaTestimonios||[]).find(x=>x.id===id);
-  if(!t) return;
-  const nombre = document.getElementById('editTestNombre').value.trim();
-  const comentario = document.getElementById('editTestComentario').value.trim();
-  const estrellas = parseInt(document.getElementById('editTestEstrellas').value);
-  if(!nombre || !comentario){ mostrarToast('Escribe el nombre del cliente y su comentario.'); return; }
-  const respaldo = { nombre:t.nombre, comentario:t.comentario, estrellas:t.estrellas };
-  t.nombre = nombre; t.comentario = comentario; t.estrellas = estrellas;
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    Object.assign(t, respaldo);
-    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
-    return;
-  }
-  cerrarModal('modalEditarTestimonio');
-  renderizarListaTestimoniosTienda();
-  mostrarToast('✅ Testimonio actualizado.', 'exito');
-}
-async function eliminarTestimonioTienda(id){
-  const respaldo = db.config.tiendaTestimonios.slice();
+function eliminarTestimonioTienda(id){
   db.config.tiendaTestimonios = db.config.tiendaTestimonios.filter(t=>t.id!==id);
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    db.config.tiendaTestimonios = respaldo;
-    mostrarToast('⚠️ No se pudo eliminar: ' + err.message, 'error');
-    return;
-  }
+  dbGuardarInmediato();
   renderizarListaTestimoniosTienda();
 }
 function renderizarListaTestimoniosTienda(){
   const lista = db.config.tiendaTestimonios || [];
   document.getElementById('listaTestimoniosTienda').innerHTML = lista.map(t=>`
-    <div style="width:220px;background:#f8fafc;border:1px solid #e2e8f0;color:#1e293b;border-radius:8px;padding:10px;position:relative;">
+    <div style="width:220px;background:rgba(0,0,0,.2);border-radius:8px;padding:10px;position:relative;">
       <button onclick="eliminarTestimonioTienda(${t.id})" style="position:absolute;top:4px;right:4px;background:var(--red-alert);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer;">✖</button>
-      <button onclick="editarTestimonioTienda(${t.id})" style="position:absolute;top:4px;right:26px;background:var(--blue-accent);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer;"><i class="fas fa-pen"></i></button>
       <div style="color:#f59e0b;font-size:12px;">${'⭐'.repeat(t.estrellas)}</div>
       <p style="font-size:11px;font-style:italic;margin:6px 0;">"${t.comentario}"</p>
       <strong style="font-size:11px;">${t.nombre}</strong>
@@ -798,20 +504,13 @@ function copiarLinkTiendaPublica(){
     mostrarToast('Enlace copiado — ya lo puedes compartir con tus clientes.');
   }).catch(()=>{ document.execCommand('copy'); mostrarToast('Enlace copiado.'); });
 }
-async function guardarContactoTienda(){
-  const respaldo = { tiendaTelefono: db.config.tiendaTelefono, tiendaWhatsapp: db.config.tiendaWhatsapp, tiendaFacebook: db.config.tiendaFacebook, tiendaInstagram: db.config.tiendaInstagram };
+function guardarContactoTienda(){
   db.config.tiendaTelefono = document.getElementById('cfgTiendaTelefono').value.trim();
   db.config.tiendaWhatsapp = document.getElementById('cfgTiendaWhatsapp').value.trim();
   db.config.tiendaFacebook = document.getElementById('cfgTiendaFacebook').value.trim();
   db.config.tiendaInstagram = document.getElementById('cfgTiendaInstagram').value.trim();
-  try{
-    await dbGuardarInmediato();
-  }catch(err){
-    Object.assign(db.config, respaldo);
-    mostrarToast('⚠️ No se pudo guardar: ' + err.message, 'error');
-    return;
-  }
-  mostrarToast('✅ Datos de contacto de la tienda guardados.', 'exito');
+  dbGuardarInmediato();
+  mostrarToast('Datos de contacto de la tienda guardados.');
   renderizarTienda();
 }
 async function guardarAparienciaTienda(){

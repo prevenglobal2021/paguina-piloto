@@ -202,12 +202,11 @@ async function eliminarCampoConfig(id){
    CONFIGURACIÓN: PERSONAL (rol + permisos)
 ========================================================= */
 function onCambiarRolPersonal(){
-  // El rol (Técnico / Administrativo) ya NO marca "Acceso total" por su
-  // cuenta — antes, elegir "Administrativo" le daba a la persona acceso a
-  // todo automáticamente, aunque nunca se hubiera elegido eso a propósito.
-  // Ahora toda persona, sea cual sea su rol, solo ve lo que se le active a
-  // mano en el listado de abajo. "Acceso total" sigue existiendo como
-  // opción, pero hay que marcarla aparte, a propósito, cada vez.
+  // Solo una ayuda de conveniencia: al elegir "Administrativo" sugiere Acceso
+  // total marcado (se puede desmarcar igual para dejarlo parcial); elegir
+  // "Técnico" lo deja sin marcar por defecto. Nunca es obligatorio.
+  const rol = document.getElementById('cfgTecRol').value;
+  document.getElementById('cfgTecAccesoTotal').checked = (rol === 'administrativo');
   renderizarChecklistPermisosPersonal();
 }
 function renderizarChecklistPermisosPersonal(permisosActuales){
