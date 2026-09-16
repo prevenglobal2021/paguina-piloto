@@ -231,6 +231,93 @@ function mostrarAvisoAbrirWhatsApp(enlaceWhatsApp, nombreArchivo, mensajePersona
   setTimeout(()=>{ el.classList.add('saliendo'); setTimeout(()=>el.remove(), 250); }, 30000);
 }
 
+
+/* =========================================================
+   IMPRESIÓN / PDF A4 — botón unificado
+   En navegador: usa el diálogo de impresión del navegador.
+   En la app Android: genera primero un PDF A4 real y abre el panel
+   nativo de compartir, donde se puede elegir Imprimir, Guardar, WhatsApp, etc.
+========================================================= */
+function opcionesPDFA4(nombreArchivo){
+  return {
+    margin: 8,
+    filename: nombreArchivo || 'Prevenglobal_Documento.pdf',
+    image: { type:'jpeg', quality:0.95 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      scrollX: 0,
+      scrollY: 0,
+      logging: false
+    },
+    jsPDF: { unit:'mm', format:'a4', orientation:'portrait' },
+    pagebreak: { mode:['css','legacy'] }
+  };
+}
+
+async function generarBlobA4DesdeElemento(elemento, nombreArchivo){
+  if(!elemento) throw new Error('No se encontró el contenido del documento.');
+  if(typeof html2pdf === 'undefined') throw new Error('El generador PDF no está disponible.');
+  await esperarImagenesCargadas(elemento);
+  return await conTiempoLimite(
+    html2pdf().set(opcionesPDFA4(nombreArchivo)).from(elemento).outputPdf('blob'),
+    30000,
+    'La generación del PDF está tardando demasiado. Vuelve a intentarlo.'
+  );
+}
+
+async function imprimirDocumentoDesdeElemento(idElemento, nombreArchivo, titulo){
+  const elemento = document.getElementById(idElemento);
+  if(!elemento){ mostrarToast('No se encontró el documento para imprimir.'); return; }
+  const dentroDeLaApp = typeof corriendoDentroDeLaApp === 'function' && corriendoDentroDeLaApp();
+
+  // Android/WebView: window.print() puede no hacer absolutamente nada.
+  // Generamos un A4 real y usamos el panel nativo, que permite seleccionar
+  // una impresora, guardar el PDF o compartirlo.
+  if(dentroDeLaApp){
+    try{
+      const blob = await generarBlobA4DesdeElemento(elemento, nombreArchivo);
+      const compartido = await compartirArchivoNativo(blob, nombreArchivo, titulo || 'Documento Prevenglobal');
+      if(compartido){
+        mostrarToast('Documento A4 listo. En el panel de compartir puedes elegir Imprimir o Guardar PDF.');
+        return;
+      }
+      // Si el puente nativo no está disponible, descargamos el PDF como
+      // respaldo. Esto evita que el botón quede sin respuesta.
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = nombreArchivo; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 2000);
+      mostrarToast('PDF A4 generado y guardado en el dispositivo.');
+      return;
+    }catch(err){
+      console.error('Error al generar PDF A4:', err);
+      mostrarToast(err.message || 'No se pudo generar el PDF A4.');
+      return;
+    }
+  }
+
+  // Navegador normal: impresión nativa con CSS @page A4.
+  window.print();
+}
+
+function imprimirDocumentoActual(){
+  const tipo = pdfDocumentoActualTipo || 'orden';
+  const id = pdfDocumentoActualId || ordenPdfActualId || 'documento';
+  const prefijo = tipo === 'cotizacion' ? 'Cotizacion' : tipo === 'factura' ? 'Factura' : 'Informe';
+  imprimirDocumentoDesdeElemento('pdfContenido', `${prefijo}_${id}.pdf`, `${prefijo} Prevenglobal`);
+}
+
+function imprimirVistaPreviaFormulario(){
+  imprimirDocumentoDesdeElemento('vpContenidoFormulario', 'Plantilla_Prevenglobal_A4.pdf', 'Vista previa de formulario');
+}
+
+function imprimirComprobanteNomina(){
+  const id = (typeof comprobanteNominaActualId !== 'undefined' && comprobanteNominaActualId) ? comprobanteNominaActualId : 'comprobante';
+  imprimirDocumentoDesdeElemento('comprobanteNominaContenido', `Comprobante_Nomina_${id}.pdf`, 'Comprobante de nómina');
+}
+
 function verPDF(ordenId){
   ordenPdfActualId = ordenId;
   pdfDocumentoActualTipo = 'orden'; pdfDocumentoActualId = ordenId;
