@@ -1380,6 +1380,23 @@ function abrirModalCotizacion(cotizacionId){
   actualizarPreviewCotizacionFactura('cot');
   abrirModal('modalCotizacion');
 }
+function abrirNuevaFacturaDirecta(){
+  // Punto de entrada exclusivo para el botón "Nueva Factura".
+  // Evita que un elemento opcional ausente o un estado anterior del modal
+  // deje el botón sin respuesta y garantiza que la colección exista.
+  try{
+    db = db || {};
+    db.facturas = Array.isArray(db.facturas) ? db.facturas : [];
+    if(!Array.isArray(db.cotizaciones)) db.cotizaciones = [];
+    abrirModalFactura(null, null);
+  }catch(err){
+    console.error('Error al abrir Nueva Factura:', err);
+    try{
+      mostrarToast('No se pudo abrir Nueva Factura: ' + (err?.message || 'error inesperado'), 'error');
+    }catch(_){ alert('No se pudo abrir Nueva Factura. Revisa la consola para más detalles.'); }
+  }
+}
+
 function abrirModalFactura(facturaId, cotizacionOrigen){
   cerrarModal('modalItemComercial');
   cerrarModal('modalPDF');
