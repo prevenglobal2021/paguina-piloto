@@ -28,16 +28,24 @@ async function compartirArchivoNativo(blob, nombreArchivo, tituloCompartir){
       lector.onerror = reject;
       lector.readAsDataURL(blob);
     });
-    const { Filesystem, Share } = window.Capacitor.Plugins;
+    const plugins = window.Capacitor && window.Capacitor.Plugins;
+    const Filesystem = plugins && plugins.Filesystem;
+    const Share = plugins && plugins.Share;
+    if(!Filesystem || !Share) throw new Error('Los plugins nativos de archivos/compartir no están disponibles.');
+
     const escrito = await Filesystem.writeFile({
       path: nombreArchivo,
       data: base64,
-      directory: 'CACHE'
+      directory: 'CACHE',
+      recursive: true
     });
+    if(!escrito || !escrito.uri) throw new Error('Android no devolvió una URI para el PDF.');
+
     await Share.share({
       title: tituloCompartir || 'Compartir documento',
+      text: '',
       url: escrito.uri,
-      dialogTitle: 'Enviar por WhatsApp'
+      dialogTitle: 'Compartir documento por WhatsApp'
     });
     return true;
   }catch(err){

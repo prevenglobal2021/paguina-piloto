@@ -118,10 +118,21 @@ function esperarImagenesCargadas(elemento){
 // ningún navegador lo puede bloquear ni esconder — nunca. Se pierde un poco
 // de automatismo en el peor de los casos, a cambio de que funcione siempre,
 // en cualquier navegador, sin excepción.
+// Normaliza teléfonos para WhatsApp. Por defecto aplica Colombia (+57) a números locales de 10 dígitos.
+function normalizarTelefonoWhatsApp(telefono, codigoPais='57'){
+  if(telefono === null || telefono === undefined) return '';
+  let n = String(telefono).trim().replace(/[^0-9]/g,'');
+  if(!n) return '';
+  if(n.startsWith('00')) n = n.slice(2);
+  if(codigoPais === '57' && /^3\d{9}$/.test(n)) return '57' + n;
+  if(/^57\d{10}$/.test(n)) return n;
+  return n;
+}
+
 async function compartirDocumentoPorWhatsApp({ telefono, mensaje, generarBlob, nombreArchivo, tituloCompartir, tipoLog, detalleLog, mensajeSinTelefono }){
-  if(!telefono){ mostrarToast(mensajeSinTelefono || 'Este cliente no tiene teléfono registrado — usa "Ver" para descargar el documento y enviarlo tú mismo.'); return; }
-  const telefonoLimpio = telefono.replace(/[^0-9]/g,'');
-  const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
+  const telefonoLimpio = normalizarTelefonoWhatsApp(telefono);
+  if(!telefonoLimpio){ mostrarToast(mensajeSinTelefono || 'Este cliente no tiene teléfono registrado — usa "Ver" para descargar el documento y enviarlo tú mismo.'); return; }
+  const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje || '')}`;
   const dentroDeLaApp = typeof corriendoDentroDeLaApp === 'function' && corriendoDentroDeLaApp();
 
   let blob;

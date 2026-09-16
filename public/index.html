@@ -1780,7 +1780,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div id="pdfBotonera" style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalPDF')">Cerrar</button>
       <button class="btn-custom" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
-      <button class="btn-custom btn-success-custom" onclick="conIndicadorCarga(this, enviarDocumentoActualPorWhatsApp, 'Generando documento...')"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
+      <button class="btn-custom btn-success-custom" onclick="enviarDocumentoActualPorWhatsApp()"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
     </div>
   </div>
 </div>
@@ -1812,34 +1812,11 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <label>Ficha técnica complementaria (especificaciones adicionales):</label>
     <textarea id="eqModalFichaTecnica" rows="2" placeholder="Datos técnicos adicionales, hoja de datos, notas de instalación..."></textarea>
     <label>Fotos del equipo:</label>
-    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
-      <button type="button" class="btn-custom" style="flex:1; min-width:140px;" onclick="abrirCamaraFotoEquipo()">📷 Tomar foto</button>
-      <button type="button" class="btn-custom btn-secondary-custom" style="flex:1; min-width:140px;" onclick="document.getElementById('eqModalFotoInput').click()">🖼️ Subir imagen</button>
-    </div>
-    <input type="file" id="eqModalFotoInput" accept="image/*" multiple onchange="manejarFotoEquipoModal(event)" style="display:none;">
+    <input type="file" id="eqModalFotoInput" accept="image/*" multiple onchange="manejarFotoEquipoModal(event)">
     <div class="galeria-fotos" id="previewFotosEquipoModal"></div>
     <div style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalEquipo')">Cancelar</button>
       <button class="btn-custom" onclick="conIndicadorCarga(this, guardarEquipoModal)">Guardar Equipo</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: TOMAR FOTO EN VIVO (equipos) — misma cámara que el escáner QR,
-     reutilizada aquí para capturar una foto fija en vez de leer un código. -->
-<div class="modal-overlay" id="modalCamaraFotoEquipo">
-  <div class="modal-box" style="max-width:480px;">
-    <button class="close-modal" onclick="cerrarCamaraFotoEquipo()">✖</button>
-    <h3>📷 Tomar foto del equipo</h3>
-    <video id="camaraFotoEquipoVideo" autoplay playsinline muted style="width:100%; border-radius:10px; background:#000; display:block;"></video>
-    <canvas id="camaraFotoEquipoCanvasOculto" style="display:none;"></canvas>
-    <img id="camaraFotoEquipoPreview" style="width:100%; border-radius:10px; display:none;">
-    <p id="camaraFotoEquipoEstado" style="text-align:center; color:#64748b; font-size:13px; margin-top:10px;">Encuadra el equipo y toma la foto…</p>
-    <div class="fila-modal" style="margin-top:12px; display:flex; gap:10px;">
-      <button type="button" class="btn-custom btn-secondary-custom" style="flex:1;" onclick="cerrarCamaraFotoEquipo()" id="btnCancelarCamaraFotoEquipo">Cancelar</button>
-      <button type="button" class="btn-custom" style="flex:1;" onclick="capturarFotoEquipo()" id="btnCapturarFotoEquipo">📸 Capturar</button>
-      <button type="button" class="btn-custom btn-secondary-custom" style="flex:1; display:none;" onclick="repetirFotoEquipo()" id="btnRepetirFotoEquipo">↺ Repetir</button>
-      <button type="button" class="btn-custom btn-success-custom" style="flex:1; display:none;" onclick="usarFotoCapturadaEquipo()" id="btnUsarFotoEquipo">✔ Usar esta foto</button>
     </div>
   </div>
 </div>
@@ -2078,7 +2055,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <div id="comprobanteNominaBotonera" style="margin-top:15px;text-align:right;">
       <button class="btn-custom btn-secondary-custom" onclick="cerrarModal('modalComprobanteNomina')">Cerrar</button>
       <button class="btn-custom" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
-      <button class="btn-custom btn-success-custom solo-admin" data-permiso="enviar_whatsapp" onclick="conIndicadorCarga(this, ()=>enviarComprobanteNominaPorWhatsApp(comprobanteNominaActualId), 'Generando documento...')"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
+      <button class="btn-custom btn-success-custom solo-admin" data-permiso="enviar_whatsapp" onclick="enviarComprobanteNominaPorWhatsApp(comprobanteNominaActualId)"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
     </div>
   </div>
 </div>
@@ -2625,15 +2602,15 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 </div>
 
 <script src="core.js?v=90"></script>
-<script src="capacitor-bridge.js?v=90"></script>
+<script src="capacitor-bridge.js?v=91"></script>
 <script src="utilidades-navegacion.js?v=90"></script>
 <script src="buscador-agenda.js?v=90"></script>
 <script src="ordenes.js?v=90"></script>
 <script src="equipos-trazabilidad.js?v=90"></script>
-<script src="pdf.js?v=90"></script>
-<script src="config-clientes-equipos.js?v=90"></script>
+<script src="pdf.js?v=91"></script>
+<script src="config-clientes-equipos.js?v=91"></script>
 <script src="config-plantillas-tecnicos.js?v=90"></script>
-<script src="cotizador.js?v=90"></script>
+<script src="cotizador.js?v=91"></script>
 <script src="asistencia.js?v=90"></script>
 <script src="config-general.js?v=90"></script>
 <script src="inventario.js?v=90"></script>
