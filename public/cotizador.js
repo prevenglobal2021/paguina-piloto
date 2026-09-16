@@ -387,7 +387,7 @@ async function enviarComprobanteNominaPorWhatsApp(id){
       verComprobanteNomina(id);
       const elemento = document.getElementById('comprobanteNominaContenido');
       await esperarImagenesCargadas(elemento);
-      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true,windowWidth:820,width:780}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
+      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
       const blob = await conTiempoLimite(
         html2pdf().set(opciones).from(elemento).outputPdf('blob'),
         25000,
@@ -419,7 +419,7 @@ async function enviarPorWhatsAppCotizacion(id){
       verPDFCotizacion(id);
       const elemento = document.getElementById('pdfContenido');
       await esperarImagenesCargadas(elemento);
-      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true,windowWidth:820,width:780}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
+      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
       const blob = await conTiempoLimite(
         html2pdf().set(opciones).from(elemento).outputPdf('blob'),
         25000,
@@ -448,7 +448,7 @@ async function enviarPorWhatsAppFactura(id){
       verPDFFactura(id);
       const elemento = document.getElementById('pdfContenido');
       await esperarImagenesCargadas(elemento);
-      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true,windowWidth:820,width:780}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
+      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css','legacy'] } };
       const blob = await conTiempoLimite(
         html2pdf().set(opciones).from(elemento).outputPdf('blob'),
         25000,
