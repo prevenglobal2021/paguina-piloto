@@ -91,11 +91,19 @@ function generarBloqueInformeEquipoPDF(datosCierre, plantilla){
 // bloquea el resto: se resuelve igual para no trabar todo el envío.
 function esperarImagenesCargadas(elemento){
   const imagenes = Array.from(elemento.querySelectorAll('img'));
+  if(!imagenes.length) return Promise.resolve();
   return Promise.all(imagenes.map(img => {
-    if(img.complete && img.naturalWidth > 0) return Promise.resolve();
+    // Si ya terminó de cargar, sea correcta o incorrectamente, no debemos
+    // esperar un evento que nunca volverá a dispararse.
+    if(img.complete) return Promise.resolve();
     return new Promise(resolve => {
-      img.addEventListener('load', resolve, { once:true });
-      img.addEventListener('error', resolve, { once:true });
+      const terminar = () => {
+        img.removeEventListener('load', terminar);
+        img.removeEventListener('error', terminar);
+        resolve();
+      };
+      img.addEventListener('load', terminar, { once:true });
+      img.addEventListener('error', terminar, { once:true });
     });
   }));
 }
@@ -119,6 +127,32 @@ function esperarImagenesCargadas(elemento){
 // de automatismo en el peor de los casos, a cambio de que funcione siempre,
 // en cualquier navegador, sin excepción.
 // Normaliza teléfonos para WhatsApp. Por defecto aplica Colombia (+57) a números locales de 10 dígitos.
+// Utilidad de seguridad para evitar que una generación de PDF se quede
+// esperando indefinidamente. Esta función es requerida por Órdenes,
+// Cotizaciones, Facturas y Nómina.
+function conTiempoLimite(promesa, milisegundos, mensaje){
+  return new Promise((resolve, reject)=>{
+    let finalizado = false;
+    const temporizador = setTimeout(()=>{
+      if(finalizado) return;
+      finalizado = true;
+      reject(new Error(mensaje || 'La operación tardó demasiado.'));
+    }, milisegundos || 30000);
+
+    Promise.resolve(promesa).then(resultado=>{
+      if(finalizado) return;
+      finalizado = true;
+      clearTimeout(temporizador);
+      resolve(resultado);
+    }).catch(error=>{
+      if(finalizado) return;
+      finalizado = true;
+      clearTimeout(temporizador);
+      reject(error);
+    });
+  });
+}
+
 function normalizarTelefonoWhatsApp(telefono, codigoPais='57'){
   if(telefono === null || telefono === undefined) return '';
   let n = String(telefono).trim().replace(/[^0-9]/g,'');
