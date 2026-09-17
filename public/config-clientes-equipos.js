@@ -95,8 +95,9 @@ async function enviarPorWhatsApp(ordenId){
     generarBlob: async () => {
       verPDF(ordenId);
       const elemento = document.getElementById('pdfContenido');
+      elemento.closest('.modal-box').scrollTop = 0; // por si quedó desplazada de un documento anterior
       await esperarImagenesCargadas(elemento); // evita fotos en blanco en el PDF por no esperar a que carguen
-      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
+      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true,scrollX:0,scrollY:0}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
       const blob = await conTiempoLimite(
         html2pdf().set(opciones).from(elemento).outputPdf('blob'),
         25000,
