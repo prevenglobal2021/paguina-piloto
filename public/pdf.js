@@ -121,15 +121,21 @@ function obtenerContenedorImpresionOculto(){
     // Invisible para la persona, pero DENTRO del área normal de la pantalla
     // (top:0, left:0) — nunca a una distancia extrema (como -99999px), que
     // es justo lo que hacía que la herramienta de captura (html2canvas) a
-    // veces generara una imagen en blanco: no calculaba bien una zona tan
-    // lejos del área visible. Queda oculto de verdad gracias a la opacidad
-    // casi nula y al z-index bien por debajo de todo lo demás — nunca se ve,
-    // ni se puede tocar (pointer-events:none), pero SÍ se puede capturar.
+    // veces generara una imagen en blanco por no calcular bien una zona
+    // tan lejos del área visible.
+    // IMPORTANTE: la opacidad tiene que quedar en 1 (completa) — bajarla
+    // (como se hizo antes, a 0.01 "para que no se vea") hace que la propia
+    // "foto" capturada salga casi transparente sobre el fondo blanco, es
+    // decir, EN BLANCO — la misma opacidad que se usa para ocultarlo en
+    // pantalla queda grabada también en el documento generado. Por eso
+    // ahora se oculta SOLO con un z-index bajo, para que quede detrás del
+    // fondo oscuro del modal (que sí está abierto mientras esto se genera,
+    // y tapa toda la pantalla) — nunca bajando la opacidad real.
     cont.style.position = 'fixed';
     cont.style.top = '0';
     cont.style.left = '0';
-    cont.style.zIndex = '-9999';
-    cont.style.opacity = '0.01';
+    cont.style.zIndex = '1'; // por debajo del modal (z-index:1000), que lo tapa mientras se genera
+    cont.style.opacity = '1';
     cont.style.pointerEvents = 'none';
     cont.style.width = ANCHO_HOJA_DOCUMENTO_PX + 'px';
     cont.style.maxWidth = ANCHO_HOJA_DOCUMENTO_PX + 'px';
