@@ -385,15 +385,7 @@ async function enviarComprobanteNominaPorWhatsApp(id){
     mensajeSinTelefono: 'Esta persona no tiene teléfono registrado en su ficha de técnico.',
     generarBlob: async () => {
       verComprobanteNomina(id);
-      const elemento = document.getElementById('comprobanteNominaContenido');
-      elemento.closest('.modal-box').scrollTop = 0; // por si quedó desplazada de un documento anterior
-      await esperarImagenesCargadas(elemento);
-      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true,scrollX:0,scrollY:0}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
-      const blob = await conTiempoLimite(
-        html2pdf().set(opciones).from(elemento).outputPdf('blob'),
-        25000,
-        'La generación del comprobante está tardando demasiado. Vuelve a intentarlo, o usa "Ver comprobante" para generarlo manualmente.'
-      );
+      const blob = await generarPDFDesdeElemento('comprobanteNominaContenido', nombreArchivo);
       cerrarModal('modalComprobanteNomina');
       return blob;
     }
@@ -418,15 +410,7 @@ async function enviarPorWhatsAppCotizacion(id){
     mensajeSinTelefono: 'Este cliente no tiene teléfono registrado — usa "Ver" para descargar la cotización y enviarla tú mismo.',
     generarBlob: async () => {
       verPDFCotizacion(id);
-      const elemento = document.getElementById('pdfContenido');
-      elemento.closest('.modal-box').scrollTop = 0; // por si quedó desplazada de un documento anterior
-      await esperarImagenesCargadas(elemento);
-      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true,scrollX:0,scrollY:0}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
-      const blob = await conTiempoLimite(
-        html2pdf().set(opciones).from(elemento).outputPdf('blob'),
-        25000,
-        'La generación de la cotización está tardando demasiado. Vuelve a intentarlo, o usa "Ver" para generarla manualmente.'
-      );
+      const blob = await generarPDFDesdeElemento('pdfContenido', nombreArchivo);
       cerrarModal('modalPDF');
       return blob;
     }
@@ -448,15 +432,7 @@ async function enviarPorWhatsAppFactura(id){
     mensajeSinTelefono: 'Este cliente no tiene teléfono registrado — usa "Ver" para descargar la factura y enviarla tú mismo.',
     generarBlob: async () => {
       verPDFFactura(id);
-      const elemento = document.getElementById('pdfContenido');
-      elemento.closest('.modal-box').scrollTop = 0; // por si quedó desplazada de un documento anterior
-      await esperarImagenesCargadas(elemento);
-      const opciones = { margin:10, filename:nombreArchivo, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2,useCORS:true,scrollX:0,scrollY:0}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{ mode:['css'] } };
-      const blob = await conTiempoLimite(
-        html2pdf().set(opciones).from(elemento).outputPdf('blob'),
-        25000,
-        'La generación de la factura está tardando demasiado. Vuelve a intentarlo, o usa "Ver" para generarla manualmente.'
-      );
+      const blob = await generarPDFDesdeElemento('pdfContenido', nombreArchivo);
       cerrarModal('modalPDF');
       return blob;
     }

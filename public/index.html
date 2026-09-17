@@ -464,7 +464,7 @@ table.data-table th{background:rgba(0,0,0,.3);}
    lados para verlo completo, antes de imprimir/enviar.
 ========================================================= */
 .pdf-preview-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-.pdf-preview{background:#fff;color:#333;padding:30px;border-radius:8px;font-size:13px;position:relative;width:780px;max-width:780px;min-width:780px;margin:0 auto;box-sizing:border-box;}
+.pdf-preview{background:#fff;color:#333;padding:30px;border-radius:8px;font-size:13px;position:relative;width:700px;max-width:700px;min-width:700px;margin:0 auto;box-sizing:border-box;}
 .pdf-header{display:flex;justify-content:space-between;border-bottom:2px solid #0088ff;padding-bottom:12px;margin-bottom:20px;align-items:center;}
 /* 1.1 Logo en encabezado del PDF: 5cm x 5cm */
 .pdf-header img{width:5cm;height:5cm;object-fit:contain;margin-bottom:6px;}
@@ -672,6 +672,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 
 
 @media print{
+  @page{ size: letter; margin: 15mm; }
   body.imprimiendo-etiqueta *{ visibility:hidden; }
   body.imprimiendo-etiqueta #etiquetaQRPrint, body.imprimiendo-etiqueta #etiquetaQRPrint *{ visibility:visible; }
   body.imprimiendo-etiqueta #etiquetaQRPrint{ position:fixed; top:0; left:0; }

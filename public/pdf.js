@@ -101,6 +101,61 @@ function esperarImagenesCargadas(elemento){
 }
 
 // =========================================================================
+// GENERACIÓN DE PDF — punto único y definitivo, reutilizado por Orden de
+// Servicio, Cotización, Factura y Nómina. En vez de "fotografiar" el modal
+// visible en pantalla (que puede estar desplazado por el scroll, o tener
+// un ancho distinto según el dispositivo — la causa real de los
+// documentos descuadrados/corridos que se reportaron varias veces),
+// arma una COPIA del documento en un contenedor invisible, de ancho FIJO
+// (el mismo tamaño hoja carta, siempre), pegado al final de la página y
+// nunca desplazado — así el resultado es idéntico sin importar el
+// dispositivo, el tamaño de pantalla, o si la vista previa se había
+// dejado con scroll de un documento anterior.
+const ANCHO_HOJA_DOCUMENTO_PX = 700; // hoja carta (216mm) con márgenes de 10mm a cada lado
+function obtenerContenedorImpresionOculto(){
+  let cont = document.getElementById('contenedorImpresionOculto');
+  if(!cont){
+    cont = document.createElement('div');
+    cont.id = 'contenedorImpresionOculto';
+    cont.className = 'pdf-preview'; // mismo fondo blanco, relleno y tipografía que la vista previa
+    // Fuera de la pantalla visible (no "display:none", porque html2canvas
+    // no puede fotografiar algo que el navegador nunca llegó a dibujar) —
+    // en una posición fija que nunca se ve afectada por ningún scroll.
+    cont.style.position = 'fixed';
+    cont.style.top = '0';
+    cont.style.left = '-99999px';
+    cont.style.width = ANCHO_HOJA_DOCUMENTO_PX + 'px';
+    cont.style.maxWidth = ANCHO_HOJA_DOCUMENTO_PX + 'px';
+    cont.style.minWidth = ANCHO_HOJA_DOCUMENTO_PX + 'px';
+    document.body.appendChild(cont);
+  }
+  return cont;
+}
+
+// idElementoOrigen: el div del modal donde ya se armó el documento (con
+// verPDF/verPDFCotizacion/verPDFFactura/verComprobanteNomina). Devuelve el
+// PDF ya generado, listo para descargar o compartir.
+async function generarPDFDesdeElemento(idElementoOrigen, nombreArchivo){
+  const origen = document.getElementById(idElementoOrigen);
+  const contenedor = obtenerContenedorImpresionOculto();
+  contenedor.innerHTML = origen.innerHTML; // copia exacta del documento ya armado, sin depender de cómo se ve el modal
+  await esperarImagenesCargadas(contenedor);
+  const opciones = {
+    margin: 10,
+    filename: nombreArchivo,
+    image: { type:'jpeg', quality:0.95 },
+    html2canvas: { scale:2, useCORS:true, scrollX:0, scrollY:0 },
+    jsPDF: { unit:'mm', format:'letter', orientation:'portrait' },
+    pagebreak: { mode:['css'] }
+  };
+  return conTiempoLimite(
+    html2pdf().set(opciones).from(contenedor).outputPdf('blob'),
+    25000,
+    'La generación del documento está tardando demasiado (puede deberse a muchas fotos de alta resolución). Vuelve a intentarlo.'
+  );
+}
+
+// =========================================================================
 // ENVÍO POR WHATSAPP — punto único para Orden de Servicio, Cotización,
 // Factura y Nómina (antes eran 4 copias separadas, cada una con su propia
 // lógica; una fuente de inconsistencias en sí misma).
