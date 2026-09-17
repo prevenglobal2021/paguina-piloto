@@ -27,9 +27,21 @@ function nombreSemanaCorto(claveSemana){
 }
 function renderizarKPIs(){
   if(typeof Chart === 'undefined'){
-    document.querySelector('#seccion-kpi .panel-title').insertAdjacentHTML('afterend', '<p class="empty-state">No se pudo cargar la librería de gráficas (sin conexión a internet). Los datos numéricos igual están disponibles en el resto de la plataforma.</p>');
+    // Con id fijo, para reemplazar el aviso anterior en vez de apilar uno
+    // nuevo cada vez que se entra a esta sección o se cambia un filtro —
+    // antes se repetía sin control, llenando la pantalla de avisos iguales.
+    let aviso = document.getElementById('avisoLibreriaGraficasFaltante');
+    if(!aviso){
+      aviso = document.createElement('p');
+      aviso.id = 'avisoLibreriaGraficasFaltante';
+      aviso.className = 'empty-state';
+      document.querySelector('#seccion-kpi .panel-title').insertAdjacentElement('afterend', aviso);
+    }
+    aviso.innerText = 'No se pudo cargar la librería de gráficas. Los datos numéricos igual están disponibles en el resto de la plataforma.';
     return;
   }
+  const avisoPrevio = document.getElementById('avisoLibreriaGraficasFaltante');
+  if(avisoPrevio) avisoPrevio.remove();
   const meses = parseInt(document.getElementById('kpiRangoMeses').value);
   const hoy = new Date();
   const fechaLimite = new Date(hoy.getFullYear(), hoy.getMonth() - (meses>=9999?1200:meses-1), 1);
