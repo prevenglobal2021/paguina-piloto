@@ -502,6 +502,28 @@ function imprimirEtiquetaQR(){
   window.addEventListener('afterprint', limpiar);
   setTimeout(limpiar, 1500);
 }
+// En Android/celular, el diálogo de impresión del sistema no respeta el
+// tamaño de página personalizado (@page) que pide el navegador — siempre
+// muestra el tamaño estándar (Carta), sin importar lo que se le indique
+// por CSS. Esto genera la etiqueta como una imagen real, del tamaño
+// exacto elegido — funciona igual en cualquier dispositivo, sin depender
+// de cómo cada sistema operativo maneje la impresión.
+async function descargarEtiquetaComoImagen(){
+  if(typeof html2canvas === 'undefined'){ mostrarToast('No se pudo generar la imagen — revisa tu conexión e intenta de nuevo.', 'error'); return; }
+  const elemento = document.getElementById('etiquetaQRPrint');
+  try{
+    const canvas = await html2canvas(elemento, { scale:4, useCORS:true, backgroundColor:'#ffffff' });
+    const url = canvas.toDataURL('image/png');
+    const codigo = (document.getElementById('etiquetaQRCodigo').innerText || 'QR').replace(/[^a-zA-Z0-9_-]/g,'_');
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Etiqueta_${codigo}.png`;
+    link.click();
+    mostrarToast('📷 Imagen descargada — ya puedes imprimirla desde tu galería o app de fotos.', 'exito');
+  }catch(err){
+    mostrarToast('No se pudo generar la imagen: ' + err.message, 'error');
+  }
+}
 function manejarParametroQR(){
   const params = new URLSearchParams(location.search);
   const equipoId = params.get('equipo');

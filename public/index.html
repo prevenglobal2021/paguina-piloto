@@ -1890,9 +1890,11 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       </div>
     </div>
     <p style="font-size:10px;color:#94a3b8;text-align:center;margin-top:6px;" id="etiquetaQRTamanoTexto">Tamaño de impresión: 5 x 5 cm</p>
-    <div style="text-align:center;margin-top:10px;">
-      <button class="btn-custom" onclick="imprimirEtiquetaQR()">🖨️ Imprimir Etiqueta</button>
+    <div style="text-align:center;margin-top:10px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      <button class="btn-custom" onclick="imprimirEtiquetaQR()">🖨️ Imprimir</button>
+      <button class="btn-custom btn-secondary-custom" onclick="descargarEtiquetaComoImagen()">⬇️ Descargar imagen</button>
     </div>
+    <p style="font-size:10px;color:#94a3b8;text-align:center;margin-top:6px;">En celular, si "Imprimir" no respeta el tamaño elegido, usa "Descargar imagen" — es más confiable en cualquier dispositivo.</p>
   </div>
 </div>
 
