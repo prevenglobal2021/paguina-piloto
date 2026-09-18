@@ -370,6 +370,7 @@ function renderizarGaleriaFotos(contenedorId, fotos, contexto, campoId, tamanoBl
 function obtenerArregloGaleria(contexto, campoId){
   if(contexto==='inventario') return fotosInventarioTemp;
   if(contexto==='cliente') return imagenesClienteTemp;
+  if(contexto==='tecnico') return fotoTecnicoTemp;
   if(contexto==='equipoModal') return fotosEquipoModalTemp;
   if(contexto==='ordenGeneral') return fotosDetalleTemp;
   if(contexto==='ordenCampo') return fotosCamposDetalleTemp[campoId];
@@ -383,6 +384,7 @@ function obtenerArregloGaleria(contexto, campoId){
 function rerenderizarGaleria(contexto, campoId){
   if(contexto==='inventario') renderizarFotosInventarioPreview();
   else if(contexto==='cliente') renderizarImagenesClientePreview();
+  else if(contexto==='tecnico') renderizarFotoTecnicoPreview();
   else if(contexto==='equipoModal') renderizarFotosEquipoModalPreview();
   else if(contexto==='ordenGeneral') renderizarFotosDetallePreview();
   else if(contexto==='ordenCampo') renderizarFotoCampoDetallePreview(campoId);
@@ -394,6 +396,7 @@ function eliminarFotoGaleria(contexto, idx, campoId){
   if(!arr) return;
   arr.splice(idx,1);
   if(contexto==='cliente') imagenesClienteModificado = true;
+  if(contexto==='tecnico') fotoTecnicoModificada = true;
   rerenderizarGaleria(contexto, campoId);
 }
 function actualizarDescripcionGaleria(contexto, idx, valor, campoId){
@@ -495,6 +498,7 @@ async function usarFotoCapturada(){
     if(!arr){ mostrarToast('No se pudo agregar la foto — la sección de fotos no está lista.', 'error'); return; }
     arr.push({ src: dataUrl, desc: '' });
     if(camaraFotoContextoActual === 'cliente') imagenesClienteModificado = true;
+    if(camaraFotoContextoActual === 'tecnico') fotoTecnicoModificada = true;
     rerenderizarGaleria(camaraFotoContextoActual, camaraFotoCampoIdActual);
     mostrarToast('📷 Foto agregada.', 'exito');
     cerrarCamaraFoto();

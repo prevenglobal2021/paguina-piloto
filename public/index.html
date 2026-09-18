@@ -2395,6 +2395,14 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <label>Permisos específicos (marca solo lo que esta persona puede hacer):</label>
         <div id="checklistPermisosPersonal" style="max-height:240px;overflow-y:auto;border:1px solid var(--card-border);border-radius:8px;padding:10px;margin-top:4px;"></div>
       </div>
+      <div style="margin-top:12px;">
+        <label>Foto de la persona (opcional):</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input type="file" id="cfgTecFotoInput" accept="image/*" onchange="manejarFotoTecnicoUpload(event)" style="max-width:220px;">
+          <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirCamaraFoto('tecnico', undefined, 1)"><i class="fas fa-camera"></i> Tomar foto</button>
+        </div>
+        <div class="galeria-fotos" id="previewFotoTecnico"></div>
+      </div>
       <div class="field-row" style="margin-top:12px;">
         <button class="btn-custom" id="btnGuardarTecnico" onclick="conIndicadorCarga(this, guardarTecnicoConfig)">+ Añadir Personal</button>
         <button class="btn-custom btn-secondary-custom" id="btnCancelarEdicionTecnico" style="display:none;" onclick="cancelarEdicionTecnico()">Cancelar</button>
@@ -2722,4 +2730,3 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 <script src="kpi.js?v=90"></script>
 </body>
 </html>
-

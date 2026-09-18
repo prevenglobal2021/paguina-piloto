@@ -201,6 +201,29 @@ async function eliminarCampoConfig(id){
 /* =========================================================
    CONFIGURACIÓN: PERSONAL (rol + permisos)
 ========================================================= */
+// Catálogo REAL de los permisos que ya existen y controlan la
+// plataforma (cada uno corresponde exactamente a un data-permiso="..."
+// usado en el menú/botones de index.html) — antes la ventana de
+// permisos específicos no tenía ningún listado real porque esta
+// constante nunca se había definido.
+const CATALOGO_PERMISOS = [
+  { clave:'ordenes_crear',     grupo:'Operación',                etiqueta:'Órdenes de Servicio (crear y gestionar)' },
+  { clave:'equipos_gestionar', grupo:'Operación',                etiqueta:'Equipos de Clientes (agregar y editar)' },
+  { clave:'inventario_ver',    grupo:'Operación',                etiqueta:'Inventario (ver y registrar movimientos)' },
+  { clave:'contabilidad_ver',  grupo:'Operación',                etiqueta:'Cotizaciones y Facturas (ver)' },
+  { clave:'kpi_ver',           grupo:'Operación',                etiqueta:'Indicadores de Gestión (KPI)' },
+  { clave:'reportes_exportar', grupo:'Operación',                etiqueta:'Exportar reportes' },
+  { clave:'enviar_whatsapp',   grupo:'Operación',                etiqueta:'Enviar documentos por WhatsApp' },
+  { clave:'config_clientes',   grupo:'Centro de Configuración',  etiqueta:'Clientes y Sedes' },
+  { clave:'config_plantillas', grupo:'Centro de Configuración',  etiqueta:'Plantillas de Formularios' },
+  { clave:'config_personal',   grupo:'Centro de Configuración',  etiqueta:'Personal (gestionar otras personas)' },
+  { clave:'config_etiquetas',  grupo:'Centro de Configuración',  etiqueta:'Etiquetas QR' },
+  { clave:'config_general',    grupo:'Centro de Configuración',  etiqueta:'Empresa y Perfil' },
+  { clave:'config_apariencia', grupo:'Centro de Configuración',  etiqueta:'Apariencia de la plataforma' },
+  { clave:'config_whatsapp',   grupo:'Centro de Configuración',  etiqueta:'Mensaje de WhatsApp (plantilla)' },
+  { clave:'config_backup',     grupo:'Centro de Configuración',  etiqueta:'Base de Datos y Backup' },
+  { clave:'config_auditoria',  grupo:'Centro de Configuración',  etiqueta:'Auditoría (historial de cambios)' },
+];
 function onCambiarRolPersonal(){
   // Solo una ayuda de conveniencia: al elegir "Administrativo" sugiere Acceso
   // total marcado (se puede desmarcar igual para dejarlo parcial); elegir
@@ -232,6 +255,26 @@ function leerPermisosMarcadosPersonal(){
   document.querySelectorAll('.chk-permiso-personal').forEach(chk=>{ permisos[chk.value] = chk.checked; });
   return permisos;
 }
+// --------- FOTO DEL TÉCNICO (opcional) ---------
+// Reutiliza el mismo componente de cámara en vivo / subida por archivo ya
+// usado en Equipos e Inventario — internamente se maneja como un arreglo
+// de máximo 1 foto (por eso el 'limiteMaximo:1' al abrir la cámara), y al
+// guardar solo se conserva esa única foto (o ninguna, ya que es opcional).
+let fotoTecnicoTemp = [];
+let fotoTecnicoModificada = false;
+function manejarFotoTecnicoUpload(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  fotoTecnicoModificada = true;
+  comprimirImagen(file).then(dataUrl=>{
+    fotoTecnicoTemp = [{ src:dataUrl, desc:'' }]; // reemplaza cualquier foto anterior, es una sola
+    renderizarFotoTecnicoPreview();
+  });
+  event.target.value = '';
+}
+function renderizarFotoTecnicoPreview(){
+  renderizarGaleriaFotos('previewFotoTecnico', fotoTecnicoTemp, 'tecnico');
+}
 async function guardarTecnicoConfig(){
   const id = document.getElementById('cfgTecId').value;
   const nombre = document.getElementById('cfgTecNombre').value.trim();
@@ -242,6 +285,7 @@ async function guardarTecnicoConfig(){
   const cargo = document.getElementById('cfgTecCargo').value;
   const accesoTotal = document.getElementById('cfgTecAccesoTotal').checked;
   const permisos = accesoTotal ? {} : leerPermisosMarcadosPersonal();
+  const foto = fotoTecnicoTemp[0] ? fotoTecnicoTemp[0].src : null;
   if(!nombre){ mostrarToast('Escribe el nombre de la persona'); return; }
   if(!usuario){ mostrarToast('Define un usuario (correo) para esta persona.'); return; }
   if(!id && !password){ mostrarToast('Define una contraseña para la persona nueva.'); return; }
@@ -256,10 +300,11 @@ async function guardarTecnicoConfig(){
     const t = buscarTecnico(parseInt(id));
     respaldo = Object.assign({}, t);
     t.nombre = nombre; t.telefono = telefono; t.usuario = usuario; t.rol = rol; t.cargo = cargo; t.accesoTotal = accesoTotal; t.permisos = permisos;
+    if(fotoTecnicoModificada) t.foto = foto;
     if(password) t.password = password;
   } else {
     esNuevo = true;
-    db.tecnicos.push({ id:Date.now(), nombre, telefono, usuario, password, activo:true, rol, cargo, accesoTotal, permisos });
+    db.tecnicos.push({ id:Date.now(), nombre, telefono, usuario, password, activo:true, rol, cargo, accesoTotal, permisos, foto });
   }
   try{
     await dbGuardarInmediato();
@@ -287,6 +332,9 @@ function editarTecnicoConfig(id){
   document.getElementById('cfgTecCargo').value = t.cargo || 'Técnico';
   document.getElementById('cfgTecAccesoTotal').checked = !!t.accesoTotal;
   renderizarChecklistPermisosPersonal(t.permisos);
+  fotoTecnicoTemp = t.foto ? [{ src:t.foto, desc:'' }] : [];
+  fotoTecnicoModificada = false;
+  renderizarFotoTecnicoPreview();
   document.getElementById('btnGuardarTecnico').innerText = 'Guardar Cambios';
   document.getElementById('btnCancelarEdicionTecnico').style.display = 'inline-block';
 }
@@ -299,6 +347,9 @@ function cancelarEdicionTecnico(){
   document.getElementById('cfgTecCargo').value = 'Técnico';
   document.getElementById('cfgTecAccesoTotal').checked = false;
   renderizarChecklistPermisosPersonal();
+  fotoTecnicoTemp = [];
+  fotoTecnicoModificada = false;
+  renderizarFotoTecnicoPreview();
   document.getElementById('btnGuardarTecnico').innerText = '+ Añadir Personal';
   document.getElementById('btnCancelarEdicionTecnico').style.display = 'none';
 }
@@ -309,7 +360,8 @@ function renderizarTecnicosConfig(){
     const activo = t.activo !== false;
     const etiquetaRol = t.rol==='administrativo' ? 'Administrativo' : 'Técnico';
     const resumenAcceso = t.accesoTotal ? '<span style="color:#22c55e;">Acceso total</span>' : `${Object.values(t.permisos||{}).filter(Boolean).length} permiso(s)`;
-    tbody.innerHTML += `<tr style="${activo?'':'opacity:.55;'}"><td>${t.nombre} ${activo?'<span style="color:var(--exito-verde,#22c55e);font-size:10px;font-weight:700;">● ACTIVO</span>':'<span style="color:var(--text-muted);font-size:10px;font-weight:700;">● INACTIVO</span>'}</td>
+    const fotoMini = t.foto ? `<img src="${t.foto}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px;">` : '';
+    tbody.innerHTML += `<tr style="${activo?'':'opacity:.55;'}"><td>${fotoMini}${t.nombre} ${activo?'<span style="color:var(--exito-verde,#22c55e);font-size:10px;font-weight:700;">● ACTIVO</span>':'<span style="color:var(--text-muted);font-size:10px;font-weight:700;">● INACTIVO</span>'}</td>
       <td>${etiquetaRol}<br><small style="color:var(--text-muted);">${resumenAcceso}</small></td>
       <td>${t.telefono||''}</td><td>${t.usuario||'—'}</td>
       <td><button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="cambiarPasswordTecnico(${t.id})">Cambiar</button></td>
