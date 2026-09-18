@@ -7,7 +7,7 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="html2pdf.bundle.min.js"></script>
 <script src="chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
@@ -1892,7 +1892,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <p style="font-size:10px;color:#94a3b8;text-align:center;margin-top:6px;" id="etiquetaQRTamanoTexto">Tamaño de impresión: 5 x 5 cm</p>
     <div style="text-align:center;margin-top:10px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
       <button class="btn-custom" onclick="imprimirEtiquetaQR()">🖨️ Imprimir</button>
-      <button class="btn-custom btn-secondary-custom" onclick="descargarEtiquetaComoImagen()">⬇️ Descargar imagen</button>
+      <button class="btn-custom" style="background:#e2e8f0;color:#1e293b;" onclick="descargarEtiquetaComoImagen()">⬇️ Descargar imagen</button>
     </div>
     <p style="font-size:10px;color:#94a3b8;text-align:center;margin-top:6px;">En celular, si "Imprimir" no respeta el tamaño elegido, usa "Descargar imagen" — es más confiable en cualquier dispositivo.</p>
   </div>
