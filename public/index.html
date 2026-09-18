@@ -34,7 +34,6 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .sidebar-menu a:hover,.sidebar-menu a.active{background:rgba(0,136,255,.15);color:var(--blue-accent);}
 .sidebar-section-title{font-size:11px;text-transform:uppercase;color:var(--text-muted);font-weight:bold;margin:15px 0 5px 12px;letter-spacing:.5px;}
 .page-wrapper{margin-left:260px;width:calc(100% - 260px);padding:20px;}
-@media (max-width:900px){.left-sidebar{width:70px;}.left-sidebar .sidebar-brand span,.left-sidebar .sidebar-menu span,.left-sidebar .sidebar-section-title{display:none;}.page-wrapper{margin-left:70px;width:calc(100% - 70px);}}
 .topbar{position:relative;background:linear-gradient(120deg, var(--topbar-bg-1), var(--topbar-bg-2));border:1px solid var(--card-border);padding:12px 20px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;overflow:hidden;}
 .topbar::before{content:'';position:absolute;top:-80%;left:-15%;width:40%;height:260%;background:linear-gradient(115deg, transparent 35%, rgba(255,255,255,.06) 50%, transparent 65%);animation:brilloMetal 7s ease-in-out infinite;pointer-events:none;}
 .kpi-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px;}
@@ -589,14 +588,23 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
    exactamente igual que antes.
 ========================================================= */
 #sidebarBackdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99;}
-@media (max-width:640px){
+/* El menú lateral pasa a ser un cajón deslizante (oculto por defecto, se
+   abre con el botón ☰) desde 900px hacia abajo — antes, entre 641px y
+   900px (el rango típico de una tablet), el menú se quedaba encogido a
+   solo íconos, SIN poder ocultarse ni desplegarse por completo. Ahora
+   tablet y celular comparten el mismo comportamiento de menú desplegable;
+   el resto de ajustes de pantalla angosta (formularios, tablas, modales)
+   siguen aplicando solo en celular, más abajo. */
+@media (max-width:900px){
   #btnMenuMovil{display:inline-flex !important;align-items:center;justify-content:center;}
-  /* El menú lateral pasa a ser un cajón deslizante que se abre con el botón ☰ */
   .left-sidebar{width:260px !important;transform:translateX(-100%);transition:transform .25s ease;z-index:200;}
   .left-sidebar.abierto{transform:translateX(0);}
   .left-sidebar .sidebar-brand span,.left-sidebar .sidebar-menu span,.left-sidebar .sidebar-section-title{display:inline !important;}
   .left-sidebar.abierto ~ #sidebarBackdrop{display:block;}
-  .page-wrapper{margin-left:0 !important;width:100% !important;padding:12px !important;}
+  .page-wrapper{margin-left:0 !important;width:100% !important;}
+}
+@media (max-width:640px){
+  .page-wrapper{padding:12px !important;}
   .topbar{padding:10px 12px;}
 
   /* Los formularios en 2 o 3 columnas pasan a una sola columna, más cómodos para el dedo */
