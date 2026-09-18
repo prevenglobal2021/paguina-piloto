@@ -982,6 +982,72 @@ app.post('/api/auth/confirmar-reset', limiteLogin, async (req, res) => {
 });
 
 /* ---------------------------------------------------------
+   API — Consulta de NIT en el RUES (Registro Único Empresarial y
+   Social), para autocompletar datos de empresas al registrar un
+   cliente. Pasa por el servidor porque el sitio del RUES no permite
+   consultarse directo desde el navegador de otra página (bloqueo de
+   origen cruzado).
+
+   AVISO IMPORTANTE PARA PEDRO: la URL de abajo es mi mejor intento
+   con la información que tengo, pero NO pude probarla en vivo (mi
+   entorno de trabajo no tiene salida a internet hacia rues.org.co
+   para verificarlo). Es muy posible que la URL o la forma exacta de
+   la respuesta hayan cambiado, o que el RUES no permita este tipo de
+   consulta automática sin más. Por eso todo el endpoint está armado
+   para NUNCA romper el registro de clientes si esto falla: si el NIT
+   no se encuentra, si la URL ya no es la correcta, o si el servicio
+   no responde a tiempo, simplemente se le avisa al usuario y el
+   formulario sigue funcionando manual, como siempre. Con la primera
+   prueba real que hagan, si no funciona, me dicen exactamente qué
+   error sale y ajustamos la URL/el formato de la respuesta.
+--------------------------------------------------------- */
+function calcularDVNit(nitSinDV) {
+  // Algoritmo oficial de la DIAN para el dígito de verificación del NIT
+  // (Resolución 8121 de 2011) — este sí es un cálculo estable y público,
+  // no depende de ningún servicio externo.
+  const pesos = [71, 67, 59, 53, 47, 43, 41, 37, 29, 23, 19, 17, 13, 7, 3];
+  const nit15 = nitSinDV.replace(/\D/g, '').padStart(15, '0');
+  let suma = 0;
+  for (let i = 0; i < 15; i++) suma += parseInt(nit15[i], 10) * pesos[i];
+  const residuo = suma % 11;
+  return residuo > 1 ? 11 - residuo : residuo;
+}
+
+app.get('/api/rues/consultar-nit/:nit', requireAuth, async (req, res) => {
+  const nitLimpio = (req.params.nit || '').replace(/\D/g, '');
+  if (nitLimpio.length < 8) return res.status(400).json({ error: 'NIT incompleto.' });
+
+  try {
+    const controlador = new AbortController();
+    const tiempoLimite = setTimeout(() => controlador.abort(), 8000);
+    const respuesta = await fetch(`https://ruesapi.rues.org.co/rues/api/consultas/consultaExterna/${nitLimpio}`, {
+      signal: controlador.signal,
+    });
+    clearTimeout(tiempoLimite);
+
+    if (!respuesta.ok) {
+      return res.status(404).json({ error: 'No se encontró ese NIT en el RUES, o el servicio no está disponible en este momento.' });
+    }
+    const datos = await respuesta.json();
+    const registro = Array.isArray(datos) ? datos[0] : (datos.data ? datos.data[0] : datos);
+    if (!registro) {
+      return res.status(404).json({ error: 'No se encontró ese NIT en el RUES.' });
+    }
+
+    res.json({
+      razonSocial: registro.razon_social || registro.nombre || null,
+      estadoMatricula: registro.estado_matricula || registro.estado || null,
+      camaraComercio: registro.camara_comercio || null,
+      actividadEconomica: registro.actividad_economica || registro.ciiu || null,
+      representanteLegal: registro.representante_legal || null,
+    });
+  } catch (err) {
+    console.error('[rues] No se pudo consultar (revisar si la URL sigue siendo válida):', err.message);
+    res.status(502).json({ error: 'No se pudo conectar con el RUES en este momento. Puedes seguir llenando el formulario manualmente.' });
+  }
+});
+
+/* ---------------------------------------------------------
    API — Estado de la aplicación (protegido, por empresa)
 --------------------------------------------------------- */
 app.get('/api/backup', requireAuth, async (req, res) => {
