@@ -436,6 +436,32 @@ async function eliminarEquipoConfig(id){
   mostrarToast('Equipo eliminado.', 'exito');
   renderizarEquiposConfig(); renderizarSedesConfig();
 }
+// Tamaños de etiqueta disponibles — el usuario elige uno en el modal antes
+// de imprimir. Cada uno ajusta el tamaño de la hoja física Y el tamaño de
+// todo el contenido (QR, textos, logo) para que quede bien proporcionado,
+// no solo la hoja recortada.
+const TAMANOS_ETIQUETA_QR = {
+  '5x5': { ancho:'5cm',  alto:'5cm',  qr:'3.4cm', logo:'0.85cm', fuenteNombre:'7px',   fuenteCodigo:'8px' },
+  '4x4': { ancho:'4cm',  alto:'4cm',  qr:'2.7cm', logo:'0.68cm', fuenteNombre:'6px',   fuenteCodigo:'7px' },
+  '3x3': { ancho:'3cm',  alto:'3cm',  qr:'2cm',   logo:'0.5cm',  fuenteNombre:'5px',   fuenteCodigo:'5.5px' },
+  '6x4': { ancho:'6cm',  alto:'4cm',  qr:'2.6cm', logo:'0.65cm', fuenteNombre:'7px',   fuenteCodigo:'7px' },
+};
+let tamanoEtiquetaActual = '5x5';
+function aplicarTamanoEtiqueta(clave){
+  const t = TAMANOS_ETIQUETA_QR[clave] || TAMANOS_ETIQUETA_QR['5x5'];
+  tamanoEtiquetaActual = clave;
+  const cont = document.getElementById('etiquetaQRPrint');
+  cont.style.setProperty('--etq-ancho', t.ancho);
+  cont.style.setProperty('--etq-alto', t.alto);
+  cont.style.setProperty('--etq-qr', t.qr);
+  cont.style.setProperty('--etq-logo', t.logo);
+  cont.style.setProperty('--etq-fuente-nombre', t.fuenteNombre);
+  cont.style.setProperty('--etq-fuente-codigo', t.fuenteCodigo);
+  const selector = document.getElementById('etiquetaQRTamano');
+  if(selector) selector.value = clave;
+  const textoTamano = document.getElementById('etiquetaQRTamanoTexto');
+  if(textoTamano) textoTamano.innerText = `Tamaño de impresión: ${t.ancho.replace('cm','')} x ${t.alto.replace('cm','')} cm`;
+}
 function verEtiquetaQR(equipoId){
   const info = ubicarEquipoPorId(equipoId);
   if(!info) return;
@@ -456,12 +482,14 @@ function verEtiquetaQR(equipoId){
       wrap.appendChild(logoImg);
     }, 80);
   }
+  aplicarTamanoEtiqueta(tamanoEtiquetaActual); // recuerda el último tamaño elegido durante la sesión
   abrirModal('modalEtiquetaQR');
 }
 function imprimirEtiquetaQR(){
+  const t = TAMANOS_ETIQUETA_QR[tamanoEtiquetaActual] || TAMANOS_ETIQUETA_QR['5x5'];
   const estilo = document.createElement('style');
   estilo.id = 'estiloPaginaEtiqueta';
-  estilo.innerHTML = '@page{size:5cm 5cm;margin:0;}';
+  estilo.innerHTML = `@page{size:${t.ancho} ${t.alto};margin:0;}`;
   document.head.appendChild(estilo);
   document.body.classList.add('imprimiendo-etiqueta');
   window.print();

@@ -274,6 +274,7 @@ function verEtiquetaQRInventario(itemId){
       wrap.appendChild(logoImg);
     }, 80);
   }
+  if(typeof aplicarTamanoEtiqueta === 'function') aplicarTamanoEtiqueta(tamanoEtiquetaActual); // recuerda el último tamaño elegido durante la sesión
   abrirModal('modalEtiquetaQR');
 }
 

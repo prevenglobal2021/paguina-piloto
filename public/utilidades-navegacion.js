@@ -612,3 +612,23 @@ function mostrarToast(mensaje, tipo){
     setTimeout(()=>el.remove(), 250);
   }, duracion);
 }
+
+// Imprime el documento actual (Orden, Cotización, Factura, Nómina) en hoja
+// carta — el tamaño de página solo se aplica MIENTRAS se imprime, y se
+// quita después, para no chocar con el tamaño de página de 5x5cm que usa
+// la impresión de etiquetas QR (antes ambos tamaños convivían fijos al
+// mismo tiempo, y eso rompía la impresión de etiquetas).
+function imprimirDocumentoActual(){
+  const estilo = document.createElement('style');
+  estilo.id = 'estiloPaginaDocumento';
+  estilo.innerHTML = '@page{size:letter;margin:15mm;}';
+  document.head.appendChild(estilo);
+  window.print();
+  const limpiar = ()=>{
+    const el = document.getElementById('estiloPaginaDocumento');
+    if(el) el.remove();
+    window.removeEventListener('afterprint', limpiar);
+  };
+  window.addEventListener('afterprint', limpiar);
+  setTimeout(limpiar, 1500);
+}
