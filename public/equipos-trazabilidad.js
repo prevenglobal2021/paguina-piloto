@@ -245,6 +245,59 @@ function cerrarEscanerQR(){
   cerrarModal('modalEscanerQR');
 }
 
+// Búsqueda UNIFICADA por código QR — antes solo buscaba entre los equipos
+// de clientes; ahora reconoce automáticamente si el código corresponde a
+// un Equipo de Cliente o a un Ítem de Inventario, con la MISMA lectura de
+// código (no hay dos escáneres separados). Devuelve {tipo, id} o null si
+// el código no corresponde a nada registrado.
+function buscarPorCodigoQRUnificado(texto){
+  // 1) Si es una de nuestras propias URL, el parámetro ya dice el tipo exacto.
+  try{
+    const url = new URL(texto);
+    const idEquipo = url.searchParams.get('equipo');
+    if(idEquipo){
+      const id = parseInt(idEquipo);
+      if(ubicarEquipoPorId(id)) return { tipo:'equipo', id };
+    }
+    const idItem = url.searchParams.get('item');
+    if(idItem){
+      const id = parseInt(idItem);
+      if(typeof buscarItemInventario === 'function' && buscarItemInventario(id)) return { tipo:'item', id };
+    }
+  }catch(e){ /* no era una URL válida, seguimos con los otros métodos */ }
+
+  // 2) Código puramente numérico (etiquetas antiguas sin URL): se prueba
+  //    primero como Equipo de Cliente (comportamiento de siempre, para no
+  //    romper etiquetas ya impresas) y, si no aparece, como Ítem de Inventario.
+  if(/^\d+$/.test(texto.trim())){
+    const id = parseInt(texto.trim());
+    if(ubicarEquipoPorId(id)) return { tipo:'equipo', id };
+    if(typeof buscarItemInventario === 'function' && buscarItemInventario(id)) return { tipo:'item', id };
+    return null;
+  }
+
+  // 3) Texto por serie/código (sin ser un número ni una URL): se busca por
+  //    coincidencia exacta, primero entre equipos de clientes...
+  const codigo = texto.trim().toLowerCase();
+  if(!codigo) return null;
+  let equipoEncontrado = null;
+  db.clientes.forEach(c=>{
+    c.sedes.forEach(s=>s.equipos.forEach(e=>{
+      if(!equipoEncontrado && ((e.serie||'').toLowerCase()===codigo || (e.qrId||'').toLowerCase()===codigo)) equipoEncontrado = e.id;
+    }));
+    equiposSinSedeDe(c).forEach(e=>{
+      if(!equipoEncontrado && ((e.serie||'').toLowerCase()===codigo || (e.qrId||'').toLowerCase()===codigo)) equipoEncontrado = e.id;
+    });
+  });
+  if(equipoEncontrado) return { tipo:'equipo', id: equipoEncontrado };
+
+  // ...y si no aparece ahí, entre los ítems de inventario.
+  const itemEncontrado = (db.inventario||[]).find(i=>(i.qrId||'').toLowerCase()===codigo);
+  if(itemEncontrado) return { tipo:'item', id: itemEncontrado.id };
+
+  return null;
+}
+
 function extraerIdEquipoDesdeCodigo(texto){
   // 1) Si el código es una URL con ?equipo=<id> (nuestro propio formato), se usa directo.
   try{
@@ -274,18 +327,25 @@ function extraerIdEquipoDesdeCodigo(texto){
 
 function procesarCodigoQREscaneado(textoLeido){
   const estado = document.getElementById('escanerQREstado');
-  const equipoId = extraerIdEquipoDesdeCodigo(textoLeido);
-  const info = equipoId ? ubicarEquipoPorId(equipoId) : null;
+  const resultado = buscarPorCodigoQRUnificado(textoLeido);
 
-  if(!info){
-    if(estado) estado.innerText = 'Ese código no corresponde a ningún equipo registrado. Sigue intentando...';
-    mostrarToast('⚠️ Código QR no reconocido — no corresponde a ningún equipo registrado.', 'error');
+  if(!resultado){
+    if(estado) estado.innerText = 'No encontrado — ese código no corresponde a ningún equipo ni ítem de inventario registrado. Sigue intentando...';
+    mostrarToast('⚠️ No encontrado — el código no corresponde a ningún equipo ni ítem de inventario registrado.', 'error');
     // seguimos escaneando por si el usuario apunta a otro código
     escanerQRAnimId = requestAnimationFrame(bucleEscanerQR);
     return;
   }
 
   cerrarEscanerQR();
+  if(resultado.tipo === 'item'){
+    const item = buscarItemInventario(resultado.id);
+    mostrarToast(`✅ Ítem de inventario encontrado: ${item ? item.nombre : ''}`, 'exito');
+    mostrarSeccion('inventario');
+    setTimeout(()=>{ verFichaQR(resultado.id); }, 80);
+    return;
+  }
+  const info = ubicarEquipoPorId(resultado.id);
   mostrarToast(`✅ Equipo encontrado: ${info.equipo.nombre}`, 'exito');
-  irATrazabilidadEquipo(info.equipo.id);
+  irATrazabilidadEquipo(resultado.id);
 }

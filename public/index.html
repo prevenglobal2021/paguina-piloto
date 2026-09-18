@@ -330,6 +330,17 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .timeline-fotos{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}
 .timeline-fotos img{width:50px;height:50px;object-fit:cover;border-radius:6px;border:1px solid var(--card-border);}
 .field-row{display:flex;gap:8px;align-items:flex-end;margin-bottom:8px;flex-wrap:wrap;}
+
+/* ---- Registro de clientes: tarjeta y secciones agrupadas ---- */
+.tarjeta-registro-cliente{background:rgba(0,0,0,.15);padding:18px;border-radius:12px;}
+.seccion-form-cliente{background:rgba(255,255,255,.03);border:1px solid var(--card-border);border-radius:10px;padding:14px 14px 4px;margin-bottom:14px;transition:border-color .15s ease, background .15s ease;}
+.seccion-form-cliente:focus-within{border-color:var(--blue-accent);background:rgba(255,255,255,.05);}
+.seccion-form-cliente-titulo{font-size:12px;font-weight:700;color:var(--blue-accent);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;display:flex;align-items:center;gap:7px;}
+.aviso-formato-documento{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#f59e0b;background:rgba(245,158,11,.12);border-radius:6px;padding:6px 10px;margin:-2px 0 10px;animation:apareceSuave .15s ease;}
+.estado-consulta-rues{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--blue-accent);margin:-2px 0 10px;}
+.bloque-datos-rues{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.35);border-radius:8px;padding:12px 12px 2px;margin-top:4px;animation:apareceSuave .2s ease;}
+.bloque-datos-rues-titulo{font-size:11px;font-weight:700;color:var(--green-success);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+@keyframes apareceSuave{ from{opacity:0;transform:translateY(-4px);} to{opacity:1;transform:translateY(0);} }
 .autocomplete-wrapper{position:relative;}
 .autocomplete-resultados{position:absolute;top:100%;left:0;right:0;z-index:50;max-height:280px;overflow-y:auto;
   background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 12px 28px rgba(15,23,42,.16);
@@ -1049,6 +1060,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <div class="panel-title">
         <span>📦 Control de Inventario y Bodegas</span>
         <div style="display:flex;gap:8px;">
+          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirEscanerQR()" title="Escanear el QR de un equipo de cliente o de un ítem de inventario"><i class="fas fa-qrcode"></i> Escanear QR</button>
           <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalBodega()">+ Bodega</button>
           <button class="btn-custom btn-sm-custom" onclick="abrirModalItemInventario()">+ Ítem</button>
         </div>
@@ -2209,35 +2221,69 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <!-- TAB CLIENTES -->
     <div id="tab-clientes" class="config-tab-content">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
-        <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;">
+        <div class="tarjeta-registro-cliente">
           <h4 style="margin-top:0;font-size:13px;">➕ Registrar / Modificar Cliente</h4>
           <input type="hidden" id="cfgCliId" value="">
-          <label>Nombre del Cliente:</label><input type="text" id="cfgCliNombre" placeholder="Ej. Bioplástico S.A.S.">
-          <div class="field-row">
-            <div>
-              <label>Tipo de documento:</label>
-              <select id="cfgCliTipoDoc">
-                <option value="NIT">NIT</option>
-                <option value="C.C.">C.C.</option>
-                <option value="RUT">RUT</option>
-                <option value="PPT">PPT</option>
-                <option value="Pasaporte">Pasaporte</option>
-              </select>
+
+          <div class="seccion-form-cliente">
+            <div class="seccion-form-cliente-titulo"><i class="fas fa-id-card"></i> Datos básicos</div>
+            <label>Nombre del Cliente:</label><input type="text" id="cfgCliNombre" placeholder="Ej. Bioplástico S.A.S.">
+            <div class="field-row">
+              <div>
+                <label>Tipo de documento:</label>
+                <select id="cfgCliTipoDoc" onchange="limpiarDatosRuesFormulario(); document.getElementById('avisoFormatoDocumento').style.display='none';">
+                  <option value="NIT">NIT</option>
+                  <option value="C.C.">C.C.</option>
+                  <option value="RUT">RUT</option>
+                  <option value="PPT">PPT</option>
+                  <option value="Pasaporte">Pasaporte</option>
+                </select>
+              </div>
+              <div>
+                <label>Número de documento:</label>
+                <input type="text" id="cfgCliNumDoc" placeholder="Ej. 900123456-7" onblur="alSalirDeNumDocCliente()">
+              </div>
             </div>
-            <div><label>Número de documento:</label><input type="text" id="cfgCliNumDoc" placeholder="Ej. 900123456-7"></div>
+            <p class="aviso-formato-documento" id="avisoFormatoDocumento" style="display:none;"><i class="fas fa-triangle-exclamation"></i> <span></span></p>
+            <p class="estado-consulta-rues" id="estadoConsultaRues" style="display:none;"><i class="fas fa-spinner fa-spin"></i> Consultando RUES...</p>
+
+            <div class="bloque-datos-rues" id="bloqueDatosRues" style="display:none;">
+              <div class="bloque-datos-rues-titulo"><i class="fas fa-circle-check"></i> Datos encontrados en el RUES — revísalos antes de guardar</div>
+              <div class="field-row">
+                <div><label>Estado de la matrícula:</label><input type="text" id="cfgCliEstadoMatricula" placeholder="Ej. Activa"></div>
+                <div><label>Cámara de comercio:</label><input type="text" id="cfgCliCamaraComercio" placeholder="Ej. Cámara de Comercio de Bogotá"></div>
+              </div>
+              <label>Actividad económica:</label><input type="text" id="cfgCliActividadEconomica" placeholder="Ej. Fabricación de productos plásticos">
+              <label>Representante legal:</label><input type="text" id="cfgCliRepresentanteLegal" placeholder="Nombre del representante legal">
+            </div>
           </div>
-          <label>Teléfono de Contacto:</label><input type="text" id="cfgCliTelefono" placeholder="Ej. 3001234567">
-          <label>Dirección principal:</label><input type="text" id="cfgCliDireccion" placeholder="Ej. Calle 123 #45-67, Bogotá">
-          <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" id="btnGpsCliente" style="margin-top:4px;" onclick="obtenerUbicacionGPS('cfgCliDireccion','btnGpsCliente')"><i class="fas fa-location-crosshairs"></i> Usar mi ubicación actual</button>
-          <div class="field-row">
-            <div><input type="text" id="cfgCliLat" placeholder="Latitud (opcional)"></div>
-            <div><input type="text" id="cfgCliLng" placeholder="Longitud (opcional)"></div>
+
+          <div class="seccion-form-cliente">
+            <div class="seccion-form-cliente-titulo"><i class="fas fa-location-dot"></i> Ubicación</div>
+            <label>Dirección principal:</label><input type="text" id="cfgCliDireccion" placeholder="Ej. Calle 123 #45-67, Bogotá">
+            <div class="field-row" style="margin-top:6px;">
+              <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" id="btnGpsCliente" onclick="obtenerUbicacionGPS('cfgCliDireccion','btnGpsCliente')"><i class="fas fa-location-crosshairs"></i> Completar dirección con GPS</button>
+              <button class="btn-custom btn-secondary-custom btn-sm-custom" type="button" onclick="usarUbicacionActualCliente()"><i class="fas fa-crosshairs"></i> Guardar coordenadas exactas</button>
+            </div>
+            <div class="field-row" style="margin-top:6px;">
+              <div><input type="text" id="cfgCliLat" placeholder="Latitud (opcional)"></div>
+              <div><input type="text" id="cfgCliLng" placeholder="Longitud (opcional)"></div>
+            </div>
           </div>
-          <button class="btn-custom btn-secondary-custom btn-sm-custom" type="button" onclick="usarUbicacionActualCliente()"><i class="fas fa-crosshairs m-r-10"></i>Usar mi ubicación actual (más preciso que la dirección)</button>
-          <label style="margin-top:12px;">Imágenes de referencia (fachada, entrada, punto de acceso):</label>
-          <input type="file" id="cfgCliImagenInput" accept="image/*" multiple onchange="manejarImagenClienteUpload(event)">
-          <div class="galeria-fotos" id="previewImagenesCliente"></div>
-          <button class="btn-custom" style="margin-top:12px;" onclick="conIndicadorCarga(this, guardarClienteConfig)">Guardar Cliente</button>
+
+          <div class="seccion-form-cliente">
+            <div class="seccion-form-cliente-titulo"><i class="fas fa-phone"></i> Contacto</div>
+            <label>Teléfono de Contacto:</label><input type="text" id="cfgCliTelefono" placeholder="Ej. 3001234567">
+          </div>
+
+          <div class="seccion-form-cliente">
+            <div class="seccion-form-cliente-titulo"><i class="fas fa-camera"></i> Fotos de referencia</div>
+            <label>Fachada, entrada, punto de acceso:</label>
+            <input type="file" id="cfgCliImagenInput" accept="image/*" multiple onchange="manejarImagenClienteUpload(event)">
+            <div class="galeria-fotos" id="previewImagenesCliente"></div>
+          </div>
+
+          <button class="btn-custom" style="margin-top:12px;width:100%;" onclick="conIndicadorCarga(this, guardarClienteConfig)">Guardar Cliente</button>
         </div>
         <div>
           <h4 style="margin-top:0;font-size:13px;">📋 Directorio de Clientes</h4>

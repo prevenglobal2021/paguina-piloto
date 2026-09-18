@@ -138,6 +138,99 @@ function abrirUbicacionCliente(id){
     abrirEnGoogleMaps(c.direccion);
   }
 }
+// --------- VALIDACIÓN DE DOCUMENTO Y AUTOCOMPLETADO POR NIT (RUES) ---------
+// Mismo algoritmo oficial de la DIAN para el dígito de verificación del
+// NIT (Resolución 8121 de 2011) — cálculo matemático estable, no depende
+// de ningún servicio externo.
+function calcularDVNit(nitSinDV){
+  const pesos = [71,67,59,53,47,43,41,37,29,23,19,17,13,7,3];
+  const nit15 = nitSinDV.replace(/\D/g,'').padStart(15,'0');
+  let suma = 0;
+  for(let i=0;i<15;i++) suma += parseInt(nit15[i],10) * pesos[i];
+  const residuo = suma % 11;
+  return residuo > 1 ? 11 - residuo : residuo;
+}
+// Acepta tanto "900123456" como "900123456-7" (con el dígito ya incluido).
+function validarNIT(numDoc){
+  const texto = numDoc.trim();
+  const partes = texto.split('-');
+  if(partes.length === 2){
+    if(!/^\d+$/.test(partes[0]) || !/^\d$/.test(partes[1])) return false;
+    return calcularDVNit(partes[0]) === parseInt(partes[1],10);
+  }
+  // Sin guion: se acepta el número solo (no se puede validar el dígito
+  // porque no vino incluido) — se valida solo que sean puros números.
+  return /^\d{8,15}$/.test(texto);
+}
+function validarCedula(numDoc){
+  // Se valida el texto TAL COMO SE ESCRIBIÓ (sin quitarle nada primero) —
+  // así si alguien escribe una letra por error, se detecta como inválido
+  // en vez de simplemente ignorarla.
+  return /^\d{6,10}$/.test(numDoc.trim());
+}
+function limpiarDatosRuesFormulario(){
+  ['cfgCliEstadoMatricula','cfgCliCamaraComercio','cfgCliActividadEconomica','cfgCliRepresentanteLegal'].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  mostrarBloqueDatosRues(false);
+}
+function mostrarBloqueDatosRues(mostrar){
+  const bloque = document.getElementById('bloqueDatosRues');
+  if(bloque) bloque.style.display = mostrar ? 'block' : 'none';
+}
+// Se dispara al salir del campo de número de documento (evento blur), solo
+// cuando el tipo de documento es NIT — para Cédula nunca se intenta nada
+// automático, sigue siendo 100% manual, tal como debe ser (no existe
+// ninguna base de datos pública para traer datos personales por cédula).
+async function alSalirDeNumDocCliente(){
+  const tipoDoc = document.getElementById('cfgCliTipoDoc').value;
+  const numDoc = document.getElementById('cfgCliNumDoc').value.trim();
+  const avisoFormato = document.getElementById('avisoFormatoDocumento');
+  const textoAviso = avisoFormato ? avisoFormato.querySelector('span') : null;
+  if(!numDoc){ if(avisoFormato) avisoFormato.style.display='none'; return; }
+
+  if(tipoDoc === 'C.C.'){
+    if(avisoFormato && textoAviso){
+      const valido = validarCedula(numDoc);
+      avisoFormato.style.display = valido ? 'none' : 'flex';
+      textoAviso.innerText = 'La cédula debe tener solo números, entre 6 y 10 dígitos.';
+    }
+    return;
+  }
+  if(tipoDoc !== 'NIT') { if(avisoFormato) avisoFormato.style.display='none'; return; }
+
+  const valido = validarNIT(numDoc);
+  if(avisoFormato && textoAviso){
+    avisoFormato.style.display = valido ? 'none' : 'flex';
+    textoAviso.innerText = 'Ese NIT no parece válido — revisa el número (puedes escribirlo con o sin el dígito de verificación, ej. 900123456-7).';
+  }
+  if(!valido) return;
+
+  await consultarRUES(numDoc);
+}
+async function consultarRUES(numDoc){
+  const estado = document.getElementById('estadoConsultaRues');
+  if(estado){ estado.style.display = 'flex'; }
+  try{
+    const nitParaConsultar = numDoc.includes('-') ? numDoc.split('-')[0].replace(/\D/g,'') : numDoc.replace(/\D/g,'');
+    const respuesta = await fetchConLimite(API_BASE + `/api/rues/consultar-nit/${nitParaConsultar}`, { headers: headersAutenticados() }, 10);
+    const datos = await respuesta.json();
+    if(!respuesta.ok) throw new Error(datos.error || 'No se encontró ese NIT.');
+    document.getElementById('cfgCliNombre').value = datos.razonSocial || document.getElementById('cfgCliNombre').value;
+    document.getElementById('cfgCliEstadoMatricula').value = datos.estadoMatricula || '';
+    document.getElementById('cfgCliCamaraComercio').value = datos.camaraComercio || '';
+    document.getElementById('cfgCliActividadEconomica').value = datos.actividadEconomica || '';
+    document.getElementById('cfgCliRepresentanteLegal').value = datos.representanteLegal || '';
+    mostrarBloqueDatosRues(true);
+    mostrarToast('✅ Datos autocompletados desde el RUES — revísalos antes de guardar.', 'exito');
+  }catch(err){
+    // Nunca bloquea el formulario — el usuario sigue llenando todo manual.
+    mostrarToast('No se pudo consultar el RUES (' + err.message + ') — puedes seguir llenando el formulario manualmente.');
+  }finally{
+    if(estado) estado.style.display = 'none';
+  }
+}
+
 async function guardarClienteConfig(){
   const id = document.getElementById('cfgCliId').value;
   const nombre = document.getElementById('cfgCliNombre').value;
@@ -147,17 +240,30 @@ async function guardarClienteConfig(){
   const direccion = document.getElementById('cfgCliDireccion').value;
   const lat = document.getElementById('cfgCliLat').value.trim();
   const lng = document.getElementById('cfgCliLng').value.trim();
+  const datosRues = {
+    estadoMatricula: document.getElementById('cfgCliEstadoMatricula').value.trim() || null,
+    camaraComercio: document.getElementById('cfgCliCamaraComercio').value.trim() || null,
+    actividadEconomica: document.getElementById('cfgCliActividadEconomica').value.trim() || null,
+    representanteLegal: document.getElementById('cfgCliRepresentanteLegal').value.trim() || null,
+  };
   if(!nombre){ mostrarToast('El nombre del cliente es obligatorio'); return; }
+  if(tipoDoc==='NIT' && numDoc && !validarNIT(numDoc)){
+    mostrarToast('El NIT no parece válido (el dígito de verificación no coincide). Revísalo antes de guardar.'); return;
+  }
+  if(tipoDoc==='C.C.' && numDoc && !validarCedula(numDoc)){
+    mostrarToast('La cédula debe tener solo números, entre 6 y 10 dígitos.'); return;
+  }
   let respaldo = null, esNuevo = false;
   if(id){
     const c = buscarCliente(parseInt(id));
     respaldo = Object.assign({}, c);
     c.nombre=nombre; c.tipoDocumento=tipoDoc; c.numeroDocumento=numDoc; c.telefono=telefono; c.direccion=direccion; c.lat=lat||null; c.lng=lng||null;
+    Object.assign(c, datosRues);
     if(imagenesClienteModificado) c.imagenesReferencia = imagenesClienteTemp.slice();
     delete c.imagenReferencia;
   } else {
     esNuevo = true;
-    db.clientes.push({ id:Date.now(), nombre, tipoDocumento:tipoDoc, numeroDocumento:numDoc, telefono, direccion, lat:lat||null, lng:lng||null, imagenesReferencia: imagenesClienteTemp.slice(), sedes:[] });
+    db.clientes.push(Object.assign({ id:Date.now(), nombre, tipoDocumento:tipoDoc, numeroDocumento:numDoc, telefono, direccion, lat:lat||null, lng:lng||null, imagenesReferencia: imagenesClienteTemp.slice(), sedes:[] }, datosRues));
   }
   try{
     await dbGuardarInmediato();
@@ -171,6 +277,7 @@ async function guardarClienteConfig(){
   mostrarToast(id ? `✅ ${nombre} actualizado correctamente.` : `✅ ${nombre} agregado correctamente.`, 'exito');
   document.getElementById('cfgCliId').value=''; document.getElementById('cfgCliNombre').value=''; document.getElementById('cfgCliTipoDoc').value='NIT'; document.getElementById('cfgCliNumDoc').value=''; document.getElementById('cfgCliTelefono').value=''; document.getElementById('cfgCliDireccion').value='';
   document.getElementById('cfgCliLat').value=''; document.getElementById('cfgCliLng').value='';
+  limpiarDatosRuesFormulario();
   imagenesClienteTemp = []; imagenesClienteModificado = false;
   document.getElementById('previewImagenesCliente').innerHTML = '';
   renderizarClientesConfig();
@@ -213,6 +320,11 @@ function editarClienteConfig(id){
   document.getElementById('cfgCliDireccion').value = c.direccion||'';
   document.getElementById('cfgCliLat').value = c.lat||'';
   document.getElementById('cfgCliLng').value = c.lng||'';
+  document.getElementById('cfgCliEstadoMatricula').value = c.estadoMatricula||'';
+  document.getElementById('cfgCliCamaraComercio').value = c.camaraComercio||'';
+  document.getElementById('cfgCliActividadEconomica').value = c.actividadEconomica||'';
+  document.getElementById('cfgCliRepresentanteLegal').value = c.representanteLegal||'';
+  mostrarBloqueDatosRues(c.tipoDocumento==='NIT' && !!(c.estadoMatricula||c.camaraComercio||c.actividadEconomica||c.representanteLegal));
   imagenesClienteTemp = (c.imagenesReferencia || (c.imagenReferencia ? [c.imagenReferencia] : [])).slice();
   imagenesClienteModificado = false;
   renderizarImagenesClientePreview();
