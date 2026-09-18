@@ -105,6 +105,7 @@ function headersAutenticados(extra){
 
 let sincronizacionPendiente = null;
 let syncEstado = 'ok';
+let vistaAgendaInicialAplicada = false; // controla el cambio a Calendario solo en la primera carga (ver cargarEstadoDesdeBackend)
 let syncReintentoTimer = null;
 
 const CLAVES_FUSIONABLES = ['clientes','tecnicos','plantillas','ordenes','bodegas','inventario','kardex','pedidosTienda','liquidacionesNomina','ingresos','gastos'];
@@ -211,6 +212,15 @@ function cargarEstadoDesdeBackend(){
     aplicarRBACaUI(); // con los datos reales ya en mano, se recalculan permisos y la barra móvil
     if(typeof renderizarAgenda === 'function') renderizarAgenda();
     if(typeof renderizarCalendario === 'function') renderizarCalendario();
+    // En computador, la Agenda abre mostrando el Calendario con la
+    // programación de una vez (más útil ahí que la lista, con la pantalla
+    // ancha) — solo la primera vez que carga, para no forzar de vuelta al
+    // Calendario si la persona ya cambió a Lista por su cuenta durante la
+    // sesión. En celular/tablet se deja la Lista, más cómoda de leer.
+    if(!vistaAgendaInicialAplicada){
+      vistaAgendaInicialAplicada = true;
+      if(window.innerWidth > 900 && typeof cambiarVistaAgenda === 'function') cambiarVistaAgenda('calendario');
+    }
     if(typeof renderizarEquiposGlobal === 'function') renderizarEquiposGlobal('');
     if(typeof actualizarKPIs === 'function') actualizarKPIs();
     iniciarRefrescoSilencioso();
