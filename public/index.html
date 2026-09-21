@@ -852,6 +852,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
       <li class="solo-admin" data-permiso="config_etiquetas"><a onclick="abrirModalConfig('etiquetas')"><i class="fas fa-tags m-r-10"></i><span>Etiquetas</span></a></li>
       <li class="solo-admin" data-permiso="config_whatsapp"><a onclick="abrirModalConfig('whatsapp')"><i class="fab fa-whatsapp m-r-10" style="color:#25D366;"></i><span>Mensaje de WhatsApp</span></a></li>
       <li class="solo-admin" data-permiso="config_auditoria"><a onclick="abrirModalConfig('auditoria')"><i class="fas fa-history m-r-10"></i><span>Auditoría</span></a></li>
+      <li class="solo-admin" id="menuConflictosSync" style="display:none;"><a onclick="abrirModalConflictosSync()"><i class="fas fa-triangle-exclamation m-r-10" style="color:#f59e0b;"></i><span>Conflictos por revisar <b id="badgeConflictosSync"></b></span></a></li>
       <div class="sidebar-section-title">Reportes</div>
       <li class="solo-admin" data-permiso="reportes_exportar"><a onclick="exportarExcel()"><i class="fas fa-file-excel m-r-10"></i><span>Exportar Reporte Excel</span></a></li>
     </ul>
@@ -1880,6 +1881,14 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 </div>
 
 <!-- MODAL: ETIQUETA QR CORPORATIVA (5x5cm) -->
+<div class="modal-overlay" id="modalConflictosSync">
+  <div class="modal-box" style="max-width:800px;">
+    <button class="close-modal" onclick="cerrarModal('modalConflictosSync')">✖</button>
+    <h3><i class="fas fa-triangle-exclamation" style="color:#f59e0b;"></i> Conflictos por revisar</h3>
+    <p style="font-size:12px;color:var(--text-muted);">Estos registros fueron editados sin conexión por un técnico, MIENTRAS otra persona también los editaba en línea. Para no perder ningún dato, se guardaron las dos versiones — elige cuál se queda.</p>
+    <div id="listaConflictosSync"></div>
+  </div>
+</div>
 <div class="modal-overlay" id="modalEtiquetaQR">
   <div class="modal-box modal-sm" style="background:#fff;color:#333;">
     <button class="close-modal" style="color:#000;" onclick="cerrarModal('modalEtiquetaQR')">✖</button>
@@ -2713,7 +2722,9 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 </div>
 
 <script src="core.js?v=90"></script>
+<script src="offline-sync.js?v=90"></script>
 <script src="capacitor-bridge.js?v=90"></script>
+<script src="verificar-actualizacion-apk.js?v=90"></script>
 <script src="utilidades-navegacion.js?v=90"></script>
 <script src="buscador-agenda.js?v=90"></script>
 <script src="ordenes.js?v=90"></script>

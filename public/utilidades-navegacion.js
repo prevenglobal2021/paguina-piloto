@@ -552,6 +552,7 @@ function actualizarBadgeConexion(){
   if(!el) return;
   if(!navigator.onLine){
     el.innerHTML = '🔴 Sin conexión — guardando localmente'; el.style.color = 'var(--orange-warning)';
+    actualizarContadorPendientesOffline(el); // agrega "— N pendientes" en cuanto se calcule
   } else if(syncEstado === 'error'){
     el.innerHTML = '⚠️ No se guardó en el servidor — toca para reintentar'; el.style.color = 'var(--orange-warning)';
     el.style.cursor = 'pointer';
@@ -563,6 +564,20 @@ function actualizarBadgeConexion(){
     el.innerHTML = '🟢 En línea'; el.style.color = 'var(--green-success)';
     el.style.cursor = 'default'; el.onclick = null;
   }
+}
+// Agrega el número real de registros pendientes ("— 3 pendientes por
+// sincronizar") al aviso de sin conexión, calculado comparando contra el
+// último punto en que se guardó todo con éxito (ver offline-sync.js).
+async function actualizarContadorPendientesOffline(el){
+  if(typeof calcularPendientesOffline !== 'function') return;
+  try{
+    const { total } = await calcularPendientesOffline();
+    if(!navigator.onLine && el && document.body.contains(el)){
+      el.innerHTML = total > 0
+        ? `🔴 Sin conexión — ${total} pendiente${total===1?'':'s'} por sincronizar`
+        : '🔴 Sin conexión — guardando localmente';
+    }
+  }catch(e){}
 }
 
 function toggleMenuMovil(){ document.querySelector('.left-sidebar').classList.toggle('abierto'); }

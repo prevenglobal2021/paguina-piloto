@@ -161,7 +161,12 @@ async function fusionarConServidorAntesDeGuardar(){
     const r = await fetchConLimite(API_BASE + '/api/state', { headers: headersAutenticados() }, 8);
     if(r.ok){
       const remoto = await r.json();
-      fusionarAdicionesDesdeServidor(remoto);
+      // fusionarConDeteccionDeConflictos vive en offline-sync.js — revisa
+      // registro por registro si el MISMO fue editado en ambos lados
+      // mientras no había conexión, y si es así nunca sobrescribe en
+      // silencio (ver ese archivo para el detalle completo).
+      if(typeof fusionarConDeteccionDeConflictos === 'function') await fusionarConDeteccionDeConflictos(remoto);
+      else fusionarAdicionesDesdeServidor(remoto); // respaldo por si ese archivo no cargó
     }
   }catch(e){}
 }
@@ -178,6 +183,11 @@ async function enviarEstadoAlServidor(){
   }
   syncEstado = 'ok';
   actualizarBadgeConexion();
+  // Deja constancia de "así quedaron los datos justo después de
+  // sincronizar" — es el punto de referencia que usa el modo offline
+  // para saber, la próxima vez, qué cambió y detectar choques reales.
+  if(typeof guardarBaselineSincronizacion === 'function') guardarBaselineSincronizacion();
+  if(typeof actualizarBadgeConflictosSync === 'function') actualizarBadgeConflictosSync();
 }
 
 function marcarErrorSync(err){
@@ -210,6 +220,8 @@ function cargarEstadoDesdeBackend(){
     guardarEnLocalStorage();
     aplicarConfiguracionVisual();
     aplicarRBACaUI(); // con los datos reales ya en mano, se recalculan permisos y la barra móvil
+    if(typeof guardarBaselineSincronizacion === 'function') guardarBaselineSincronizacion();
+    if(typeof actualizarBadgeConflictosSync === 'function') actualizarBadgeConflictosSync();
     if(typeof renderizarAgenda === 'function') renderizarAgenda();
     if(typeof renderizarCalendario === 'function') renderizarCalendario();
     // En computador, la Agenda abre mostrando el Calendario con la
