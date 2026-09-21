@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Prevenglobal - Control Técnico y Trazabilidad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -11,33 +14,58 @@
 <script src="chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
+/* =========================================================
+   SISTEMA DE DISEÑO — SaaS claro estilo Stripe/Vercel
+   ---------------------------------------------------------
+   Reemplaza directamente la base oscura anterior (no es un
+   parche encima): mismos nombres de variable que ya usa TODO
+   el CSS de abajo, con los valores de la paleta clara de
+   Prevenglobal — así el cambio se propaga solo a paneles,
+   tarjetas, botones, tablas, etc. sin tener que tocar cada
+   regla una por una.
+========================================================= */
 :root{
-  --bg-dark:#15171c; --card-bg:#1d2026; --card-border:#343841; --blue-accent:#0088ff;
-  --text-main:#f4f5f7; --text-muted:#9aa2ad; --font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
-  --sidebar-bg-1:#24272e; --sidebar-bg-2:#15171c;
-  --panel-bg-1:#212429; --panel-bg-2:#191b20;
-  --topbar-bg-1:#24272e; --topbar-bg-2:#191b20;
-  --red-alert:#ef4444; --green-success:#22c55e; --orange-warning:#f59e0b; --purple-info:#8b5cf6;
+  --bg-dark:#F7F9FB; --card-bg:#FFFFFF; --card-border:#E4E9EF; --blue-accent:#1E3A5F;
+  --accent-secundario:#3D6D95;
+  --text-main:#1A2433; --text-muted:#5B6B7D; --font-family:'Inter','Manrope','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+  --sidebar-bg-1:#FFFFFF; --sidebar-bg-2:#FCFDFE;
+  --panel-bg-1:#FFFFFF; --panel-bg-2:#FFFFFF;
+  --topbar-bg-1:#FFFFFF; --topbar-bg-2:#FFFFFF;
+  --red-alert:#DC2626; --green-success:#3C8C42; --orange-warning:#E8791A; --purple-info:#8b5cf6;
+  --sombra-suave:0 1px 2px rgba(30,58,95,.06), 0 4px 14px rgba(30,58,95,.07);
+}
+/* Contexto de campo (app móvil / técnicos): mismo sistema de color, pero
+   con más contraste — texto más oscuro, bordes más marcados, botones más
+   grandes — para leerse bien bajo sol y con poca luz. No es un tema
+   distinto, son las mismas variables ajustadas (según lo pedido). */
+body.modo-app-movil, body.es-tecnico{
+  --text-main:#0B1220; --text-muted:#334155; --card-border:#C7D0DC;
+}
+body.modo-app-movil .btn-custom, body.es-tecnico .btn-custom{
+  padding:12px 20px; font-size:15px; font-weight:700;
+}
+body.modo-app-movil input, body.modo-app-movil select, body.modo-app-movil textarea,
+body.es-tecnico input, body.es-tecnico select, body.es-tecnico textarea{
+  font-size:15px !important; padding:11px 12px !important;
 }
 *{box-sizing:border-box;font-family:var(--font-family);}
 body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 #main-wrapper{display:flex;width:100%;min-height:100vh;}
 .left-sidebar{width:260px;background:linear-gradient(165deg, var(--sidebar-bg-1), var(--sidebar-bg-2) 85%);border-right:1px solid var(--card-border);position:fixed;height:100vh;overflow-y:auto;z-index:100;}
-.sidebar-brand{padding:16px 20px;font-weight:bold;font-size:16px;color:var(--blue-accent);border-bottom:1px solid var(--card-border);display:flex;flex-direction:column;align-items:flex-start;gap:8px;}
+.sidebar-brand{padding:16px 20px;font-weight:600;font-size:16px;color:var(--blue-accent);border-bottom:1px solid var(--card-border);display:flex;flex-direction:column;align-items:flex-start;gap:8px;}
 /* 1.1 Dimensión estándar del logo corporativo: 5cm x 5cm (Dashboard) */
-.sidebar-brand img{width:5cm;height:5cm;max-width:100%;object-fit:contain;border-radius:6px;background:#fff;}
+.sidebar-brand img{width:5cm;height:5cm;max-width:100%;object-fit:contain;border-radius:8px;background:#fff;}
 .sidebar-brand .brand-row{display:flex;align-items:center;gap:10px;}
 @media (max-width:900px){.sidebar-brand img{width:44px;height:44px;}}
 .sidebar-menu{list-style:none;padding:15px;margin:0;}
-.sidebar-menu li{margin-bottom:8px;}
-.sidebar-menu a{color:var(--text-muted);text-decoration:none;display:block;padding:9px 12px;border-radius:6px;transition:.2s;font-size:13px;cursor:pointer;}
-.sidebar-menu a:hover,.sidebar-menu a.active{background:rgba(0,136,255,.15);color:var(--blue-accent);}
-.sidebar-section-title{font-size:11px;text-transform:uppercase;color:var(--text-muted);font-weight:bold;margin:15px 0 5px 12px;letter-spacing:.5px;}
+.sidebar-menu li{margin-bottom:4px;}
+.sidebar-menu a{color:var(--text-muted);text-decoration:none;display:block;padding:9px 12px;border-radius:8px;transition:background .15s ease,color .15s ease;font-size:13px;cursor:pointer;}
+.sidebar-menu a:hover,.sidebar-menu a.active{background:rgba(30,58,95,.08);color:var(--blue-accent);}
+.sidebar-section-title{font-size:11px;text-transform:uppercase;color:var(--text-muted);font-weight:600;margin:15px 0 5px 12px;letter-spacing:.5px;}
 .page-wrapper{margin-left:260px;width:calc(100% - 260px);padding:20px;}
-.topbar{position:relative;background:linear-gradient(120deg, var(--topbar-bg-1), var(--topbar-bg-2));border:1px solid var(--card-border);padding:12px 20px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;overflow:hidden;}
-.topbar::before{content:'';position:absolute;top:-80%;left:-15%;width:40%;height:260%;background:linear-gradient(115deg, transparent 35%, rgba(255,255,255,.06) 50%, transparent 65%);animation:brilloMetal 7s ease-in-out infinite;pointer-events:none;}
+.topbar{position:relative;background:var(--topbar-bg-1);border:1px solid var(--card-border);padding:12px 20px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;overflow:hidden;box-shadow:var(--sombra-suave);}
 .kpi-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px;}
-.kpi-card{background:linear-gradient(160deg, #222530, #191b20);border:1px solid var(--card-border);padding:15px;border-radius:10px;}
+.kpi-card{background:#fff;border:1px solid var(--card-border);padding:15px;border-radius:12px;box-shadow:var(--sombra-suave);}
 .kpi-card span{font-size:11px;color:var(--text-muted);font-weight:600;display:block;}
 .kpi-card h3{margin:5px 0 0 0;font-size:24px;color:var(--blue-accent);}
 /* Colores claros solo para los 4 cuadros del panel principal (Programadas/Ejecución/Finalizadas/Equipos) */
@@ -64,8 +92,8 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 /* Encabezados de tabla y demás cajas oscuras dentro de todo el módulo de Contabilidad */
 #seccion-contabilidad table.data-table th{background:#eff6ff;color:#1e3a5f;}
 #seccion-contabilidad table.data-table td,#seccion-contabilidad table.data-table th{border-color:#dbeafe;}
-#seccion-contabilidad div[style*="background:rgba(0,0,0,.15)"]{background:#f8fafc !important;border:1px solid #e2e8f0;}
-.panel{background:linear-gradient(160deg, var(--panel-bg-1), var(--panel-bg-2));border:1px solid var(--card-border);border-radius:10px;padding:20px;margin-bottom:20px;}
+#seccion-contabilidad div[style*="background:#F7F9FB"]{background:#f8fafc !important;border:1px solid #e2e8f0;}
+.panel{background:var(--panel-bg-1);border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px;box-shadow:var(--sombra-suave);}
 .panel-title{font-size:15px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--card-border);padding-bottom:10px;flex-wrap:wrap;gap:8px;}
 /* MÓDULO DE INDICADORES (KPI) */
 .kpi-cards-grid{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:110px;gap:15px;margin-bottom:20px;}
@@ -83,8 +111,8 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
   .kpi-cards-grid{grid-template-columns:1fr 1fr;}
   .kpi-charts-grid{grid-template-columns:1fr;}
 }
-.btn-custom{background:var(--blue-accent);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;transition:transform .12s ease, filter .12s ease, box-shadow .12s ease;}
-.btn-custom:hover{filter:brightness(1.1);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.25);}
+.btn-custom{background:var(--blue-accent);color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;transition:transform .12s ease, filter .12s ease, box-shadow .12s ease;}
+.btn-custom:hover{filter:brightness(1.08);transform:translateY(-1px);box-shadow:0 4px 10px rgba(30,58,95,.18);}
 .btn-custom:active{transform:translateY(0) scale(.97);filter:brightness(.95);}
 .resultado-busqueda-categoria{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);font-weight:700;padding:10px 12px 4px;}
 .resultado-busqueda-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;cursor:pointer;transition:background .12s ease;}
@@ -124,8 +152,8 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .preview-login-mini-der small{font-size:7px;color:#64748b;display:block;margin-top:2px;margin-bottom:8px;}
 .preview-login-mini-input{width:85%;height:9px;background:#fff;border:1px solid #cbd5e1;border-radius:3px;margin-top:5px;}
 .preview-login-mini-boton{width:85%;height:14px;border-radius:12px;background:linear-gradient(120deg, var(--preview-login-color-1,#2563eb), var(--preview-login-color-2,#1e3a8a));margin-top:8px;color:#fff;font-size:6px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:.5px;}
-.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,.55);display:none;justify-content:center;align-items:center;z-index:1000;padding:15px;}
-.modal-box{background:color-mix(in srgb, var(--card-bg) 88%, transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--card-border);width:100%;max-width:980px;max-height:90vh;overflow-y:auto;border-radius:12px;padding:25px;position:relative;color:var(--text-main);box-shadow:0 20px 60px rgba(0,0,0,.4);animation:apareceModal .2s ease;transition:max-width .18s ease, width .18s ease, max-height .18s ease;}
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(26,36,51,.45);display:none;justify-content:center;align-items:center;z-index:1000;padding:15px;}
+.modal-box{background:color-mix(in srgb, var(--card-bg) 97%, transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--card-border);width:100%;max-width:980px;max-height:90vh;overflow-y:auto;border-radius:12px;padding:25px;position:relative;color:var(--text-main);box-shadow:0 20px 45px rgba(30,58,95,.18);animation:apareceModal .2s ease;transition:max-width .18s ease, width .18s ease, max-height .18s ease;}
 .btn-modal-control{background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:13px;transition:background .12s ease;}
 .btn-modal-control:hover{background:#e2e8f0;}
 .modal-box.ampliado{max-width:96vw!important;width:96vw;max-height:96vh!important;height:96vh;}
@@ -269,13 +297,13 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .config-sidebar .config-tab-btn.active{background:linear-gradient(90deg, color-mix(in srgb, var(--blue-accent) 22%, transparent), transparent);color:#fff;border-left-color:var(--blue-accent);box-shadow:inset 0 0 18px -6px color-mix(in srgb, var(--blue-accent) 60%, transparent);}
 .config-sidebar .config-tab-btn.active i, .config-tab-btn.active{text-shadow:0 0 12px color-mix(in srgb, var(--blue-accent) 70%, transparent);}
 .config-content-area{flex:1;min-width:0;overflow-y:auto;padding:25px;}
-.config-content-area div[style*="background:rgba(0,0,0,.15)"]{background:linear-gradient(160deg, #24272e, #1a1c21) !important;border:1px solid color-mix(in srgb, var(--card-border) 70%, #555 15%);transition:box-shadow .18s ease, border-color .18s ease;}
-.config-content-area div[style*="background:rgba(0,0,0,.15)"]:hover{border-color:color-mix(in srgb, var(--blue-accent) 45%, var(--card-border));box-shadow:0 6px 20px -6px rgba(0,0,0,.5);}
+.config-content-area div[style*="background:#F7F9FB"]{background:#FFFFFF !important;border:1px solid var(--card-border);transition:box-shadow .18s ease, border-color .18s ease;}
+.config-content-area div[style*="background:#F7F9FB"]:hover{border-color:color-mix(in srgb, var(--blue-accent) 40%, var(--card-border));box-shadow:0 6px 16px -8px rgba(30,58,95,.18);}
 @media (max-width:900px){
   .config-modal-layout{flex-direction:column;max-height:none;}
   .config-sidebar{width:100%;display:flex;overflow-x:auto;padding:10px;gap:6px;border-right:none;border-bottom:1px solid var(--card-border);}
   .config-sidebar-group-title{display:none;}
-  .config-sidebar .config-tab-btn{white-space:nowrap;width:auto;border-left:none;border-radius:6px;background:rgba(0,0,0,.2);border:1px solid var(--card-border);}
+  .config-sidebar .config-tab-btn{white-space:nowrap;width:auto;border-left:none;border-radius:6px;background:#F7F9FB;border:1px solid var(--card-border);}
   .config-sidebar .config-tab-btn.active{background:var(--blue-accent);color:#fff;border-color:var(--blue-accent);}
 }
 .config-tab-content{display:none;}
@@ -298,8 +326,8 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .config-sidebar .config-tab-btn.active{background:var(--blue-accent);color:#fff;border-left-color:var(--blue-accent);box-shadow:none;text-shadow:none;}
 .config-content-area{background:#ffffff;}
 .config-content-area h4{color:#0f172a;}
-.config-content-area div[style*="background:rgba(0,0,0,.15)"]{background:#f8fafc !important;border:1px solid #e2e8f0;}
-.config-content-area div[style*="background:rgba(0,0,0,.15)"]:hover{border-color:#93c5fd;box-shadow:0 6px 16px -8px rgba(15,23,42,.15);}
+.config-content-area div[style*="background:#F7F9FB"]{background:#f8fafc !important;border:1px solid #e2e8f0;}
+.config-content-area div[style*="background:#F7F9FB"]:hover{border-color:#93c5fd;box-shadow:0 6px 16px -8px rgba(15,23,42,.15);}
 .config-content-area div[style*="background:rgba(0,0,0,.2)"]{background:#f1f5f9 !important;}
 .config-modal-box label{color:#475569;}
 .config-modal-box input,.config-modal-box select,.config-modal-box textarea{background:#ffffff;color:#1e293b;border:1px solid var(--form-border-color, #cbd5e1);}
@@ -308,12 +336,13 @@ body{background:var(--bg-dark);color:var(--text-main);margin:0;padding:0;}
 .config-modal-box table.data-table th,.config-modal-box table.data-table td{border-color:#e2e8f0;}
 .config-modal-box .empty-state{color:#94a3b8;}
 label{font-size:12px;color:var(--text-muted);display:block;margin-top:10px;}
-input,select,textarea{width:100%;background:rgba(0,0,0,.2);border:1px solid var(--form-border-color, var(--card-border));color:var(--text-main);padding:9px;border-radius:var(--form-radius, 6px);margin-top:4px;font-size:13px;}
+input,select,textarea{width:100%;background:#fff;border:1px solid var(--form-border-color, var(--card-border));color:var(--text-main);padding:9px 11px;border-radius:var(--form-radius, 8px);margin-top:4px;font-size:13px;transition:border-color .15s ease, box-shadow .15s ease;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-accent);box-shadow:0 0 0 3px rgba(30,58,95,.12);}
 input[type=color]{padding:2px;height:38px;cursor:pointer;}
 /* Tamaño de letra global configurable desde Configuración → Apariencia */
 body.letra-pequena{zoom:0.92;}
 body.letra-grande{zoom:1.15;}
-canvas.signature-pad{border:1px dashed var(--card-border);background:rgba(0,0,0,.2);width:100%;height:120px;border-radius:6px;margin-top:5px;touch-action:none;}
+canvas.signature-pad{border:1px dashed var(--card-border);background:#fff;width:100%;height:120px;border-radius:6px;margin-top:5px;touch-action:none;}
 table.data-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px;}
 table.data-table th,table.data-table td{border:1px solid var(--card-border);padding:9px;text-align:left;vertical-align:top;}
 table.data-table th{background:rgba(0,0,0,.3);}
@@ -332,7 +361,7 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .field-row{display:flex;gap:8px;align-items:flex-end;margin-bottom:8px;flex-wrap:wrap;}
 
 /* ---- Registro de clientes: tarjeta y secciones agrupadas ---- */
-.tarjeta-registro-cliente{background:rgba(0,0,0,.15);padding:18px;border-radius:12px;}
+.tarjeta-registro-cliente{background:#F7F9FB;padding:18px;border-radius:12px;}
 .seccion-form-cliente{background:rgba(255,255,255,.03);border:1px solid var(--card-border);border-radius:10px;padding:14px 14px 4px;margin-bottom:14px;transition:border-color .15s ease, background .15s ease;}
 .seccion-form-cliente:focus-within{border-color:var(--blue-accent);background:rgba(255,255,255,.05);}
 .seccion-form-cliente-titulo{font-size:12px;font-weight:700;color:var(--blue-accent);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;display:flex;align-items:center;gap:7px;}
@@ -420,7 +449,7 @@ table.data-table th{background:rgba(0,0,0,.3);}
    (2 columnas si hay pocas fotos, 3-4 si hay más, según el ancho disponible) */
 .galeria-fotos{display:grid;grid-template-columns:repeat(auto-fill, minmax(100px, 1fr));gap:10px;margin-top:8px;}
 .galeria-foto-item{display:flex;flex-direction:column;}
-.galeria-foto-marco{position:relative;width:100%;aspect-ratio:1/1;border-radius:8px;overflow:hidden;border:1px solid var(--card-border);background:rgba(0,0,0,.15);}
+.galeria-foto-marco{position:relative;width:100%;aspect-ratio:1/1;border-radius:8px;overflow:hidden;border:1px solid var(--card-border);background:#F7F9FB;}
 .galeria-foto-marco img{width:100%;height:100%;object-fit:cover;display:block;}
 .galeria-foto-quitar{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;border:none;font-size:10px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
 .galeria-foto-quitar:hover{background:var(--red-alert);}
@@ -430,7 +459,7 @@ table.data-table th{background:rgba(0,0,0,.3);}
    bloque usa por dentro la MISMA cuadrícula de siempre, solo que acotada a
    las fotos de ese bloque. */
 .galeria-fotos.galeria-por-bloques{display:flex;flex-direction:column;gap:12px;}
-.galeria-bloque{background:rgba(0,0,0,.12);border:1px solid var(--card-border);border-radius:8px;padding:10px;}
+.galeria-bloque{background:#F7F9FB;border:1px solid var(--card-border);border-radius:8px;padding:10px;}
 .galeria-bloque-titulo{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;}
 .galeria-bloque .galeria-fotos{margin-top:0;}
 /* ===== FIRMA TÁCTIL — pantalla completa, con rotación a horizontal en celular ===== */
@@ -459,7 +488,7 @@ table.data-table th{background:rgba(0,0,0,.3);}
 .firma-preview-caja{width:100%;max-width:260px;height:90px;background:#fff;border-radius:8px;border:1px solid var(--card-border);display:flex;align-items:center;justify-content:center;overflow:hidden;margin:6px 0;}
 .firma-preview-caja img{max-width:92%;max-height:92%;object-fit:contain;}
 .firma-preview-vacio{color:#94a3b8;font-size:11px;}
-.tema-claro-opcion{border:2px solid var(--card-border);border-radius:10px;padding:8px;cursor:pointer;text-align:center;transition:border-color .15s ease, transform .1s ease;background:rgba(0,0,0,.15);}
+.tema-claro-opcion{border:2px solid var(--card-border);border-radius:10px;padding:8px;cursor:pointer;text-align:center;transition:border-color .15s ease, transform .1s ease;background:#F7F9FB;}
 .tema-claro-opcion:hover{transform:translateY(-2px);}
 .tema-claro-opcion.seleccionado{border-color:var(--blue-accent);box-shadow:0 0 0 2px color-mix(in srgb, var(--blue-accent) 30%, transparent);}
 .tema-claro-preview{height:44px;border-radius:6px;display:flex;align-items:center;overflow:hidden;border:1px solid rgba(0,0,0,.1);}
@@ -2323,7 +2352,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <!-- TAB PLANTILLAS -->
     <div id="tab-plantillas" class="config-tab-content">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
-        <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;">
+        <div style="background:#F7F9FB;padding:15px;border-radius:8px;">
           <h4 style="margin-top:0;font-size:13px;">➕ Crear / Modificar Plantilla</h4>
           <input type="hidden" id="cfgPlantId" value="">
           <label>Nombre de la plantilla:</label>
@@ -2421,7 +2450,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 
     <!-- TAB DATABASE -->
     <div id="tab-database" class="config-tab-content">
-      <div style="background:rgba(0,0,0,.15);padding:20px;border-radius:8px;">
+      <div style="background:#F7F9FB;padding:20px;border-radius:8px;">
         <h4 style="margin-top:0;font-size:14px;color:var(--blue-accent);">💾 Gestión de la Base de Datos Local</h4>
         <p style="font-size:12px;color:var(--text-muted);">Toda la información se guarda en el navegador. Descarga un respaldo periódicamente (las fotos y firmas ocupan más espacio, así que respalda seguido).</p>
         <div style="display:flex;gap:15px;margin-top:20px;flex-wrap:wrap;">
@@ -2441,7 +2470,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <img id="previewLogoConfig" style="max-width:92%;max-height:92%;object-fit:contain;display:none;">
         <span id="previewLogoConfigPlaceholder" style="color:#94a3b8;font-size:12px;"><i class="fas fa-image" style="font-size:28px;display:block;margin:0 auto 6px;"></i>Sin logo cargado</span>
       </div>
-      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;">
+      <div style="background:#F7F9FB;padding:15px;border-radius:8px;">
         <h4 style="margin-top:0;font-size:13px;">🏢 Identidad y Perfil de la Empresa</h4>
         <label>Logo de la empresa:</label>
         <input type="file" id="cfgEmpresaLogoInput" accept="image/*" onchange="manejarLogoUpload(event)">
@@ -2459,7 +2488,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <label>Visión:</label>
         <textarea id="cfgEmpresaVision" rows="2" placeholder="¿Hacia dónde quieres llevar tu empresa?"></textarea>
       </div>
-      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
+      <div style="background:#F7F9FB;padding:15px;border-radius:8px;margin-top:20px;">
         <h4 style="margin-top:0;font-size:13px;">✍️ Representante y Firma Electrónica</h4>
         <p style="font-size:11px;color:var(--text-muted);margin:0 0 10px 0;">Se usan juntos (nombre + firma) en los documentos que se generan, como el comprobante de pago de nómina, para que no haya que firmar cada uno a mano.</p>
         <label>Nombre del representante:</label>
@@ -2473,7 +2502,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0 0;">Firme directo con el dedo — se guarda junto con el botón "Guardar Cambios" de arriba.</p>
       </div>
       <button class="btn-custom" style="margin-top:20px;" onclick="guardarAjustesGenerales()">💾 Guardar Cambios (Perfil, Representante y Firma)</button>
-      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
+      <div style="background:#F7F9FB;padding:15px;border-radius:8px;margin-top:20px;">
         <h4 style="margin-top:0;font-size:13px;">🔐 Acceso de Administrador</h4>
         <label>Usuario administrador (correo):</label>
         <input type="email" id="cfgAdminUsuario" placeholder="admin@tuempresa.com">
@@ -2481,7 +2510,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <input type="password" id="cfgAdminPasswordNueva" placeholder="Dejar en blanco para no cambiarla">
         <button class="btn-custom" style="margin-top:12px;" onclick="guardarPasswordAdmin()">Actualizar Acceso de Administrador</button>
       </div>
-      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
+      <div style="background:#F7F9FB;padding:15px;border-radius:8px;margin-top:20px;">
         <h4 style="margin-top:0;font-size:13px;">🚪 Pantalla de Acceso (Login)</h4>
         <p style="font-size:11px;color:var(--text-muted);margin:0 0 10px 0;">Actívala o desactívala a tu gusto. Cuando está desactivada, la app entra directo sin pedir empresa/usuario/contraseña. Solo aplica cuando la app corre en un servidor real (no al abrir el archivo suelto, ahí nunca la pide).</p>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -2494,16 +2523,16 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 
     <!-- TAB APARIENCIA -->
     <div id="tab-apariencia" class="config-tab-content">
-      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;">
+      <div style="background:#F7F9FB;padding:15px;border-radius:8px;">
         <h4 style="margin-top:0;font-size:13px;">🎨 Tema del Dashboard</h4>
         <p style="font-size:11px;color:var(--text-muted);">Elige uno de estos temas ya armados para todo el panel (acento, fondo, menú lateral, barra superior y tarjetas). Todos son claros o metalizados claros — no hay opción de tema oscuro, para mantener siempre un look empresarial y luminoso.</p>
         <div id="temasClarosGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:10px;"></div>
       </div>
-      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
+      <div style="background:#F7F9FB;padding:15px;border-radius:8px;margin-top:20px;">
         <h4 style="margin-top:0;font-size:13px;">🧭 Menú Lateral, Barra Superior y Tarjetas</h4>
         <p style="font-size:11px;color:var(--text-muted);">Estos colores quedan definidos automáticamente por el tema que elijas arriba, para que todo se vea siempre coordinado — no hay selectores sueltos que puedan romper la combinación.</p>
       </div>
-      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
+      <div style="background:#F7F9FB;padding:15px;border-radius:8px;margin-top:20px;">
         <h4 style="margin-top:0;font-size:13px;">🔤 Tipografía</h4>
         <p style="font-size:11px;color:var(--text-muted);">Ajusta el tipo y tamaño de letra en toda la aplicación, y el color del texto principal.</p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
@@ -2532,7 +2561,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <input type="color" id="cfgColorTexto" style="max-width:200px;">
         <a href="javascript:void(0)" onclick="restablecerColorTexto()" style="font-size:11px;color:var(--blue-accent);display:inline-block;margin-top:8px;">Restablecer color de letra por defecto</a>
       </div>
-      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:20px;">
+      <div style="background:#F7F9FB;padding:15px;border-radius:8px;margin-top:20px;">
         <h4 style="margin-top:0;font-size:13px;">📋 Estilo de los Formularios</h4>
         <p style="font-size:11px;color:var(--text-muted);">Controla cómo se ven los campos y líneas de los formularios (bordes de los cuadros de texto, selects, etc.) en toda la app.</p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
@@ -2597,10 +2626,10 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
-        <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;">
+        <div style="background:#F7F9FB;padding:15px;border-radius:8px;">
           <h4 style="margin-top:0;font-size:13px;">🖼️ Logo de la tienda</h4>
           <p style="font-size:11px;color:var(--text-muted);">Si lo dejas vacío, se usa el logo general de la empresa.</p>
-          <div id="previewLogoTienda" style="width:100%;height:100px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.2);border-radius:8px;margin-bottom:8px;overflow:hidden;"></div>
+          <div id="previewLogoTienda" style="width:100%;height:100px;display:flex;align-items:center;justify-content:center;background:#F7F9FB;border-radius:8px;margin-bottom:8px;overflow:hidden;"></div>
           <input type="file" id="inputLogoTienda" accept="image/*" onchange="subirLogoTienda(event)">
           <small style="display:block;margin-top:4px;color:var(--text-muted);">📐 Medida recomendada: <strong>400 × 400 px</strong> (cuadrada), fondo blanco o transparente, formato PNG o JPG.</small>
           <button class="btn-custom btn-secondary-custom btn-sm-custom" style="margin-top:6px;" onclick="quitarLogoTienda()">Quitar (usar logo de empresa)</button>
@@ -2623,7 +2652,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
           <small style="display:block;margin-top:4px;color:var(--text-muted);">📐 Medida recomendada: <strong>800 × 600 px</strong>, formato JPG. Puedes seleccionar varias imágenes a la vez.</small>
           <div class="galeria-fotos" id="previewGaleriaTienda"></div>
         </div>
-        <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;">
+        <div style="background:#F7F9FB;padding:15px;border-radius:8px;">
           <h4 style="margin-top:0;font-size:13px;">📞 Contacto de la tienda</h4>
           <label>Teléfono de contacto:</label>
           <input type="text" id="cfgTiendaTelefono" placeholder="Ej. 601 234 5678">
@@ -2658,7 +2687,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         </div>
       </div>
 
-      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:15px;">
+      <div style="background:#F7F9FB;padding:15px;border-radius:8px;margin-top:15px;">
         <h4 style="margin-top:0;font-size:13px;">📄 Secciones de la página (Equipo, Servicios, Proyectos, Clientes, Certificaciones)</h4>
         <p style="font-size:11px;color:var(--text-muted);">Estas secciones aparecen debajo del catálogo, en tu tienda y en el enlace público, para dar una presentación completa como una página web moderna.</p>
         <label>Sección a editar:</label>
@@ -2678,7 +2707,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <div id="listaSeccionTienda" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;"></div>
       </div>
 
-      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;margin-top:15px;">
+      <div style="background:#F7F9FB;padding:15px;border-radius:8px;margin-top:15px;">
         <h4 style="margin-top:0;font-size:13px;">💬 Testimonios / Comentarios de clientes</h4>
         <p style="font-size:11px;color:var(--text-muted);">En la tienda pública se muestran rotando automáticamente (no todos fijos a la vez), junto con el promedio de calificación.</p>
         <button class="btn-custom btn-sm-custom" onclick="generarTestimoniosAutomaticos()">✨ Generar 98 testimonios de ejemplo (4-5 ⭐)</button>
@@ -2700,7 +2729,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 
     <!-- TAB WHATSAPP -->
     <div id="tab-whatsapp" class="config-tab-content">
-      <div style="background:rgba(0,0,0,.15);padding:15px;border-radius:8px;">
+      <div style="background:#F7F9FB;padding:15px;border-radius:8px;">
         <h4 style="margin-top:0;font-size:13px;">💬 Plantilla del mensaje que acompaña el reporte</h4>
         <p style="font-size:11px;color:var(--text-muted);">Variables disponibles: <code>{nombre_cliente}</code> y <code>{numero_orden}</code>. El envío abre WhatsApp con el mensaje ya redactado; el PDF se descarga aparte para adjuntarlo manualmente, ya que el navegador no puede adjuntar archivos automáticamente a un chat de WhatsApp.</p>
         <textarea id="cfgPlantillaWhatsApp" rows="4"></textarea>
