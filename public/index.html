@@ -863,6 +863,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     <ul class="sidebar-menu">
       <div class="sidebar-section-title">Operación</div>
       <li><a data-sec="agenda" onclick="mostrarSeccion('agenda')" class="active"><i class="fas fa-calendar-alt m-r-10"></i><span>Agenda / Órdenes</span></a></li>
+      <li class="solo-admin" data-permiso="proyectos_gestionar"><a data-sec="proyectos" onclick="mostrarSeccion('proyectos')"><i class="fas fa-diagram-project m-r-10"></i><span>Proyectos</span></a></li>
       <li><a data-sec="equipos" onclick="mostrarSeccion('equipos')"><i class="fas fa-snowflake m-r-10"></i><span>Equipos</span></a></li>
       <li><a data-sec="trazabilidad" onclick="mostrarSeccion('trazabilidad')"><i class="fas fa-stream m-r-10"></i><span>Historial y Trazabilidad</span></a></li>
       <li><a data-sec="asistencia" onclick="mostrarSeccion('asistencia')"><i class="fas fa-clock m-r-10"></i><span>Asistencia y Turnos</span></a></li>
@@ -949,7 +950,95 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
     </div>
 
     <!-- SECCION EQUIPOS -->
-    <div class="panel seccion" id="seccion-equipos" style="display:none;">
+    <div class="panel seccion" id="seccion-proyectos" style="display:none;">
+  <div class="panel-title">
+    <span>📁 Proyectos</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <input type="text" id="buscarProyecto" placeholder="Buscar proyecto..." oninput="renderizarProyectos()" style="width:auto;margin:0;">
+      <button class="btn-custom btn-sm-custom" onclick="abrirModalProyecto()">+ Nuevo Proyecto</button>
+    </div>
+  </div>
+  <div id="listaProyectos" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:15px;"></div>
+</div>
+
+<!-- Crear / editar proyecto -->
+<div class="modal-overlay" id="modalProyecto">
+  <div class="modal-box">
+    <button class="close-modal" onclick="cerrarModal('modalProyecto')">✖</button>
+    <h3 id="tituloModalProyecto" style="margin-top:0;">➕ Nuevo Proyecto</h3>
+    <input type="hidden" id="proyectoId" value="">
+    <div class="seccion-form-cliente">
+      <div class="seccion-form-cliente-titulo"><i class="fas fa-diagram-project"></i> Datos del proyecto</div>
+      <label>Nombre del proyecto:</label><input type="text" id="proyectoNombre" placeholder="Ej. Renovación sistema de refrigeración — Planta 2">
+      <label>Descripción / alcance:</label><textarea id="proyectoDescripcion" rows="3" placeholder="Qué incluye este proyecto..."></textarea>
+      <div class="field-row">
+        <div><label>Cliente:</label><select id="proyectoCliente" onchange="cargarSedesProyecto()"></select></div>
+        <div><label>Sede:</label><select id="proyectoSede"></select></div>
+      </div>
+      <div class="field-row">
+        <div><label>Fecha inicio estimada:</label><input type="date" id="proyectoFechaInicio"></div>
+        <div><label>Fecha fin estimada:</label><input type="date" id="proyectoFechaFin"></div>
+      </div>
+      <label>Estado:</label>
+      <select id="proyectoEstado">
+        <option value="Planificado">Planificado</option>
+        <option value="En ejecución">En ejecución</option>
+        <option value="Pausado">Pausado</option>
+        <option value="Finalizado">Finalizado</option>
+        <option value="Cancelado">Cancelado</option>
+      </select>
+    </div>
+    <div class="seccion-form-cliente">
+      <div class="seccion-form-cliente-titulo"><i class="fas fa-users"></i> Equipo asignado (marca quién participa — puedes ser tú solo, tú con un equipo, o un equipo sin ti)</div>
+      <div id="checklistTecnicosProyecto" style="max-height:180px;overflow-y:auto;border:1px solid var(--card-border);border-radius:8px;padding:10px;"></div>
+    </div>
+    <div class="seccion-form-cliente">
+      <div class="seccion-form-cliente-titulo"><i class="fas fa-list-check"></i> Hitos / fases (opcional)</div>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:-4px;">Si defines hitos, el % de avance se calcula solo según cuáles marques como completados. Si no defines ninguno, escribirás el % a mano en cada corte de avance.</p>
+      <div id="listaHitosProyecto"></div>
+      <div class="field-row">
+        <div><input type="text" id="nuevoHitoNombre" placeholder="Nombre del hito, ej. Desmontaje"></div>
+        <div style="max-width:110px;"><input type="number" id="nuevoHitoPeso" placeholder="Peso %" min="1" max="100"></div>
+        <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="agregarHitoProyecto()">+ Agregar</button>
+      </div>
+    </div>
+    <button class="btn-custom" style="width:100%;margin-top:10px;" onclick="conIndicadorCarga(this, guardarProyecto)">Guardar Proyecto</button>
+  </div>
+</div>
+
+<!-- Detalle del proyecto: KPI, hitos, cortes de avance -->
+<div class="modal-overlay" id="modalDetalleProyecto">
+  <div class="modal-box" style="max-width:920px;">
+    <button class="close-modal" onclick="cerrarModal('modalDetalleProyecto')">✖</button>
+    <div id="contenidoDetalleProyecto"></div>
+  </div>
+</div>
+
+<!-- Registrar un nuevo corte de avance -->
+<div class="modal-overlay" id="modalCorteProyecto">
+  <div class="modal-box">
+    <button class="close-modal" onclick="cerrarModal('modalCorteProyecto')">✖</button>
+    <h3 style="margin-top:0;">📋 Nuevo corte de avance</h3>
+    <input type="hidden" id="corteProyectoId" value="">
+    <label>Fecha del corte:</label><input type="date" id="corteFecha">
+    <div id="bloqueCortePorcentaje">
+      <label>% de avance en este corte:</label><input type="number" id="cortePorcentaje" min="0" max="100" placeholder="Ej. 45">
+    </div>
+    <label>¿Qué se avanzó en este período?</label><textarea id="corteDescripcion" rows="3" placeholder="Describe el trabajo realizado..."></textarea>
+    <label>Novedades / retrasos (opcional):</label><textarea id="corteNovedades" rows="2" placeholder="Ej. Faltó material, se atrasó por lluvia..."></textarea>
+    <label>Técnicos presentes en este corte:</label>
+    <div id="checklistTecnicosCorte" style="max-height:150px;overflow-y:auto;border:1px solid var(--card-border);border-radius:8px;padding:10px;"></div>
+    <label style="margin-top:10px;">Fotos de evidencia (opcional):</label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <input type="file" id="corteProyectoFotoInput" accept="image/*" multiple onchange="manejarFotoCorteProyecto(event)" style="max-width:220px;">
+      <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirCamaraFoto('proyectoCorte', undefined, 6)"><i class="fas fa-camera"></i> Tomar foto</button>
+    </div>
+    <div class="galeria-fotos" id="previewFotosCorteProyecto"></div>
+    <button class="btn-custom" style="width:100%;margin-top:12px;" onclick="conIndicadorCarga(this, guardarCorteProyecto)">Guardar Corte</button>
+  </div>
+</div>
+
+<div class="panel seccion" id="seccion-equipos" style="display:none;">
       <div class="panel-title">
         <span>❄️ Equipos registrados</span>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -2757,6 +2846,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 <script src="utilidades-navegacion.js?v=90"></script>
 <script src="buscador-agenda.js?v=90"></script>
 <script src="ordenes.js?v=90"></script>
+<script src="proyectos.js?v=90"></script>
 <script src="equipos-trazabilidad.js?v=90"></script>
 <script src="pdf.js?v=90"></script>
 <script src="config-clientes-equipos.js?v=90"></script>

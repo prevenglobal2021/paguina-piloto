@@ -108,12 +108,16 @@ let syncEstado = 'ok';
 let vistaAgendaInicialAplicada = false; // controla el cambio a Calendario solo en la primera carga (ver cargarEstadoDesdeBackend)
 let syncReintentoTimer = null;
 
-const CLAVES_FUSIONABLES = ['clientes','tecnicos','plantillas','ordenes','bodegas','inventario','kardex','pedidosTienda','liquidacionesNomina','ingresos','gastos'];
+const CLAVES_FUSIONABLES = ['clientes','tecnicos','plantillas','ordenes','proyectos','bodegas','inventario','kardex','pedidosTienda','liquidacionesNomina','ingresos','gastos'];
 
 function asegurarEliminados(){
   if(!db.eliminados || typeof db.eliminados !== 'object') db.eliminados = {};
   CLAVES_FUSIONABLES.forEach(clave=>{
     if(!Array.isArray(db.eliminados[clave])) db.eliminados[clave] = [];
+    // Empresas que ya existían antes de agregar un módulo nuevo (ej.
+    // Proyectos) no tienen ese campo todavía en su estado guardado — se
+    // crea vacío la primera vez, para que nada truene al usarlo.
+    if(!Array.isArray(db[clave])) db[clave] = [];
   });
 }
 

@@ -208,6 +208,7 @@ async function eliminarCampoConfig(id){
 // constante nunca se había definido.
 const CATALOGO_PERMISOS = [
   { clave:'ordenes_crear',     grupo:'Operación',                etiqueta:'Órdenes de Servicio (crear y gestionar)' },
+  { clave:'proyectos_gestionar', grupo:'Operación',              etiqueta:'Proyectos (crear y gestionar)' },
   { clave:'equipos_gestionar', grupo:'Operación',                etiqueta:'Equipos de Clientes (agregar y editar)' },
   { clave:'inventario_ver',    grupo:'Operación',                etiqueta:'Inventario (ver y registrar movimientos)' },
   { clave:'contabilidad_ver',  grupo:'Operación',                etiqueta:'Cotizaciones y Facturas (ver)' },

@@ -371,6 +371,7 @@ function obtenerArregloGaleria(contexto, campoId){
   if(contexto==='inventario') return fotosInventarioTemp;
   if(contexto==='cliente') return imagenesClienteTemp;
   if(contexto==='tecnico') return fotoTecnicoTemp;
+  if(contexto==='proyectoCorte') return fotosCorteProyectoTemp;
   if(contexto==='equipoModal') return fotosEquipoModalTemp;
   if(contexto==='ordenGeneral') return fotosDetalleTemp;
   if(contexto==='ordenCampo') return fotosCamposDetalleTemp[campoId];
@@ -385,6 +386,7 @@ function rerenderizarGaleria(contexto, campoId){
   if(contexto==='inventario') renderizarFotosInventarioPreview();
   else if(contexto==='cliente') renderizarImagenesClientePreview();
   else if(contexto==='tecnico') renderizarFotoTecnicoPreview();
+  else if(contexto==='proyectoCorte') renderizarFotosCorteProyectoPreview();
   else if(contexto==='equipoModal') renderizarFotosEquipoModalPreview();
   else if(contexto==='ordenGeneral') renderizarFotosDetallePreview();
   else if(contexto==='ordenCampo') renderizarFotoCampoDetallePreview(campoId);
@@ -591,6 +593,7 @@ function mostrarSeccion(nombre){
   const link = document.querySelector(`.sidebar-menu a[data-sec="${nombre}"]`);
   if(link) link.classList.add('active');
   if(nombre==='agenda') renderizarAgenda();
+  if(nombre==='proyectos') renderizarProyectos();
   if(nombre==='equipos') renderizarEquiposGlobal('');
   if(nombre==='trazabilidad') inicializarTrazabilidad();
   if(nombre==='asistencia') renderizarAsistencia();
