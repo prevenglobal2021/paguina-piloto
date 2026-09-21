@@ -270,7 +270,7 @@ async function crearEmpresa(slug, nombre, estadoInicial) {
 
 function estadoSemilla(nombreEmpresa, adminUsuario, adminPasswordHash) {
   return {
-    clientes: [], tecnicos: [], plantillas: [], ordenes: [], bodegas: [{ id: 1, nombre: 'Bodega Principal', tipo: 'fija' }],
+    clientes: [], tecnicos: [], plantillas: [], ordenes: [], proyectos: [], bodegas: [{ id: 1, nombre: 'Bodega Principal', tipo: 'fija' }],
     inventario: [], kardex: [], pedidosTienda: [],
     nomina: [], liquidacionesNomina: [], ingresos: [], gastos: [], controlOperativo: [],
     cotizaciones: [], facturas: [],
