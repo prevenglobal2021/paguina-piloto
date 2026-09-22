@@ -228,8 +228,9 @@ function renderizarDetalleProyecto(){
         <h3 style="margin:0 0 4px;">${p.nombre}</h3>
         <p style="font-size:12px;color:var(--text-muted);margin:0;">${cliente ? cliente.nombre : 'Sin cliente'} ${p.fechaInicioEstimada?(' · '+formatoFechaCorta(p.fechaInicioEstimada)+' → '+formatoFechaCorta(p.fechaFinEstimada)):''}</p>
       </div>
-      <div style="display:flex;gap:6px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
         ${badgeEstadoProyecto(p.estado)}
+        <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalInformeProyecto(${p.id})"><i class="fas fa-file-pdf"></i> Informe</button>
         <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="cerrarModal('modalDetalleProyecto');abrirModalProyecto(${p.id});">✎ Editar</button>
       </div>
     </div>
@@ -352,4 +353,110 @@ async function guardarCorteProyecto(){
   cerrarModal('modalCorteProyecto');
   renderizarDetalleProyecto();
   renderizarProyectos();
+}
+
+/* --------------------- Informe de avance (PDF / WhatsApp) ---------------------
+   Un solo informe sirve para cualquier periodicidad (diaria, semanal,
+   quincenal, o del proyecto completo) — la diferencia es solo el rango de
+   fechas que se elige antes de generarlo. Se sugiere automáticamente
+   "desde el último informe enviado" para que cada envío periódico solo
+   traiga lo nuevo, sin tener que acordarse de la fecha a mano.
+--------------------------------------------------------------------- */
+function abrirModalInformeProyecto(proyectoId){
+  const p = buscarProyecto(proyectoId);
+  document.getElementById('informeProyectoId').value = proyectoId;
+  const hoy = new Date().toISOString().slice(0,10);
+  document.getElementById('informeProyectoDesde').value = p.ultimoInformeEnviado || p.fechaInicioEstimada || hoy;
+  document.getElementById('informeProyectoHasta').value = hoy;
+  abrirModal('modalInformeProyecto');
+}
+
+function verInformeProyecto(){
+  const proyectoId = parseInt(document.getElementById('informeProyectoId').value);
+  const p = buscarProyecto(proyectoId);
+  if(!p) return;
+  const desde = document.getElementById('informeProyectoDesde').value;
+  const hasta = document.getElementById('informeProyectoHasta').value;
+  const cliente = buscarCliente(p.clienteId);
+  const sede = buscarSede(p.clienteId, p.sedeId);
+  const avance = calcularAvanceProyecto(p);
+  const esperado = calcularAvanceEsperado(p);
+  const logoHtml = db.config.logo ? `<img src="${db.config.logo}">` : '';
+
+  const cortesPeriodo = (p.cortes||[])
+    .filter(c => (!desde || c.fecha >= desde) && (!hasta || c.fecha <= hasta))
+    .sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
+
+  const bloqueHitos = (p.hitos && p.hitos.length) ? `
+    <div class="pdf-box"><h4>Hitos / fases</h4>
+      <table class="pdf-tabla-datos" cellpadding="4">
+        ${p.hitos.map(h=>`<tr><td style="width:70%;">${h.nombre}</td><td style="width:15%;">${h.peso}%</td><td>${h.completado?'✅ Completado':'⏳ Pendiente'}</td></tr>`).join('')}
+      </table>
+    </div>` : '';
+
+  const bloqueCortes = cortesPeriodo.length ? cortesPeriodo.map(c=>`
+    <div class="pdf-box">
+      <h4>${formatoFechaCorta(c.fecha)} — ${c.porcentaje}% de avance</h4>
+      <p style="margin:4px 0;">${c.descripcion||''}</p>
+      ${c.novedades ? `<p style="margin:4px 0;color:#b45309;"><strong>Novedades:</strong> ${c.novedades}</p>` : ''}
+      ${(c.tecnicosPresentes||[]).length ? `<p style="margin:4px 0;font-size:12px;color:#64748b;"><strong>Personal presente:</strong> ${c.tecnicosPresentes.map(id=>{const t=buscarTecnico(id);return t?t.nombre:'';}).filter(Boolean).join(', ')}</p>` : ''}
+      ${(c.fotos||[]).length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">${c.fotos.map(f=>`<img src="${f.src}" style="width:110px;height:110px;object-fit:cover;border-radius:6px;">`).join('')}</div>` : ''}
+    </div>
+  `).join('') : '<div class="pdf-box"><p style="margin:0;color:#64748b;">No se registraron cortes de avance en este período.</p></div>';
+
+  document.getElementById('pdfContenido').innerHTML = `
+    <div class="pdf-header">
+      <div>${logoHtml}<h2 style="color:#0088ff;margin:0;">${db.config.nombre}</h2><small>${db.config.subtitulo}</small>${db.config.direccion?`<br><small>${db.config.direccion}</small>`:''}</div>
+      <div style="text-align:right;"><strong>Informe de Avance de Proyecto</strong><br><small>Período: ${formatoFechaCorta(desde)} — ${formatoFechaCorta(hasta)}</small></div>
+    </div>
+    <div style="background:#f1f5f9;padding:15px;border-radius:6px;margin-bottom:20px;">
+      <small style="color:#64748b;font-weight:bold;">PROYECTO</small>
+      <h3 style="margin:5px 0 0 0;color:#0f172a;">${p.nombre}</h3>
+      <p style="margin:4px 0 0 0;font-size:12px;color:#475569;">${cliente ? cliente.nombre : 'Sin cliente'}${sede?(' — '+sede.nombre):''}</p>
+    </div>
+    <div class="pdf-box">
+      <table class="pdf-tabla-datos" cellpadding="4">
+        <tr><td style="width:45%;"><strong>Estado</strong></td><td>${p.estado}</td></tr>
+        <tr><td><strong>Avance real</strong></td><td>${avance}%</td></tr>
+        <tr><td><strong>Avance esperado (cronograma)</strong></td><td>${esperado!=null?esperado+'%':'No definido'}</td></tr>
+        ${p.fechaInicioEstimada ? `<tr><td><strong>Inicio estimado</strong></td><td>${formatoFechaCorta(p.fechaInicioEstimada)}</td></tr>` : ''}
+        ${p.fechaFinEstimada ? `<tr><td><strong>Fin estimado</strong></td><td>${formatoFechaCorta(p.fechaFinEstimada)}</td></tr>` : ''}
+      </table>
+    </div>
+    ${bloqueHitos}
+    <h4 style="margin:18px 0 8px;">Cortes de avance del período</h4>
+    ${bloqueCortes}
+  `;
+  abrirModal('modalPDF');
+}
+
+async function enviarPorWhatsAppInformeProyecto(){
+  const proyectoId = parseInt(document.getElementById('informeProyectoId').value);
+  const p = buscarProyecto(proyectoId);
+  if(!p) return;
+  const cliente = buscarCliente(p.clienteId);
+  if(!cliente || !cliente.telefono){ mostrarToast('Este cliente no tiene teléfono registrado — usa "Ver informe" para descargarlo y enviarlo tú mismo.'); return; }
+  const desde = document.getElementById('informeProyectoDesde').value;
+  const hasta = document.getElementById('informeProyectoHasta').value;
+  const nombreArchivo = `Informe_Avance_${p.nombre}_${hasta}`.replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf';
+
+  await compartirDocumentoPorWhatsApp({
+    telefono: cliente.telefono,
+    mensaje: `Hola ${cliente.nombre}, adjuntamos el informe de avance del proyecto "${p.nombre}" — ¡gracias por confiar en nosotros!`,
+    nombreArchivo,
+    tituloCompartir: `Informe de avance — ${p.nombre}`,
+    tipoLog: 'Proyecto',
+    detalleLog: `Informe de avance de "${p.nombre}" a ${cliente.nombre}`,
+    mensajeSinTelefono: 'Este cliente no tiene teléfono registrado.',
+    generarBlob: async () => {
+      verInformeProyecto();
+      const blob = await generarPDFDesdeElemento('pdfContenido', nombreArchivo);
+      cerrarModal('modalPDF');
+      return blob;
+    }
+  });
+
+  p.ultimoInformeEnviado = hasta;
+  await dbGuardarInmediato();
+  cerrarModal('modalInformeProyecto');
 }

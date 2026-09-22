@@ -1038,6 +1038,24 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
   </div>
 </div>
 
+<!-- Generar informe de avance -->
+<div class="modal-overlay" id="modalInformeProyecto">
+  <div class="modal-box">
+    <button class="close-modal" onclick="cerrarModal('modalInformeProyecto')">✖</button>
+    <h3 style="margin-top:0;">📄 Informe de Avance</h3>
+    <input type="hidden" id="informeProyectoId" value="">
+    <p style="font-size:12px;color:var(--text-muted);">Elige qué período de cortes incluir — sirve igual para un informe diario, semanal, quincenal o del proyecto completo.</p>
+    <div class="field-row">
+      <div><label>Desde:</label><input type="date" id="informeProyectoDesde"></div>
+      <div><label>Hasta:</label><input type="date" id="informeProyectoHasta"></div>
+    </div>
+    <div style="text-align:center;margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      <button class="btn-custom" onclick="verInformeProyecto()">👁️ Ver informe</button>
+      <button class="btn-custom btn-secondary-custom" onclick="enviarPorWhatsAppInformeProyecto()"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
+    </div>
+  </div>
+</div>
+
 <div class="panel seccion" id="seccion-equipos" style="display:none;">
       <div class="panel-title">
         <span>❄️ Equipos registrados</span>
