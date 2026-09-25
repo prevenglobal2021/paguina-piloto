@@ -146,8 +146,39 @@ async function generarPDFDesdeElemento(idElementoOrigen, nombreArchivo){
 // ningún navegador lo puede bloquear ni esconder — nunca. Se pierde un poco
 // de automatismo en el peor de los casos, a cambio de que funcione siempre,
 // en cualquier navegador, sin excepción.
+// Pide un número de WhatsApp escrito a mano, cuando el cliente/técnico no
+// tiene uno registrado — en vez de bloquear el envío por completo. Devuelve
+// el número (solo dígitos) o null si la persona cancela.
+let _resolverTelefonoManualPendiente = null;
+function pedirTelefonoManual(mensajeContexto){
+  return new Promise(resolve=>{
+    _resolverTelefonoManualPendiente = resolve;
+    document.getElementById('telefonoManualMensaje').innerText = mensajeContexto || 'No hay un número guardado para este documento — escribe a cuál WhatsApp quieres enviarlo (puede ser el tuyo o el de otro contacto, no hace falta que sea el del cliente).';
+    document.getElementById('telefonoManualInput').value = '';
+    abrirModal('modalTelefonoManual');
+    setTimeout(()=>document.getElementById('telefonoManualInput').focus(), 100);
+  });
+}
+function resolverTelefonoManual(valor){
+  cerrarModal('modalTelefonoManual');
+  if(_resolverTelefonoManualPendiente){
+    const limpio = (valor||'').replace(/[^0-9]/g,'');
+    _resolverTelefonoManualPendiente(limpio || null);
+    _resolverTelefonoManualPendiente = null;
+  }
+}
+
+// CORRECCIÓN DE FONDO: antes, sin teléfono registrado, esto bloqueaba el
+// envío por completo (solo dejaba usar "Ver" para descargar y enviarlo a
+// mano desde fuera de la plataforma). Ahora, en ese caso, se pide el
+// número a mano en el momento — puede ser el del cliente, el propio, o el
+// de cualquier otro contacto — y el envío por WhatsApp sigue funcionando
+// igual de ahí en adelante, con ese número.
 async function compartirDocumentoPorWhatsApp({ telefono, mensaje, generarBlob, nombreArchivo, tituloCompartir, tipoLog, detalleLog, mensajeSinTelefono }){
-  if(!telefono){ mostrarToast(mensajeSinTelefono || 'Este cliente no tiene teléfono registrado — usa "Ver" para descargar el documento y enviarlo tú mismo.'); return; }
+  if(!telefono){
+    telefono = await pedirTelefonoManual(mensajeSinTelefono);
+    if(!telefono){ mostrarToast('Envío cancelado — no se escribió ningún número.'); return; }
+  }
   const telefonoLimpio = telefono.replace(/[^0-9]/g,'');
   const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
   const dentroDeLaApp = typeof corriendoDentroDeLaApp === 'function' && corriendoDentroDeLaApp();

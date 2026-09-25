@@ -77,7 +77,6 @@ function renderizarAuditoria(){
 async function enviarPorWhatsApp(ordenId){
   const o = db.ordenes.find(x=>x.id===ordenId);
   if(!o) return;
-  if(o.esClienteNuevo){ mostrarToast('Esta orden es de un cliente nuevo (no registrado), sin teléfono guardado — usa "Ver Documento" para descargar el informe y enviarlo tú mismo.'); return; }
   const cliente = buscarCliente(o.clienteId);
   const mensaje = (db.config.plantillaWhatsApp || '')
     .replace(/{nombre_cliente}/g, cliente ? cliente.nombre : '')

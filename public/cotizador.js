@@ -407,7 +407,7 @@ async function enviarPorWhatsAppCotizacion(id){
     tituloCompartir: `Cotización ${c.numero}`,
     tipoLog: 'Cotizacion',
     detalleLog: `${c.numero} a ${nombreCliente}`,
-    mensajeSinTelefono: 'Este cliente no tiene teléfono registrado — usa "Ver" para descargar la cotización y enviarla tú mismo.',
+    mensajeSinTelefono: 'Este cliente no tiene teléfono registrado — escribe a cuál WhatsApp enviar la cotización (el tuyo o el de otro contacto).',
     generarBlob: async () => {
       verPDFCotizacion(id);
       const blob = await generarPDFDesdeElemento('pdfContenido', nombreArchivo);
@@ -429,7 +429,7 @@ async function enviarPorWhatsAppFactura(id){
     tituloCompartir: `Factura ${f.numero}`,
     tipoLog: 'Factura',
     detalleLog: `${f.numero} a ${nombreCliente}`,
-    mensajeSinTelefono: 'Este cliente no tiene teléfono registrado — usa "Ver" para descargar la factura y enviarla tú mismo.',
+    mensajeSinTelefono: 'Este cliente no tiene teléfono registrado — escribe a cuál WhatsApp enviar la factura (el tuyo o el de otro contacto).',
     generarBlob: async () => {
       verPDFFactura(id);
       const blob = await generarPDFDesdeElemento('pdfContenido', nombreArchivo);
