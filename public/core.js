@@ -648,6 +648,13 @@ window.addEventListener('DOMContentLoaded', () => {
   cargarYAplicarBannerLateralGlobal();
 
   aplicarConfiguracionVisual();
+  const paramsArranque = new URLSearchParams(location.search);
+  const slugTiendaPublica = paramsArranque.get('tienda');
+  if(slugTiendaPublica){
+    ocultarSkeletonBoot();
+    if(typeof iniciarTiendaPublica === 'function') iniciarTiendaPublica(slugTiendaPublica);
+    return; // enlace independiente, sin sesión — no sigue con el login normal
+  }
   if(detectarEnlaceDeReset()) return; // pantalla de "crear nueva contraseña", no el login normal
   if(!sesionActual || !sesionServidor){
     mostrarLogin();
