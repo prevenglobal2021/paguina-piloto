@@ -756,6 +756,8 @@ app.post('/api/tienda/codigo', requireAuth, async (req, res) => {
   if (req.rol !== 'admin') return res.status(403).json({ error: 'Solo un administrador puede cambiar esto.' });
   const codigo = (req.body && req.body.codigo || '').toLowerCase().trim();
   if (!/^[a-z0-9-]{3,40}$/.test(codigo)) return res.status(400).json({ error: 'Usa solo letras, números y guiones (3 a 40 caracteres).' });
+  const PALABRAS_RESERVADAS = ['api', 'tienda', 't', 'contenido', 'superadmin', 'admin', 'app', 'login', 'logout', 'assets', 'static'];
+  if (PALABRAS_RESERVADAS.includes(codigo)) return res.status(400).json({ error: `"${codigo}" es una palabra reservada del sistema — elige otra.` });
 
   const todas = await pool.query('SELECT slug, estado_app FROM empresas');
   const enUso = todas.rows.some(e => {
@@ -1306,7 +1308,23 @@ app.get('/tienda', (req, res) => {
   res.redirect('/?tienda=prevenglobal');
 });
 
-app.get('*', (req, res) => {
+app.get('*', async (req, res) => {
+  // Enlace corto DIRECTO de tienda: prevenglobal.com/lo-que-el-dueño-eligió
+  // (sin ningún prefijo de por medio). Solo entra aquí si ninguna otra
+  // ruta ni archivo estático de arriba coincidió primero, así que nunca
+  // choca con /api/*, /tienda, /t/*, /contenido/*, superadmin.html, etc.
+  const primerSegmento = req.path.split('/')[1];
+  if (primerSegmento) {
+    const r = await pool.query('SELECT slug, estado_app FROM empresas');
+    const encontrada = r.rows.find(e => {
+      const codigoPropio = (e.estado_app && e.estado_app.config && e.estado_app.config.codigoTienda) || e.slug;
+      return String(codigoPropio).toLowerCase() === primerSegmento.toLowerCase();
+    });
+    if (encontrada) {
+      res.set('Cache-Control', 'no-store');
+      return res.redirect('/?tienda=' + encodeURIComponent(encontrada.slug));
+    }
+  }
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
