@@ -483,3 +483,4 @@ function verPDFFactura(id){
     <p style="font-size:10px;color:#94a3b8;text-align:center;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:10px;">Gracias por confiar en ${db.config.nombre}.</p>`;
   abrirModal('modalPDF');
 }
+
