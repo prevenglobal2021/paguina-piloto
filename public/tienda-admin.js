@@ -290,7 +290,7 @@ async function confirmarPedidoTienda(){
 /* --- Configuración: marca y contacto de la Tienda Virtual --- */
 function cargarTabTiendaConfig(){
   document.getElementById('cfgTiendaLinkPublico').value = location.origin + location.pathname + '?tienda=' + encodeURIComponent(empresaActual || '');
-  document.getElementById('cfgTiendaCodigoPrefijo').innerText = location.origin + '/t/';
+  document.getElementById('cfgTiendaCodigoPrefijo').innerText = location.origin + '/';
   document.getElementById('cfgTiendaCodigo').value = db.config.codigoTienda || empresaActual || '';
   const prevLogo = document.getElementById('previewLogoTienda');
   prevLogo.innerHTML = db.config.tiendaLogo ? `<img src="${db.config.tiendaLogo}" style="max-width:100%;max-height:100%;">` : '<small style="color:var(--text-muted);">Usando el logo de la empresa</small>';
