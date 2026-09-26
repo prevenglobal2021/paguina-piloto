@@ -78,3 +78,43 @@ function cerrarSesionDesdeConfigApp(){
 }
 
 document.addEventListener('DOMContentLoaded', inicializarSeccionConfigApp);
+
+/* =========================================================
+   NOTIFICACIONES PUSH (alarmas de órdenes próximas a ejecutar)
+   Solo hace algo dentro del APK — en navegador normal, no aplica.
+   Se activa una vez que el técnico inició sesión (necesita saber su
+   ID para poder avisarle a él específicamente).
+========================================================= */
+async function registrarNotificacionesPush(tecnicoId){
+  if(!corriendoDentroDeLaApp() || !tecnicoId) return;
+  const plugins = window.Capacitor && window.Capacitor.Plugins;
+  const PushNotifications = plugins && plugins.PushNotifications;
+  if(!PushNotifications) return;
+
+  try{
+    const permiso = await PushNotifications.checkPermissions();
+    let estado = permiso.receive;
+    if(estado === 'prompt' || estado === 'prompt-with-rationale'){
+      const solicitado = await PushNotifications.requestPermissions();
+      estado = solicitado.receive;
+    }
+    if(estado !== 'granted') return; // el técnico no dio permiso — no insistimos, no rompe nada más
+
+    PushNotifications.addListener('registration', async (token) => {
+      try{
+        await fetch(API_BASE + '/api/tecnico/push-token', {
+          method: 'POST',
+          headers: headersAutenticados({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ tecnicoId, token: token.value })
+        });
+      }catch(err){ console.error('No se pudo guardar el token de notificaciones:', err); }
+    });
+    PushNotifications.addListener('registrationError', (err) => {
+      console.error('Error registrando notificaciones push:', err);
+    });
+
+    await PushNotifications.register();
+  }catch(err){
+    console.error('No se pudo activar las notificaciones push (no afecta el resto de la app):', err);
+  }
+}

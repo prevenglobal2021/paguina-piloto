@@ -1213,7 +1213,48 @@ pool.query('SELECT 1')
   })
   .then(() => bootstrapEmpresaInicial())
   .then(() => {
-    app.listen(PORT, () => console.log(`Prevenglobal escuchando en el puerto ${PORT}`));
+    /* ---------------------------------------------------------
+   Agente de contenido para redes sociales — aprobar/rechazar
+   propuestas generadas automáticamente (no toca ninguna otra ruta)
+--------------------------------------------------------- */
+/* ---------------------------------------------------------
+   Notificaciones push — guarda el identificador del celular del
+   técnico, para poder mandarle alarmas de órdenes próximas
+--------------------------------------------------------- */
+app.post('/api/tecnico/push-token', requireAuth, async (req, res) => {
+  const { tecnicoId, token } = req.body || {};
+  if (!tecnicoId || !token) return res.status(400).json({ error: 'Falta tecnicoId o token.' });
+  if (req.tecnicoId && String(req.tecnicoId) !== String(tecnicoId)) return res.status(403).json({ error: 'No puedes registrar el token de otro técnico.' });
+
+  const data = await leerEstadoEmpresa(req.slug);
+  if (!data) return res.status(404).json({ error: 'Empresa no encontrada.' });
+  const tecnico = (data.tecnicos || []).find(t => String(t.id) === String(tecnicoId));
+  if (!tecnico) return res.status(404).json({ error: 'Técnico no encontrado.' });
+
+  tecnico.fcmToken = token;
+  await guardarEstadoEmpresa(req.slug, data);
+  res.json({ ok: true });
+});
+
+app.get('/contenido/aprobar/:token', async (req, res) => {
+  const r = await pool.query(
+    "UPDATE propuestas_contenido SET estado = 'aprobado' WHERE token = $1 AND estado = 'pendiente' RETURNING imagen_nombre",
+    [req.params.token]
+  );
+  if (r.rowCount === 0) return res.send('<h2>Este enlace ya no es válido o ya fue usado.</h2>');
+  res.send(`<h2>✅ Contenido aprobado: ${r.rows[0].imagen_nombre}</h2><p>Ya puedes publicarlo.</p>`);
+});
+
+app.get('/contenido/rechazar/:token', async (req, res) => {
+  const r = await pool.query(
+    "UPDATE propuestas_contenido SET estado = 'rechazado' WHERE token = $1 AND estado = 'pendiente' RETURNING imagen_nombre",
+    [req.params.token]
+  );
+  if (r.rowCount === 0) return res.send('<h2>Este enlace ya no es válido o ya fue usado.</h2>');
+  res.send(`<h2>❌ Contenido rechazado: ${r.rows[0].imagen_nombre}</h2>`);
+});
+
+app.listen(PORT, () => console.log(`Prevenglobal escuchando en el puerto ${PORT}`));
   })
   .catch(err => {
     console.error('No se pudo conectar a la base de datos:', err.message);

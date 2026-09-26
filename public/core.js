@@ -472,6 +472,7 @@ function completarLogin(resultado){
   aplicarRBACaUI();
   if(typeof mostrarSeccion === 'function') mostrarSeccion('agenda');
   cargarEstadoDesdeBackend();
+  if(typeof registrarNotificacionesPush === 'function' && resultado.tecnicoId) registrarNotificacionesPush(resultado.tecnicoId);
 }
 
 function tienePermiso(clave){
