@@ -1187,6 +1187,7 @@ async function bootstrapEmpresaInicial() {
 // una dirección limpia. No toca la ruta original: sigue funcionando
 // igual para quien ya la tenga guardada o compartida.
 app.get('/tienda', (req, res) => {
+  res.set('Cache-Control', 'no-store');
   res.redirect('/?tienda=prevenglobal');
 });
 
