@@ -290,6 +290,8 @@ async function confirmarPedidoTienda(){
 /* --- Configuración: marca y contacto de la Tienda Virtual --- */
 function cargarTabTiendaConfig(){
   document.getElementById('cfgTiendaLinkPublico').value = location.origin + location.pathname + '?tienda=' + encodeURIComponent(empresaActual || '');
+  document.getElementById('cfgTiendaCodigoPrefijo').innerText = location.origin + '/t/';
+  document.getElementById('cfgTiendaCodigo').value = db.config.codigoTienda || empresaActual || '';
   const prevLogo = document.getElementById('previewLogoTienda');
   prevLogo.innerHTML = db.config.tiendaLogo ? `<img src="${db.config.tiendaLogo}" style="max-width:100%;max-height:100%;">` : '<small style="color:var(--text-muted);">Usando el logo de la empresa</small>';
   renderizarPreviewMultiple('previewBannerTienda', db.config.tiendaBanner||[], quitarBannerTienda);
@@ -503,6 +505,30 @@ function copiarLinkTiendaPublica(){
   navigator.clipboard && navigator.clipboard.writeText(input.value).then(()=>{
     mostrarToast('Enlace copiado — ya lo puedes compartir con tus clientes.');
   }).catch(()=>{ document.execCommand('copy'); mostrarToast('Enlace copiado.'); });
+}
+async function guardarCodigoTiendaCorto(){
+  const input = document.getElementById('cfgTiendaCodigo');
+  const msj = document.getElementById('cfgTiendaCodigoMensaje');
+  const codigo = (input.value || '').trim().toLowerCase();
+  const mostrarMensaje = (texto, esError) => {
+    msj.style.color = esError ? 'var(--red-alert)' : 'var(--green-success)';
+    msj.innerText = texto;
+    msj.style.display = 'block';
+  };
+  try{
+    const resp = await fetch('/api/tienda/codigo', {
+      method: 'POST',
+      headers: headersAutenticados({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ codigo })
+    });
+    const data = await resp.json();
+    if(!resp.ok) throw new Error(data.error || 'No se pudo guardar.');
+    db.config.codigoTienda = data.codigo;
+    input.value = data.codigo;
+    mostrarMensaje(`✅ Listo — tu enlace corto es: ${location.origin}/t/${data.codigo}`, false);
+  }catch(err){
+    mostrarMensaje(err.message, true);
+  }
 }
 function guardarContactoTienda(){
   db.config.tiendaTelefono = document.getElementById('cfgTiendaTelefono').value.trim();

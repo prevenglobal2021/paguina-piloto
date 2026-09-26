@@ -733,6 +733,46 @@ async function recortarParaLogin(buffer){
     .toBuffer();
 }
 
+// Dirección corta y universal de tienda pública: cada empresa puede
+// definir su propio "código" (por defecto, su slug técnico) y compartir
+// prevenglobal.com/t/<codigo> — el servidor busca a cuál empresa
+// pertenece y la redirige a su tienda real. Sin sesión, de acceso público.
+app.get('/t/:codigo', async (req, res) => {
+  const codigo = (req.params.codigo || '').toLowerCase().trim();
+  const r = await pool.query('SELECT slug, estado_app FROM empresas');
+  const encontrada = r.rows.find(e => {
+    const codigoPropio = (e.estado_app && e.estado_app.config && e.estado_app.config.codigoTienda) || e.slug;
+    return String(codigoPropio).toLowerCase() === codigo;
+  });
+  res.set('Cache-Control', 'no-store');
+  if (!encontrada) return res.status(404).send('<h2>Tienda no encontrada.</h2>');
+  res.redirect('/?tienda=' + encodeURIComponent(encontrada.slug));
+});
+
+// El dueño de cada empresa define/cambia su propio código corto —
+// validado para que sea simple (letras, números, guiones) y único entre
+// todas las empresas, para que dos negocios no choquen con el mismo.
+app.post('/api/tienda/codigo', requireAuth, async (req, res) => {
+  if (req.rol !== 'admin') return res.status(403).json({ error: 'Solo un administrador puede cambiar esto.' });
+  const codigo = (req.body && req.body.codigo || '').toLowerCase().trim();
+  if (!/^[a-z0-9-]{3,40}$/.test(codigo)) return res.status(400).json({ error: 'Usa solo letras, números y guiones (3 a 40 caracteres).' });
+
+  const todas = await pool.query('SELECT slug, estado_app FROM empresas');
+  const enUso = todas.rows.some(e => {
+    if (e.slug === req.slug) return false; // la propia empresa no choca consigo misma
+    const codigoDeEsa = (e.estado_app && e.estado_app.config && e.estado_app.config.codigoTienda) || e.slug;
+    return String(codigoDeEsa).toLowerCase() === codigo;
+  });
+  if (enUso) return res.status(409).json({ error: 'Ese código ya lo está usando otra empresa — elige otro.' });
+
+  const data = await leerEstadoEmpresa(req.slug);
+  if (!data) return res.status(404).json({ error: 'Empresa no encontrada.' });
+  data.config = data.config || {};
+  data.config.codigoTienda = codigo;
+  await guardarEstadoEmpresa(req.slug, data);
+  res.json({ ok: true, codigo });
+});
+
 app.post('/api/imagenes/login-fondo', requireAuth, async (req, res) => {
   const { imagenBase64 } = req.body || {};
   if (!imagenBase64) return res.status(400).json({ error: 'No llegó ninguna imagen. Intenta seleccionarla de nuevo.' });
