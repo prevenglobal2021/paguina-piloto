@@ -154,11 +154,32 @@ async function generarPDFDesdeElemento(idElementoOrigen, nombreArchivo){
 let _resolverTelefonoManualPendiente = null;
 function pedirTelefonoManual(mensajeContexto){
   return new Promise(resolve=>{
+    const cont = document.getElementById('modalTelefonoManual');
+    const msj = document.getElementById('telefonoManualMensaje');
+    const input = document.getElementById('telefonoManualInput');
+    if(!cont || !msj || !input){
+      // La página que tiene cargada este celular/navegador todavía no
+      // tiene esta ventana (versión vieja en caché) — en vez de quedarse
+      // esperando algo que nunca va a aparecer, avisa y cancela ya mismo.
+      mostrarToast('Esta función se acaba de actualizar — cierra por completo la app/pestaña y ábrela de nuevo antes de reintentar.', 'error');
+      resolve(null);
+      return;
+    }
     _resolverTelefonoManualPendiente = resolve;
-    document.getElementById('telefonoManualMensaje').innerText = mensajeContexto || 'No hay un número guardado para este documento — escribe a cuál WhatsApp quieres enviarlo (puede ser el tuyo o el de otro contacto, no hace falta que sea el del cliente).';
-    document.getElementById('telefonoManualInput').value = '';
+    msj.innerText = mensajeContexto || 'No hay un número guardado para este documento — escribe a cuál WhatsApp quieres enviarlo (puede ser el tuyo o el de otro contacto, no hace falta que sea el del cliente).';
+    input.value = '';
     abrirModal('modalTelefonoManual');
-    setTimeout(()=>document.getElementById('telefonoManualInput').focus(), 100);
+    setTimeout(()=>input.focus(), 100);
+    // Respaldo: si por lo que sea nadie interactúa con la ventana (o algo
+    // en el camino se queda pegado), esto la resuelve solo a los 3 minutos
+    // en vez de dejar el botón cargando indefinidamente.
+    setTimeout(()=>{
+      if(_resolverTelefonoManualPendiente === resolve){
+        _resolverTelefonoManualPendiente = null;
+        cerrarModal('modalTelefonoManual');
+        resolve(null);
+      }
+    }, 180000);
   });
 }
 function resolverTelefonoManual(valor){
