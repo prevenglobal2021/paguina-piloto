@@ -270,7 +270,7 @@ async function crearEmpresa(slug, nombre, estadoInicial) {
 
 function estadoSemilla(nombreEmpresa, adminUsuario, adminPasswordHash) {
   return {
-    clientes: [], tecnicos: [], plantillas: [], ordenes: [], proyectos: [], bodegas: [{ id: 1, nombre: 'Bodega Principal', tipo: 'fija' }],
+    clientes: [], tecnicos: [], plantillas: [], ordenes: [], bodegas: [{ id: 1, nombre: 'Bodega Principal', tipo: 'fija' }],
     inventario: [], kardex: [], pedidosTienda: [],
     nomina: [], liquidacionesNomina: [], ingresos: [], gastos: [], controlOperativo: [],
     cotizaciones: [], facturas: [],
@@ -759,7 +759,7 @@ app.post('/api/tienda/codigo', requireAuth, async (req, res) => {
 
   const todas = await pool.query('SELECT slug, estado_app FROM empresas');
   const enUso = todas.rows.some(e => {
-    if (e.slug === req.slug) return false;
+    if (e.slug === req.slug) return false; // la propia empresa no choca consigo misma
     const codigoDeEsa = (e.estado_app && e.estado_app.config && e.estado_app.config.codigoTienda) || e.slug;
     return String(codigoDeEsa).toLowerCase() === codigo;
   });
@@ -938,19 +938,11 @@ function obtenerTransportadorCorreo() {
   return transportadorCorreo;
 }
 
-async function enviarCorreoReset(slug, tipo, tecnicoId, email, nombreEmpresa, baseUrlRespaldo) {
+async function enviarCorreoReset(slug, tipo, tecnicoId, email, nombreEmpresa) {
   const token = crypto.randomBytes(32).toString('hex');
   tokensReset.set(token, { slug, tipo, tecnicoId, exp: Date.now() + 60 * 60 * 1000, usado: false });
   const transportador = obtenerTransportadorCorreo();
-  // Si la variable de entorno APP_URL no está configurada en Railway, el
-  // enlace quedaba armado como "/?resetToken=..." (sin dominio) — al
-  // abrirlo desde el correo, sin ninguna página "actual" de referencia,
-  // terminaba en una URL rota como "http:///?resetToken=...". Como
-  // respaldo automático, se usa el dominio real desde el que llegó esta
-  // solicitud (baseUrlRespaldo), para que el enlace nunca quede roto
-  // aunque se le olvide configurar esa variable.
-  const base = process.env.APP_URL || baseUrlRespaldo || '';
-  const enlace = `${base}/?resetToken=${token}`;
+  const enlace = `${process.env.APP_URL || ''}/?resetToken=${token}`;
   if (!transportador) {
     console.log(`[reset] Gmail no configurado todavía. Enlace de prueba para ${email}: ${enlace}`);
     return;
@@ -973,7 +965,6 @@ app.post('/api/auth/solicitar-reset', limiteLogin, async (req, res) => {
   const correo = ((req.body || {}).email || '').trim().toLowerCase();
   const respuesta = { ok: true, mensaje: 'Si ese correo está registrado, te enviamos un enlace para restablecer tu contraseña.' };
   if (!correo) return res.json(respuesta);
-  const baseUrlRespaldo = `${req.protocol}://${req.get('host')}`;
   try {
     const rActivas = await pool.query('SELECT slug FROM empresas WHERE activa = true');
     for (const fila of rActivas.rows) {
@@ -981,12 +972,12 @@ app.post('/api/auth/solicitar-reset', limiteLogin, async (req, res) => {
       const data = await leerEstadoEmpresa(emp.slug);
       if (!data) continue;
       if (data.config.adminUsuario && data.config.adminUsuario.trim().toLowerCase() === correo) {
-        await enviarCorreoReset(emp.slug, 'admin', null, correo, data.config.nombre, baseUrlRespaldo);
+        await enviarCorreoReset(emp.slug, 'admin', null, correo, data.config.nombre);
         return res.json(respuesta);
       }
       const tecnico = (data.tecnicos || []).find(t => t.usuario && t.usuario.trim().toLowerCase() === correo);
       if (tecnico) {
-        await enviarCorreoReset(emp.slug, 'tecnico', tecnico.id, correo, data.config.nombre, baseUrlRespaldo);
+        await enviarCorreoReset(emp.slug, 'tecnico', tecnico.id, correo, data.config.nombre);
         return res.json(respuesta);
       }
     }
@@ -1019,72 +1010,6 @@ app.post('/api/auth/confirmar-reset', limiteLogin, async (req, res) => {
   info.usado = true;
   tokensReset.delete(token);
   res.json({ ok: true });
-});
-
-/* ---------------------------------------------------------
-   API — Consulta de NIT en el RUES (Registro Único Empresarial y
-   Social), para autocompletar datos de empresas al registrar un
-   cliente. Pasa por el servidor porque el sitio del RUES no permite
-   consultarse directo desde el navegador de otra página (bloqueo de
-   origen cruzado).
-
-   AVISO IMPORTANTE PARA PEDRO: la URL de abajo es mi mejor intento
-   con la información que tengo, pero NO pude probarla en vivo (mi
-   entorno de trabajo no tiene salida a internet hacia rues.org.co
-   para verificarlo). Es muy posible que la URL o la forma exacta de
-   la respuesta hayan cambiado, o que el RUES no permita este tipo de
-   consulta automática sin más. Por eso todo el endpoint está armado
-   para NUNCA romper el registro de clientes si esto falla: si el NIT
-   no se encuentra, si la URL ya no es la correcta, o si el servicio
-   no responde a tiempo, simplemente se le avisa al usuario y el
-   formulario sigue funcionando manual, como siempre. Con la primera
-   prueba real que hagan, si no funciona, me dicen exactamente qué
-   error sale y ajustamos la URL/el formato de la respuesta.
---------------------------------------------------------- */
-function calcularDVNit(nitSinDV) {
-  // Algoritmo oficial de la DIAN para el dígito de verificación del NIT
-  // (Resolución 8121 de 2011) — este sí es un cálculo estable y público,
-  // no depende de ningún servicio externo.
-  const pesos = [71, 67, 59, 53, 47, 43, 41, 37, 29, 23, 19, 17, 13, 7, 3];
-  const nit15 = nitSinDV.replace(/\D/g, '').padStart(15, '0');
-  let suma = 0;
-  for (let i = 0; i < 15; i++) suma += parseInt(nit15[i], 10) * pesos[i];
-  const residuo = suma % 11;
-  return residuo > 1 ? 11 - residuo : residuo;
-}
-
-app.get('/api/rues/consultar-nit/:nit', requireAuth, async (req, res) => {
-  const nitLimpio = (req.params.nit || '').replace(/\D/g, '');
-  if (nitLimpio.length < 8) return res.status(400).json({ error: 'NIT incompleto.' });
-
-  try {
-    const controlador = new AbortController();
-    const tiempoLimite = setTimeout(() => controlador.abort(), 8000);
-    const respuesta = await fetch(`https://ruesapi.rues.org.co/rues/api/consultas/consultaExterna/${nitLimpio}`, {
-      signal: controlador.signal,
-    });
-    clearTimeout(tiempoLimite);
-
-    if (!respuesta.ok) {
-      return res.status(404).json({ error: 'No se encontró ese NIT en el RUES, o el servicio no está disponible en este momento.' });
-    }
-    const datos = await respuesta.json();
-    const registro = Array.isArray(datos) ? datos[0] : (datos.data ? datos.data[0] : datos);
-    if (!registro) {
-      return res.status(404).json({ error: 'No se encontró ese NIT en el RUES.' });
-    }
-
-    res.json({
-      razonSocial: registro.razon_social || registro.nombre || null,
-      estadoMatricula: registro.estado_matricula || registro.estado || null,
-      camaraComercio: registro.camara_comercio || null,
-      actividadEconomica: registro.actividad_economica || registro.ciiu || null,
-      representanteLegal: registro.representante_legal || null,
-    });
-  } catch (err) {
-    console.error('[rues] No se pudo consultar (revisar si la URL sigue siendo válida):', err.message);
-    res.status(502).json({ error: 'No se pudo conectar con el RUES en este momento. Puedes seguir llenando el formulario manualmente.' });
-  }
 });
 
 /* ---------------------------------------------------------
@@ -1338,6 +1263,10 @@ pool.query('SELECT 1')
   .then(() => bootstrapEmpresaInicial())
   .then(() => {
     /* ---------------------------------------------------------
+   Agente de contenido para redes sociales — aprobar/rechazar
+   propuestas generadas automáticamente (no toca ninguna otra ruta)
+--------------------------------------------------------- */
+/* ---------------------------------------------------------
    Notificaciones push — guarda el identificador del celular del
    técnico, para poder mandarle alarmas de órdenes próximas
 --------------------------------------------------------- */
@@ -1356,10 +1285,6 @@ app.post('/api/tecnico/push-token', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
-/* ---------------------------------------------------------
-   Agente de contenido para redes sociales — aprobar/rechazar
-   propuestas generadas automáticamente (no toca ninguna otra ruta)
---------------------------------------------------------- */
 app.get('/contenido/aprobar/:token', async (req, res) => {
   const r = await pool.query(
     "UPDATE propuestas_contenido SET estado = 'aprobado' WHERE token = $1 AND estado = 'pendiente' RETURNING imagen_nombre",
@@ -1378,7 +1303,7 @@ app.get('/contenido/rechazar/:token', async (req, res) => {
   res.send(`<h2>❌ Contenido rechazado: ${r.rows[0].imagen_nombre}</h2>`);
 });
 
-    app.listen(PORT, () => console.log(`Prevenglobal escuchando en el puerto ${PORT}`));
+app.listen(PORT, () => console.log(`Prevenglobal escuchando en el puerto ${PORT}`));
   })
   .catch(err => {
     console.error('No se pudo conectar a la base de datos:', err.message);
