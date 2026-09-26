@@ -146,9 +146,11 @@ async function generarPDFDesdeElemento(idElementoOrigen, nombreArchivo){
 // ningún navegador lo puede bloquear ni esconder — nunca. Se pierde un poco
 // de automatismo en el peor de los casos, a cambio de que funcione siempre,
 // en cualquier navegador, sin excepción.
-// Pide un número de WhatsApp escrito a mano, cuando el cliente/técnico no
-// tiene uno registrado — en vez de bloquear el envío por completo. Devuelve
-// el número (solo dígitos) o null si la persona cancela.
+// Pide un número de WhatsApp escrito a mano — SOLO se usa como último
+// respaldo, cuando ni el panel nativo del celular ni el de compartir del
+// navegador están disponibles (típicamente, un navegador de escritorio
+// viejo). En el celular, la persona nunca ve esto: elige el contacto
+// directamente desde el panel nativo, sin escribir ningún número.
 let _resolverTelefonoManualPendiente = null;
 function pedirTelefonoManual(mensajeContexto){
   return new Promise(resolve=>{
@@ -168,19 +170,15 @@ function resolverTelefonoManual(valor){
   }
 }
 
-// CORRECCIÓN DE FONDO: antes, sin teléfono registrado, esto bloqueaba el
-// envío por completo (solo dejaba usar "Ver" para descargar y enviarlo a
-// mano desde fuera de la plataforma). Ahora, en ese caso, se pide el
-// número a mano en el momento — puede ser el del cliente, el propio, o el
-// de cualquier otro contacto — y el envío por WhatsApp sigue funcionando
-// igual de ahí en adelante, con ese número.
 async function compartirDocumentoPorWhatsApp({ telefono, mensaje, generarBlob, nombreArchivo, tituloCompartir, tipoLog, detalleLog, mensajeSinTelefono }){
-  if(!telefono){
-    telefono = await pedirTelefonoManual(mensajeSinTelefono);
-    if(!telefono){ mostrarToast('Envío cancelado — no se escribió ningún número.'); return; }
-  }
-  const telefonoLimpio = telefono.replace(/[^0-9]/g,'');
-  const enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
+  // Si no hay teléfono guardado, ya no se bloquea todo el proceso: el panel
+  // nativo de compartir (o el de "compartir" del navegador) no necesita
+  // ningún número — la persona elige el contacto ella misma desde ahí. El
+  // único paso que sí necesita el teléfono es el enlace directo de wa.me,
+  // así que solo se pide a mano más abajo, y solo si de verdad hace falta.
+  let telefonoLimpio = telefono ? telefono.replace(/[^0-9]/g,'') : '';
+  let enlaceWhatsApp = telefonoLimpio ? `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}` : null;
+
   const dentroDeLaApp = typeof corriendoDentroDeLaApp === 'function' && corriendoDentroDeLaApp();
 
   let blob;
@@ -221,8 +219,14 @@ async function compartirDocumentoPorWhatsApp({ telefono, mensaje, generarBlob, n
     }catch(err){ /* el usuario cerró el panel sin elegir nada, o nunca llegó a abrirse — seguimos con el respaldo */ }
   }
 
-  // 3) Respaldo universal: se descarga el documento y se muestra un botón
-  //    VISIBLE para abrir WhatsApp, que la persona toca ella misma.
+  // 3) Respaldo universal: si no hay panel nativo Y tampoco hay teléfono,
+  //    este es el único punto donde de verdad hace falta pedirlo a mano —
+  //    ya se intentó todo lo que no lo necesita.
+  if(!enlaceWhatsApp){
+    telefonoLimpio = await pedirTelefonoManual(mensajeSinTelefono);
+    if(!telefonoLimpio){ mostrarToast('Envío cancelado — no se escribió ningún número.'); return; }
+    enlaceWhatsApp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
+  }
   const url = URL.createObjectURL(blob);
   const enlaceDescarga = document.createElement('a');
   enlaceDescarga.href = url; enlaceDescarga.download = nombreArchivo; enlaceDescarga.click();
@@ -236,6 +240,16 @@ async function compartirDocumentoPorWhatsApp({ telefono, mensaje, generarBlob, n
 // del usuario, así que ningún navegador puede bloquearlo ni ocultarlo.
 function mostrarAvisoAbrirWhatsApp(enlaceWhatsApp, nombreArchivo, mensajePersonalizado){
   const cont = document.getElementById('toastContainer');
+  if(!enlaceWhatsApp){
+    const texto = mensajePersonalizado || `Se descargó "${nombreArchivo}". Abre WhatsApp tú mismo, elige el contacto y adjúntalo ahí (📎 → Documento).`;
+    if(!cont){ console.log(texto); return; }
+    const el = document.createElement('div');
+    el.className = 'toast info';
+    el.innerHTML = `<span class="toast-icono">ℹ️</span><span class="toast-texto">${texto}</span><span class="toast-cerrar" onclick="this.parentElement.remove()">✖</span>`;
+    cont.appendChild(el);
+    setTimeout(()=>{ el.classList.add('saliendo'); setTimeout(()=>el.remove(), 250); }, 30000);
+    return;
+  }
   if(!cont){ console.log(mensajePersonalizado || enlaceWhatsApp); return; }
   const texto = mensajePersonalizado || `Se descargó "${nombreArchivo}". Toca el botón para abrir WhatsApp y adjúntalo ahí (📎 → Documento).`;
   const el = document.createElement('div');
