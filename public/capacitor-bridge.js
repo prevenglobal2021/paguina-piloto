@@ -86,35 +86,44 @@ document.addEventListener('DOMContentLoaded', inicializarSeccionConfigApp);
    ID para poder avisarle a él específicamente).
 ========================================================= */
 async function registrarNotificacionesPush(tecnicoId){
-  if(!corriendoDentroDeLaApp() || !tecnicoId) return;
+  const diag = (t) => { if(typeof mostrarToast === 'function') mostrarToast('🔔 DIAGNÓSTICO: ' + t); else console.log('DIAGNÓSTICO:', t); };
+  if(!corriendoDentroDeLaApp() || !tecnicoId){ diag('no corre dentro de la app o falta tecnicoId — no se activa'); return; }
   const plugins = window.Capacitor && window.Capacitor.Plugins;
   const PushNotifications = plugins && plugins.PushNotifications;
-  if(!PushNotifications) return;
+  if(!PushNotifications){ diag('el plugin PushNotifications no está disponible en esta app'); return; }
+  diag('plugin encontrado, revisando permisos...');
 
   try{
     const permiso = await PushNotifications.checkPermissions();
     let estado = permiso.receive;
+    diag('permiso actual: ' + estado);
     if(estado === 'prompt' || estado === 'prompt-with-rationale'){
       const solicitado = await PushNotifications.requestPermissions();
       estado = solicitado.receive;
+      diag('permiso tras pedirlo: ' + estado);
     }
-    if(estado !== 'granted') return; // el técnico no dio permiso — no insistimos, no rompe nada más
+    if(estado !== 'granted'){ diag('permiso NO concedido, se detiene aquí'); return; }
 
     PushNotifications.addListener('registration', async (token) => {
+      diag('¡token recibido! largo: ' + (token.value||'').length);
       try{
-        await fetch(API_BASE + '/api/tecnico/push-token', {
+        const resp = await fetch(API_BASE + '/api/tecnico/push-token', {
           method: 'POST',
           headers: headersAutenticados({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ tecnicoId, token: token.value })
         });
-      }catch(err){ console.error('No se pudo guardar el token de notificaciones:', err); }
+        const data = await resp.json().catch(()=>({}));
+        diag('respuesta del servidor: ' + resp.status + ' — ' + JSON.stringify(data));
+      }catch(err){ diag('ERROR guardando el token: ' + err.message); }
     });
     PushNotifications.addListener('registrationError', (err) => {
-      console.error('Error registrando notificaciones push:', err);
+      diag('ERROR de registro de Firebase: ' + JSON.stringify(err));
     });
 
+    diag('llamando a register()...');
     await PushNotifications.register();
+    diag('register() se ejecutó sin lanzar error — esperando el evento con el token');
   }catch(err){
-    console.error('No se pudo activar las notificaciones push (no afecta el resto de la app):', err);
+    diag('ERROR inesperado: ' + err.message);
   }
 }
