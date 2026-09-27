@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', inicializarSeccionConfigApp);
    ID para poder avisarle a él específicamente).
 ========================================================= */
 async function registrarNotificacionesPush(tecnicoId){
-  const diag = (t) => { if(typeof mostrarToast === 'function') mostrarToast('🔔 DIAGNÓSTICO: ' + t); else console.log('DIAGNÓSTICO:', t); };
+  const diag = (t) => alert('🔔 DIAGNÓSTICO: ' + t);
   if(!corriendoDentroDeLaApp() || !tecnicoId){ diag('no corre dentro de la app o falta tecnicoId — no se activa'); return; }
   const plugins = window.Capacitor && window.Capacitor.Plugins;
   const PushNotifications = plugins && plugins.PushNotifications;
