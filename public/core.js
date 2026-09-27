@@ -472,7 +472,7 @@ function completarLogin(resultado){
   aplicarRBACaUI();
   if(typeof mostrarSeccion === 'function') mostrarSeccion('agenda');
   cargarEstadoDesdeBackend();
-  mostrarToast('🔔 DIAGNÓSTICO: login ok — rol=' + resultado.rol + ', tecnicoId=' + resultado.tecnicoId);
+  alert('🔔 DIAGNÓSTICO: login ok — rol=' + resultado.rol + ', tecnicoId=' + resultado.tecnicoId);
   if(typeof registrarNotificacionesPush === 'function' && resultado.tecnicoId) registrarNotificacionesPush(resultado.tecnicoId);
 }
 
