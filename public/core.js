@@ -472,7 +472,6 @@ function completarLogin(resultado){
   aplicarRBACaUI();
   if(typeof mostrarSeccion === 'function') mostrarSeccion('agenda');
   cargarEstadoDesdeBackend();
-  alert('🔔 DIAGNÓSTICO: login ok — rol=' + resultado.rol + ', tecnicoId=' + resultado.tecnicoId);
   if(typeof registrarNotificacionesPush === 'function' && resultado.tecnicoId) registrarNotificacionesPush(resultado.tecnicoId);
 }
 
