@@ -168,6 +168,7 @@ async function asegurarTablaFacturasElectronicas() {
       UNIQUE (empresa_slug, factura_id)
     )
   `);
+  await pool.query('ALTER TABLE facturas_electronicas ADD COLUMN IF NOT EXISTS simulada BOOLEAN NOT NULL DEFAULT FALSE');
 }
 
 async function asegurarTablaRespaldos() {
@@ -1338,6 +1339,11 @@ async function bootstrapEmpresaInicial() {
    FACTURACIÓN ELECTRÓNICA (Factus / DIAN) — fase 1, sandbox.
    Solo administradores, y solo empresas autorizadas en el .env.
 --------------------------------------------------------- */
+// MODO SIMULACIÓN (FACTUS_SIMULAR=true en el .env): aplica las mismas reglas
+// que la emisión real, pero NO envía nada a Factus ni a la DIAN. Sirve para
+// practicar. Lo simulado nunca se marca como validado y nunca bloquea la factura.
+const FACTUS_SIMULAR = process.env.FACTUS_SIMULAR === 'true';
+
 function soloAdminFactus(req, res, next) {
   if (req.rol !== 'admin') return res.status(403).json({ error: 'Solo un administrador puede emitir facturas electrónicas.' });
   if (!factus.empresaAutorizada(req.slug)) return res.status(403).json({ error: 'Esta empresa todavía no está habilitada para facturación electrónica.' });
@@ -1345,11 +1351,16 @@ function soloAdminFactus(req, res, next) {
 }
 
 app.get('/api/factus/estado', requireAuth, (req, res) => {
-  res.json({ configurado: factus.configurado(), autorizada: factus.empresaAutorizada(req.slug) });
+  res.json({ configurado: factus.configurado(), autorizada: factus.empresaAutorizada(req.slug), simulacion: FACTUS_SIMULAR });
+});
+
+app.get('/api/factus/facturas', requireAuth, async (req, res) => {
+  const r = await pool.query('SELECT factura_id, numero_factus, cufe, validada, simulada, validada_en, ultimo_error FROM facturas_electronicas WHERE empresa_slug = $1', [req.slug]);
+  res.json(r.rows);
 });
 
 app.get('/api/factus/facturas/:id', requireAuth, async (req, res) => {
-  const r = await pool.query('SELECT numero_factus, cufe, validada, validada_en, errores, ultimo_error, actualizado_en FROM facturas_electronicas WHERE empresa_slug = $1 AND factura_id = $2', [req.slug, req.params.id]);
+  const r = await pool.query('SELECT numero_factus, cufe, validada, simulada, validada_en, errores, ultimo_error, actualizado_en FROM facturas_electronicas WHERE empresa_slug = $1 AND factura_id = $2', [req.slug, req.params.id]);
   if (!r.rows.length) return res.json({ emitida: false });
   res.json({ emitida: true, ...r.rows[0] });
 });
@@ -1366,7 +1377,20 @@ app.post('/api/factus/facturas/:id/emitir', requireAuth, soloAdminFactus, async 
 
     const cliente = (data.clientes || []).find(c => Number(c.id) === Number(factura.clienteId));
     const referencia = `${req.slug}-${factura.numero}`;
-    const { cuerpo } = factus.construirFactura({ factura, cliente, slug: req.slug, medioPago: (req.body || {}).medioPago, referencia });
+    const { cuerpo, total } = factus.construirFactura({ factura, cliente, slug: req.slug, medioPago: (req.body || {}).medioPago, referencia });
+
+    if (FACTUS_SIMULAR) {
+      const n = await pool.query('SELECT COUNT(*)::int AS n FROM facturas_electronicas WHERE empresa_slug = $1 AND simulada = TRUE', [req.slug]);
+      const numeroSim = 'SIM-' + String(n.rows[0].n + 1).padStart(4, '0');
+      await pool.query(`
+        INSERT INTO facturas_electronicas (empresa_slug, factura_id, reference_code, numero_factus, cufe, validada, validada_en, errores, ultimo_error, simulada)
+        VALUES ($1,$2,$3,$4,NULL,FALSE,NULL,NULL,NULL,TRUE)
+        ON CONFLICT (empresa_slug, factura_id) DO UPDATE SET
+          reference_code = EXCLUDED.reference_code, numero_factus = EXCLUDED.numero_factus, cufe = NULL,
+          validada = FALSE, validada_en = NULL, errores = NULL, ultimo_error = NULL, simulada = TRUE, actualizado_en = NOW()`,
+        [req.slug, facturaId, referencia, numeroSim]);
+      return res.json({ ok: true, simulada: true, numero: numeroSim, total: total });
+    }
 
     // Si un intento anterior quedó sin validar, se limpia en Factus para poder reintentar con el mismo código.
     if (previa.rows.length) await factus.borrarNoValidada(referencia);
@@ -1383,7 +1407,7 @@ app.post('/api/factus/facturas/:id/emitir', requireAuth, soloAdminFactus, async 
       ON CONFLICT (empresa_slug, factura_id) DO UPDATE SET
         reference_code = EXCLUDED.reference_code, numero_factus = EXCLUDED.numero_factus, cufe = EXCLUDED.cufe,
         validada = EXCLUDED.validada, validada_en = EXCLUDED.validada_en, errores = EXCLUDED.errores,
-        ultimo_error = EXCLUDED.ultimo_error, actualizado_en = NOW()`,
+        ultimo_error = EXCLUDED.ultimo_error, simulada = FALSE, actualizado_en = NOW()`,
       [req.slug, facturaId, referencia, d.number || null, d.cufe || null, validada, d.validated_at || null, errores ? JSON.stringify(errores) : null, ultimoError]);
 
     if (!r.ok) return res.status(422).json({ error: ultimoError, detalle: (r.data && r.data.errors) || r.data });
@@ -1396,8 +1420,9 @@ app.post('/api/factus/facturas/:id/emitir', requireAuth, soloAdminFactus, async 
 
 app.get('/api/factus/facturas/:id/pdf', requireAuth, async (req, res) => {
   try {
-    const r = await pool.query('SELECT numero_factus FROM facturas_electronicas WHERE empresa_slug = $1 AND factura_id = $2 AND numero_factus IS NOT NULL', [req.slug, req.params.id]);
+    const r = await pool.query('SELECT numero_factus, simulada FROM facturas_electronicas WHERE empresa_slug = $1 AND factura_id = $2 AND numero_factus IS NOT NULL', [req.slug, req.params.id]);
     if (!r.rows.length) return res.status(404).json({ error: 'Esta factura todavía no se ha emitido.' });
+    if (r.rows[0].simulada) return res.status(409).json({ error: 'Es una emisión de práctica (simulación): no existe PDF oficial.' });
     const pdf = await factus.descargarPdf(r.rows[0].numero_factus);
     res.set('Content-Type', 'application/pdf');
     res.set('Content-Disposition', `inline; filename="${r.rows[0].numero_factus}.pdf"`);
