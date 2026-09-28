@@ -23,7 +23,17 @@ const rateLimit = require('express-rate-limit');
 const sharp = require('sharp');
 const heicConvert = require('heic-convert');
 const nodemailer = require('nodemailer');
-const factus = require('./factus');
+// La facturación electrónica es un módulo APARTE (factus.js). Si el archivo
+// faltara o tuviera un problema, la plataforma arranca igual y solo se
+// desactiva esa función — nada más se cae.
+let factus;
+try {
+  factus = require('./factus');
+} catch (err) {
+  console.error('[factus] Módulo no disponible — la facturación electrónica queda desactivada, el resto de la plataforma funciona normal:', err.message);
+  const noDisponible = async () => { const e = new Error('La facturación electrónica no está disponible en este momento.'); e.status = 503; throw e; };
+  factus = { configurado: () => false, empresaAutorizada: () => false, construirFactura: noDisponible, validarFactura: noDisponible, borrarNoValidada: noDisponible, descargarPdf: noDisponible, obtenerToken: noDisponible, MEDIO_PAGO: {} };
+}
 
 let compression;
 try {
