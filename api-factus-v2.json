@@ -1,0 +1,4113 @@
+{
+  "info": {
+    "name": "API Factus V2",
+    "description": null,
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "auth",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/autenticacion/auth/](https://developers.factus.com.co/autenticacion/auth/)",
+            "url": {
+              "raw": "{{url_api}}/oauth/token",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "oauth",
+                "token"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "grant_type",
+                  "disabled": false,
+                  "type": "text",
+                  "description": "",
+                  "value": "password"
+                },
+                {
+                  "key": "client_id",
+                  "disabled": false,
+                  "type": "text",
+                  "description": "",
+                  "value": "{{client_id}}"
+                },
+                {
+                  "key": "client_secret",
+                  "disabled": false,
+                  "type": "text",
+                  "description": "",
+                  "value": "{{client_secret}}"
+                },
+                {
+                  "key": "username",
+                  "disabled": false,
+                  "type": "text",
+                  "description": "",
+                  "value": "{{email}}"
+                },
+                {
+                  "key": "password",
+                  "disabled": false,
+                  "type": "text",
+                  "description": "",
+                  "value": "{{password}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver documentación:**  \n[https://developers.factus.com.co/autenticacion/refresh-token/](https://developers.factus.com.co/autenticacion/refresh-token/)",
+            "url": {
+              "raw": "{{url_api}}/oauth/token",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "oauth",
+                "token"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "grant_type",
+                  "disabled": false,
+                  "type": "text",
+                  "description": "",
+                  "value": "refresh_token"
+                },
+                {
+                  "key": "client_id",
+                  "disabled": false,
+                  "type": "text",
+                  "description": "",
+                  "value": "{{client_id}}"
+                },
+                {
+                  "key": "client_secret",
+                  "disabled": false,
+                  "type": "text",
+                  "description": "",
+                  "value": "{{client_secret}}"
+                },
+                {
+                  "key": "refresh_token",
+                  "disabled": false,
+                  "type": "text",
+                  "description": "",
+                  "value": "def50200325e90a72ad378d704c108cefa75c5c4a513ca6992fdce87b805b5aff2210857f63e4c0863284f6cfe38dbaa8c9f6dc50b9cb6d0bf8bcca29d5df22a8a7aa0b8efbe44c00cbeb05796d9a1f17fc9850b748e5ec64c8157ea5026dac9943ef3bfebbf1c7c9b0f44d300d7dd20fc27dcbf1791970dc29dc2232afac3fab3d6a253a12e51bcd590c62d5b3ce41d7957ba469b168fc5b557795be11455e22e242cc2f821c923ae7d42b7620a2d37d24ea64a72740c5617e54bd97c20b5be47a3a8d2a06c3de634a5a03cea1640653389ba1e517c63fdcee6a829e09c416d2250d860da6b964a1eed521b142203b3bbf2c139bd16cca0cb343e63bc9e377920dc6ce328219413c9da329de5cd2283d2b423aaf971096e0b1565689fb39bb7d99a94955385bf7ee6ba66949543e18a7c7abb880f8fd7ad376bd1bb07a1cdbf5588071c7e55816a1d14bf84530e316ad2eefd3913c2118e57a19e624869401912357954a20d9694559151b7c1a687e106d405076703f3a0c3002ff0c12b81586c8d8bbd"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Facturas",
+      "item": [
+        {
+          "name": "Tipos",
+          "item": [
+            {
+              "name": "10 - Estandar",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"FACT-2026-0124\",\n  \"document\": \"01\",\n  \"numbering_range_id\": 389,\n  \"operation_type\": \"10\",\n  \"observation\": \"Observación de prueba\",\n  \"payment_details\": [\n    {\n      \"payment_form\": \"1\",\n      \"payment_method_code\": \"42\",\n      \"reference_code\": \"pago-001\",\n      \"amount\": \"83300\"\n    }\n  ],\n  \"cash_rounding_amount\": \"0.00\",\n  \"customer\": {\n    \"identification_document_code\": \"31\",\n    \"identification\": \"123456789\",\n    \"company\": \"Alan company name\",\n    \"trade_name\": \"Alan trade name\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"1\",\n    \"tribute_code\": \"ZZ\",\n    \"country_code\": \"CO\",\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"Producto A\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"10000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    },\n    {\n      \"code_reference\": \"PROD-000B\",\n      \"name\": \"Producto B\",\n      \"quantity\": \"3.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"20000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "11 - Mandatos",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"FACT-2026-1233\",\n  \"document\": \"01\",\n  \"numbering_range_id\": 389,\n  \"operation_type\": \"11\",\n  \"payment_details\": [\n    {\n      \"payment_form\": \"1\",\n      \"payment_method_code\": \"10\",\n      \"reference_code\": \"pago-001\",\n      \"amount\": \"12000\"\n    },\n    {\n      \"payment_form\": \"1\",\n      \"payment_method_code\": \"42\",\n      \"reference_code\": \"pago-002\",\n      \"amount\": \"5850\"\n    }\n  ],\n  \"cash_rounding_amount\": \"0.00\",\n  \"observation\": \"Observación de prueba\",\n  \"customer\": {\n    \"identification_document_code\": \"31\",\n    \"identification\": \"123456789\",\n    \"company\": \"Alan company name\",\n    \"trade_name\": \"Alan trade name\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"1\",\n    \"tribute_code\": \"ZZ\",\n    \"country_code\": \"CO\",\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"scheme_id\": \"1\",\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"Producto A\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"10000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ],\n      \"mandate\": {\n        \"identification_document_code\": \"13\",\n        \"identification\": \"23434\"\n      }\n    },\n    {\n      \"scheme_id\": \"0\",\n      \"code_reference\": \"PROD-000B\",\n      \"name\": \"Producto B\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"5000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "12 - Transporte",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"FACT-2026-0126\",\n  \"document\": \"01\",\n  \"numbering_range_id\": 389,\n  \"operation_type\": \"12\",\n  \"payment_details\": [\n    {\n      \"payment_form\": \"1\",\n      \"payment_method_code\": \"10\",\n      \"reference_code\": \"pago-001\",\n      \"amount\": \"2000000\"\n    },\n    {\n      \"payment_form\": \"1\",\n      \"payment_method_code\": \"42\",\n      \"reference_code\": \"pago-002\",\n      \"amount\": \"400000\"\n    }\n  ],\n  \"cash_rounding_amount\": \"0.00\",\n  \"observation\": \"Observación de prueba\",\n  \"customer\": {\n    \"identification_document_code\": \"31\",\n    \"identification\": \"123456789\",\n    \"company\": \"Alan company name\",\n    \"trade_name\": \"Alan trade name\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"1\",\n    \"tribute_code\": \"ZZ\",\n    \"country_code\": \"CO\",\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"scheme_id\": \"1\",\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"Pantalones\",\n      \"quantity\": \"10.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"200000.00\",\n      \"unit_measure_code\": \"KGM\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ],\n      \"additional_properties\": [\n        {\n          \"code\": \"01\",\n          \"value\": \"13456\"\n        },\n        {\n          \"code\": \"02\",\n          \"value\": \"REM0001\"\n        },\n        {\n          \"code\": \"03\",\n          \"value\": 250000,\n          \"quantity\": 10,\n          \"unit_measure_code\": \"KGM\"\n        }\n      ]\n    },\n    {\n      \"scheme_id\": \"0\",\n      \"code_reference\": \"PROD-000B\",\n      \"name\": \"flete\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"20000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"is_excluded\": true\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Salud",
+          "item": [
+            {
+              "name": "SS-CUFE",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"{{bill_reference_code}}\",\n  \"document\": \"01\",\n  \"numbering_range_id\": 4,\n  \"operation_type\": \"SS-CUFE\",\n  \"send_email\": false,\n  \"billing_period\": {\n    \"start_date\": \"2025-01-01\",\n    \"start_time\": \"05:11:00\",\n    \"end_date\": \"2025-01-02\",\n    \"end_time\": \"11:59:59\"\n  },\n  \"payment_details\": [\n    {\n      \"payment_form\": 1,\n      \"payment_method_code\": \"10\",\n      \"amount\": \"10000\"\n    }\n  ],\n  \"health\": { // Campos de datos del sector salud\n    \"provider_code\": \"1920304050\",\n    \"payment_method_code\": \"04\",\n    \"coverage_code\": \"10\",\n    \"contract_number\": \"CONT1230\",\n    \"policy_number\": \"\",\n    \"without_contract_code\": \"07\"\n  },\n  \"prepayment_details\": [\n    {\n      \"reference_code\": \"1\",\n      \"received_date\": \"2025-08-1\",\n      \"concept_code\": \"01\",\n      \"amount\": \"5000.00\",\n      \"note\": \"texto libre para notas\"\n    }\n  ],\n  \"customer\": {\n    \"identification_document_code\": \"13\",\n    \"identification\": \"123456789\",\n    \"names\": \"Alan Turing\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"2\",\n    \"tribute_code\": \"ZZ\",\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"xxxxxxxxxxxx\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"10000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"is_excluded\": true\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "SS-Recaudo - ingreso propio",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"{{bill_reference_code}}\",\n  \"document\": \"01\",\n  \"numbering_range_id\": 4,\n  \"operation_type\": \"SS-Recaudo\",\n  \"send_email\": false,\n  \"payment_details\": [\n    {\n      \"payment_form\": 1,\n      \"payment_method_code\": \"10\",\n      \"amount\": \"10000\"\n    }\n  ],\n  \"beneficiary\": {\n    \"identification_document_code\": \"CC\",\n    \"identification_number\": \"12345678\",\n    \"names\": \"\",\n    \"surnames\": \"\"\n  },\n  \"customer\": {\n    \"identification_document_code\": \"13\",\n    \"identification\": \"123456789\",\n    \"names\": \"Alan Turing\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"2\",\n    \"tribute_code\": \"ZZ\",\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"scheme_id\": 0,\n      \"collection_concept_code\": \"PAC\",\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"Servicio de salud\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"10000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"is_excluded\": true\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "SS-Recaudo - ingreso terceros",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"{{bill_reference_code}}\",\n  \"document\": \"01\",\n  \"numbering_range_id\": 4,\n  \"operation_type\": \"SS-Recaudo\",\n  \"send_email\": false,\n  \"payment_details\": [\n    {\n      \"payment_form\": 1,\n      \"payment_method_code\": \"10\",\n      \"amount\": \"10000\"\n    }\n  ],\n  \"beneficiary\": {\n    \"identification_document_code\": \"CC\",\n    \"identification_number\": \"12345678\",\n    \"names\": \"Pepito\",\n    \"surnames\": \"Perez\"\n  },\n  \"customer\": {\n    \"identification_document_code\": \"13\",\n    \"identification\": \"123456789\",\n    \"names\": \"Alan Turing\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"2\",\n    \"tribute_code\": \"ZZ\",\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"scheme_id\": 1,\n      \"collection_concept_code\": \"PAC\",\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"Servicio de salud\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"10000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"is_excluded\": true\n        }\n      ],\n      \"mandate\": {\n        \"identification_document_code\": \"13\",\n        \"identification\": \"123456789\"\n      }\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "SS-Reporte",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"{{bill_reference_code}}\",\n  \"document\": \"01\",\n  \"numbering_range_id\": 4,\n  \"operation_type\": \"SS-Reporte\",\n  \"send_email\": false,\n  \"billing_period\": {\n    \"start_date\": \"2025-01-01\",\n    \"start_time\": \"05:11:00\",\n    \"end_date\": \"2025-01-02\",\n    \"end_time\": \"11:59:59\"\n  },\n  \"payment_details\": [\n    {\n      \"payment_form\": 1,\n      \"payment_method_code\": \"10\",\n      \"amount\": \"10000\"\n    }\n  ],\n  \"health\": {\n    \"provider_code\": \"1920304050\",\n    \"payment_method_code\": \"04\",\n    \"coverage_code\": \"10\",\n    \"contract_number\": \"CONT1230\",\n    \"policy_number\": \"\",\n    \"without_contract_code\": \"07\"\n  },\n  \"prepayment_details\": [\n    {\n      \"reference_code\": \"1\",\n      \"received_date\": \"2025-08-1\",\n      \"concept_code\": \"01\",\n      \"amount\": \"5000.00\",\n      \"note\": \"texto libre para notas\"\n    }\n  ],\n  \"customer\": {\n    \"identification_document_code\": \"13\",\n    \"identification\": \"123456789\",\n    \"names\": \"Alan Turing\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"2\",\n    \"tribute_code\": \"ZZ\",\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"xxxxxxxxxxxxxx\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"10000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"is_excluded\": true\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "SS-SinAporte",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"{{bill_reference_code}}\",\n  \"document\": \"01\",\n  \"numbering_range_id\": 4,\n  \"operation_type\": \"SS-SinAporte\",\n  \"send_email\": false,\n  \"billing_period\": {\n    \"start_date\": \"2025-01-01\",\n    \"start_time\": \"05:11:00\",\n    \"end_date\": \"2025-01-02\",\n    \"end_time\": \"11:59:59\"\n  },\n  \"payment_details\": [\n    {\n      \"payment_form\": 1,\n      \"payment_method_code\": \"10\",\n      \"amount\": \"10000\"\n    }\n  ],\n  \"health\": {\n    \"provider_code\": \"1920304050\",\n    \"payment_method_code\": \"04\",\n    \"coverage_code\": \"10\",\n    \"contract_number\": \"CONT1230\",\n    \"policy_number\": \"\",\n    \"without_contract_code\": \"07\"\n  },\n  \"prepayment_details\": [\n    {\n      \"reference_code\": \"1\",\n      \"received_date\": \"2025-08-1\",\n      \"concept_code\": \"01\",\n      \"amount\": \"5000.00\",\n      \"note\": \"texto libre para notas\"\n    }\n  ],\n  \"customer\": {\n    \"identification_document_code\": \"13\",\n    \"identification\": \"123456789\",\n    \"names\": \"Alan Turing\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"2\",\n    \"tribute_code\": \"ZZ\",\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"xxxxxxxxxxxxxx\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"10000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"is_excluded\": true\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ejemplos",
+          "item": [
+            {
+              "name": "A crédito",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"FACT-2026-0130\",\n  \"document\": \"01\",\n  \"numbering_range_id\": 389,\n  \"operation_type\": \"10\",\n  \"observation\": \"Observación de factura a credito\",\n  \"payment_details\": [\n    {\n      \"payment_form\": \"2\",\n      \"payment_method_code\": \"47\",\n      \"reference_code\": \"pago-001\",\n      \"amount\": \"83300\",\n      \"due_date\": \"2028-03-25\"\n    }\n  ],\n  \"cash_rounding_amount\": \"0.00\",\n  \"customer\": {\n    \"identification_document_code\": \"31\",\n    \"identification\": \"123456789\",\n    \"company\": \"Alan company name\",\n    \"trade_name\": \"Alan trade name\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"1\",\n    \"tribute_code\": \"ZZ\",\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"Producto A\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"10000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    },\n    {\n      \"code_reference\": \"PROD-000B\",\n      \"name\": \"Producto B\",\n      \"quantity\": \"3.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"20000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Informar autorretenciones",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"FACT-2026-0131\",\n  \"document\": \"01\",\n  \"numbering_range_id\": 389,\n  \"operation_type\": \"10\",\n  \"observation\": \"Observación de factura con autorretenciones\",\n  \"payment_details\": [\n    {\n      \"payment_form\": \"1\",\n      \"payment_method_code\": \"47\",\n      \"reference_code\": \"pago-001\",\n      \"amount\": \"1190000\"\n    }\n  ],\n  \"cash_rounding_amount\": \"0.00\",\n  \"customer\": {\n    \"identification_document_code\": \"31\",\n    \"identification\": \"123456789\",\n    \"company\": \"Alan company name\",\n    \"trade_name\": \"Alan trade name\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"1\",\n    \"tribute_code\": \"ZZ\",\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"Producto A\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"1000000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ],\n      \"withholding_taxes\": [\n        {\n          \"code\": \"05\",\n          \"rate\": \"2.00\"\n        },\n        {\n          \"code\": \"06\",\n          \"rate\": \"4.00\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Impuesto excluido",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"FACT-2026-0132\",\n  \"document\": \"01\",\n  \"numbering_range_id\": 389,\n  \"operation_type\": \"10\",\n  \"send_email\": false,\n  \"observation\": \"Observación de factura con impuesto excluido\",\n  \"payment_details\": [\n    {\n      \"payment_form\": \"1\",\n      \"payment_method_code\": \"42\",\n      \"reference_code\": \"pago-001\",\n      \"amount\": \"83300\"\n    }\n  ],\n  \"cash_rounding_amount\": \"0.00\",\n  \"customer\": {\n    \"identification_document_code\": \"31\",\n    \"identification\": \"123456789\",\n    \"company\": \"Alan company name\",\n    \"trade_name\": \"Alan trade name\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"1\",\n    \"tribute_code\": \"ZZ\",\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"Producto A\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"83300.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"is_excluded\": true\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Redondeo en medios de pago",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"FACT-2026-0129\",\n  \"document\": \"01\",\n  \"numbering_range_id\": 389,\n  \"operation_type\": \"10\",\n  \"observation\": \"Observación de factura con redondeo en medios de pago\",\n  \"payment_details\": [\n    {\n      \"payment_form\": 1,\n      \"payment_method_code\": \"48\",\n      \"reference_code\": \"REF_PAY_1962-1\",\n      \"amount\": \"100000\"\n    },\n    {\n      \"payment_form\": 1,\n      \"payment_method_code\": \"10\",\n      \"reference_code\": \"REF_PAY_1962-1\",\n      \"amount\": \"160550\"\n    }\n  ],\n  \"cash_rounding_amount\": \"-14.81\",\n  \"customer\": {\n    \"identification_document_code\": \"13\",\n    \"identification\": \"222222222222\",\n    \"names\": \"Consumidor Final\",\n    \"address\": \"kra 37A 5-14\",\n    \"email\": \"valjulsansas@gmail.com\",\n    \"phone\": \"3015763570\",\n    \"legal_organization_code\": \"2\",\n    \"tribute_code\": \"01\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"11\",\n      \"name\": \"BOTELLA AGUA\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"175925.93\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"04\",\n          \"rate\": \"8.00\"\n        }\n      ]\n    },\n    {\n      \"code_reference\": \"92\",\n      \"name\": \"Energizante\",\n      \"quantity\": \"2.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"14814.81\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"04\",\n          \"rate\": \"8.00\"\n        }\n      ]\n    },\n    {\n      \"code_reference\": \"693\",\n      \"name\": \"MANZANA VERDE\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"32407.41\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Con consumidor final",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"FACT-2026-0129\",\n  \"document\": \"01\",\n  \"numbering_range_id\": 389,\n  \"operation_type\": \"10\",\n  \"observation\": \"Observación de factura con anticipo\",\n  \"payment_details\": [\n    {\n      \"payment_form\": \"1\",\n      \"payment_method_code\": \"10\",\n      \"reference_code\": \"pago-001\",\n      \"amount\": \"83300\"\n    }\n  ],\n  \"customer\": {\n    \"identification_document_code\": \"13\",\n    \"identification\": \"22222222222\",\n    \"names\": \"Consumidor Final\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"Producto A\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"10000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    },\n    {\n      \"code_reference\": \"PROD-000B\",\n      \"name\": \"Producto B\",\n      \"quantity\": \"3.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"20000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Con establecimiento",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"FACT-2026-0127\",\n  \"document\": \"01\",\n  \"numbering_range_id\": 389,\n  \"operation_type\": \"10\",\n  \"observation\": \"Observacion de factura con establecimiento\",\n  \"payment_details\": [\n    {\n      \"payment_form\": \"1\",\n      \"payment_method_code\": \"42\",\n      \"reference_code\": \"pago-001\",\n      \"amount\": \"83300\"\n    }\n  ],\n  \"cash_rounding_amount\": \"0.00\",\n  \"establishment\": {\n    \"name\": \"nombre establecimiento\",\n    \"email\": \"establecieminto@tuempresa.com\",\n    \"address\": \"direccion del establecimiento\",\n    \"phone_number\": \"1234567890\",\n    \"municipality_code\": \"68679\"\n  },\n  \"customer\": {\n    \"identification_document_code\": \"31\",\n    \"identification\": \"123456789\",\n    \"company\": \"Alan company name\",\n    \"trade_name\": \"Alan trade name\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"1\",\n    \"tribute_code\": \"ZZ\",\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"Producto A\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"10000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    },\n    {\n      \"code_reference\": \"PROD-000B\",\n      \"name\": \"Producto B\",\n      \"quantity\": \"3.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"20000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Con propina",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"FACT-2026-0129\",\n  \"document\": \"01\",\n  \"numbering_range_id\": 389,\n  \"operation_type\": \"10\",\n  \"observation\": \"Observación de factura con propina\",\n  \"payment_details\": [\n    {\n      \"payment_form\": \"1\",\n      \"payment_method_code\": \"42\",\n      \"reference_code\": \"pago-001\",\n      \"amount\": \"85300\"\n    }\n  ],\n  \"cash_rounding_amount\": \"0.00\",\n  \"customer\": {\n    \"identification_document_code\": \"31\",\n    \"identification\": \"123456789\",\n    \"company\": \"Alan company name\",\n    \"trade_name\": \"Alan trade name\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"1\",\n    \"tribute_code\": \"ZZ\",\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"Producto A\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"10000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    },\n    {\n      \"code_reference\": \"PROD-000B\",\n      \"name\": \"Producto B\",\n      \"quantity\": \"3.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"20000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    }\n  ],\n  \"allowance_charges\": [\n    {\n      \"concept_type\": \"03\",\n      \"is_surcharge\": true,\n      \"reason\": \"propina\",\n      \"base_amount\": \"20000\",\n      \"amount\": 2000\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Con doble moneda",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"FACT-2026-0129\",\n  \"document\": \"01\",\n  \"numbering_range_id\": 389,\n  \"operation_type\": \"10\",\n  \"currency\": {\n    \"type\": \"USD\",\n    \"exchange_rate\": \"3565.07\"\n  },\n  \"observation\": \"Observación de factura con anticipo\",\n  \"payment_details\": [\n    {\n      \"payment_form\": \"1\",\n      \"payment_method_code\": \"10\",\n      \"reference_code\": \"pago-001\",\n      \"amount\": \"83300\"\n    }\n  ],\n  \"prepayment_details\": [\n    {\n      \"reference_code\": \"1\",\n      \"received_date\": \"2025-08-01\",\n      \"amount\": \"3300\",\n      \"note\": \"texto libre para notas\"\n    }\n  ],\n  \"cash_rounding_amount\": \"0.00\",\n  \"customer\": {\n    \"identification_document_code\": \"31\",\n    \"identification\": \"123456789\",\n    \"company\": \"Alan company name\",\n    \"trade_name\": \"Alan trade name\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"1\",\n    \"tribute_code\": \"ZZ\",\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"Producto A\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"10000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    },\n    {\n      \"code_reference\": \"PROD-000B\",\n      \"name\": \"Producto B\",\n      \"quantity\": \"3.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"20000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Con anticipo",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"FACT-2026-0129\",\n  \"document\": \"01\",\n  \"numbering_range_id\": 389,\n  \"operation_type\": \"10\",\n  \"observation\": \"Observación de factura con anticipo\",\n  \"payment_details\": [\n    {\n      \"payment_form\": \"1\",\n      \"payment_method_code\": \"10\",\n      \"reference_code\": \"pago-001\",\n      \"amount\": \"83300\"\n    }\n  ],\n  \"prepayment_details\": [\n    {\n      \"reference_code\": \"1\",\n      \"received_date\": \"2025-08-01\",\n      \"amount\": \"3300\",\n      \"note\": \"texto libre para notas\"\n    }\n  ],\n  \"cash_rounding_amount\": \"0.00\",\n  \"customer\": {\n    \"identification_document_code\": \"31\",\n    \"identification\": \"123456789\",\n    \"company\": \"Alan company name\",\n    \"trade_name\": \"Alan trade name\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"1\",\n    \"tribute_code\": \"ZZ\",\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"Producto A\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"10000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    },\n    {\n      \"code_reference\": \"PROD-000B\",\n      \"name\": \"Producto B\",\n      \"quantity\": \"3.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"20000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Con orden de servicio",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/bills/validate",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "bills",
+                    "validate"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_code\": \"FACT-2026-0130\",\n  \"numbering_range_id\": 389,\n  \"operation_type\": \"10\",\n  \"observation\": \"Observación de prueba\",\n  \"payment_details\": [\n    {\n      \"payment_form\": \"1\",\n      \"payment_method_code\": \"42\",\n      \"reference_code\": \"pago-001\",\n      \"amount\": \"83300\"\n    }\n  ],\n  \"order_reference\": {\n    \"reference_code\": \"ORD-2026-0130\",\n    \"issue_date\": \"2023-06-23\"\n  },\n  \"cash_rounding_amount\": \"0.00\",\n  \"customer\": {\n    \"identification_document_code\": \"31\",\n    \"identification\": \"123456789\",\n    \"company\": \"Alan company name\",\n    \"trade_name\": \"Alan trade name\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"1\",\n    \"tribute_code\": \"ZZ\",\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"Producto A\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"10000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    },\n    {\n      \"code_reference\": \"PROD-000B\",\n      \"name\": \"Producto B\",\n      \"quantity\": \"3.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"20000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear y validar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Documentación:**\n\n[https://developers.factus.com.co/facturas/crear-y-validar/](https://developers.factus.com.co/facturas/crear-y-validar/)",
+            "url": {
+              "raw": "{{url_api}}/v2/bills/validate",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "bills",
+                "validate"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"reference_code\": \"{{bill_reference_code}}\",\n    \"document\": \"01\",\n    \"numbering_range_id\": 4,\n    \"operation_type\": \"10\", // estandar\n    \"send_email\": false,\n    \"payment_details\": [\n        {\n            \"payment_form\": 1,\n            \"payment_method_code\": \"42\",\n            \"reference_code\": \"pago-001\",\n            \"amount\": \"83300\",\n            \"due_date\": \"2026-03-30\"\n        }\n    ],\n    \"cash_rounding_amount\": \"0.00\",\n    \"observation\": \"Observacion de prueba\",\n    \"customer\": {\n        \"identification_document_code\": \"31\",\n        \"identification\": \"123456789\",\n        \"company\": \"Alan company name\",\n        \"trade_name\": \"Alan trade name\",\n        \"address\": \"calle 1 # 1-1\",\n        \"email\": \"alan.company@email.com\",\n        \"phone\": \"1234567890\",\n        \"legal_organization_code\": \"1\",\n        \"tribute_code\": \"ZZ\",\n        \"country_code\": \"CO\",\n        \"responsibilities\": [\n          \"R-99-PN\"\n        ],\n        \"municipality_code\": \"68679\"\n    },\n    \"items\": [\n        {\n            \"code_reference\": \"PROD-000A\",\n            \"name\": \"Producto A\",\n            \"quantity\": \"1.00\",\n            \"discount_rate\": \"0.00\",\n            \"price\": \"10000.00\",\n            \"unit_measure_code\": \"94\",\n            \"standard_code\": \"999\",\n            \"taxes\": [\n                {\n                    \"code\": \"01\",\n                    \"rate\": \"19.00\"\n                }\n            ]\n        },\n        {\n            \"code_reference\": \"PROD-000B\",\n            \"name\": \"Producto B\",\n            \"quantity\": \"3.00\",\n            \"discount_rate\": \"0.00\",\n            \"price\": \"20000.00\",\n            \"unit_measure_code\": \"94\",\n            \"standard_code\": \"999\",\n            \"taxes\": [\n                {\n                    \"code\": \"01\",\n                    \"rate\": \"19.00\"\n                }\n            ]\n        }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Eliminar no validada",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/facturas/eliminar/](https://developers.factus.com.co/facturas/eliminar/)",
+            "url": {
+              "raw": "{{url_api}}/v2/bills/destroy/reference/:reference_code",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "bills",
+                "destroy",
+                "reference",
+                ":reference_code"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "reference_code",
+                  "value": "{{bill_reference_code}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Ver",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/facturas/ver/](https://developers.factus.com.co/facturas/ver/)",
+            "url": {
+              "raw": "{{url_api}}/v2/bills/:number",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "bills",
+                ":number"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "SETP990001103"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Listar",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/facturas/listar-y-filtrar/](https://developers.factus.com.co/facturas/listar-y-filtrar/)",
+            "url": {
+              "raw": "{{url_api}}/v2/bills",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "bills"
+              ],
+              "query": [
+                {
+                  "key": "filter[identification]",
+                  "value": "",
+                  "description": "Buscar por numero de identificacion"
+                },
+                {
+                  "key": "filter[names]",
+                  "value": "",
+                  "description": "Buscar por el nombre del cliente"
+                },
+                {
+                  "key": "filter[number]",
+                  "value": "",
+                  "description": "Buscar por numero de factura"
+                },
+                {
+                  "key": "filter[prefix]",
+                  "value": "",
+                  "description": "Buscar por prefijo de rango de numeracion"
+                },
+                {
+                  "key": "filter[reference_code]",
+                  "value": "",
+                  "description": "Buscar por codigo de referencia"
+                },
+                {
+                  "key": "filter[status]",
+                  "value": "",
+                  "description": "Buscar por estado del documento. 1 = validado, 0 si no esta validado"
+                },
+                {
+                  "key": "filter[per_page]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[created_at][start_date]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[created_at][end_date]",
+                  "value": ""
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Descargar PDF",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "Ver Documentación:\n\n[https://developers.factus.com.co/facturas/descargar-pdf/](https://developers.factus.com.co/facturas/descargar-pdf/)",
+            "url": {
+              "raw": "{{url_api}}/v2/bills/:number/download-pdf",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "bills",
+                ":number",
+                "download-pdf"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "SETP990001103"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Descargar XML",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/facturas/descargar-xml/](https://developers.factus.com.co/facturas/descargar-xml/)",
+            "url": {
+              "raw": "{{url_api}}/v2/bills/:number/download-xml",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "bills",
+                ":number",
+                "download-xml"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "SETP990001103"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Descargar XML AttachedDocument",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/bills/:number/download-attached-document-xml",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "bills",
+                ":number",
+                "download-attached-document-xml"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "SETP990001103"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Obtener contenido de email",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/facturas/obtener-contenido-de-correo/](https://developers.factus.com.co/facturas/obtener-contenido-de-correo/)",
+            "url": {
+              "raw": "{{url_api}}/v2/bills/:number/email-content",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "bills",
+                ":number",
+                "email-content"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "SETP990001103"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Eventos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/facturas/eventos-de-facturas/](https://developers.factus.com.co/facturas/eventos-de-facturas/)",
+            "url": {
+              "raw": "{{url_api}}/v2/bills/:number/radian/events",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "bills",
+                ":number",
+                "radian",
+                "events"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "SETP990001095",
+                  "description": "Número de factura."
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Aceptación tacita",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/facturas/aceptacion-tacita/](https://developers.factus.com.co/facturas/aceptacion-tacita/)",
+            "url": {
+              "raw": "{{url_api}}/v2/bills/:number/radian/events/:event_type",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "bills",
+                ":number",
+                "radian",
+                "events",
+                ":event_type"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "SETP990001095"
+                },
+                {
+                  "key": "event_type",
+                  "value": "034",
+                  "description": "Código del evento"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"identification_document_code\": \"13\",\n    \"identification\": \"12345667\",\n    \"dv\": \"\",\n    \"first_name\": \"Pepito\",\n    \"last_name\": \"Perez\",\n    \"job_title\": \"Desarollador de software\",\n    \"organization_department\": \"Sistemas\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Enviar correo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/facturas/enviar-correo/](https://developers.factus.com.co/facturas/enviar-correo/)",
+            "url": {
+              "raw": "{{url_api}}/v2/bills/:number/send-email",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "bills",
+                ":number",
+                "send-email"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "SETP990001111"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"alanturing@enigmasas.com.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notas crédito",
+      "item": [
+        {
+          "name": "Crear y validar",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/notas-credito/crear-y-validar/](https://developers.factus.com.co/notas-credito/crear-y-validar/)",
+            "url": {
+              "raw": "{{url_api}}/v2/credit-notes/validate",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "credit-notes",
+                "validate"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference_code\": \"{{credit_reference_code}}\",\n  \"correction_concept_code\": \"2\",\n  \"customization_id\": \"20\",\n  \"bill_number\": \"SETP990001131\",\n  \"numbering_range_id\": 5,\n  \"payment_details\": [\n    {\n      \"payment_form\": 1,\n      \"payment_method_code\": \"42\",\n      \"reference_code\": \"pago-001\",\n      \"amount\": \"83300\",\n      \"due_date\": \"2026-03-30\"\n    }\n  ],\n  \"cash_rounding_amount\": \"0.00\",\n  \"health\": { // Campos de datos del sector salud\n    \"provider_code\": \"1920304050\",\n    \"payment_method_code\": \"04\",\n    \"coverage_code\": \"10\",\n    \"contract_number\": \"CONT1230\",\n    \"policy_number\": \"\"\n  },\n  \"observation\": \"descripcion de prueba\",\n  \"customer\": {\n    \"identification_document_code\": \"31\",\n    \"identification\": \"123456789\",\n    \"company\": \"Alan company name\",\n    \"trade_name\": \"Alan trade name\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"1\",\n    \"tribute_code\": \"ZZ\",\n    \"country_code\": \"CO\",\n    \"responsibilities\": [\n      \"R-99-PN\"\n    ],\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"Producto A\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"10000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    },\n    {\n      \"code_reference\": \"PROD-000B\",\n      \"name\": \"Producto B\",\n      \"quantity\": \"3.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"20000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Eliminar no validada",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/notas-credito/eliminar/](https://developers.factus.com.co/notas-credito/eliminar/)",
+            "url": {
+              "raw": "{{url_api}}/v2/credit-notes/reference/:reference_code",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "credit-notes",
+                "reference",
+                ":reference_code"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "reference_code",
+                  "value": "{{credit_reference_code}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ver",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/notas-credito/ver/](https://developers.factus.com.co/notas-credito/ver/)",
+            "url": {
+              "raw": "{{url_api}}/v2/credit-notes/:number",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "credit-notes",
+                ":number"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "NC206"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/notas-credito/ver-filtrar/](https://developers.factus.com.co/notas-credito/ver-filtrar/)",
+            "url": {
+              "raw": "{{url_api}}/v2/credit-notes",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "credit-notes"
+              ],
+              "query": [
+                {
+                  "key": "filter[identification]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[names]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[number]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[prefix]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[reference_code]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[status]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[per_page]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[created_at][start_date]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[created_at][end_date]",
+                  "value": ""
+                },
+                {
+                  "key": "page ",
+                  "value": ""
+                }
+              ],
+              "variable": []
+            }
+          }
+        },
+        {
+          "name": "Descargar PDF",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/notas-credito/descargar-pdf/](https://developers.factus.com.co/notas-credito/descargar-pdf/)",
+            "url": {
+              "raw": "{{url_api}}/v2/credit-notes/:number/download-pdf",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "credit-notes",
+                ":number",
+                "download-pdf"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "NC206"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Descargar XML",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/notas-credito/descargar-xml/](https://developers.factus.com.co/notas-credito/descargar-xml/)",
+            "url": {
+              "raw": "{{url_api}}/v2/credit-notes/:number/download-xml",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "credit-notes",
+                ":number",
+                "download-xml"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "NC72"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Descargar XML AttachedDocument",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/credit-notes/:number/download-attached-document-xml",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "credit-notes",
+                ":number",
+                "download-attached-document-xml"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "NC72"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Obtener contenido de correo",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/notas-credito/obtener-contenido-de-correo/](https://developers.factus.com.co/notas-credito/obtener-contenido-de-correo/)",
+            "url": {
+              "raw": "{{url_api}}/v2/credit-notes/:number/email-content",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "credit-notes",
+                ":number",
+                "email-content"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Enviar correo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/notas-credito/enviar-correo/](https://developers.factus.com.co/notas-credito/enviar-correo/)",
+            "url": {
+              "raw": "{{url_api}}/v2/credit-notes/:number/send-email",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "credit-notes",
+                ":number",
+                "send-email"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"alanturing@enigmasas.com.com\",\n    \"pdf_base_64_encoded\": \"sdfajdfka....\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notas Débito",
+      "item": [
+        {
+          "name": "Crear y validar",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/debit-notes/validate",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "debit-notes",
+                "validate"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference_code\": \"{{debit_reference_code}}\",\n  \"correction_concept_code\": \"4\",\n  \"customization_id\": \"30\",\n  \"bill_number\": \"SETP990001298\",\n  \"numbering_range_id\": 6,\n  \"send_email\": false,\n  \"payment_details\": [\n    {\n      \"payment_form\": \"1\",\n      \"payment_method_code\": \"10\",\n      \"reference_code\": \"pago-001\",\n      \"amount\": \"100000\"\n    },\n    {\n      \"payment_form\": \"2\",\n      \"payment_method_code\": \"10\",\n      \"reference_code\": \"pago-002\",\n      \"due_date\": \"2026-07-30\",\n      \"amount\": \"19000\"\n    }\n  ],\n  \"cash_rounding_amount\": \"0\",\n  \"observation\": \"descripcion de prueba\",\n  \"customer\": {\n    \"identification_document_code\": \"31\",\n    \"identification\": \"123456789\",\n    \"company\": \"Alan company name\",\n    \"trade_name\": \"Alan trade name\",\n    \"address\": \"calle 1 # 1-1\",\n    \"email\": \"alan.company@email.com\",\n    \"phone\": \"1234567890\",\n    \"legal_organization_code\": \"1\",\n    \"tribute_code\": \"ZZ\",\n    \"country_code\": \"CO\",\n    \"responsibilities\": [\n      \"R-99-PN\"\n    ],\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"PROD-000A\",\n      \"name\": \"Producto A\",\n      \"quantity\": \"1.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"10000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    },\n    {\n      \"code_reference\": \"PROD-000B\",\n      \"name\": \"Producto B\",\n      \"quantity\": \"3.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"20000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n        }\n      ]\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Eliminar nota no validada",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/debit-notes/reference/:reference_code",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "debit-notes",
+                "reference",
+                ":reference_code"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "reference_code",
+                  "value": "d1947b8c-21ef-412a-982c-59cd57443f9c"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ver",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/debit-notes/:number",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "debit-notes",
+                ":number"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "ND86"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/debit-notes",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "debit-notes"
+              ],
+              "query": [
+                {
+                  "key": "filter[identification]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[names]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[number]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[prefix]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[reference_code]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[status]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[per_page]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[created_at][start_date]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[created_at][end_date]",
+                  "value": ""
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ],
+              "variable": []
+            }
+          }
+        },
+        {
+          "name": "Descargar PDF",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/debit-notes/:number/download-pdf",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "debit-notes",
+                ":number",
+                "download-pdf"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Descargar XML",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/debit-notes/:number/download-xml",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "debit-notes",
+                ":number",
+                "download-xml"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "ND86"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Descargar XML AttachedDocument",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/debit-notes/:number/download-attached-document-xml",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "debit-notes",
+                ":number",
+                "download-attached-document-xml"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "ND86"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener contenido de email",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/debit-notes/:number/email-content",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "debit-notes",
+                ":number",
+                "email-content"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "ND86"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Enviar correo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/debit-notes/:number/send-email",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "debit-notes",
+                ":number",
+                "send-email"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "ND86"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"alanturing@enigmasas.com.com\",\n    \"pdf_base_64_encoded\": \"sdfajdfka....\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documentos soporte",
+      "item": [
+        {
+          "name": "Crear y validar",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/support-documents/validate",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "support-documents",
+                "validate"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference_code\": \"DS-2026-v2-0019\",\n  \"created_time\": \"15:30:00\",\n  \"payment_details\": [\n    {\n      \"payment_form\": \"1\",\n      \"payment_method_code\": \"42\",\n      \"reference_code\": \"pago-002\",\n      \"amount\": \"50000\"\n    },\n    {\n      \"payment_form\": \"2\",\n      \"payment_method_code\": \"10\",\n      \"reference_code\": \"pago-003\",\n      \"amount\": \"45300\",\n      \"due_date\": \"2028-05-25\"\n    }\n  ],\n  \"cash_rounding_amount\": \"0.00\",\n  \"provider\": {\n    \"identification_document_code\": \"31\",\n    \"identification\": \"2343543\",\n    \"dv\": \"7\",\n    \"names\": \"Pepito Perez\",\n    \"address\": \"calle 4\",\n    \"country_code\": \"CO\",\n    \"municipality_code\": \"68679\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"12345\",\n      \"name\": \"producto de prueba\",\n      \"quantity\": \"2.00\",\n      \"discount_rate\": \"20.00\",\n      \"price\": \"50000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n          //           \"is_excluded\": true\n        }\n      ],\n      \"withholding_taxes\": [\n        {\n          \"code\": \"06\",\n          \"rate\": \"3.50\"\n        }\n      ],\n      \"period\": {\n        \"start_date\": \"2026-09-05\",\n        \"generation_mode\": \"2\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Eliminar no validada",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/support-documents/reference/:reference_code",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "support-documents",
+                "reference",
+                ":reference_code"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "reference_code",
+                  "value": "4d676396-5f95-4333-8ebd-5e8ac5bd1301"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Ver",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/support-documents/:number",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "support-documents",
+                ":number"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "SEDS984000129"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Listar",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/support-documents",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "support-documents"
+              ],
+              "query": [
+                {
+                  "key": "filter[identification]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[names]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[number]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[prefix]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[reference_code]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[status]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[per_page]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[created_at][start_date]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[created_at][end_date]",
+                  "value": ""
+                },
+                {
+                  "key": "page ",
+                  "value": ""
+                }
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Descargar XML",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/facturas/descargar-xml/](https://developers.factus.com.co/facturas/descargar-xml/)",
+            "url": {
+              "raw": "{{url_api}}/v2/support-documents/:number/download-xml",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "support-documents",
+                ":number",
+                "download-xml"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "SEDS984000129"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Descargar PDF",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "Ver Documentación:\n\n[https://developers.factus.com.co/facturas/descargar-pdf/](https://developers.factus.com.co/facturas/descargar-pdf/)",
+            "url": {
+              "raw": "{{url_api}}/v2/support-documents/:number/download-pdf",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "support-documents",
+                ":number",
+                "download-pdf"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "SEDS984000129"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notas de ajuste",
+      "item": [
+        {
+          "name": "Crear y validar",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/adjustment-notes/validate",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "adjustment-notes",
+                "validate"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference_code\": \"AN-2026-v2-0005\",\n  //   \"numbering_range_id\": 8,\n  \"support_document_number\": \"SEDS984000129\",\n  \"correction_concept_code\": \"5\",\n  \"created_time\": \"15:26:00\",\n  \"payment_details\": [\n    {\n      \"payment_form\": \"1\",\n      \"payment_method_code\": \"42\",\n      \"reference_code\": \"pago-002\",\n      \"amount\": \"60000.00\"\n    },\n    {\n      \"payment_form\": \"2\",\n      \"payment_method_code\": \"10\",\n      \"reference_code\": \"pago-003\",\n      \"amount\": \"40000.00\",\n      \"due_date\": \"2026-05-25\"\n    }\n  ],\n  \"provider\": {\n    \"identification_document_code\": \"31\",\n    \"identification\": \"2343543\",\n    \"dv\": \"7\",\n    \"names\": \"Pepito Perez\",\n    \"address\": \"calle 4\",\n    \"country_code\": \"CO\",\n    \"municipality_code\": \"68679\",\n    \"legal_organization_code\": \"1\"\n  },\n  \"items\": [\n    {\n      \"code_reference\": \"12345\",\n      \"name\": \"producto de prueba\",\n      \"quantity\": \"2.00\",\n      \"discount_rate\": \"0.00\",\n      \"price\": \"50000.00\",\n      \"unit_measure_code\": \"94\",\n      \"standard_code\": \"999\",\n      \"taxes\": [\n        {\n          \"code\": \"01\",\n          \"rate\": \"19.00\"\n//           \"is_excluded\": true\n        }\n      ],\n      \"withholding_taxes\": [\n        {\n          \"code\": \"06\",\n          \"rate\": \"3.50\"\n        }\n      ]\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Eliminar no validada",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/adjustment-notes/reference/:referenceCode",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "adjustment-notes",
+                "reference",
+                ":referenceCode"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "referenceCode",
+                  "value": "7528e9f1-e40c-42e8-aa28-b8814cc94f11"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Ver",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/adjustment-notes/:number",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "adjustment-notes",
+                ":number"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "NDA65"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Listar",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/adjustment-notes",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "adjustment-notes"
+              ],
+              "query": [
+                {
+                  "key": "filter[identification]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[names]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[number]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[prefix]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[reference_code]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[status]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[per_page]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[created_at][start_date]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[created_at][end_date]",
+                  "value": ""
+                },
+                {
+                  "key": "page ",
+                  "value": ""
+                }
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Descargar XML",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/facturas/descargar-xml/](https://developers.factus.com.co/facturas/descargar-xml/)",
+            "url": {
+              "raw": "{{url_api}}/v2/adjustment-notes/:number/download-xml",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "adjustment-notes",
+                ":number",
+                "download-xml"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "NDA58"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Descargar PDF",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "Ver Documentación:\n\n[https://developers.factus.com.co/facturas/descargar-pdf/](https://developers.factus.com.co/facturas/descargar-pdf/)",
+            "url": {
+              "raw": "{{url_api}}/v2/adjustment-notes/:number/download-pdf",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "adjustment-notes",
+                ":number",
+                "download-pdf"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": "NDA58"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documentos",
+      "item": [
+        {
+          "name": "Descargar XML",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/documents/:trackId/download-xml",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "documents",
+                ":trackId",
+                "download-xml"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "trackId",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Nómina",
+      "item": [
+        {
+          "name": "Crear y validar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Documentación:**\n\n[https://developers.factus.com.co/nomina/crear-y-validar](https://developers.factus.com.co/nomina/crear-y-validar)",
+            "url": {
+              "raw": "{{url_api}}/v2/payrolls",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "payrolls"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference_code\": \"990000070\",\n  \"observation\": \"Nómina ordinaria mensual\",\n  \"numbering_range_id\": \"01kpdv25zepw0vzn39th90h1a7\",\n  \"settlement_period\": {\n    \"month\": \"5\",\n    \"year\": \"2026\",\n    \"payroll_period_code\": \"5\"\n  },\n  \"payment\": {\n    \"payment_method_code\": \"42\",\n    \"bank_name\": \"Bancolombia\",\n    \"account_type\": \"1\",\n    \"account_number\": \"123456789\",\n    \"payment_date\": \"2026-06-05\"\n  },\n  \"worker\": {\n    \"identification_document_code\": \"13\",\n    \"identification_number\": \"1234567890\",\n    \"first_name\": \"Mateo\",\n    \"first_surname\": \"Gonzales\",\n    \"second_surname\": \"Forero\",\n    \"address\": \"Cra100 39-100\",\n    \"country_code\": \"CO\",\n    \"municipality_code\": \"68679\",\n    \"has_integral_salary\": false,\n    \"has_high_risk\": false,\n    \"worker_subtype\": \"00\",\n    \"contract_type\": \"1\",\n    \"employee_code\": \"001\",\n    \"worker_type_code\": \"01\",\n    \"salary\": \"2800000.00\",\n    \"entry_date\": \"2023-03-15\",\n    \"days_worked\": \"30.00\"\n  },\n  \"accruals\": {\n    \"suel\": {\n      \"amount\": \"2800000.00\"\n    },\n    \"tra\": [\n      {\n        \"amount\": \"249095.00\",\n        \"accrual_type_code\": 1\n      }\n    ],\n    \"comi\": [\n      {\n        \"amount\": \"300000.00\"\n      }\n    ],\n    \"hora\": [\n      {\n        \"quantity\": \"5\",\n        \"percentage\": \"25.00\",\n        \"amount\": \"79545.45\",\n        \"start_date\": \"2026-05-06 18:00:00\",\n        \"end_date\": \"2026-05-06 23:00:00\",\n        \"accrual_type_code\": \"1\"\n      },\n      {\n        \"quantity\": \"2\",\n        \"percentage\": \"75.00\",\n        \"amount\": \"44545.45\",\n        \"start_date\": \"2026-05-11 22:00:00\",\n        \"end_date\": \"2026-05-12 00:00:00\",\n        \"accrual_type_code\": \"2\"\n      },\n      {\n        \"quantity\": \"3\",\n        \"percentage\": \"35.00\",\n        \"amount\": \"51545.45\",\n        \"start_date\": \"2026-05-19 20:00:00\",\n        \"end_date\": \"2026-05-19 23:00:00\",\n        \"accrual_type_code\": \"3\"\n      }\n    ]\n  },\n  \"deductions\": {\n    \"salu\": {\n      \"amount\": \"131025.45\",\n      \"percentage\": \"4\"\n    },\n    \"pens\": {\n      \"amount\": \"131025.45\",\n      \"percentage\": \"4\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Eliminar no validada",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Documentación:**\n\n[https://developers.factus.com.co/nomina/eliminar](https://developers.factus.com.co/nomina/eliminar)",
+            "url": {
+              "raw": "{{url_api}}/v2/payrolls/reference/:reference_code",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "payrolls",
+                "reference",
+                ":reference_code"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "reference_code",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ver",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Documentación:**\n\n[https://developers.factus.com.co/nomina/ver](https://developers.factus.com.co/nomina/ver)",
+            "url": {
+              "raw": "{{url_api}}/v2/payrolls/:number",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "payrolls",
+                ":number"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "**Documentación:**\n\n[https://developers.factus.com.co/nomina/listar](https://developers.factus.com.co/nomina/listar)",
+            "url": {
+              "raw": "{{url_api}}/v2/payrolls",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "payrolls"
+              ],
+              "query": [
+                {
+                  "key": "filter[identification_number]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[number]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[names]",
+                  "value": ""
+                },
+                {
+                  "key": "filter[page]",
+                  "value": "1"
+                }
+              ],
+              "variable": []
+            }
+          }
+        },
+        {
+          "name": "Descargar xml",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/payrolls/:number/download-xml",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "payrolls",
+                ":number",
+                "download-xml"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Descargar Pdf",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/payrolls/:number/download-pdf",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "payrolls",
+                ":number",
+                "download-pdf"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Nota de ajuste a nomina",
+      "item": [
+        {
+          "name": "Crear y validar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Documentación:**\n\n[https://developers.factus.com.co/nota-ajuste-nomina/crear-y-validar](https://developers.factus.com.co/nota-ajuste-nomina/crear-y-validar)",
+            "url": {
+              "raw": "{{url_api}}/v2/adjustment-payrolls",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "adjustment-payrolls"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payroll_number\": \"NEF110\",\n  \"reference_code\": \"990000001\",\n  \"numbering_range_id\": \"01kpdv25zj3f7sd5sedemgbnx9\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Eliminar no validada",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Documentación:**\n\n[https://developers.factus.com.co/nota-ajuste-nomina/eliminar](https://developers.factus.com.co/nota-ajuste-nomina/eliminar)",
+            "url": {
+              "raw": "{{url_api}}/v2/adjustment-payrolls/reference/:reference_code",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "adjustment-payrolls",
+                "reference",
+                ":reference_code"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "reference_code",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ver",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Documentación:**\n\n[https://developers.factus.com.co/nota-ajuste-nomina/ver](https://developers.factus.com.co/nota-ajuste-nomina/ver)",
+            "url": {
+              "raw": "{{url_api}}/v2/adjustment-payrolls/:number",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "adjustment-payrolls",
+                ":number"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Documentación:**\n\n[https://developers.factus.com.co/nota-ajuste-nomina/listar](https://developers.factus.com.co/nota-ajuste-nomina/listar)",
+            "url": {
+              "raw": "{{url_api}}/v2/adjustment-payrolls",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "adjustment-payrolls"
+              ],
+              "query": [],
+              "variable": []
+            }
+          }
+        },
+        {
+          "name": "Descargar XML",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "",
+            "url": {
+              "raw": "{{url_api}}/v2/adjustment-payrolls/:number/download-xml",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "adjustment-payrolls",
+                ":number",
+                "download-xml"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "number",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rangos de numeración",
+      "item": [
+        {
+          "name": "Facturación",
+          "item": [
+            {
+              "name": "Ejemplos de creación de rangos",
+              "item": [
+                {
+                  "name": "Crear rango para facturación",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json",
+                        "description": "",
+                        "disabled": false,
+                        "type": "default"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "description": "",
+                        "disabled": false,
+                        "type": "default"
+                      }
+                    ],
+                    "description": "",
+                    "url": {
+                      "raw": "{{url_api}}/v2/numbering-ranges",
+                      "protocol": "",
+                      "host": [
+                        "{{url_api}}"
+                      ],
+                      "path": [
+                        "v2",
+                        "numbering-ranges"
+                      ],
+                      "query": [],
+                      "variable": []
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"document\": \"21\", // 21 para crear un rango de facturación electrónica\n    \"prefix\": \"SETP\", // Prefijo alfanumérico del rango de numeración (máx. 4 caracteres)\n    \"resolution_number\": \"18760000009\", // número de resolución\n    \"current\": 984000000 // número del consecutivo (es el numero de la siguiente factura) \n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "name": "Crear rango para documento soporte",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json",
+                        "description": "",
+                        "disabled": false,
+                        "type": "default"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "description": "",
+                        "disabled": false,
+                        "type": "default"
+                      }
+                    ],
+                    "description": "",
+                    "url": {
+                      "raw": "{{url_api}}/v2/numbering-ranges",
+                      "protocol": "",
+                      "host": [
+                        "{{url_api}}"
+                      ],
+                      "path": [
+                        "v2",
+                        "numbering-ranges"
+                      ],
+                      "query": [],
+                      "variable": []
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"document\": \"24\", // 24 para crear un rango de documento soporte\n    \"prefix\": \"SETP\", // Prefijo alfanumérico del rango de numeración (máx. 4 caracteres)\n    \"resolution_number\": \"18760000009\", // número de resolución\n    \"current\": 1 // número del consecutivo (es el número de la siguiente documento soporte)\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "name": "Crear rango para notas credito",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json",
+                        "description": "",
+                        "disabled": false,
+                        "type": "default"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "description": "",
+                        "disabled": false,
+                        "type": "default"
+                      }
+                    ],
+                    "description": "",
+                    "url": {
+                      "raw": "{{url_api}}/v2/numbering-ranges",
+                      "protocol": "",
+                      "host": [
+                        "{{url_api}}"
+                      ],
+                      "path": [
+                        "v2",
+                        "numbering-ranges"
+                      ],
+                      "query": [],
+                      "variable": []
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"document\": \"22\", // 22 para crear un rango de notas crédito electrónica\n    \"prefix\": \"NCCC\", // Prefijo alfanumérico (máx. 4 caracteres)\n    \"current\": 1 // número del consecutivo (es el número de la siguiente nota crédito)\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Crear",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/rangos-de-numeracion/crear-rango/](https://developers.factus.com.co/rangos-de-numeracion/crear-rango/)",
+                "url": {
+                  "raw": "{{url_api}}/v2/numbering-ranges",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "numbering-ranges"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"document\": \"22\", \n    \"prefix\": \"CRTE\", \n    \"current\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Eliminar",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/rangos-de-numeracion/eliminar-rango/](https://developers.factus.com.co/rangos-de-numeracion/eliminar-rango/)",
+                "url": {
+                  "raw": "{{url_api}}/v2/numbering-ranges/:numbering_range_id",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "numbering-ranges",
+                    ":numbering_range_id"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "key": "numbering_range_id",
+                      "value": "190",
+                      "description": "ID del rango de numeración"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Ver",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/rangos-de-numeracion/ver-rango/](https://developers.factus.com.co/rangos-de-numeracion/ver-rango/)",
+                "url": {
+                  "raw": "{{url_api}}/v2/numbering-ranges/:numbering_range_id",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "numbering-ranges",
+                    ":numbering_range_id"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "key": "numbering_range_id",
+                      "value": "190",
+                      "description": "ID del rango de numeracion"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Listar",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/rangos-de-numeracion/obtener-rangos/](https://developers.factus.com.co/rangos-de-numeracion/obtener-rangos/)",
+                "url": {
+                  "raw": "{{url_api}}/v2/numbering-ranges",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "numbering-ranges"
+                  ],
+                  "query": [
+                    {
+                      "key": "filter[id]",
+                      "value": "",
+                      "description": "ID del registro"
+                    },
+                    {
+                      "key": "filter[document]",
+                      "value": "21",
+                      "description": "Código de documento. 21=Factura de Venta, 22=Nota Crédito, 23=Nota Débito, 24=Documento Soporte, 25=Nota de Ajuste Documento Soporte, 26=Nómina, 27=Nota de Ajuste Nómina, 28=Nota de eliminación de nómina, 30=Factura de talonario o de papel."
+                    },
+                    {
+                      "key": "filter[resolution_number]",
+                      "value": "",
+                      "description": "Número de resolución (solo para facturas y docuentos soporte)"
+                    },
+                    {
+                      "key": "filter[technical_key]",
+                      "value": "",
+                      "description": "Clave técnica (solo para facturas)"
+                    },
+                    {
+                      "key": "filter[is_active]",
+                      "value": "1",
+                      "description": "1 para activo 0 para inactivo"
+                    }
+                  ],
+                  "variable": []
+                }
+              }
+            },
+            {
+              "name": "Rangos asociados al software",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/rangos-de-numeracion/rangos-asociados-al-software/](https://developers.factus.com.co/rangos-de-numeracion/rangos-asociados-al-software/)",
+                "url": {
+                  "raw": "{{url_api}}/v2/numbering-ranges/dian",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "numbering-ranges",
+                    "dian"
+                  ],
+                  "query": [],
+                  "variable": []
+                }
+              }
+            },
+            {
+              "name": "Cambiar estado",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "Ver Documentación:  \n[https://developers.factus.com.co/rangos-de-numeracion/cambiar-estado/](https://developers.factus.com.co/rangos-de-numeracion/cambiar-estado/)",
+                "url": {
+                  "raw": "{{url_api}}/v2/numbering-ranges/:numbering_range_id/toggle-status",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "numbering-ranges",
+                    ":numbering_range_id",
+                    "toggle-status"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "key": "numbering_range_id",
+                      "value": "189"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Actualizar consecutivo",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "description": "",
+                    "disabled": false,
+                    "type": "default"
+                  }
+                ],
+                "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/rangos-de-numeracion/actualizar-consecutivo/](https://developers.factus.com.co/rangos-de-numeracion/actualizar-consecutivo/)",
+                "url": {
+                  "raw": "{{url_api}}/v2/numbering-ranges/:numbering_range_id/current",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "numbering-ranges",
+                    ":numbering_range_id",
+                    "current"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "key": "numbering_range_id",
+                      "value": "189"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"current\": 3\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Nómina",
+          "item": [
+            {
+              "name": "Crear",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/numbering-ranges/payrolls",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "numbering-ranges",
+                    "payrolls"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"document\": \"26\",\n  \"prefix\": \"NE\",\n  \"current\": \"1\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Eliminar",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/numbering-ranges/payrolls/:numbering_range_id",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "numbering-ranges",
+                    "payrolls",
+                    ":numbering_range_id"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "key": "numbering_range_id",
+                      "value": "01ky2s927049y75rk1hqs5g9t3"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Ver",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/numbering-ranges/payrolls/:numbering_range_id",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "numbering-ranges",
+                    "payrolls",
+                    ":numbering_range_id"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "key": "numbering_range_id",
+                      "value": "01kx1jt9k70rnb4zprpys837y8"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Listar",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/numbering-ranges/payrolls",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "numbering-ranges",
+                    "payrolls"
+                  ],
+                  "query": [
+                    {
+                      "key": "filter[code]",
+                      "value": "26"
+                    },
+                    {
+                      "key": "filter[is_enabled]",
+                      "value": "true"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    }
+                  ],
+                  "variable": []
+                }
+              }
+            },
+            {
+              "name": "Actualizar concecutivo",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/numbering-ranges/payrolls/:numbering_range_id/current",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "numbering-ranges",
+                    "payrolls",
+                    ":numbering_range_id",
+                    "current"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "key": "numbering_range_id",
+                      "value": "01kx1jt9k70rnb4zprpys837y8"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Cambiar estado",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "description": "",
+                "url": {
+                  "raw": "{{url_api}}/v2/numbering-ranges/payrolls/:numbering_range_id/toggle-status",
+                  "protocol": "",
+                  "host": [
+                    "{{url_api}}"
+                  ],
+                  "path": [
+                    "v2",
+                    "numbering-ranges",
+                    "payrolls",
+                    ":numbering_range_id",
+                    "toggle-status"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "key": "numbering_range_id",
+                      "value": "01kx1jt9k70rnb4zprpys837y8"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Información de adquirentes",
+      "item": [
+        {
+          "name": "Obtener datos adquiriente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "**Ver Documentación:**[https://developers.factus.com.co/informacion-adquirientes/obtener-datos-adquiriente/](https://developers.factus.com.co/informacion-adquirientes/obtener-datos-adquiriente/)",
+            "url": {
+              "raw": "{{url_api}}/v2/dian/acquirer?identification_document_code=13&identification_number=1399991",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "dian",
+                "acquirer?identification_document_code=13&identification_number=1399991"
+              ],
+              "query": [
+                {
+                  "key": "identification_document_code",
+                  "value": "13"
+                },
+                {
+                  "key": "identification_number",
+                  "value": "1399991"
+                }
+              ],
+              "variable": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recepción de documentos",
+      "item": [
+        {
+          "name": "Cargar factura",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/recepcion-de-documentos/cargar-factura/](https://developers.factus.com.co/recepcion-de-documentos/cargar-factura/)",
+            "url": {
+              "raw": "{{url_api}}/v2/receptions/upload",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "receptions",
+                "upload"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"track_id\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Ver facturas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/recepcion-de-documentos/ver-facturas/](https://developers.factus.com.co/recepcion-de-documentos/ver-facturas/)",
+            "url": {
+              "raw": "{{url_api}}/v2/receptions/bills",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "receptions",
+                "bills"
+              ],
+              "query": [
+                {
+                  "key": "filter[id]",
+                  "value": "",
+                  "description": "ID de la factura"
+                },
+                {
+                  "key": "filter[number]",
+                  "value": "",
+                  "description": "Número de la factura"
+                },
+                {
+                  "key": "filter[issue_date]",
+                  "value": "",
+                  "description": "Fecha de emisión de la factura"
+                },
+                {
+                  "key": "filter[cufe]",
+                  "value": "",
+                  "description": "CUFE de la factura"
+                },
+                {
+                  "key": "filter[company_nit]",
+                  "value": "",
+                  "description": "NIT de la empresa o persona que te emitio la factura"
+                },
+                {
+                  "key": "filter[company_name]",
+                  "value": "",
+                  "description": "Nombre de la persona o empresa que te emitio la factura"
+                },
+                {
+                  "key": "filter[completed_events]",
+                  "value": "",
+                  "description": "Usa 1 para listar las facturas que no tienen eventos pendientes por emitir y 0 para mostrar las facturas que tienen eventos pendientes por emitir."
+                }
+              ],
+              "variable": []
+            }
+          }
+        },
+        {
+          "name": "Emitir evento",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/recepcion-de-documentos/emitir-evento/](https://developers.factus.com.co/recepcion-de-documentos/emitir-evento/)",
+            "url": {
+              "raw": "{{url_api}}/v2/receptions/bills/:bill_id/radian/events/:event_type",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "receptions",
+                "bills",
+                ":bill_id",
+                "radian",
+                "events",
+                ":event_type"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "bill_id",
+                  "value": "",
+                  "description": "ID de la factura electrónica"
+                },
+                {
+                  "key": "event_type",
+                  "value": "",
+                  "description": "Código del evento a emitir"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"identification_document_code\": \"13\",\n    \"identification\": \"12345667\",\n    \"dv\": \"\",\n    \"first_name\": \"Pepito\",\n    \"last_name\": \"Perez\",\n    \"job_title\": \"Desarollador de software\",\n    \"organization_department\": \"Sistemas\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Suscripciones",
+      "item": [
+        {
+          "name": "Suscripciones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "description": "",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/suscripciones/suscripciones/](https://developers.factus.com.co/suscripciones/suscripciones/)",
+            "url": {
+              "raw": "{{url_api}}/v2/subscriptions",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "subscriptions"
+              ],
+              "query": [],
+              "variable": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Empresa",
+      "item": [
+        {
+          "name": "Ver",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/empresas/ver/](https://developers.factus.com.co/empresas/ver/)",
+            "url": {
+              "raw": "{{url_api}}/v2/companies",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "companies"
+              ],
+              "query": [],
+              "variable": []
+            }
+          }
+        },
+        {
+          "name": "Actualizar",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/empresas/actualizar/](https://developers.factus.com.co/empresas/actualizar/)",
+            "url": {
+              "raw": "{{url_api}}/v2/companies",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "companies"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"legal_organization_code\": \"1\",\n  \"company\": \"HALLTEC S.A.S.\",\n  \"trade_name\": null,\n  \"email\": \"email@gmail.com\",\n  \"address\": \"calle 11 8-84\",\n  \"registration_code\": \"33253427\",\n  \"economic_activity\": \"6311\",\n  \"phone\": \"3101234567\",\n  \"municipality_code\": \"68872\",\n  \"tribute_code\": \"01\",\n  \"responsibilities\": \"R-99-PN,O-15\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Actualizar logo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "**Ver Documentación:**\n\n[https://developers.factus.com.co/empresas/actualizar-imagen/](https://developers.factus.com.co/empresas/actualizar-imagen/)",
+            "url": {
+              "raw": "{{url_api}}/v2/companies/logo",
+              "protocol": "",
+              "host": [
+                "{{url_api}}"
+              ],
+              "path": [
+                "v2",
+                "companies",
+                "logo"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "disabled": false,
+                  "type": "file",
+                  "description": "",
+                  "src": "/Users/ivan/Pictures/logos/default2-250x250.png"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "bill_reference_code",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "version",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "credit_reference_code",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "debit_reference_code",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "url_api",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "client_id",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "client_secret",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "email",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "default"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          "const urlAPI = pm.environment.get(\"url_api\");",
+          "const clientID = pm.environment.get(\"client_id\");",
+          "const clientSecret = pm.environment.get(\"client_secret\");",
+          "const username = pm.environment.get(\"email\");",
+          "const password = pm.environment.get(\"password\");",
+          "await pm.sendRequest({",
+          "    url: urlAPI + '/oauth/token',",
+          "    method: 'POST',",
+          "    header: {",
+          "        'Accept': 'application/json',",
+          "        \"Content-Type\": \"application/x-www-form-urlencoded\"",
+          "    },",
+          "    body: {",
+          "        mode: \"urlencoded\",",
+          "",
+          "        urlencoded: [{",
+          "            key: \"grant_type\",",
+          "            value: 'password'",
+          "        }, {",
+          "            key: \"client_id\",",
+          "            value: clientID",
+          "        }, {",
+          "            key: \"client_secret\",",
+          "            value: clientSecret",
+          "        }, {",
+          "            key: \"username\",",
+          "            value: username",
+          "        }, {",
+          "            key: \"password\",",
+          "            value: password",
+          "        }]",
+          "    }",
+          "}, async function(err, res) {",
+          "    if (err) {",
+          "        console.error(err);",
+          "    } else {",
+          "        pm.environment.set('access_token', res.json().access_token);",
+          "    }",
+          "});"
+        ]
+      }
+    }
+  ]
+}
