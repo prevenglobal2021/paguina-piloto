@@ -23,6 +23,7 @@ const rateLimit = require('express-rate-limit');
 const sharp = require('sharp');
 const heicConvert = require('heic-convert');
 const nodemailer = require('nodemailer');
+const factus = require('./factus');
 
 let compression;
 try {
@@ -135,6 +136,30 @@ async function guardarEstadoEmpresa(slug, data) {
    cualquier administrador desde la propia plataforma, sin depender de
    nadie más.
 --------------------------------------------------------- */
+/* Facturas electrónicas (Factus / DIAN): una fila por factura de la plataforma.
+   Se guarda APARTE del bloque de datos de la empresa a propósito: ese bloque
+   lo reescribe cada navegador al guardar y podría borrar sin querer el
+   número oficial o el CUFE. */
+async function asegurarTablaFacturasElectronicas() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS facturas_electronicas (
+      id SERIAL PRIMARY KEY,
+      empresa_slug TEXT NOT NULL,
+      factura_id BIGINT NOT NULL,
+      reference_code TEXT NOT NULL,
+      numero_factus TEXT,
+      cufe TEXT,
+      validada BOOLEAN NOT NULL DEFAULT FALSE,
+      validada_en TEXT,
+      errores JSONB,
+      ultimo_error TEXT,
+      creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      actualizado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (empresa_slug, factura_id)
+    )
+  `);
+}
+
 async function asegurarTablaRespaldos() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS respaldos_estado (
@@ -1299,6 +1324,80 @@ async function bootstrapEmpresaInicial() {
   console.log(`[bootstrap] Empresa "${EMPRESA_NOMBRE}" (código: ${slug}) inicializada.`);
 }
 
+/* ---------------------------------------------------------
+   FACTURACIÓN ELECTRÓNICA (Factus / DIAN) — fase 1, sandbox.
+   Solo administradores, y solo empresas autorizadas en el .env.
+--------------------------------------------------------- */
+function soloAdminFactus(req, res, next) {
+  if (req.rol !== 'admin') return res.status(403).json({ error: 'Solo un administrador puede emitir facturas electrónicas.' });
+  if (!factus.empresaAutorizada(req.slug)) return res.status(403).json({ error: 'Esta empresa todavía no está habilitada para facturación electrónica.' });
+  next();
+}
+
+app.get('/api/factus/estado', requireAuth, (req, res) => {
+  res.json({ configurado: factus.configurado(), autorizada: factus.empresaAutorizada(req.slug) });
+});
+
+app.get('/api/factus/facturas/:id', requireAuth, async (req, res) => {
+  const r = await pool.query('SELECT numero_factus, cufe, validada, validada_en, errores, ultimo_error, actualizado_en FROM facturas_electronicas WHERE empresa_slug = $1 AND factura_id = $2', [req.slug, req.params.id]);
+  if (!r.rows.length) return res.json({ emitida: false });
+  res.json({ emitida: true, ...r.rows[0] });
+});
+
+app.post('/api/factus/facturas/:id/emitir', requireAuth, soloAdminFactus, async (req, res) => {
+  try {
+    const facturaId = Number(req.params.id);
+    const data = await leerEstadoEmpresa(req.slug);
+    const factura = data && (data.facturas || []).find(f => Number(f.id) === facturaId);
+    if (!factura) return res.status(404).json({ error: 'No se encontró la factura. Guarda la factura primero y vuelve a intentar.' });
+
+    const previa = await pool.query('SELECT validada FROM facturas_electronicas WHERE empresa_slug = $1 AND factura_id = $2', [req.slug, facturaId]);
+    if (previa.rows.length && previa.rows[0].validada) return res.status(409).json({ error: 'Esta factura ya fue emitida y validada por la DIAN. Para corregirla se usa una nota crédito.' });
+
+    const cliente = (data.clientes || []).find(c => Number(c.id) === Number(factura.clienteId));
+    const referencia = `${req.slug}-${factura.numero}`;
+    const { cuerpo } = factus.construirFactura({ factura, cliente, slug: req.slug, medioPago: (req.body || {}).medioPago, referencia });
+
+    // Si un intento anterior quedó sin validar, se limpia en Factus para poder reintentar con el mismo código.
+    if (previa.rows.length) await factus.borrarNoValidada(referencia);
+
+    const r = await factus.validarFactura(cuerpo);
+    const d = (r.data && r.data.data) || {};
+    const validada = !!(r.ok && d.is_validated);
+    const errores = d.errors || (r.data && r.data.errors) || null;
+    const ultimoError = r.ok ? null : ((r.data && r.data.message) || ('Factus respondió ' + r.status));
+
+    await pool.query(`
+      INSERT INTO facturas_electronicas (empresa_slug, factura_id, reference_code, numero_factus, cufe, validada, validada_en, errores, ultimo_error)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      ON CONFLICT (empresa_slug, factura_id) DO UPDATE SET
+        reference_code = EXCLUDED.reference_code, numero_factus = EXCLUDED.numero_factus, cufe = EXCLUDED.cufe,
+        validada = EXCLUDED.validada, validada_en = EXCLUDED.validada_en, errores = EXCLUDED.errores,
+        ultimo_error = EXCLUDED.ultimo_error, actualizado_en = NOW()`,
+      [req.slug, facturaId, referencia, d.number || null, d.cufe || null, validada, d.validated_at || null, errores ? JSON.stringify(errores) : null, ultimoError]);
+
+    if (!r.ok) return res.status(422).json({ error: ultimoError, detalle: (r.data && r.data.errors) || r.data });
+    res.json({ ok: true, numero: d.number, cufe: d.cufe, validada, validada_en: d.validated_at || null, avisos: errores });
+  } catch (err) {
+    console.error('[factus] Error emitiendo factura:', err.message);
+    res.status(err.status && err.status < 600 ? err.status : 500).json({ error: err.message, detalle: err.detalle || null });
+  }
+});
+
+app.get('/api/factus/facturas/:id/pdf', requireAuth, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT numero_factus FROM facturas_electronicas WHERE empresa_slug = $1 AND factura_id = $2 AND numero_factus IS NOT NULL', [req.slug, req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Esta factura todavía no se ha emitido.' });
+    const pdf = await factus.descargarPdf(r.rows[0].numero_factus);
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Disposition', `inline; filename="${r.rows[0].numero_factus}.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    console.error('[factus] Error descargando PDF:', err.message);
+    res.status(err.status && err.status < 600 ? err.status : 500).json({ error: err.message, detalle: err.detalle || null });
+  }
+});
+
 // Atajo corto y fácil de recordar/compartir para la tienda pública —
 // reemplaza el enlace largo con parámetro (?tienda=prevenglobal) por
 // una dirección limpia. No toca la ruta original: sigue funcionando
@@ -1340,6 +1439,11 @@ pool.query('SELECT 1')
     // Si esto falla (por ejemplo, por permisos insuficientes en la base de
     // datos), NUNCA debe impedir que el resto de la plataforma funcione —
     // solo se pierde el panel de respaldos automáticos, nada más grave.
+    try{
+      await asegurarTablaFacturasElectronicas();
+    }catch(err){
+      console.error('[factus] No se pudo preparar la tabla de facturas electrónicas — la plataforma sigue igual:', err.message);
+    }
     try{
       await asegurarTablaRespaldos();
     }catch(err){
