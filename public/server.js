@@ -23,6 +23,17 @@ const rateLimit = require('express-rate-limit');
 const sharp = require('sharp');
 const heicConvert = require('heic-convert');
 const nodemailer = require('nodemailer');
+// La facturación electrónica es un módulo APARTE (factus.js). Si el archivo
+// faltara o tuviera un problema, la plataforma arranca igual y solo se
+// desactiva esa función — nada más se cae.
+let factus;
+try {
+  factus = require('./factus');
+} catch (err) {
+  console.error('[factus] Módulo no disponible — la facturación electrónica queda desactivada, el resto de la plataforma funciona normal:', err.message);
+  const noDisponible = async () => { const e = new Error('La facturación electrónica no está disponible en este momento.'); e.status = 503; throw e; };
+  factus = { configurado: () => false, empresaAutorizada: () => false, construirFactura: noDisponible, validarFactura: noDisponible, borrarNoValidada: noDisponible, descargarPdf: noDisponible, obtenerToken: noDisponible, MEDIO_PAGO: {} };
+}
 
 let compression;
 try {
@@ -135,6 +146,30 @@ async function guardarEstadoEmpresa(slug, data) {
    cualquier administrador desde la propia plataforma, sin depender de
    nadie más.
 --------------------------------------------------------- */
+/* Facturas electrónicas (Factus / DIAN): una fila por factura de la plataforma.
+   Se guarda APARTE del bloque de datos de la empresa a propósito: ese bloque
+   lo reescribe cada navegador al guardar y podría borrar sin querer el
+   número oficial o el CUFE. */
+async function asegurarTablaFacturasElectronicas() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS facturas_electronicas (
+      id SERIAL PRIMARY KEY,
+      empresa_slug TEXT NOT NULL,
+      factura_id BIGINT NOT NULL,
+      reference_code TEXT NOT NULL,
+      numero_factus TEXT,
+      cufe TEXT,
+      validada BOOLEAN NOT NULL DEFAULT FALSE,
+      validada_en TEXT,
+      errores JSONB,
+      ultimo_error TEXT,
+      creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      actualizado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (empresa_slug, factura_id)
+    )
+  `);
+}
+
 async function asegurarTablaRespaldos() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS respaldos_estado (
@@ -270,7 +305,7 @@ async function crearEmpresa(slug, nombre, estadoInicial) {
 
 function estadoSemilla(nombreEmpresa, adminUsuario, adminPasswordHash) {
   return {
-    clientes: [], tecnicos: [], plantillas: [], ordenes: [], bodegas: [{ id: 1, nombre: 'Bodega Principal', tipo: 'fija' }],
+    clientes: [], tecnicos: [], plantillas: [], ordenes: [], proyectos: [], bodegas: [{ id: 1, nombre: 'Bodega Principal', tipo: 'fija' }],
     inventario: [], kardex: [], pedidosTienda: [],
     nomina: [], liquidacionesNomina: [], ingresos: [], gastos: [], controlOperativo: [],
     cotizaciones: [], facturas: [],
@@ -756,10 +791,12 @@ app.post('/api/tienda/codigo', requireAuth, async (req, res) => {
   if (req.rol !== 'admin') return res.status(403).json({ error: 'Solo un administrador puede cambiar esto.' });
   const codigo = (req.body && req.body.codigo || '').toLowerCase().trim();
   if (!/^[a-z0-9-]{3,40}$/.test(codigo)) return res.status(400).json({ error: 'Usa solo letras, números y guiones (3 a 40 caracteres).' });
+  const PALABRAS_RESERVADAS = ['api', 'tienda', 't', 'contenido', 'superadmin', 'admin', 'app', 'login', 'logout', 'assets', 'static'];
+  if (PALABRAS_RESERVADAS.includes(codigo)) return res.status(400).json({ error: `"${codigo}" es una palabra reservada del sistema — elige otra.` });
 
   const todas = await pool.query('SELECT slug, estado_app FROM empresas');
   const enUso = todas.rows.some(e => {
-    if (e.slug === req.slug) return false; // la propia empresa no choca consigo misma
+    if (e.slug === req.slug) return false;
     const codigoDeEsa = (e.estado_app && e.estado_app.config && e.estado_app.config.codigoTienda) || e.slug;
     return String(codigoDeEsa).toLowerCase() === codigo;
   });
@@ -938,11 +975,19 @@ function obtenerTransportadorCorreo() {
   return transportadorCorreo;
 }
 
-async function enviarCorreoReset(slug, tipo, tecnicoId, email, nombreEmpresa) {
+async function enviarCorreoReset(slug, tipo, tecnicoId, email, nombreEmpresa, baseUrlRespaldo) {
   const token = crypto.randomBytes(32).toString('hex');
   tokensReset.set(token, { slug, tipo, tecnicoId, exp: Date.now() + 60 * 60 * 1000, usado: false });
   const transportador = obtenerTransportadorCorreo();
-  const enlace = `${process.env.APP_URL || ''}/?resetToken=${token}`;
+  // Si la variable de entorno APP_URL no está configurada en Railway, el
+  // enlace quedaba armado como "/?resetToken=..." (sin dominio) — al
+  // abrirlo desde el correo, sin ninguna página "actual" de referencia,
+  // terminaba en una URL rota como "http:///?resetToken=...". Como
+  // respaldo automático, se usa el dominio real desde el que llegó esta
+  // solicitud (baseUrlRespaldo), para que el enlace nunca quede roto
+  // aunque se le olvide configurar esa variable.
+  const base = process.env.APP_URL || baseUrlRespaldo || '';
+  const enlace = `${base}/?resetToken=${token}`;
   if (!transportador) {
     console.log(`[reset] Gmail no configurado todavía. Enlace de prueba para ${email}: ${enlace}`);
     return;
@@ -965,6 +1010,7 @@ app.post('/api/auth/solicitar-reset', limiteLogin, async (req, res) => {
   const correo = ((req.body || {}).email || '').trim().toLowerCase();
   const respuesta = { ok: true, mensaje: 'Si ese correo está registrado, te enviamos un enlace para restablecer tu contraseña.' };
   if (!correo) return res.json(respuesta);
+  const baseUrlRespaldo = `${req.protocol}://${req.get('host')}`;
   try {
     const rActivas = await pool.query('SELECT slug FROM empresas WHERE activa = true');
     for (const fila of rActivas.rows) {
@@ -972,12 +1018,12 @@ app.post('/api/auth/solicitar-reset', limiteLogin, async (req, res) => {
       const data = await leerEstadoEmpresa(emp.slug);
       if (!data) continue;
       if (data.config.adminUsuario && data.config.adminUsuario.trim().toLowerCase() === correo) {
-        await enviarCorreoReset(emp.slug, 'admin', null, correo, data.config.nombre);
+        await enviarCorreoReset(emp.slug, 'admin', null, correo, data.config.nombre, baseUrlRespaldo);
         return res.json(respuesta);
       }
       const tecnico = (data.tecnicos || []).find(t => t.usuario && t.usuario.trim().toLowerCase() === correo);
       if (tecnico) {
-        await enviarCorreoReset(emp.slug, 'tecnico', tecnico.id, correo, data.config.nombre);
+        await enviarCorreoReset(emp.slug, 'tecnico', tecnico.id, correo, data.config.nombre, baseUrlRespaldo);
         return res.json(respuesta);
       }
     }
@@ -1010,6 +1056,72 @@ app.post('/api/auth/confirmar-reset', limiteLogin, async (req, res) => {
   info.usado = true;
   tokensReset.delete(token);
   res.json({ ok: true });
+});
+
+/* ---------------------------------------------------------
+   API — Consulta de NIT en el RUES (Registro Único Empresarial y
+   Social), para autocompletar datos de empresas al registrar un
+   cliente. Pasa por el servidor porque el sitio del RUES no permite
+   consultarse directo desde el navegador de otra página (bloqueo de
+   origen cruzado).
+
+   AVISO IMPORTANTE PARA PEDRO: la URL de abajo es mi mejor intento
+   con la información que tengo, pero NO pude probarla en vivo (mi
+   entorno de trabajo no tiene salida a internet hacia rues.org.co
+   para verificarlo). Es muy posible que la URL o la forma exacta de
+   la respuesta hayan cambiado, o que el RUES no permita este tipo de
+   consulta automática sin más. Por eso todo el endpoint está armado
+   para NUNCA romper el registro de clientes si esto falla: si el NIT
+   no se encuentra, si la URL ya no es la correcta, o si el servicio
+   no responde a tiempo, simplemente se le avisa al usuario y el
+   formulario sigue funcionando manual, como siempre. Con la primera
+   prueba real que hagan, si no funciona, me dicen exactamente qué
+   error sale y ajustamos la URL/el formato de la respuesta.
+--------------------------------------------------------- */
+function calcularDVNit(nitSinDV) {
+  // Algoritmo oficial de la DIAN para el dígito de verificación del NIT
+  // (Resolución 8121 de 2011) — este sí es un cálculo estable y público,
+  // no depende de ningún servicio externo.
+  const pesos = [71, 67, 59, 53, 47, 43, 41, 37, 29, 23, 19, 17, 13, 7, 3];
+  const nit15 = nitSinDV.replace(/\D/g, '').padStart(15, '0');
+  let suma = 0;
+  for (let i = 0; i < 15; i++) suma += parseInt(nit15[i], 10) * pesos[i];
+  const residuo = suma % 11;
+  return residuo > 1 ? 11 - residuo : residuo;
+}
+
+app.get('/api/rues/consultar-nit/:nit', requireAuth, async (req, res) => {
+  const nitLimpio = (req.params.nit || '').replace(/\D/g, '');
+  if (nitLimpio.length < 8) return res.status(400).json({ error: 'NIT incompleto.' });
+
+  try {
+    const controlador = new AbortController();
+    const tiempoLimite = setTimeout(() => controlador.abort(), 8000);
+    const respuesta = await fetch(`https://ruesapi.rues.org.co/rues/api/consultas/consultaExterna/${nitLimpio}`, {
+      signal: controlador.signal,
+    });
+    clearTimeout(tiempoLimite);
+
+    if (!respuesta.ok) {
+      return res.status(404).json({ error: 'No se encontró ese NIT en el RUES, o el servicio no está disponible en este momento.' });
+    }
+    const datos = await respuesta.json();
+    const registro = Array.isArray(datos) ? datos[0] : (datos.data ? datos.data[0] : datos);
+    if (!registro) {
+      return res.status(404).json({ error: 'No se encontró ese NIT en el RUES.' });
+    }
+
+    res.json({
+      razonSocial: registro.razon_social || registro.nombre || null,
+      estadoMatricula: registro.estado_matricula || registro.estado || null,
+      camaraComercio: registro.camara_comercio || null,
+      actividadEconomica: registro.actividad_economica || registro.ciiu || null,
+      representanteLegal: registro.representante_legal || null,
+    });
+  } catch (err) {
+    console.error('[rues] No se pudo consultar (revisar si la URL sigue siendo válida):', err.message);
+    res.status(502).json({ error: 'No se pudo conectar con el RUES en este momento. Puedes seguir llenando el formulario manualmente.' });
+  }
 });
 
 /* ---------------------------------------------------------
@@ -1222,6 +1334,80 @@ async function bootstrapEmpresaInicial() {
   console.log(`[bootstrap] Empresa "${EMPRESA_NOMBRE}" (código: ${slug}) inicializada.`);
 }
 
+/* ---------------------------------------------------------
+   FACTURACIÓN ELECTRÓNICA (Factus / DIAN) — fase 1, sandbox.
+   Solo administradores, y solo empresas autorizadas en el .env.
+--------------------------------------------------------- */
+function soloAdminFactus(req, res, next) {
+  if (req.rol !== 'admin') return res.status(403).json({ error: 'Solo un administrador puede emitir facturas electrónicas.' });
+  if (!factus.empresaAutorizada(req.slug)) return res.status(403).json({ error: 'Esta empresa todavía no está habilitada para facturación electrónica.' });
+  next();
+}
+
+app.get('/api/factus/estado', requireAuth, (req, res) => {
+  res.json({ configurado: factus.configurado(), autorizada: factus.empresaAutorizada(req.slug) });
+});
+
+app.get('/api/factus/facturas/:id', requireAuth, async (req, res) => {
+  const r = await pool.query('SELECT numero_factus, cufe, validada, validada_en, errores, ultimo_error, actualizado_en FROM facturas_electronicas WHERE empresa_slug = $1 AND factura_id = $2', [req.slug, req.params.id]);
+  if (!r.rows.length) return res.json({ emitida: false });
+  res.json({ emitida: true, ...r.rows[0] });
+});
+
+app.post('/api/factus/facturas/:id/emitir', requireAuth, soloAdminFactus, async (req, res) => {
+  try {
+    const facturaId = Number(req.params.id);
+    const data = await leerEstadoEmpresa(req.slug);
+    const factura = data && (data.facturas || []).find(f => Number(f.id) === facturaId);
+    if (!factura) return res.status(404).json({ error: 'No se encontró la factura. Guarda la factura primero y vuelve a intentar.' });
+
+    const previa = await pool.query('SELECT validada FROM facturas_electronicas WHERE empresa_slug = $1 AND factura_id = $2', [req.slug, facturaId]);
+    if (previa.rows.length && previa.rows[0].validada) return res.status(409).json({ error: 'Esta factura ya fue emitida y validada por la DIAN. Para corregirla se usa una nota crédito.' });
+
+    const cliente = (data.clientes || []).find(c => Number(c.id) === Number(factura.clienteId));
+    const referencia = `${req.slug}-${factura.numero}`;
+    const { cuerpo } = factus.construirFactura({ factura, cliente, slug: req.slug, medioPago: (req.body || {}).medioPago, referencia });
+
+    // Si un intento anterior quedó sin validar, se limpia en Factus para poder reintentar con el mismo código.
+    if (previa.rows.length) await factus.borrarNoValidada(referencia);
+
+    const r = await factus.validarFactura(cuerpo);
+    const d = (r.data && r.data.data) || {};
+    const validada = !!(r.ok && d.is_validated);
+    const errores = d.errors || (r.data && r.data.errors) || null;
+    const ultimoError = r.ok ? null : ((r.data && r.data.message) || ('Factus respondió ' + r.status));
+
+    await pool.query(`
+      INSERT INTO facturas_electronicas (empresa_slug, factura_id, reference_code, numero_factus, cufe, validada, validada_en, errores, ultimo_error)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      ON CONFLICT (empresa_slug, factura_id) DO UPDATE SET
+        reference_code = EXCLUDED.reference_code, numero_factus = EXCLUDED.numero_factus, cufe = EXCLUDED.cufe,
+        validada = EXCLUDED.validada, validada_en = EXCLUDED.validada_en, errores = EXCLUDED.errores,
+        ultimo_error = EXCLUDED.ultimo_error, actualizado_en = NOW()`,
+      [req.slug, facturaId, referencia, d.number || null, d.cufe || null, validada, d.validated_at || null, errores ? JSON.stringify(errores) : null, ultimoError]);
+
+    if (!r.ok) return res.status(422).json({ error: ultimoError, detalle: (r.data && r.data.errors) || r.data });
+    res.json({ ok: true, numero: d.number, cufe: d.cufe, validada, validada_en: d.validated_at || null, avisos: errores });
+  } catch (err) {
+    console.error('[factus] Error emitiendo factura:', err.message);
+    res.status(err.status && err.status < 600 ? err.status : 500).json({ error: err.message, detalle: err.detalle || null });
+  }
+});
+
+app.get('/api/factus/facturas/:id/pdf', requireAuth, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT numero_factus FROM facturas_electronicas WHERE empresa_slug = $1 AND factura_id = $2 AND numero_factus IS NOT NULL', [req.slug, req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Esta factura todavía no se ha emitido.' });
+    const pdf = await factus.descargarPdf(r.rows[0].numero_factus);
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Disposition', `inline; filename="${r.rows[0].numero_factus}.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    console.error('[factus] Error descargando PDF:', err.message);
+    res.status(err.status && err.status < 600 ? err.status : 500).json({ error: err.message, detalle: err.detalle || null });
+  }
+});
+
 // Atajo corto y fácil de recordar/compartir para la tienda pública —
 // reemplaza el enlace largo con parámetro (?tienda=prevenglobal) por
 // una dirección limpia. No toca la ruta original: sigue funcionando
@@ -1231,7 +1417,23 @@ app.get('/tienda', (req, res) => {
   res.redirect('/?tienda=prevenglobal');
 });
 
-app.get('*', (req, res) => {
+app.get('*', async (req, res) => {
+  // Enlace corto DIRECTO de tienda: prevenglobal.com/lo-que-el-dueño-eligió
+  // (sin ningún prefijo de por medio). Solo entra aquí si ninguna otra
+  // ruta ni archivo estático de arriba coincidió primero, así que nunca
+  // choca con /api/*, /tienda, /t/*, /contenido/*, superadmin.html, etc.
+  const primerSegmento = req.path.split('/')[1];
+  if (primerSegmento) {
+    const r = await pool.query('SELECT slug, estado_app FROM empresas');
+    const encontrada = r.rows.find(e => {
+      const codigoPropio = (e.estado_app && e.estado_app.config && e.estado_app.config.codigoTienda) || e.slug;
+      return String(codigoPropio).toLowerCase() === primerSegmento.toLowerCase();
+    });
+    if (encontrada) {
+      res.set('Cache-Control', 'no-store');
+      return res.redirect('/?tienda=' + encodeURIComponent(encontrada.slug));
+    }
+  }
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
@@ -1248,6 +1450,11 @@ pool.query('SELECT 1')
     // datos), NUNCA debe impedir que el resto de la plataforma funcione —
     // solo se pierde el panel de respaldos automáticos, nada más grave.
     try{
+      await asegurarTablaFacturasElectronicas();
+    }catch(err){
+      console.error('[factus] No se pudo preparar la tabla de facturas electrónicas — la plataforma sigue igual:', err.message);
+    }
+    try{
       await asegurarTablaRespaldos();
     }catch(err){
       console.error('[respaldos] No se pudo preparar la tabla de respaldos — la plataforma sigue funcionando igual, sin este panel por ahora:', err.message);
@@ -1263,10 +1470,6 @@ pool.query('SELECT 1')
   .then(() => bootstrapEmpresaInicial())
   .then(() => {
     /* ---------------------------------------------------------
-   Agente de contenido para redes sociales — aprobar/rechazar
-   propuestas generadas automáticamente (no toca ninguna otra ruta)
---------------------------------------------------------- */
-/* ---------------------------------------------------------
    Notificaciones push — guarda el identificador del celular del
    técnico, para poder mandarle alarmas de órdenes próximas
 --------------------------------------------------------- */
@@ -1285,6 +1488,10 @@ app.post('/api/tecnico/push-token', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+/* ---------------------------------------------------------
+   Agente de contenido para redes sociales — aprobar/rechazar
+   propuestas generadas automáticamente (no toca ninguna otra ruta)
+--------------------------------------------------------- */
 app.get('/contenido/aprobar/:token', async (req, res) => {
   const r = await pool.query(
     "UPDATE propuestas_contenido SET estado = 'aprobado' WHERE token = $1 AND estado = 'pendiente' RETURNING imagen_nombre",
@@ -1303,7 +1510,7 @@ app.get('/contenido/rechazar/:token', async (req, res) => {
   res.send(`<h2>❌ Contenido rechazado: ${r.rows[0].imagen_nombre}</h2>`);
 });
 
-app.listen(PORT, () => console.log(`Prevenglobal escuchando en el puerto ${PORT}`));
+    app.listen(PORT, () => console.log(`Prevenglobal escuchando en el puerto ${PORT}`));
   })
   .catch(err => {
     console.error('No se pudo conectar a la base de datos:', err.message);
