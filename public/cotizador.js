@@ -1366,6 +1366,7 @@ function abrirModalCotizacion(cotizacionId){
   abrirModal('modalCotizacion');
 }
 function abrirModalFactura(facturaId, cotizacionOrigen){
+  if(facturaId && typeof facturaBloqueadaFE === 'function' && facturaBloqueadaFE(facturaId)){ mostrarToast('Esta factura ya fue validada por la DIAN y no se puede editar. Para corregirla se usa una nota crédito.'); return; }
   cerrarModal('modalItemComercial');
   cerrarModal('modalPDF');
   const cajaFac = document.getElementById('cajaModalFactura');
@@ -1643,6 +1644,7 @@ async function eliminarCotizacion(id){
   renderizarCotizacionesFacturas();
 }
 async function eliminarFactura(id){
+  if(typeof facturaBloqueadaFE === 'function' && facturaBloqueadaFE(id)){ mostrarToast('Esta factura ya fue validada por la DIAN y no se puede eliminar. Para anularla se usa una nota crédito.'); return; }
   const f = db.facturas.find(x=>x.id===id);
   if(f && (f.montoRegistradoComoIngreso||0) > 0){ mostrarToast('Esta factura ya tiene un ingreso vinculado en Trazabilidad. Cámbiala a "Pendiente" primero si de verdad quieres eliminarla.'); return; }
   if(!confirm('¿Eliminar esta factura?')) return;
@@ -1663,7 +1665,8 @@ async function eliminarFactura(id){
   renderizarCotizacionesFacturas();
 }
 
-function renderizarCotizacionesFacturas(){
+function renderizarCotizacionesFacturas(desdeFacturaElectronica){
+  if(!desdeFacturaElectronica && typeof feCargarEstados === 'function' && typeof feConfig !== 'undefined' && feConfig === null) feCargarEstados();
   db.cotizaciones = db.cotizaciones || [];
   db.facturas = db.facturas || [];
   const coloresEstadoCot = {
@@ -1704,10 +1707,11 @@ function renderizarCotizacionesFacturas(){
         <td>${estadoHtml}</td><td>${origen}</td>
         <td style="white-space:nowrap;">
           <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="verPDFFactura(${f.id})" title="Ver / Imprimir"><i class="fas fa-file-invoice"></i></button>
-          <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalFactura(${f.id})" title="Editar"><i class="fas fa-pen"></i></button>
+          ${(typeof facturaBloqueadaFE==='function' && facturaBloqueadaFE(f.id)) ? '' : `<button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalFactura(${f.id})" title="Editar"><i class="fas fa-pen"></i></button>`}
           <button class="btn-custom btn-success-custom btn-sm-custom" onclick="conIndicadorCarga(this, ()=>enviarPorWhatsAppFactura(${f.id}), 'Generando...')" title="Enviar por WhatsApp"><i class="fab fa-whatsapp"></i></button>
+          ${typeof botonFacturaElectronica==='function' ? botonFacturaElectronica(f) : ''}
           <button class="btn-custom btn-secondary-custom btn-sm-custom" onclick="abrirModalEstadoPagoFactura(${f.id})" title="Cambiar estado de pago"><i class="fas fa-hand-holding-dollar"></i> Estado de pago</button>
-          <button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarFactura(${f.id})" title="Eliminar"><i class="fas fa-trash"></i></button>
+          ${(typeof facturaBloqueadaFE==='function' && facturaBloqueadaFE(f.id)) ? '' : `<button class="btn-custom btn-danger-custom btn-sm-custom" onclick="eliminarFactura(${f.id})" title="Eliminar"><i class="fas fa-trash"></i></button>`}
         </td>
       </tr>`;
     }).join('') || '<tr><td colspan="7" class="empty-state">Sin facturas registradas todavía.</td></tr>';
