@@ -23,6 +23,7 @@ async function guardarPlantillaConfig(){
 }
 function renderizarPlantillasConfig(){
   const tbody = document.getElementById('tablaConfigPlantillasBody');
+  asegurarBotonImportarPlantilla();
   tbody.innerHTML = '';
   db.plantillas.forEach(p=>{
     tbody.innerHTML += `<tr><td>${p.nombre}</td><td>${p.campos.length}</td>
@@ -387,3 +388,101 @@ async function toggleActivoTecnico(id){
   renderizarTecnicosConfig();
 }
 
+/* =========================================================
+   IMPORTAR UNA PLANTILLA DESDE UN ARCHIVO (.json)
+   ---------------------------------------------------------
+   Sirve para cargar de una vez una plantilla ya armada (por ejemplo
+   "Procesos Documentados de Servicios"), o para llevar la misma plantilla
+   a otra empresa, sin crear los campos uno por uno. Nunca reemplaza una
+   plantilla existente: si el nombre ya existe, se agrega como "(2)".
+   El archivo se revisa antes de aceptarlo (tipos de campo válidos, que
+   tenga etiquetas, y se le quitan los símbolos < y > para que un archivo
+   ajeno no pueda meter código en la pantalla).
+========================================================= */
+const TIPOS_CAMPO_VALIDOS = ['number','text','textarea','checkbox','checklist','foto'];
+
+function limpiarTextoPlantilla(texto, maximo){
+  return String(texto == null ? '' : texto).replace(/[<>]/g,'').trim().slice(0, maximo || 200);
+}
+
+function validarYNormalizarPlantillaImportada(datos){
+  if(!datos || typeof datos !== 'object' || Array.isArray(datos)) return { error:'el archivo no tiene el formato de una plantilla.' };
+  const nombre = limpiarTextoPlantilla(datos.nombre, 120);
+  if(!nombre) return { error:'la plantilla del archivo no tiene nombre.' };
+  if(!Array.isArray(datos.campos) || !datos.campos.length) return { error:'la plantilla del archivo no tiene campos.' };
+  if(datos.campos.length > 60) return { error:'la plantilla tiene demasiados campos (máximo 60).' };
+
+  const base = Date.now();
+  const campos = [];
+  for(let i = 0; i < datos.campos.length; i++){
+    const c = datos.campos[i] || {};
+    const label = limpiarTextoPlantilla(c.label, 200);
+    if(!label) return { error:`el campo número ${i+1} no tiene etiqueta.` };
+    if(!TIPOS_CAMPO_VALIDOS.includes(c.tipo)) return { error:`el campo "${label}" tiene un tipo no válido.` };
+    // El id tiene que ser un NÚMERO: el formulario del técnico lo usa sin comillas.
+    const id = base + i;
+    const campo = { id, label, tipo:c.tipo };
+    if(c.tipo === 'checklist'){
+      const crudos = Array.isArray(c.items) ? c.items : [];
+      const items = crudos
+        .map(x => limpiarTextoPlantilla(typeof x === 'string' ? x : (x && x.texto), 150))
+        .filter(Boolean)
+        .map((texto, k) => ({ id:`${id}_${k}`, texto }));
+      if(!items.length) return { error:`la lista de chequeo "${label}" no tiene ítems.` };
+      campo.items = items;
+    }
+    if(c.tipo === 'foto'){
+      const n = parseInt(c.bloqueImagenes, 10);
+      if(n > 0) campo.bloqueImagenes = n;
+    }
+    campos.push(campo);
+  }
+  return { nombre, campos };
+}
+
+function importarPlantillaDesdeArchivo(event){
+  const archivo = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if(!archivo) return;
+  if(archivo.size > 1024 * 1024){ mostrarToast('Ese archivo es demasiado grande para ser una plantilla.'); return; }
+  const lector = new FileReader();
+  lector.onerror = () => mostrarToast('No se pudo leer el archivo.');
+  lector.onload = async () => {
+    let datos;
+    try{ datos = JSON.parse(lector.result); }
+    catch(e){ mostrarToast('No se importó: el archivo no es una plantilla válida.'); return; }
+    const r = validarYNormalizarPlantillaImportada(datos);
+    if(r.error){ mostrarToast('No se importó: ' + r.error); return; }
+
+    let nombre = r.nombre, n = 2;
+    while(db.plantillas.some(p => (p.nombre || '').toLowerCase() === nombre.toLowerCase())){ nombre = `${r.nombre} (${n++})`; }
+
+    db.plantillas.push({ id:Date.now(), nombre, campos:r.campos });
+    try{
+      await dbGuardarInmediato();
+    }catch(err){
+      db.plantillas.pop();
+      mostrarToast('⚠️ No se pudo guardar la plantilla importada: ' + err.message, 'error');
+      return;
+    }
+    registrarLog('Importar', 'Plantilla', nombre);
+    mostrarToast(`✅ Plantilla "${nombre}" importada con ${r.campos.length} campos.`, 'exito');
+    renderizarPlantillasConfig();
+  };
+  lector.readAsText(archivo);
+}
+
+// Agrega (una sola vez) el botón "Importar plantilla" debajo del formulario
+// de crear plantillas.
+function asegurarBotonImportarPlantilla(){
+  if(document.getElementById('btnImportarPlantilla')) return;
+  const campoNombre = document.getElementById('cfgPlantNombre');
+  if(!campoNombre || !campoNombre.parentElement) return;
+  const caja = document.createElement('div');
+  caja.style.cssText = 'margin-top:14px;padding-top:12px;border-top:1px dashed var(--card-border);';
+  caja.innerHTML = `
+    <label style="font-size:12px;">¿Tienes una plantilla en un archivo (.json)?</label>
+    <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" id="btnImportarPlantilla" onclick="document.getElementById('inputImportarPlantilla').click()"><i class="fas fa-file-import"></i> Importar plantilla</button>
+    <input type="file" id="inputImportarPlantilla" accept=".json,application/json" style="display:none;" onchange="importarPlantillaDesdeArchivo(event)">`;
+  campoNombre.parentElement.appendChild(caja);
+}
