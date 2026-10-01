@@ -1418,6 +1418,62 @@ app.post('/api/factus/facturas/:id/emitir', requireAuth, soloAdminFactus, async 
   }
 });
 
+// Elimina un INTENTO que nunca llegó a validarse (falló, o quedó pendiente).
+// Una factura YA validada por la DIAN nunca se borra — eso se bloquea aquí
+// mismo, sin importar qué pida el navegador.
+app.delete('/api/factus/facturas/:id', requireAuth, soloAdminFactus, async (req, res) => {
+  try {
+    const facturaId = Number(req.params.id);
+    const r = await pool.query('SELECT reference_code, validada FROM facturas_electronicas WHERE empresa_slug = $1 AND factura_id = $2', [req.slug, facturaId]);
+    if (!r.rows.length) return res.json({ ok: true }); // ya no había nada que borrar
+    if (r.rows[0].validada) return res.status(409).json({ error: 'Esta factura ya fue validada por la DIAN — no se puede eliminar. Para corregirla o anularla se usa una nota crédito.' });
+    await factus.borrarNoValidada(r.rows[0].reference_code);
+    await pool.query('DELETE FROM facturas_electronicas WHERE empresa_slug = $1 AND factura_id = $2', [req.slug, facturaId]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[factus] Error eliminando intento:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ---------------------------------------------------------
+   NOTA CRÉDITO — para corregir o anular una factura YA VALIDADA.
+   ⚠️ PENDIENTE DE CONFIGURAR: factus.emitirNotaCredito() todavía no llama
+   a Factus de verdad (ver el comentario dentro de esa función, en
+   factus.js). Mientras tanto, esta ruta responde con un error claro en
+   vez de adivinar el endpoint — así nunca se envía algo mal armado a la
+   DIAN. En cuanto se tenga la documentación exacta de Factus para notas
+   crédito, se completa esa función y esta ruta queda funcionando sin
+   tener que tocar el resto de la plataforma.
+--------------------------------------------------------- */
+app.post('/api/factus/facturas/:id/nota-credito', requireAuth, soloAdminFactus, async (req, res) => {
+  try {
+    const facturaId = Number(req.params.id);
+    const { motivo, tipo, montoParcial, medioPago } = req.body || {}; // tipo: 'total' | 'parcial'
+    if (!motivo || !String(motivo).trim()) return res.status(400).json({ error: 'Escribe el motivo de la nota crédito.' });
+    const r = await pool.query('SELECT numero_factus, cufe, validada FROM facturas_electronicas WHERE empresa_slug = $1 AND factura_id = $2', [req.slug, facturaId]);
+    if (!r.rows.length || !r.rows[0].validada) return res.status(409).json({ error: 'Esta factura todavía no ha sido validada por la DIAN — no aplica una nota crédito, se puede eliminar el intento directamente.' });
+
+    const data = await leerEstadoEmpresa(req.slug);
+    const facturaOriginal = data && (data.facturas || []).find(f => Number(f.id) === facturaId);
+    if (!facturaOriginal) return res.status(404).json({ error: 'No se encontró la factura original en la plataforma.' });
+    const cliente = (data.clientes || []).find(c => Number(c.id) === Number(facturaOriginal.clienteId));
+
+    const referencia = `${req.slug}-NC-${facturaId}-${Date.now()}`; // único en cada intento, para poder reintentar sin chocar
+    const resultado = await factus.emitirNotaCredito({
+      facturaOriginal, cliente,
+      numeroFactura: r.rows[0].numero_factus,
+      motivo, tipo: tipo || 'total', montoParcial,
+      medioPago: medioPago || 'electronico',
+      referencia
+    });
+    res.json({ ok: true, ...resultado });
+  } catch (err) {
+    console.error('[factus] Error emitiendo nota crédito:', err.message);
+    res.status(err.status && err.status < 600 ? err.status : 500).json({ error: err.message, detalle: err.detalle || null });
+  }
+});
+
 app.get('/api/factus/facturas/:id/pdf', requireAuth, async (req, res) => {
   try {
     const r = await pool.query('SELECT numero_factus, simulada FROM facturas_electronicas WHERE empresa_slug = $1 AND factura_id = $2 AND numero_factus IS NOT NULL', [req.slug, req.params.id]);
