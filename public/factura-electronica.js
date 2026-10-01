@@ -94,7 +94,32 @@ function feCuerpo(f, e){
         <span style="font-size:11px;">Validada: ${feEscapar(e.validada_en || '—')}</span>
       </div>
       <p style="font-size:12px;color:var(--text-muted);">Esta factura ya no se puede editar ni eliminar. Si hay un error, se corrige con una nota crédito.</p>
-      <button class="btn-custom btn-success-custom" onclick="feVerPdf(${f.id})"><i class="fas fa-file-pdf"></i> Ver PDF oficial</button>`;
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+        <button class="btn-custom btn-success-custom" onclick="feVerPdf(${f.id})"><i class="fas fa-file-pdf"></i> Ver PDF oficial</button>
+        <button class="btn-custom btn-danger-custom" onclick="feMostrarFormularioNotaCredito(${f.id})"><i class="fas fa-rotate-left"></i> Anular (Nota Crédito)</button>
+      </div>
+      <div id="feFormNotaCredito" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--card-border);">
+        <label style="font-size:12px;">Tipo de anulación:</label>
+        <select id="feNotaCreditoTipo" style="margin-bottom:8px;" onchange="document.getElementById('feWrapMontoParcial').style.display = this.value==='parcial' ? 'block' : 'none';">
+          <option value="total">Anulación total (se revierte toda la factura)</option>
+          <option value="parcial">Corrección parcial (se revierte solo una parte)</option>
+        </select>
+        <div id="feWrapMontoParcial" style="display:none;">
+          <label style="font-size:12px;">Monto a corregir:</label>
+          <input type="number" id="feNotaCreditoMonto" placeholder="Ej. 50000" style="margin-bottom:8px;">
+        </div>
+        <label style="font-size:12px;">¿Cómo se le devuelve/ajusta el pago al cliente?</label>
+        <select id="feNotaCreditoMedioPago" style="margin-bottom:8px;">
+          <option value="efectivo">Efectivo</option>
+          <option value="electronico">Pago electrónico (transferencia, etc.)</option>
+        </select>
+        <label style="font-size:12px;">Motivo (obligatorio, lo exige la DIAN):</label>
+        <textarea id="feNotaCreditoMotivo" rows="2" placeholder="Ej. Error en el valor facturado, el cliente desistió del servicio..."></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="btn-custom btn-danger-custom" onclick="feConfirmarNotaCredito(${f.id})">Confirmar anulación</button>
+          <button class="btn-custom btn-secondary-custom" onclick="document.getElementById('feFormNotaCredito').style.display='none';">Cancelar</button>
+        </div>
+      </div>`;
   }
   let aviso = '';
   if(e.emitida && e.simulada){
@@ -111,7 +136,45 @@ function feCuerpo(f, e){
       <option value="electronico">Pago electrónico (transferencia, etc.)</option>
     </select>
     <div id="feMensaje" style="font-size:12px;margin-bottom:8px;display:none;"></div>
-    <button class="btn-custom btn-success-custom" id="feBotonEmitir" onclick="feEmitir(${f.id})"><i class="fas fa-paper-plane"></i> ${feConfig && feConfig.simulacion ? 'Emitir (práctica)' : 'Emitir factura electrónica'}</button>`;
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn-custom btn-success-custom" id="feBotonEmitir" onclick="feEmitir(${f.id})"><i class="fas fa-paper-plane"></i> ${feConfig && feConfig.simulacion ? 'Emitir (práctica)' : 'Emitir factura electrónica'}</button>
+      ${e.emitida ? `<button class="btn-custom btn-danger-custom" onclick="feEliminarIntento(${f.id})"><i class="fas fa-trash"></i> Eliminar intento</button>` : ''}
+    </div>`;
+}
+
+async function feEliminarIntento(facturaId){
+  if(!confirm('¿Eliminar este intento de factura electrónica? Como todavía no fue validada por la DIAN, se puede borrar sin problema — podrás volver a emitirla desde cero.')) return;
+  try{
+    const resp = await fetch(`/api/factus/facturas/${facturaId}`, { method:'DELETE', headers: headersAutenticados() });
+    const data = await resp.json().catch(()=>({}));
+    if(!resp.ok) throw new Error(data.error || 'No se pudo eliminar.');
+    mostrarToast('✅ Intento eliminado — ya puedes emitirla de nuevo.', 'exito');
+    abrirFacturaElectronica(facturaId);
+  }catch(err){ mostrarToast('⚠️ ' + err.message, 'error'); }
+}
+
+function feMostrarFormularioNotaCredito(facturaId){
+  document.getElementById('feFormNotaCredito').style.display = 'block';
+}
+
+async function feConfirmarNotaCredito(facturaId){
+  const motivo = document.getElementById('feNotaCreditoMotivo').value.trim();
+  const tipo = document.getElementById('feNotaCreditoTipo').value;
+  const medioPago = document.getElementById('feNotaCreditoMedioPago').value;
+  const montoParcial = document.getElementById('feNotaCreditoMonto').value;
+  if(!motivo){ mostrarToast('Escribe el motivo de la anulación — la DIAN lo exige.'); return; }
+  if(tipo==='parcial' && !(Number(montoParcial) > 0)){ mostrarToast('Indica el monto a corregir.'); return; }
+  if(!confirm('¿Confirmar la anulación de esta factura mediante nota crédito? Esta acción también queda registrada ante la DIAN.')) return;
+  try{
+    const resp = await fetch(`/api/factus/facturas/${facturaId}/nota-credito`, {
+      method:'POST', headers: headersAutenticados({'Content-Type':'application/json'}),
+      body: JSON.stringify({ motivo, tipo, medioPago, montoParcial })
+    });
+    const data = await resp.json().catch(()=>({}));
+    if(!resp.ok) throw new Error(data.error || 'No se pudo generar la nota crédito.');
+    mostrarToast('✅ Nota crédito generada correctamente.', 'exito');
+    abrirFacturaElectronica(facturaId);
+  }catch(err){ mostrarToast('⚠️ ' + err.message, 'error'); }
 }
 
 async function feEmitir(facturaId){
