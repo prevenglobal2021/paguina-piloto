@@ -19,6 +19,16 @@ let marcadorClienteInstancia = null;
 let mapaClienteUbicacionElegida = null; // { lat, lng, direccion }
 let mapaClienteBuscando = false; // evita 2 búsquedas al mismo tiempo
 
+// Los 3 archivos del ícono del marcador están sueltos en public/ (no dentro
+// de una subcarpeta images/) — se le dice a Leaflet explícitamente que los
+// busque ahí, en vez de dejar que adivine la ruta por su cuenta.
+L.Icon.Default.prototype.options.imagePath = '';
+L.Icon.Default.mergeOptions({
+  iconUrl: 'marker-icon.png',
+  iconRetinaUrl: 'marker-icon-2x.png',
+  shadowUrl: 'marker-shadow.png'
+});
+
 // Centro del mapa por defecto (capital) y código de país para cada empresa,
 // según lo que configure en Configuración > General. Así, una empresa en
 // Chile o Venezuela ve su propio país, sin tocar código — cada una
