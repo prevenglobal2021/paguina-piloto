@@ -45,6 +45,8 @@ async function guardarAjustesGenerales(){
   db.config.nombre = document.getElementById('cfgEmpresaNombre').value;
   db.config.subtitulo = document.getElementById('cfgEmpresaSub').value;
   db.config.direccion = document.getElementById('cfgEmpresaDireccion').value;
+  db.config.googleMapsApiKey = document.getElementById('cfgGoogleMapsKey').value.trim();
+  db.config.paisBusquedaMapa = document.getElementById('cfgPaisBusquedaMapa').value;
   db.config.mision = document.getElementById('cfgEmpresaMision').value;
   db.config.vision = document.getElementById('cfgEmpresaVision').value;
   db.config.logo = logoTempBase64;

@@ -33,8 +33,10 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link rel="stylesheet" href="leaflet.css">
 <script src="html2pdf.bundle.min.js"></script>
 <script src="chart.umd.js"></script>
+<script src="leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 /* =========================================================
@@ -2462,6 +2464,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
             <div class="seccion-form-cliente-titulo"><i class="fas fa-location-dot"></i> Ubicación</div>
             <label>Dirección principal:</label><input type="text" id="cfgCliDireccion" placeholder="Ej. Calle 123 #45-67, Bogotá">
             <div class="field-row" style="margin-top:6px;">
+              <button type="button" class="btn-custom btn-primary-custom btn-sm-custom" onclick="abrirSelectorMapaCliente()"><i class="fas fa-map-location-dot"></i> Buscar en el mapa</button>
               <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" id="btnGpsCliente" onclick="obtenerUbicacionGPS('cfgCliDireccion','btnGpsCliente')"><i class="fas fa-location-crosshairs"></i> Completar dirección con GPS</button>
               <button class="btn-custom btn-secondary-custom btn-sm-custom" type="button" onclick="usarUbicacionActualCliente()"><i class="fas fa-crosshairs"></i> Guardar coordenadas exactas</button>
             </div>
@@ -2645,6 +2648,31 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
         <label>Dirección:</label>
         <input type="text" id="cfgEmpresaDireccion" placeholder="Ej. Calle 123 #45-67, Bogotá">
         <button type="button" class="btn-custom btn-secondary-custom btn-sm-custom" id="btnGpsEmpresa" style="margin-top:4px;" onclick="obtenerUbicacionGPS('cfgEmpresaDireccion','btnGpsEmpresa')"><i class="fas fa-location-crosshairs"></i> Usar mi ubicación actual</button>
+        <label>País (para el buscador de direcciones en el mapa):</label>
+        <select id="cfgPaisBusquedaMapa">
+          <option value="CO">Colombia</option>
+          <option value="VE">Venezuela</option>
+          <option value="CL">Chile</option>
+          <option value="MX">México</option>
+          <option value="PE">Perú</option>
+          <option value="EC">Ecuador</option>
+          <option value="AR">Argentina</option>
+          <option value="PA">Panamá</option>
+          <option value="CR">Costa Rica</option>
+          <option value="DO">República Dominicana</option>
+          <option value="GT">Guatemala</option>
+          <option value="BO">Bolivia</option>
+          <option value="PY">Paraguay</option>
+          <option value="UY">Uruguay</option>
+          <option value="HN">Honduras</option>
+          <option value="SV">El Salvador</option>
+          <option value="NI">Nicaragua</option>
+          <option value="ES">España</option>
+        </select>
+        <small style="color:var(--text-muted);">Define en qué país busca y centra el mapa al registrar un cliente (útil si esta plataforma se usa en más de un país). Cada empresa que use Prevenglobal configura el suyo, de forma independiente.</small>
+        <label style="margin-top:10px;">Clave de API de Google Maps (opcional, no necesaria por ahora):</label>
+        <input type="text" id="cfgGoogleMapsKey" placeholder="No requerida — el mapa de direcciones ya funciona gratis con OpenStreetMap">
+        <small style="color:var(--text-muted);">El selector de dirección con mapa usa OpenStreetMap, gratis. Este campo queda disponible por si en el futuro se prefiere usar Google Maps en su lugar.</small>
         <label>Misión:</label>
         <textarea id="cfgEmpresaMision" rows="2" placeholder="¿Cuál es el propósito de tu empresa?"></textarea>
         <label>Visión:</label>
@@ -2932,6 +2960,7 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 <script src="equipos-trazabilidad.js?v=101"></script>
 <script src="pdf.js?v=101"></script>
 <script src="config-clientes-equipos.js?v=101"></script>
+<script src="selector-mapa-cliente.js?v=101"></script>
 <script src="config-plantillas-tecnicos.js?v=101"></script>
 <script src="cotizador.js?v=101"></script>
 <script src="factura-electronica.js?v=101"></script>
@@ -2941,5 +2970,23 @@ body.modo-claro input,body.modo-claro select,body.modo-claro textarea{background
 <script src="tienda-admin.js?v=101"></script>
 <script src="tienda-publica.js?v=101"></script>
 <script src="kpi.js?v=101"></script>
+<div class="modal-overlay" id="modalSelectorMapaCliente">
+  <div class="modal-box" style="max-width:640px;">
+    <button class="close-modal" onclick="cerrarModal('modalSelectorMapaCliente')">✖</button>
+    <h3 style="margin-top:0;">📍 Buscar dirección en el mapa</h3>
+    <p style="font-size:13px;color:var(--text-muted);margin-top:-6px;">Escribe la dirección y presiona "Buscar", o haz clic directamente sobre el mapa para marcar el punto exacto.</p>
+    <div class="field-row">
+      <input type="text" id="mapaClienteBuscador" placeholder="Ej. Calle 123 #45-67, Bogotá" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarDireccionMapaCliente();}">
+      <button type="button" class="btn-custom btn-secondary-custom" onclick="buscarDireccionMapaCliente()"><i class="fas fa-magnifying-glass"></i> Buscar</button>
+    </div>
+    <div id="mapaClienteResultados" style="margin-top:6px;"></div>
+    <div id="mapaClienteContenedor" style="width:100%;height:320px;border-radius:8px;margin-top:10px;background:var(--bg-dark);"></div>
+    <p id="mapaClienteDireccionTexto" style="font-size:13px;margin-top:8px;min-height:18px;"></p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
+      <button class="btn-custom btn-secondary-custom" type="button" onclick="cerrarModal('modalSelectorMapaCliente')">Cancelar</button>
+      <button class="btn-custom btn-primary-custom" type="button" id="btnConfirmarMapaCliente" onclick="confirmarSelectorMapaCliente()" disabled>Usar esta ubicación</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

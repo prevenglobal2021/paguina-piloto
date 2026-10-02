@@ -17,6 +17,8 @@ function cambiarTabConfig(tab, evt){
     document.getElementById('cfgEmpresaNombre').value = db.config.nombre;
     document.getElementById('cfgEmpresaSub').value = db.config.subtitulo;
     document.getElementById('cfgEmpresaDireccion').value = db.config.direccion||'';
+    document.getElementById('cfgGoogleMapsKey').value = db.config.googleMapsApiKey||'';
+    document.getElementById('cfgPaisBusquedaMapa').value = db.config.paisBusquedaMapa||'CO';
     document.getElementById('cfgEmpresaMision').value = db.config.mision||'';
     document.getElementById('cfgEmpresaVision').value = db.config.vision||'';
     document.getElementById('cfgAdminUsuario').value = db.config.adminUsuario||'';
